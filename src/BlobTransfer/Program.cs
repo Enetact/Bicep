@@ -16,9 +16,7 @@ var host = new HostBuilder().ConfigureFunctionsWorkerDefaults()
             var value = int.Parse(config[key] ?? fallback.ToString());
             return value >= minimum && value <= maximum ? value : throw new InvalidOperationException($"Invalid setting: {key}");
         }
-        TokenCredential credential = string.IsNullOrEmpty(config["WEBSITE_INSTANCE_ID"])
-            ? new AzureCliCredential()
-            : new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(Required("AZURE_CLIENT_ID")));
+        var local = LocalDevelopment.IsEnabled(config);
         Uri Endpoint(string key)
         {
             var uri = new Uri(Required(key));
@@ -26,21 +24,37 @@ var host = new HostBuilder().ConfigureFunctionsWorkerDefaults()
                 throw new InvalidOperationException($"Invalid HTTPS endpoint: {key}");
             return uri;
         }
-        var solutionEndpoint = Endpoint("UploadStorage:blobServiceUri");
-        var ledgerEndpoint = Endpoint("Ledger:blobServiceUri");
         var sourceContainer = Required("UploadContainer");
         var ledgerContainer = Required("Ledger:container");
-        if (solutionEndpoint != ledgerEndpoint)
-            throw new InvalidOperationException("Ledger and upload storage must use the same solution account endpoint.");
         if (string.Equals(sourceContainer, ledgerContainer, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Upload and ledger containers must be different to prevent dispatch loops.");
-        var solution = new BlobServiceClient(solutionEndpoint, credential);
+        BlobServiceClient solution;
+        BlobServiceClient destinationService;
+        QueueServiceClient queueService;
+        var queueOptions = new QueueClientOptions { MessageEncoding = QueueMessageEncoding.None };
+        if (local)
+        {
+            solution = new BlobServiceClient(LocalDevelopment.ConnectionString);
+            destinationService = new BlobServiceClient(LocalDevelopment.ConnectionString);
+            queueService = new QueueServiceClient(LocalDevelopment.ConnectionString, queueOptions);
+            if (Required("Destination:container") == sourceContainer || Required("Destination:container") == ledgerContainer)
+                throw new InvalidOperationException("Local source, ledger, and destination containers must differ.");
+        }
+        else
+        {
+            TokenCredential credential = string.IsNullOrEmpty(config["WEBSITE_INSTANCE_ID"])
+                ? new AzureCliCredential()
+                : new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(Required("AZURE_CLIENT_ID")));
+            var solutionEndpoint = Endpoint("UploadStorage:blobServiceUri");
+            if (solutionEndpoint != Endpoint("Ledger:blobServiceUri"))
+                throw new InvalidOperationException("Ledger and upload storage must use the same solution account endpoint.");
+            solution = new BlobServiceClient(solutionEndpoint, credential);
+            destinationService = new BlobServiceClient(Endpoint("Destination:blobServiceUri"), credential);
+            queueService = new QueueServiceClient(Endpoint("TransferQueueStorage:queueServiceUri"), credential, queueOptions);
+        }
         var source = solution.GetBlobContainerClient(sourceContainer);
-        var destination = new BlobServiceClient(Endpoint("Destination:blobServiceUri"), credential)
-            .GetBlobContainerClient(Required("Destination:container"));
+        var destination = destinationService.GetBlobContainerClient(Required("Destination:container"));
         var ledger = solution.GetBlobContainerClient(ledgerContainer);
-        var queueService = new QueueServiceClient(Endpoint("TransferQueueStorage:queueServiceUri"), credential,
-            new QueueClientOptions { MessageEncoding = QueueMessageEncoding.None });
         var queueName = Required("TransferQueue");
         services.AddSingleton(new StorageClients(source, destination));
         services.AddSingleton(new BlobLedger(ledger));

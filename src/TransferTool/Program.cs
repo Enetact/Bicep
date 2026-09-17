@@ -4,7 +4,12 @@ using Azure.Storage.Queues;
 using BlobTransfer;
 using System.Text.Json;
 
-if (args.Length == 0) throw new ArgumentException("Commands: status, resume. See docs/operations.md.");
+if (args.Length == 0) throw new ArgumentException("Commands: status, resume, local-seed, local-smoke. See docs/operations.md.");
+if (args[0] is "local-seed" or "local-smoke")
+{
+    await LocalCommands.RunAsync(args);
+    return;
+}
 var command = args[0];
 var values = new Dictionary<string, string>(StringComparer.Ordinal);
 for (var i = 1; i < args.Length; i += 2)

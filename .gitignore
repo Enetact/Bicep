@@ -6,3 +6,15 @@ local.settings.json
 .azure/
 .env
 *.zip
+# Local runtime, portable tools, emulator state, and developer settings.
+.local/
+.tools/
+**/node_modules/
+**/local.settings.*.json
+!**/local.settings.example.json
+!**/local.settings.azurite.example.json
+.env.*
+!.env.example
+**/TestResults/
+*.log
+.vs/
