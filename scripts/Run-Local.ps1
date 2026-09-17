@@ -54,7 +54,7 @@ try {
     $environment.AZURE_FUNCTIONS_ENVIRONMENT = 'Development'
     $environment.FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT = '1'
     $environment.ASPNETCORE_URLS = 'http://127.0.0.1:7071'
-    $hostProcess = Start-Process -FilePath $tools.func -ArgumentList @('start','--port','7071','--no-build') -WorkingDirectory $app -Environment $environment -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logs 'functions.log') -RedirectStandardError (Join-Path $logs 'functions-error.log')
+    $hostProcess = Start-Process -FilePath $tools.func -ArgumentList @('start','--address','127.0.0.1','--port','7071','--no-build') -WorkingDirectory $app -Environment $environment -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logs 'functions.log') -RedirectStandardError (Join-Path $logs 'functions-error.log')
     $receipt.processes += New-ProcessRecord $hostProcess
     $receipt | ConvertTo-Json -Depth 5 | Set-Content $statePath
     $deadline = [DateTimeOffset]::UtcNow.AddSeconds(120)
@@ -62,7 +62,8 @@ try {
         if ($hostProcess.HasExited) { throw "Functions host exited. See $logs" }
         try {
             $status = Invoke-RestMethod 'http://127.0.0.1:7071/admin/host/status' -TimeoutSec 2
-            if ($status.state -eq 'Running') { break }
+            $listener = @(Get-NetTCPConnection -LocalPort 7071 -State Listen -ErrorAction SilentlyContinue)
+            if ($status.state -eq 'Running' -and $listener.Count -eq 1 -and $listener[0].OwningProcess -eq $hostProcess.Id -and $listener[0].LocalAddress -eq '127.0.0.1') { break }
         } catch { }
         if ([DateTimeOffset]::UtcNow -gt $deadline) { throw "Functions host startup timed out. See $logs" }
         Start-Sleep -Seconds 1

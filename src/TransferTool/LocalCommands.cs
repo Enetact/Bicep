@@ -35,9 +35,9 @@ internal static class LocalCommands
         var options = new PipelineOptions(new() { [""] = "default" }, IncludeSourceVersions: false);
         var expectedDestination = $"v1/default/{hash}/payload";
         var requestIds = new List<string>();
-        // Wait between revisions: Azurite does not qualify Azure retained-version semantics.
+        // Keep source names unique: Azurite does not qualify Azure retained-version semantics.
         // No queue sends and no direct Function/engine calls: the running host must do the work.
-        foreach (var name in new[] { $"smoke/{run}/report.txt", $"smoke/{run}/copy.txt", $"smoke/{run}/report.txt" })
+        foreach (var name in new[] { $"smoke/{run}/report.txt", $"smoke/{run}/copy.txt", $"smoke/{run}/third-copy.txt" })
         {
             var blob = source.GetBlobClient(name);
             await blob.UploadAsync(BinaryData.FromString(content), overwrite: true, cancellationToken: ct);

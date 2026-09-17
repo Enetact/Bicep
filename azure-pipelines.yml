@@ -25,6 +25,21 @@ steps:
       versionSpec: 22.x
   - pwsh: ./scripts/Test-Recovery.ps1
     displayName: Exercise duplicates and recovery using local Azurite
+  - pwsh: |
+      ./scripts/Test-LocalTooling.ps1
+      try {
+        ./scripts/Run-Local.ps1
+        ./scripts/Test-Local.ps1
+      } finally {
+        ./scripts/Stop-Local.ps1
+      }
+    displayName: Verify actual local Function triggers and timers
+  - task: PublishPipelineArtifact@1
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: .local/logs
+      artifact: local-host-evidence
+    displayName: Publish local host logs and smoke evidence
   - pwsh: ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
     displayName: Build immutable Function package
   - task: PublishPipelineArtifact@1

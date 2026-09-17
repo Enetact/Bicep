@@ -7,6 +7,7 @@ Documentation and package metadata were checked while preparing this bundle on 2
 | Bicep compiler | 0.47.16 | Official Azure/bicep release; all four parameter files compiled |
 | Local .NET SDK | 10.0.300 | Installed SDK; global.json rolls forward within stable .NET 10 |
 | Function runtime | `~4` | Platform servicing stays current within v4 |
+| Local Functions Core Tools | 4.14.0 | Real local host verified on Windows ARM64; portable minimal distribution. Installed 4.12 failed with an Options 10 assembly mismatch. |
 | Worker runtime | `DOTNET-ISOLATED\|10.0` | Dedicated Linux; verify target region's supported runtimes |
 | Functions Worker | 2.52.0 | Current stable NuGet result at preparation |
 | Functions Worker SDK | 2.1.0 | Generates metadata and binding extension bundle |
@@ -28,6 +29,7 @@ Stable resource API versions are pinned in each module. Diagnostic settings use 
 ## Primary documentation
 
 - [Dedicated Azure Functions hosting](https://learn.microsoft.com/en-us/azure/azure-functions/dedicated-plan): Always On and dedicated capacity.
+- [Functions local development](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local), [Core Tools 4.14 release](https://github.com/Azure/azure-functions-core-tools/releases/tag/4.14.0), and [Azurite](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite): tools for the separate local emulator workflow.
 - [Blob trigger](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-blob-trigger): polling versus event-based implementations, HNS restrictions, retry behavior, identity connections.
 - [Blob binding extension](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-blob): isolated worker packages and host.json concurrency options.
 - [Queue trigger](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-queue-trigger): explicit queue invocation, retries and poison handling.

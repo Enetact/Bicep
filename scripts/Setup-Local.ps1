@@ -6,6 +6,13 @@ $root = Split-Path -Parent $PSScriptRoot
 if ($PSVersionTable.PSVersion -lt [version]'7.4') {
     $pwsh = Join-Path $root '.tools/pwsh/pwsh.exe'
     if (!(Test-Path -LiteralPath $pwsh)) {
+        $installed = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($installed) {
+            $version = & $installed.Source -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+            if ($LASTEXITCODE -eq 0 -and [version]$version -ge [version]'7.4') { $pwsh = $installed.Source }
+        }
+    }
+    if (!(Test-Path -LiteralPath $pwsh)) {
         if ($CheckOnly) { throw 'PowerShell 7.4+ is missing. Run Setup-Local.ps1 without -CheckOnly to install portable tools.' }
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64') { 'arm64' } else { 'x64' }
@@ -19,7 +26,8 @@ if ($PSVersionTable.PSVersion -lt [version]'7.4') {
         Expand-Archive -LiteralPath $archive -DestinationPath $destination -Force
     }
     & $pwsh -NoProfile -File $PSCommandPath @PSBoundParameters
-    exit $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) { throw 'PowerShell prerequisite setup failed.' }
+    return
 }
 Set-StrictMode -Version Latest
 if (!$IsWindows) { throw 'The local lifecycle scripts currently support Windows 11 only.' }
@@ -63,9 +71,9 @@ if (!$sdkReady) {
 $nodeVersion = '24.16.0'
 $node = Find-Binary 'node.exe' (Join-Path $toolsRoot "node/node-v$nodeVersion-win-$arch/node.exe")
 $nodeReady = $false
-if ($node) { $nodeReady = (& $node --version) -match '^v(22|24)\.' }
+if ($node) { $nodeReady = (& $node --version) -match '^v(22|24)\.' -and (Test-Path -LiteralPath (Join-Path (Split-Path $node -Parent) 'npm.cmd')) }
 if (!$nodeReady) {
-    if ($CheckOnly) { throw 'Node.js 22 or 24 is missing.' }
+    if ($CheckOnly) { throw 'A complete Node.js 22 or 24 installation with npm is missing.' }
     $filename = "node-v$nodeVersion-win-$arch.zip"
     $sums = (Invoke-WebRequest "https://nodejs.org/dist/v$nodeVersion/SHASUMS256.txt").Content
     $line = @($sums -split "`n" | Where-Object { $_.Trim().EndsWith($filename) })
@@ -77,13 +85,15 @@ $npm = Join-Path (Split-Path $node -Parent) 'npm.cmd'
 if (!(Test-Path -LiteralPath $npm)) { throw 'The selected Node installation is missing npm.cmd; install a complete Node.js distribution.' }
 $func = Find-Binary 'func.exe' (Join-Path $toolsRoot 'functions/func.exe')
 $funcReady = $false
-if ($func) { $version = & $func --version; $funcReady = $LASTEXITCODE -eq 0 -and $version -match '^4\.' -and [version]$version -ge [version]'4.12.0' }
+if ($func) { $version = & $func --version; $funcReady = $LASTEXITCODE -eq 0 -and $version -match '^4\.' -and [version]$version -ge [version]'4.14.0' }
 if (!$funcReady) {
-    if ($CheckOnly) { throw 'Azure Functions Core Tools 4.12+ (v4) is missing.' }
-    $release = Invoke-RestMethod 'https://api.github.com/repos/Azure/azure-functions-core-tools/releases/tags/4.12.0'
-    $asset = @($release.assets | Where-Object name -eq "Azure.Functions.Cli.win-$arch.4.12.0.zip")
+    if ($CheckOnly) { throw 'Azure Functions Core Tools 4.14+ (v4) is missing.' }
+    $release = Invoke-RestMethod 'https://api.github.com/repos/Azure/azure-functions-core-tools/releases/tags/4.14.0'
+    # The minimal distribution is sufficient for this compiled isolated .NET app.
+    $asset = @($release.assets | Where-Object name -eq "Azure.Functions.Cli.min.win-$arch.4.14.0.zip")
     if ($asset.Count -ne 1) { throw 'Cannot resolve the official Functions Core Tools archive.' }
-    $digest = if ($asset[0].PSObject.Properties['digest'] -and $asset[0].digest -like 'sha256:*') { $asset[0].digest.Substring(7) } else { '' }
+    if (!$asset[0].PSObject.Properties['digest'] -or $asset[0].digest -notlike 'sha256:*') { throw 'Official Functions release is missing its SHA-256 digest.' }
+    $digest = $asset[0].digest.Substring(7)
     Install-PortableZip $asset[0].browser_download_url (Join-Path $toolsRoot 'functions') $digest
     $func = Join-Path $toolsRoot 'functions/func.exe'
 }

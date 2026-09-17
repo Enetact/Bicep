@@ -16,7 +16,8 @@
     "Recovery__includeSourceVersions": "false",
     "RecoverySchedule": "*/15 * * * * *",
     "PoisonMonitorSchedule": "*/15 * * * * *",
-    "AzureFunctionsJobHost__logging__logLevel__default": "Information"
+    "AzureFunctionsJobHost__logging__logLevel__default": "Information",
+    "AzureFunctionsJobHost__logging__logLevel__Azure": "Warning"
   },
   "Host": { "LocalHttpPort": 7071 }
 }

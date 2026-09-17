@@ -31,6 +31,18 @@ The Function App contains both the lightweight BlobTrigger dispatcher and the Qu
 
 Read [architecture](docs/architecture.md), [operations](docs/operations.md), [security/RBAC](docs/security-and-rbac.md), and [validation evidence](docs/validation.md). The [Mermaid guide](docs/diagram-guide.md) and [offline visual edition](docs/diagram-guide.html) explain both the runtime and Bicep organization.
 
+## Run locally without Azure
+
+From this checkout in PowerShell:
+
+```powershell
+./scripts/Run-Local.ps1
+./scripts/Test-Local.ps1
+./scripts/Stop-Local.ps1
+```
+
+The launcher checks prerequisites and installs missing tools into ignored project folders, starts Azurite and the real Functions host on loopback, and retains data on stop. No Azure account, Docker, Azure CLI, or Bicep is needed for this local workflow. See [local development](docs/local-development.md) for PowerShell bootstrap, tool versions, logs, explicit reset, and Azure-only validation limits. Stop local mode before `Test-Recovery.ps1`, which uses the same emulator ports.
+
 ## Files and local validation
 
 ```text

@@ -4,19 +4,24 @@
   "mcp": false,
   "uploaderChangesRequired": false,
   "tests": {
-    "passed": 24,
+    "passed": 33,
     "failed": 0,
     "skipped": 0,
     "policyCases": 8,
     "azuriteIntegrationCases": 15,
     "functionContractCases": 1,
-    "toolingContractCases": 19
+    "toolingContractCases": 19,
+    "toolingContractScope": "Historical baseline tooling run; unchanged contracts.",
+    "localConfigurationCases": 9,
+    "localLifecycleToolingCases": 6
   },
   "tools": {
     "dotnet": "10.0.300",
     "bicep": "0.47.16",
     "azurite": "3.37.0",
-    "mermaid": "11.17.2"
+    "mermaid": "11.17.2",
+    "functionsCoreTools": "4.14.0",
+    "node": "24.16.0"
   },
   "compiledEnvironments": [
     "dev",
@@ -28,7 +33,13 @@
     "Test-Project.ps1",
     "Test-Recovery.ps1",
     "Test-Tooling.ps1",
-    "Build-Package.ps1"
+    "Build-Package.ps1",
+    "Setup-Local.ps1",
+    "Run-Local.ps1",
+    "Test-Local.ps1",
+    "Stop-Local.ps1",
+    "Reset-Local.ps1",
+    "Test-LocalTooling.ps1"
   ],
   "scriptsNotExecutedAgainstAzure": [
     "Deploy.ps1",
@@ -42,7 +53,7 @@
       "queue": 1,
       "timer": 3
     },
-    "validationScope": "Current queue-only source after GitHub repository baseline fixes; built locally with uncommitted changes.",
+    "validationScope": "Historical baseline package before local-mode changes; not a newly qualified package of current source.",
     "releaseId": "selfservice-fixes-20260917-01"
   },
   "diagrams": {
@@ -54,7 +65,11 @@
   "azureDeployed": false,
   "azureIdentityNetworkVerified": false,
   "azureSourceVersionsVerified": false,
-  "functionHostRuntimeTested": false,
+  "functionHostRuntimeTested": true,
+  "functionHostRuntimeScope": "Windows ARM64 local host against Azurite; actual BlobTrigger, QueueTrigger and three timers. No Azure host test.",
+  "localHostEvidence": ".local/logs/134580633e584f8ab616bef43851df21/smoke-639e99603e814147a9054fbd1d638fb3.json",
+  "localRecoveryEvidence": "artifacts/recovery-tests/aa1e3cd1d4d8440db27f5982bee9d636/recovery.trx",
+  "localInstallationBranchesNotTested": ["missing-dotnet", "missing-node", "missing-powershell-download", "windows-x64"],
   "storage": {
     "newAccountCount": 2,
     "ledgerAccount": "solution",
@@ -65,5 +80,5 @@
   "previousPackagingScript": "Build-Package.ps1",
   "validationDate": "2026-09-17",
   "azureDevOpsPipelineExecuted": false,
-  "dependencyAdvisoryCheck": "Passed for Function dependencies including transitives; no reported vulnerable packages."
+  "dependencyAdvisoryCheck": "Historical baseline query passed for Function dependencies including transitives. Application package versions unchanged; this does not certify npm tools."
 }

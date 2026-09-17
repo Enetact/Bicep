@@ -6,6 +6,8 @@ Assessed 17 September 2026. This is an implementation design and local assessmen
 
 ## Recommendation
 
+**Local runtime follow-up:** [Local development](local-development.md) now provides automatic prerequisite setup, a real Functions host with Azurite, lifecycle scripts, and an upload-to-destination smoke test without Azure. This local workflow is verified; the Azure self-service release design below remains future work.
+
 Offer this as a versioned **private blob-transfer service blueprint** maintained by a platform team. Developers register a small workload configuration and deploy approved releases through a protected Azure DevOps template. Keep the existing .NET Functions, Bicep modules, queue, ledger, and recovery design.
 
 The current project is a useful starting point, but it is not yet self-service or release-ready. Two failures were reproduced locally: duplicate Function names prevent compilation, and the Bicep wrapper fails when using its Azure CLI fallback. Resolve these before extending deployment automation.

@@ -24,6 +24,7 @@ public class LocalDevelopmentTests
     [InlineData("UploadStorage", "DefaultEndpointsProtocol=https;AccountName=production")]
     [InlineData("AzureWebJobsStorage:blobServiceUri", "https://production.blob.core.windows.net")]
     [InlineData("Recovery:includeSourceVersions", "true")]
+    [InlineData("LocalDevelopment:Enabled", "invalid")]
     public void CloudOrConflictingConfigurationFailsClosed(string key, string value)
     {
         var settings = Settings(); settings[key] = value;
