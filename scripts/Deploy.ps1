@@ -6,13 +6,15 @@ param(
     [ValidateSet('Bootstrap','Release')][string]$Phase = 'Bootstrap',
     [ValidateSet('WhatIf','Deploy')][string]$Mode = 'WhatIf',
     [string]$ReleaseId = '',
-    [string]$PackagePath = ''
+    [string]$PackagePath = '',
+    [string]$ParameterPath = ''
 )
 . "$PSScriptRoot/common.ps1"
-$output = Export-Templates -EnvironmentName $EnvironmentName
+$output = Export-Templates -EnvironmentName $EnvironmentName -ParameterPath $ParameterPath -OutputPath (Join-Path (Get-ProjectRoot) ("artifacts/deployments/" + [guid]::NewGuid().ToString('N')))
 $parameterFile = Join-Path $output 'parameters.json'
 $document = Get-Content $parameterFile -Raw | ConvertFrom-Json -AsHashtable
 $parameters = $document.parameters
+if ($parameters.environmentName.value -cne $EnvironmentName) { throw 'Parameter environment does not match the selected environment.' }
 $uploadContainer = if ($parameters.ContainsKey('uploadContainerName')) { $parameters.uploadContainerName.value } else { 'incoming' }
 $ledgerContainer = if ($parameters.ContainsKey('ledgerContainerName')) { $parameters.ledgerContainerName.value } else { 'transfer-ledger' }
 if ($uploadContainer -eq $ledgerContainer) { throw 'Upload and ledger containers must be different to prevent dispatch loops.' }
@@ -27,6 +29,12 @@ if ($parameters.ContainsKey('zoneRedundant') -and $parameters.zoneRedundant.valu
     ($parameters.planSku.value -ne 'P1v3' -or $parameters.instanceCount.value -lt 2)) { throw 'Zone redundancy requires a supported Premium plan and at least two instances.' }
 
 $null = Invoke-Az -Arguments @('group','show','--name',$ResourceGroup,'--subscription',$SubscriptionId,'--output','json')
+if ($Phase -eq 'Bootstrap') {
+    # Incremental mode would retain a running app but disable its runtime alerts.
+    # Bootstrap is only for first provisioning; use Release for existing instances.
+    $apps = @(Invoke-Az -Arguments @('resource','list','--resource-group',$ResourceGroup,'--subscription',$SubscriptionId,'--resource-type','Microsoft.Web/sites','--output','json') | ConvertFrom-Json)
+    Assert-FirstBootstrap -Apps $apps -Workload $parameters.workload.value -EnvironmentName $EnvironmentName
+}
 $targetSubscription = $parameters.destinationSubscriptionId.value
 $targetRg = $parameters.destinationResourceGroupName.value
 $targetAccount = $parameters.destinationStorageAccountName.value
@@ -44,7 +52,7 @@ $parameters.deployFunctionApp = @{ value = ($Phase -eq 'Release') }
 if ($Phase -eq 'Release') { $parameters.packageBlobName = @{ value = "releases/$ReleaseId.zip" } }
 $effective = Join-Path $output 'effective.parameters.json'
 $document | ConvertTo-Json -Depth 100 | Set-Content $effective -Encoding utf8
-$deploymentName = "blobcopy-$EnvironmentName"
+$deploymentName = "$($parameters.workload.value)-$EnvironmentName"
 $common = @('--subscription',$SubscriptionId,'--resource-group',$ResourceGroup,'--name',$deploymentName,'--template-file',(Join-Path $output 'main.json'),'--parameters',"@$effective")
 if ($Mode -eq 'WhatIf') {
     Invoke-Az -Arguments (@('deployment','group','what-if') + $common)

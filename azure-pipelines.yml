@@ -2,6 +2,10 @@ trigger:
   branches:
     include: [main]
 
+pr:
+  branches:
+    include: [main]
+
 pool:
   vmImage: windows-latest
 
@@ -9,10 +13,11 @@ steps:
   - task: UseDotNet@2
     inputs:
       packageType: sdk
-      version: 10.0.x
+      useGlobalJson: true
   - pwsh: |
       az bicep install --version v0.47.16
       if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+      ./scripts/Update-Manifest.ps1 -Check
       ./scripts/Test-Project.ps1
     displayName: Compile all environments and test transfer contracts
   - task: NodeTool@0
@@ -24,8 +29,22 @@ steps:
     displayName: Build immutable Function package
   - task: PublishPipelineArtifact@1
     inputs:
-      targetPath: artifacts
+      targetPath: artifacts/releases/$(Build.BuildId)
       artifact: blob-transfer
     displayName: Publish compiled templates and package
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: 'artifacts/**/*.trx'
+      failTaskOnFailedTests: true
+      failTaskOnMissingResultsFile: true
+    displayName: Publish unit and recovery test results
+  - task: PublishPipelineArtifact@1
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: artifacts/test-results
+      artifact: validation-evidence
+    displayName: Publish validation evidence
 # No automatic deployment. Add protected environment approvals and a private-network
 # self-hosted deployment agent with workload identity federation for release stages.

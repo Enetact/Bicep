@@ -68,7 +68,7 @@ Queue retries use one-minute visibility and five dequeue attempts. Two worker in
 The dispatcher now enqueues and the explicit QueueTrigger copies; source uploads remain ordinary blobs. Destination naming changes to content-addressed keys, with filename-to-destination mapping in the ledger.
 
 1. Review active transfers and schedule a controlled release window.
-2. Bootstrap the ledger container in solution storage, work/poison queues, settings and roles; review WhatIf.
+2. For an existing Function instance, use the Release phase to update the ledger container, queues, settings and roles together; review WhatIf. Bootstrap is reserved for first provisioning and now rejects an existing matching Function so it cannot disable runtime alerts.
 3. Deploy a new immutable package, synchronize triggers, and confirm one BlobTrigger, one QueueTrigger and three TimerTriggers in metadata.
 4. Review scope mapping and source/version retention before enabling scans over historical data. **The scan will enroll existing source blobs/retained versions in mapped prefixes**, not only newly uploaded files.
 5. Earlier destination filenames/receipts are not imported into the new content ledger, so historical reenrollment can create new content-addressed copies. Decide migration/exclusion/retention deliberately.

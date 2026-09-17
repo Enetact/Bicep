@@ -47,14 +47,21 @@ azure-pipelines.yml        test/package CI; no automatic deployment
 
 Extract `blob-transfer-project.tar` with `tar -xf blob-transfer-project.tar`, then enter `blob-transfer`. Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward.
 
+For this GitHub repository, clone `https://github.com/Enetact/Bicep.git` and enter its checkout instead. The Azure DevOps pipeline can connect to this GitHub repository; GitHub hosting does not require changing the deployment system to GitHub Actions. `.gitattributes` keeps source line endings consistent for manifest verification.
+
 ```powershell
 az bicep install --version v0.47.16
+./scripts/Update-Manifest.ps1 -Check
 ./scripts/Test-Project.ps1
 ./scripts/Test-Recovery.ps1
 ./scripts/Build-Package.ps1 -ReleaseId 'queue-recovery-001'
 ```
 
 Ordinary unit-test runs skip emulator integration tests explicitly. `Test-Recovery.ps1` starts its own loopback-only Azurite, runs the integration tests, and stops only that process. It refuses already-occupied emulator ports and retains test data/evidence under `artifacts`. Azure is not required for local tests.
+
+The project check also exercises tooling contracts and writes unit-test/advisory evidence to `artifacts/test-results`. Unavailable advisory data (`NU1900`) fails validation. Packaging checks the exact five Function names/triggers and writes the ZIP, SHA-256, generated metadata, compiled environment templates, and `release.json` to `artifacts/releases/<release-id>`. The receipt records the Git commit and whether local edits were present; it is provenance, not a signature or proof of approval. CI publishes this curated release folder and test results, rather than emulator tooling/data.
+
+After intentional source changes, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1` and review the diff. Do not regenerate it automatically in CI. The [self-service assessment](docs/self-service-azure-devops-assessment.md) describes the remaining platform integration work.
 
 ## Configure environments
 
@@ -97,6 +104,10 @@ $o = (az deployment group show --subscription $subscription --resource-group $rg
 ```
 
 The live smoke script performs ordinary blob uploads without queue sends or custom metadata, including two names with identical bytes and a repeated overwrite. It checks all three revision records and one shared destination. The tester needs source write, ledger read and destination read permissions. Synthetic data remains for audit.
+
+Bootstrap is for first provisioning. The script rejects Bootstrap when that workload/environment already has a Function App, preserving runtime alerts; use Release for subsequent updates. `-ParameterPath` accepts a workload-specific `.bicepparam` and checks that its environment matches `-EnvironmentName`. Deployment history is named `<workload>-<environment>`; compilation/effective parameters use a unique local folder for each invocation. The scripts still require one deployment at a time for a target; protected environment locks belong in the future release pipeline.
+
+For a custom scope map, give the smoke test the same mapping used by the Function and an authorized prefix, for example `-SourcePrefix 'claims/smoke/' -ScopePrefixesJson '{"claims/":"claims"}'`. Pass custom upload/ledger container names too. The test derives the scope before writing any blob; an optional `-ScopeId` is checked against that mapping.
 
 ## Boundaries
 

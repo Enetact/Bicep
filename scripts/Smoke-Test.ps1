@@ -4,7 +4,9 @@ param(
     [Parameter(Mandatory)][string]$UploadAccount,
     [string]$UploadContainer = 'incoming',
     [string]$LedgerContainer = 'transfer-ledger',
-    [string]$ScopeId = 'default',
+    [string]$ScopeId = '',
+    [ValidatePattern('^[^\x00-\x1f\x7f]{1,800}$')][string]$SourcePrefix = 'smoke/',
+    [string]$ScopePrefixesJson = '{"":"default"}',
     [Parameter(Mandatory)][string]$DestinationSubscriptionId,
     [Parameter(Mandatory)][string]$DestinationAccount,
     [Parameter(Mandatory)][string]$DestinationContainer,
@@ -13,6 +15,15 @@ param(
 . "$PSScriptRoot/common.ps1"
 $root = Get-ProjectRoot
 $id = [guid]::NewGuid().ToString('N')
+$scopePrefixes = ConvertFrom-Json -InputObject $ScopePrefixesJson -AsHashtable
+$baseName = $SourcePrefix.TrimEnd('/') + "/$id"
+$sourceNames = @("$baseName/report.txt", "$baseName/report-copy.txt", "$baseName/report.txt")
+$resolvedScope = Resolve-SourceScope -SourceName $sourceNames[0] -ScopePrefixes $scopePrefixes
+foreach ($sourceName in $sourceNames) {
+    if ((Resolve-SourceScope -SourceName $sourceName -ScopePrefixes $scopePrefixes) -cne $resolvedScope) { throw 'Synthetic names must resolve to one scope.' }
+}
+if ($ScopeId -and $ScopeId -cne $resolvedScope) { throw 'ScopeId does not match the configured source prefix mapping.' }
+$ScopeId = $resolvedScope
 $folder = Join-Path $root "artifacts/smoke/$id"
 New-Item -ItemType Directory -Path $folder -Force | Out-Null
 $source = Join-Path $folder 'source.txt'
@@ -23,7 +34,7 @@ $name = "v1/$ScopeId/$hash/payload"
 $requests = @()
 # These are ordinary external-style uploads: no custom metadata and no queue send.
 # The third write overwrites the first name with identical bytes; source version scanning must recover all revisions.
-foreach ($sourceName in @("smoke/$id/report.txt","smoke/$id/report-copy.txt","smoke/$id/report.txt")) {
+foreach ($sourceName in $sourceNames) {
     $null = Invoke-Az -Arguments @('storage','blob','upload','--account-name',$UploadAccount,'--container-name',$UploadContainer,'--name',$sourceName,'--file',$source,'--auth-mode','login','--overwrite','true','--subscription',$SubscriptionId,'--output','json')
     $props = Invoke-Az -Arguments @('storage','blob','show','--account-name',$UploadAccount,'--container-name',$UploadContainer,'--name',$sourceName,'--auth-mode','login','--subscription',$SubscriptionId,'--output','json') | ConvertFrom-Json
     $identity = "https://$UploadAccount.blob.core.windows.net/$UploadContainer" + "`n" + $sourceName + "`n" + $props.properties.etag.Trim('"')

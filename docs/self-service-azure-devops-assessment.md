@@ -2,6 +2,8 @@
 
 Assessed 17 September 2026. This is an implementation design and local assessment, not a deployed pipeline. Existing application, Bicep, and pipeline files were not changed.
 
+**Follow-up:** The repository was subsequently moved into `Bicep` and initialized with GitHub remote `Enetact/Bicep`. The baseline findings below are retained as the original assessment. Follow-up changes remove the legacy Function, fix the CLI adapter, add metadata/tooling tests, support custom parameter files and smoke prefixes, guard existing apps against Bootstrap, publish curated release evidence, and check the source manifest. See `validation.md` for current verification. The proposed network modes, split foundation/access/application entry points, frozen deployment approvals, and full self-service release pipeline remain future work.
+
 ## Recommendation
 
 Offer this as a versioned **private blob-transfer service blueprint** maintained by a platform team. Developers register a small workload configuration and deploy approved releases through a protected Azure DevOps template. Keep the existing .NET Functions, Bicep modules, queue, ledger, and recovery design.

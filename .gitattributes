@@ -1,0 +1,2 @@
+# Stable checkout bytes keep the source SHA-256 manifest portable across agents.
+* text=auto eol=lf

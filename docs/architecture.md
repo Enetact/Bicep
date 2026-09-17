@@ -45,7 +45,7 @@ Without versioning, a stale pointer whose source changed becomes SourceRevisionU
 Only host and solution storage accounts are provisioned. The existing data lake remains the destination. The solution account contains `incoming`, `transfer-ledger`, and the work/poison queues. The ledger uses the same Blob service endpoint as incoming, with a distinct container. The BlobTrigger and source reconciliation scan only the configured incoming container, so ledger updates cannot dispatch copy jobs. The `ledgerStorageAccountName` deployment output is retained as a compatibility alias for `uploadStorageAccountName`.
 
 
-A separate private storage account contains:
+The ledger container in the solution storage account contains:
 
 | Key | Content |
 |---|---|
