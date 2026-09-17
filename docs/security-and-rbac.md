@@ -20,7 +20,7 @@ The BlobTrigger dispatcher's documented permissions are broader than a pure Queu
 
 Existing Entra groups are referenced, not created. External uploaders keep their own integration/authentication method subject to this account's private networking and disabled shared keys. No external system is configured here. Deployment permissions are separate from runtime roles.
 
-Runtime uses its explicit UAMI. Local development/operator tooling uses AzureCliCredential. No production storage keys, SAS tokens or credential fallback chains are embedded. The emulator's well-known development key is used only by opt-in local tests.
+Azure runtime uses its explicit UAMI. Azure-connected development and the status/resume operator CLI use AzureCliCredential for application SDK clients; binding authentication is configured separately. The local run mode and opt-in emulator tests use the fixed Azurite development connection and require no Azure login. No production storage keys, SAS tokens or credential fallback chains are embedded. See the [Dispatcher README](dispatcher/README.md) for the mode-specific connection requirements.
 
 ## Network
 

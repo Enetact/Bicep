@@ -1,0 +1,642 @@
+{
+  "schemaVersion": 1,
+  "reviewedDate": "2026-09-17",
+  "scope": "Derived application NuGet inventory plus existing generated helper direct references; not a complete runtime or npm SBOM.",
+  "sourceLockfile": "src/BlobTransfer/packages.lock.json",
+  "sourceLockfileSha256": "444a219a3e114b6da7187857f33b0efeb0d3c63694b72044f6be795dd0832442",
+  "targetFramework": "net10.0",
+  "totalPackages": 58,
+  "directPackages": 8,
+  "transitivePackages": 50,
+  "packages": [
+    {
+      "name": "Azure.Core",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "1.55.0",
+      "dependencies": {
+        "Microsoft.Bcl.AsyncInterfaces": "10.0.3",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.3",
+        "Microsoft.Extensions.Hosting.Abstractions": "10.0.3",
+        "Microsoft.Identity.Client": "4.83.1",
+        "Microsoft.Identity.Client.Extensions.Msal": "4.83.1",
+        "System.ClientModel": "1.11.0",
+        "System.Memory.Data": "10.0.3"
+      }
+    },
+    {
+      "name": "Azure.Identity",
+      "type": "Direct",
+      "requested": "[1.21.0, )",
+      "resolved": "1.21.0",
+      "dependencies": {
+        "Azure.Core": "1.53.0"
+      }
+    },
+    {
+      "name": "Azure.Storage.Blobs",
+      "type": "Direct",
+      "requested": "[12.29.2, )",
+      "resolved": "12.29.2",
+      "dependencies": {
+        "Azure.Core": "1.55.0",
+        "Azure.Storage.Common": "12.28.0"
+      }
+    },
+    {
+      "name": "Azure.Storage.Common",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "12.28.0",
+      "dependencies": {
+        "Azure.Core": "1.55.0",
+        "System.IO.Hashing": "10.0.3"
+      }
+    },
+    {
+      "name": "Azure.Storage.Queues",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "12.21.0",
+      "dependencies": {
+        "Azure.Storage.Common": "12.22.0",
+        "System.Memory.Data": "6.0.0"
+      }
+    },
+    {
+      "name": "Google.Protobuf",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "3.28.0",
+      "dependencies": null
+    },
+    {
+      "name": "Grpc.Core.Api",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "2.65.0",
+      "dependencies": null
+    },
+    {
+      "name": "Grpc.Net.Client",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "2.65.0",
+      "dependencies": {
+        "Grpc.Net.Common": "2.65.0",
+        "Microsoft.Extensions.Logging.Abstractions": "6.0.0"
+      }
+    },
+    {
+      "name": "Grpc.Net.ClientFactory",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "2.65.0",
+      "dependencies": {
+        "Grpc.Net.Client": "2.65.0",
+        "Microsoft.Extensions.Http": "6.0.0"
+      }
+    },
+    {
+      "name": "Grpc.Net.Common",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "2.65.0",
+      "dependencies": {
+        "Grpc.Core.Api": "2.65.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker",
+      "type": "Direct",
+      "requested": "[2.52.0, )",
+      "resolved": "2.52.0",
+      "dependencies": {
+        "Microsoft.Azure.Functions.Worker.Core": "2.52.0",
+        "Microsoft.Azure.Functions.Worker.Grpc": "2.52.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Core",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "2.52.0",
+      "dependencies": {
+        "Azure.Core": "1.44.1",
+        "Microsoft.Extensions.Hosting": "10.0.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Extensions.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "1.3.0",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Extensions.Storage.Blobs",
+      "type": "Direct",
+      "requested": "[6.8.2, )",
+      "resolved": "6.8.2",
+      "dependencies": {
+        "Azure.Storage.Blobs": "12.23.0",
+        "Microsoft.Azure.Functions.Worker.Core": "1.20.0",
+        "Microsoft.Azure.Functions.Worker.Extensions.Abstractions": "1.3.0",
+        "Microsoft.Extensions.Azure": "1.12.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues",
+      "type": "Direct",
+      "requested": "[5.5.5, )",
+      "resolved": "5.5.5",
+      "dependencies": {
+        "Azure.Storage.Queues": "12.21.0",
+        "Microsoft.Azure.Functions.Worker.Core": "1.20.0",
+        "Microsoft.Azure.Functions.Worker.Extensions.Abstractions": "1.3.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Extensions.Timer",
+      "type": "Direct",
+      "requested": "[4.3.1, )",
+      "resolved": "4.3.1",
+      "dependencies": {
+        "Microsoft.Azure.Functions.Worker.Core": "1.18.0",
+        "Microsoft.Azure.Functions.Worker.Extensions.Abstractions": "1.3.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Grpc",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "2.52.0",
+      "dependencies": {
+        "Google.Protobuf": "3.28.0",
+        "Grpc.Net.ClientFactory": "2.65.0",
+        "Microsoft.Azure.Functions.Worker.Core": "2.52.0",
+        "Microsoft.Azure.Functions.Worker.Extensions.Abstractions": "1.3.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Sdk",
+      "type": "Direct",
+      "requested": "[2.1.0, )",
+      "resolved": "2.1.0",
+      "dependencies": {
+        "Microsoft.Azure.Functions.Worker.Sdk.Analyzers": "1.2.2",
+        "Microsoft.Azure.Functions.Worker.Sdk.Generators": "1.4.0"
+      }
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Sdk.Analyzers",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "1.2.2",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Azure.Functions.Worker.Sdk.Generators",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "1.4.0",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Bcl.AsyncInterfaces",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.3",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Extensions.Azure",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "1.12.0",
+      "dependencies": {
+        "Azure.Core": "1.46.2",
+        "Azure.Identity": "1.13.1",
+        "Microsoft.Extensions.Configuration": "8.0.0",
+        "Microsoft.Extensions.Configuration.Abstractions": "8.0.0",
+        "Microsoft.Extensions.Configuration.Binder": "8.0.2",
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
+        "Microsoft.Extensions.Logging": "8.0.1",
+        "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
+        "Microsoft.Extensions.Options": "8.0.2"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.Binder",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.CommandLine",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.FileExtensions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Abstractions": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Physical": "10.0.12",
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.Json",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Configuration.FileExtensions": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Configuration.UserSecrets",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Configuration.Json": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Abstractions": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Physical": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.DependencyInjection",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Extensions.Diagnostics",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Diagnostics.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.FileProviders.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.FileProviders.Physical",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.FileProviders.Abstractions": "10.0.12",
+        "Microsoft.Extensions.FileSystemGlobbing": "10.0.12",
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.FileSystemGlobbing",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Extensions.Hosting",
+      "type": "Direct",
+      "requested": "[10.0.12, )",
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Configuration.Binder": "10.0.12",
+        "Microsoft.Extensions.Configuration.CommandLine": "10.0.12",
+        "Microsoft.Extensions.Configuration.EnvironmentVariables": "10.0.12",
+        "Microsoft.Extensions.Configuration.FileExtensions": "10.0.12",
+        "Microsoft.Extensions.Configuration.Json": "10.0.12",
+        "Microsoft.Extensions.Configuration.UserSecrets": "10.0.12",
+        "Microsoft.Extensions.DependencyInjection": "10.0.12",
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Diagnostics": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Abstractions": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Physical": "10.0.12",
+        "Microsoft.Extensions.Hosting.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging.Configuration": "10.0.12",
+        "Microsoft.Extensions.Logging.Console": "10.0.12",
+        "Microsoft.Extensions.Logging.Debug": "10.0.12",
+        "Microsoft.Extensions.Logging.EventLog": "10.0.12",
+        "Microsoft.Extensions.Logging.EventSource": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Hosting.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Diagnostics.Abstractions": "10.0.12",
+        "Microsoft.Extensions.FileProviders.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Http",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "6.0.0",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "6.0.0",
+        "Microsoft.Extensions.Logging": "6.0.0",
+        "Microsoft.Extensions.Logging.Abstractions": "6.0.0",
+        "Microsoft.Extensions.Options": "6.0.0"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Configuration",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration": "10.0.12",
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Configuration.Binder": "10.0.12",
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12",
+        "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Console",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging.Configuration": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.Debug",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.EventLog",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12",
+        "System.Diagnostics.EventLog": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Logging.EventSource",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Logging": "10.0.12",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12",
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Options",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Configuration.Binder": "10.0.12",
+        "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.12",
+        "Microsoft.Extensions.Options": "10.0.12",
+        "Microsoft.Extensions.Primitives": "10.0.12"
+      }
+    },
+    {
+      "name": "Microsoft.Extensions.Primitives",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": null
+    },
+    {
+      "name": "Microsoft.Identity.Client",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "4.83.1",
+      "dependencies": {
+        "Microsoft.IdentityModel.Abstractions": "8.14.0"
+      }
+    },
+    {
+      "name": "Microsoft.Identity.Client.Extensions.Msal",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "4.83.1",
+      "dependencies": {
+        "Microsoft.Identity.Client": "4.83.1",
+        "System.Security.Cryptography.ProtectedData": "4.5.0"
+      }
+    },
+    {
+      "name": "Microsoft.IdentityModel.Abstractions",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "8.14.0",
+      "dependencies": null
+    },
+    {
+      "name": "System.ClientModel",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "1.11.0",
+      "dependencies": {
+        "Microsoft.Extensions.Configuration.Abstractions": "10.0.3",
+        "Microsoft.Extensions.Hosting.Abstractions": "10.0.3",
+        "Microsoft.Extensions.Logging.Abstractions": "10.0.3",
+        "System.Memory.Data": "10.0.3"
+      }
+    },
+    {
+      "name": "System.Diagnostics.EventLog",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.12",
+      "dependencies": null
+    },
+    {
+      "name": "System.IO.Hashing",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.3",
+      "dependencies": null
+    },
+    {
+      "name": "System.Memory.Data",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "10.0.3",
+      "dependencies": null
+    },
+    {
+      "name": "System.Security.Cryptography.ProtectedData",
+      "type": "Transitive",
+      "requested": null,
+      "resolved": "4.5.0",
+      "dependencies": null
+    }
+  ],
+  "generatedHostExtensions": {
+    "evidenceScope": "Existing local Release build snapshot; not an input to restore.",
+    "sourceProject": "src/BlobTransfer/obj/Release/net10.0/WorkerExtensions/WorkerExtensions.csproj",
+    "sourceProjectSha256": "3e05dfb677a9fd1a4035c6c5b3347c9ecf318a25016565b7c0c749b1b56d9585",
+    "targetFramework": "net8.0",
+    "directReferences": [
+      {
+        "name": "Microsoft.NETCore.Targets",
+        "version": "3.0.0"
+      },
+      {
+        "name": "Microsoft.NET.Sdk.Functions",
+        "version": "4.6.0"
+      },
+      {
+        "name": "Microsoft.Azure.WebJobs.Extensions.Storage.Queues",
+        "version": "5.3.8"
+      },
+      {
+        "name": "Microsoft.Azure.WebJobs.Extensions.Storage.Blobs",
+        "version": "5.3.8"
+      }
+    ],
+    "transitiveGraphIncluded": false
+  }
+}

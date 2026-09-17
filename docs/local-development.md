@@ -2,6 +2,8 @@
 
 The local mode runs the real .NET isolated Functions host, polling BlobTrigger dispatcher, QueueTrigger worker, and all three timers against Azurite. It requires no Azure subscription, Azure login, Docker, Azure CLI, or Bicep. Bicep remains the Azure provisioning path.
 
+See [the exact local workflow](local-workflow.md) for diagrams, method-by-method calls, storage operations, failure paths, timer behavior, and the recorded smoke-run timeline.
+
 ## Start, verify, stop
 
 From the repository root in PowerShell:
