@@ -1,0 +1,14 @@
+flowchart TD
+    A[Per-environment parameters] --> B[main.bicep]
+    C[Storage and identity outputs] --> B
+    B --> D[function-app module]
+    D --> E[Source and queue endpoints]
+    D --> F[Ledger and destination endpoints]
+    D --> G[Prefix to scope mapping]
+    D --> H[Recovery schedule and attempt limits]
+    D --> I[Managed identity and telemetry settings]
+    E --> J[C# startup configuration]
+    F --> J
+    G --> J
+    H --> J
+    I --> J

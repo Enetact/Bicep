@@ -1,0 +1,9 @@
+flowchart TD
+    M[main.bicep and modules] --> D[Dev parameters]
+    M --> Q[QA parameters]
+    M --> U[UAT parameters]
+    M --> P[Prod parameters]
+    D --> DR[Dev resources and workspace]
+    Q --> QR[QA resources and workspace]
+    U --> UR[UAT resources and workspace]
+    P --> PR[Prod resources and workspace]

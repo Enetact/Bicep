@@ -1,0 +1,11 @@
+flowchart TD
+    A[Environment bicepparam] --> B[main.bicep]
+    B --> C[Reusable modules]
+    C --> D[Bicep compiler]
+    D --> E[ARM template and parameters]
+    E --> F[WhatIf review]
+    F --> G[Authorized deployment]
+    H[C# Function project] --> I[Build release ZIP]
+    I --> J[Private package blob]
+    J --> K[Function runs package]
+    G --> K

@@ -1,0 +1,9 @@
+flowchart LR
+    A[main.bicep] --> B[storage: host account]
+    A --> C[storage: solution incoming and ledger containers plus queues]
+    A --> E[network: VNet and private DNS]
+    A --> F[private-endpoint: service connections]
+    A --> G[storage-access: runtime and operator roles]
+    A --> H[destination-access: existing account scope]
+    A --> I[monitoring: workspace and alerts]
+    A --> J[function-app: plan and app settings]

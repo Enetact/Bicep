@@ -1,0 +1,28 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobsStorage__blobServiceUri": "https://REPLACE_HOST.blob.core.windows.net",
+    "AzureWebJobsStorage__queueServiceUri": "https://REPLACE_HOST.queue.core.windows.net",
+    "AzureWebJobsStorage__tableServiceUri": "https://REPLACE_HOST.table.core.windows.net",
+    "UploadStorage__blobServiceUri": "https://REPLACE_UPLOAD.blob.core.windows.net",
+    "UploadContainer": "incoming",
+    "TransferQueueStorage__queueServiceUri": "https://REPLACE_UPLOAD.queue.core.windows.net",
+    "TransferQueue": "transfer-work",
+    "Ledger__blobServiceUri": "https://REPLACE_UPLOAD.blob.core.windows.net",
+    "Ledger__container": "transfer-ledger",
+    "Destination__blobServiceUri": "https://datalakestorage.blob.core.windows.net",
+    "Destination__container": "blobcopy-dev",
+    "Copy__maxBytes": "1073741824",
+    "Recovery__maxAttempts": "10",
+    "Recovery__retryMinutes": "15",
+    "Recovery__scanPageSize": "100",
+    "Recovery__scanPagesPerRun": "5",
+    "Recovery__verifyAfterHours": "24",
+    "RecoverySchedule": "0 */5 * * * *",
+    "PoisonMonitorSchedule": "0 */5 * * * *",
+    "Copy__scopePrefixes": "{\"\":\"default\"}",
+    "Recovery__includeSourceVersions": "true",
+    "UploadStorage__queueServiceUri": "https://REPLACE_UPLOAD.queue.core.windows.net"
+  }
+}

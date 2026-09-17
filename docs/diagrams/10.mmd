@@ -1,0 +1,14 @@
+flowchart TD
+    A[Source or retained version discovered] --> B[Stable request record]
+    B --> C{Completed and destination valid}
+    C -->|Yes| D[Record verification]
+    C -->|No| E{Attempts remain}
+    E -->|No| F[Quarantine and alert]
+    E -->|Yes| G[Conditional copy and hash verification]
+    G -->|Success| H[Completed]
+    G -->|Temporary failure| I[Retry and scheduled reconciliation]
+    G -->|Content conflict| F
+    I --> B
+    F --> J[Operator investigation]
+    J --> K[Reviewed recovery with exact ETags]
+    K --> B

@@ -1,0 +1,60 @@
+{
+  "design": "external-upload-polling-dispatcher-storage-queue-worker",
+  "eventGrid": false,
+  "mcp": false,
+  "uploaderChangesRequired": false,
+  "tests": {
+    "passed": 23,
+    "failed": 0,
+    "skipped": 0,
+    "policyCases": 8,
+    "azuriteIntegrationCases": 15
+  },
+  "tools": {
+    "dotnet": "10.0.300",
+    "bicep": "0.47.16",
+    "azurite": "3.37.0",
+    "mermaid": "11.17.2"
+  },
+  "compiledEnvironments": [
+    "dev",
+    "qa",
+    "uat",
+    "prod"
+  ],
+  "scriptsExecuted": [
+    "Test-Project.ps1",
+    "Test-Recovery.ps1"
+  ],
+  "scriptsNotExecutedAgainstAzure": [
+    "Deploy.ps1",
+    "Smoke-Test.ps1"
+  ],
+  "package": {
+    "entries": 93,
+    "sha256": "be99a116a22cc90540402364fd1629d95543f8db669eae73ebd1e5d1c2183ecf",
+    "triggers": {
+      "blob": 1,
+      "queue": 1,
+      "timer": 3
+    },
+    "validationScope": "Historical packaging check before ledger co-location; rebuild for deployment."
+  },
+  "diagrams": {
+    "count": 12,
+    "rendered": true,
+    "visuallyInspected": true
+  },
+  "azureDeployed": false,
+  "azureIdentityNetworkVerified": false,
+  "azureSourceVersionsVerified": false,
+  "functionHostRuntimeTested": false,
+  "storage": {
+    "newAccountCount": 2,
+    "ledgerAccount": "solution",
+    "ledgerContainer": "transfer-ledger",
+    "separateLedgerPrivateEndpoint": false,
+    "compiledLayoutVerified": true
+  },
+  "previousPackagingScript": "Build-Package.ps1"
+}

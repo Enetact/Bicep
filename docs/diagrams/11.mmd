@@ -1,0 +1,10 @@
+flowchart LR
+    A[Function user-assigned identity] --> B[Host runtime and package access]
+    A --> C[Source polling and queue permissions]
+    A --> D[Solution ledger container writes and leases]
+    A --> E[Destination container read and create]
+    A --> F[Telemetry publishing]
+    G[External uploader identity] --> H[Source blob writes]
+    I[Recovery operator identity] --> D
+    I --> J[Work queue send]
+    K[CI deployment identity] --> L[Resource deployment and package publishing]
