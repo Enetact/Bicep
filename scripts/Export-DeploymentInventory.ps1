@@ -97,8 +97,10 @@ try {
     $report.permissionEvidence=@($permissions.value)
 } catch { $report.warnings+='Current identity permissions could not be read; discovery does not prove deployment authority.' }
 if ($OrganizationUrl -or $Project) {
-    if ($OrganizationUrl -cnotmatch '^https://dev\.azure\.com/[a-zA-Z0-9][a-zA-Z0-9-]*/?$' -or !$Project) { throw 'Provide an Azure DevOps organization URL and project together.' }
     try {
+        # Optional discovery must not prevent saving required Azure inventory.
+        if ([string]::IsNullOrWhiteSpace($OrganizationUrl) -or [string]::IsNullOrWhiteSpace($Project)) { throw 'Provide an Azure DevOps organization URL and project together.' }
+        $OrganizationUrl=Resolve-ServiceOrganizationUrl $OrganizationUrl
         # Query projection is deliberate: never serialize endpoint authorization parameters.
         $connections=@(Invoke-ServiceJson @('devops','service-endpoint','list','--organization',$OrganizationUrl,'--project',$Project,
             '--query',"[?type=='azurerm'].{id:id,name:name,ready:isReady,subscriptionId:data.subscriptionId,tenantId:authorization.parameters.tenantid,applicationId:authorization.parameters.serviceprincipalid,scheme:authorization.scheme}"))
@@ -112,7 +114,10 @@ if ($OrganizationUrl -or $Project) {
             $report.serviceConnections+=@{id=$connection.id;name=$connection.name;ready=$connection.ready;subscriptionId=$connection.subscriptionId;scheme=$connection.scheme;applicationId=$connection.applicationId;principalObjectId=$objectId}
         }
         $report.serviceConnectionQuery.count=$report.serviceConnections.Count
-    } catch { $report.serviceConnectionQuery=@{status='Failed';error=$_.Exception.Message}; $report.warnings+='Azure DevOps endpoint discovery unavailable. Install/authenticate the azure-devops CLI extension separately and verify project endpoint-read access. No connection was selected automatically.' }
+    } catch {
+        $report.serviceConnectionQuery=@{status='Failed';error=$_.Exception.Message}
+        $report.warnings+="Azure DevOps endpoint discovery unavailable: $($_.Exception.Message) Verify the organization/project, CLI extension and project endpoint-read access. No connection was selected automatically."
+    }
 } else { $report.serviceConnectionQuery=@{status='NotRequested'}; $report.warnings+='Azure DevOps organization/project not supplied: service connections were not discovered.' }
 $report.warnings+='Candidate flags do not prove free IP capacity, route/NSG safety, DNS resolution, pipeline authorization, or effective deployment/data-plane permissions. Cross-subscription DNS zones must be supplied explicitly.'
 Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)

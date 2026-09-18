@@ -1,6 +1,16 @@
 #requires -Version 7.4
 . "$PSScriptRoot/common.ps1"
 
+function Resolve-ServiceOrganizationUrl([string]$OrganizationUrl) {
+    $value=$OrganizationUrl.Trim()
+    # Azure DevOps can supply either its current or legacy organization URL.
+    # Limit credential-bearing calls to these exact HTTPS host/path forms.
+    if ($value -notmatch '\Ahttps://(?:dev\.azure\.com/[a-z0-9][a-z0-9-]*|[a-z0-9][a-z0-9-]*\.visualstudio\.com(?:/DefaultCollection)?)/?\z') {
+        throw 'Expected an Azure DevOps organization URL: https://dev.azure.com/<organization>/ or https://<organization>.visualstudio.com/ (optionally DefaultCollection).'
+    }
+    return $value.TrimEnd('/')+'/'
+}
+
 function Write-ServiceJson($Value, [string]$Path) {
     $parent = Split-Path -Parent ([IO.Path]::GetFullPath($Path))
     New-Item -ItemType Directory -Path $parent -Force | Out-Null

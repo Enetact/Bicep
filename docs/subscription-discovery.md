@@ -82,6 +82,8 @@ az extension add --name azure-devops
 
 The discovery script itself never installs an extension. In the pipeline, `System.AccessToken` is passed only to the Azure DevOps CLI through its environment; Azure authentication comes from the selected service connection. Endpoint enumeration requires the extension to be present on the agent and the project Build Service to have endpoint-read permission. Dynamic extension installation is disabled in the discovery job; unavailable endpoint enumeration becomes a report warning.
 
+Organization URLs accept both `https://dev.azure.com/<organization>/` and `https://<organization>.visualstudio.com/`, including the legacy `/DefaultCollection/` collection path. Discovery and deployment-handoff checks share the same validation. For the supplied project URL `https://enetactgames.visualstudio.com/Enetact`, the organization is `https://enetactgames.visualstudio.com/` and the separate project argument is `Enetact`. The pipeline continues using `System.CollectionUri` and `System.TeamProject`; no project URL is hardcoded. A missing project or invalid organization URL produces an optional lookup warning and preserves the Azure inventory/manifest. See Microsoft's [supported organization URL forms](https://learn.microsoft.com/en-us/azure/devops/extend/develop/work-with-urls?view=azure-devops).
+
 When endpoint or directory discovery is unavailable, the report records a warning and does not invent a connection/principal. The tenant and subscription must match. The exported endpoint fields are projected to ID, name, ready state, subscription, scheme, application ID and principal object ID. An application/client ID must never be substituted for the principal object ID used by role assignments.
 
 ## Register an existing network

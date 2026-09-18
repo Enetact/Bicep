@@ -10,6 +10,16 @@ function Check([bool]$Condition) { if (!$Condition) { throw 'Assertion failed.' 
 function Reject([scriptblock]$Body) { $caught=$false; try { & $Body | Out-Null } catch { $caught=$true }; Check $caught }
 function Case([string]$Name,[scriptblock]$Body) { try { & $Body; $results.Add(@{name=$Name;passed=$true}) } catch { throw "Case '$Name': $($_.Exception.Message)" } }
 function Clone($Value) { ConvertFrom-Json ($Value | ConvertTo-Json -Depth 100) -AsHashtable }
+Case 'organization URL normalization accepts current and legacy collection forms' {
+    foreach ($pair in @(@('https://dev.azure.com/example','https://dev.azure.com/example/'),@(' https://example.visualstudio.com/ ','https://example.visualstudio.com/'),@('https://example.visualstudio.com/DefaultCollection','https://example.visualstudio.com/DefaultCollection/'),@('HTTPS://DEV.AZURE.COM/Example/','HTTPS://DEV.AZURE.COM/Example/'))) {
+        Check ((Resolve-ServiceOrganizationUrl $pair[0]) -ceq $pair[1])
+    }
+}
+Case 'organization URL validation rejects non-organization credential destinations' {
+    foreach ($value in @('', 'http://dev.azure.com/example/', 'https://dev.azure.com.example.com/example/', 'https://example.visualstudio.com.evil.test/', 'https://user:secret@dev.azure.com/example/', 'https://dev.azure.com/example/?token=secret', 'https://dev.azure.com/example/#fragment', 'https://dev.azure.com/example/project', 'https://example.visualstudio.com/unexpected/', 'https://dev.azure.com:8443/example/', 'https://dev.azure.com/example/../other', '$(System.CollectionUri)')) {
+        Reject { Resolve-ServiceOrganizationUrl $value }
+    }
+}
 $sub='11111111-1111-1111-1111-111111111111'
 $vnetId="/subscriptions/$sub/resourceGroups/network/providers/Microsoft.Network/virtualNetworks/shared"
 $network=@{integrationSubnetId="$vnetId/subnets/functions";privateEndpointSubnetId="$vnetId/subnets/endpoints";privateDnsZoneIds=@{}}
@@ -146,6 +156,41 @@ try {
         $r=Get-Content (Join-Path $testRoot with-devops/inventory.json) -Raw | ConvertFrom-Json
         Check ($r.serviceConnections.Count -eq 1 -and $r.serviceConnections[0].principalObjectId -eq '22222222-2222-2222-2222-222222222222')
         Check (!(Get-Content (Join-Path $testRoot with-devops/inventory.json) -Raw).Contains('"authorization":'))
+    }
+    Case 'legacy organization URLs reach projected endpoint discovery' {
+        foreach ($org in @('https://example.visualstudio.com','https://example.visualstudio.com/DefaultCollection/','https://enetactgames.visualstudio.com/')) {
+            $global:BlobTransferDiscoveryTestState.calls.Clear()
+            $project=if ($org -eq 'https://enetactgames.visualstudio.com/') { 'Enetact' } else { 'Example' }
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl $org -Project $project -OutputDirectory (Join-Path $testRoot legacy-organization)
+            $r=Get-Content (Join-Path $testRoot legacy-organization/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Complete' -and $r.serviceConnectionQuery.status -eq 'Succeeded' -and $r.serviceConnections.Count -eq 1)
+            Check (@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_.Contains('--organization '+(Resolve-ServiceOrganizationUrl $org)+" --project $project") }).Count -eq 1)
+        }
+    }
+    Case 'missing or invalid optional DevOps settings preserve complete Azure inventory' {
+        foreach ($settings in @(@{OrganizationUrl='https://dev.azure.com/example';Project=''},@{OrganizationUrl='';Project='Example'},@{OrganizationUrl='https://unexpected.invalid';Project='Example'})) {
+            $global:BlobTransferDiscoveryTestState.calls.Clear()
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub @settings -OutputDirectory (Join-Path $testRoot invalid-devops)
+            $r=Get-Content (Join-Path $testRoot invalid-devops/inventory.json) -Raw | ConvertFrom-Json
+            $m=Get-Content (Join-Path $testRoot invalid-devops/manifest.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Complete' -and $r.serviceConnectionQuery.status -eq 'Failed' -and $r.serviceConnectionQuery.error -and $r.networks.Count -eq 1 -and $r.privateDnsZones.Count -eq 5)
+            Check ($m.inventorySha256 -eq (Get-ServiceHash (Join-Path $testRoot invalid-devops/inventory.json)) -and $global:LASTEXITCODE -eq 0)
+            Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^devops |^ad ' }).Count)
+        }
+    }
+    Case 'DNS failure plus invalid optional DevOps settings still saves partial diagnostics' {
+        $global:BlobTransferDiscoveryTestState.dnsFailure=$true
+        try {
+            $message=''
+            try { & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl 'https://unexpected.invalid' -Project Example -OutputDirectory (Join-Path $testRoot combined-failure) }
+            catch { $message=$_.Exception.Message }
+            Check ($message.StartsWith('Network discovery is incomplete.'))
+            $r=Get-Content (Join-Path $testRoot combined-failure/inventory.json) -Raw | ConvertFrom-Json
+            $m=Get-Content (Join-Path $testRoot combined-failure/manifest.json) -Raw | ConvertFrom-Json
+            Check ($r.privateDnsQuery.status -eq 'Failed' -and $r.serviceConnectionQuery.status -eq 'Failed' -and $r.diagnostics.subscriptionArm.status -eq 'Succeeded' -and $r.networks.Count -eq 1)
+            Check ($m.discoveryStatus -eq 'Partial' -and $m.inventorySha256 -eq (Get-ServiceHash (Join-Path $testRoot combined-failure/inventory.json)))
+            Check (Test-Path (Join-Path $testRoot combined-failure/summary.md))
+        } finally { $global:BlobTransferDiscoveryTestState.dnsFailure=$false }
     }
     Case 'optional connection failure reports unknown without leaking a native failure exit code' {
         $global:BlobTransferDiscoveryTestState.connectionFailure=$true

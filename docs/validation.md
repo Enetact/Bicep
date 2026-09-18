@@ -4,6 +4,16 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
+### Legacy Azure DevOps URL and evidence-retention fix
+
+The latest supplied run signed in using workload identity federation, selected its subscription, received the private DNS `BadRequest`, and then stopped at organization/project validation before writing discovery evidence. The supplied project URL is `https://enetactgames.visualstudio.com/Enetact`: organization `https://enetactgames.visualstudio.com/`, project `Enetact`. The previous validator only accepted the modern `dev.azure.com` form.
+
+Discovery and handoff now share validation for both supported URL forms (including legacy `DefaultCollection`). Optional organization/project validation failures are caught and included in the report, so they cannot discard completed Azure reads or DNS diagnostics. Required network failures still save partial evidence and fail; they are never interpreted as empty resource lists.
+
+- **70 discovery/catalog/handoff cases passed**: `artifacts/discovery-tests/af9d24c98f8e48eaa522b7617996aae3/results.json`, including the exact supplied organization/project, rejected unsafe URL forms, missing project/organization, and combined DNS plus optional-configuration failures.
+- **38 deployment cases passed**: `artifacts/self-service-tests/2b57dd0a7b3d427b8d50e107f5f377e6/results.json`.
+- Catalog freshness and PowerShell parsing passed. Azure calls were mocked; the organization was not contacted. The underlying DNS error and live acceptance remain unresolved.
+
 ### Empty inventory, DNS diagnostics and two-run deployment handoff
 
 The latest user-supplied AzureCLI excerpt selected subscription `f4f2eafe-2512-4c2f-9b5b-c88f6767e778` and reached `network private-dns zone list`, which returned `BadRequest: The specified subscription ... does not exist`. This shows progress beyond the earlier empty connection-input failure. It does not establish the cause of the DNS service error or prove zero DNS resources exist. No successful full inventory or Azure deployment is claimed.
