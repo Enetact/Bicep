@@ -21,6 +21,8 @@ $p=@{}; $values=@{workload='blobcopy';environmentName='dev';owner='team';costCen
 foreach ($key in $values.Keys) { $p[$key]=@{value=$values[$key]} }
 Set-ServiceProfileParameters $target $p
 Case 'disabled target permits discovery but not deployment' { Assert-ServiceTarget $target blobcopy dev -AllowDisabled; Reject { Assert-ServiceTarget $target blobcopy dev } }
+Case 'placeholder is permitted only for explicit discovery' { $t=Clone $target; $t.subscriptionId=[guid]::Empty.ToString(); $t.subscriptionAlias='unconfigured'; Reject { Assert-ServiceTarget $t blobcopy dev -AllowDisabled }; Assert-ServiceTarget $t blobcopy dev -AllowDisabled -AllowDiscoveryPlaceholder }
+Case 'enabled placeholder cannot bypass deployment validation' { $t=Clone $target; $t.subscriptionId=[guid]::Empty.ToString(); $t.subscriptionAlias='unconfigured'; $t.enabled=$true; Reject { Assert-ServiceTarget $t blobcopy dev -AllowDisabled -AllowDiscoveryPlaceholder } }
 Case 'profile overlays existing network and standardized name without CIDRs' { Assert-ServiceParameters $target $p; Check ((Get-ServiceStem $p) -ceq 'blobcopy-dev-acme-eus2-001') }
 Case 'unknown override cannot bypass target policy' { $t=Clone $target; $t.parameterOverrides.owner='injected'; Reject { Assert-ServiceTarget $t blobcopy dev -AllowDisabled } }
 Case 'same subnet rejected' { $n=Clone $network; $n.privateEndpointSubnetId=$n.integrationSubnetId; Reject { Assert-ServiceNetworkIds $target $n } }
@@ -38,13 +40,13 @@ Case 'one dropdown name cannot map to multiple subscriptions' { $t=Clone $target
 
 # Mock the az executable boundary, so the discovery entrypoint itself is tested.
 # Every unrecognized command fails: the script cannot silently mutate Azure.
-$global:BlobTransferDiscoveryTestState=@{calls=[Collections.Generic.List[string]]::new();badNetwork='';duplicateNames=$false;subscription=$sub;network=$network;vnetId=$vnetId}
+$global:BlobTransferDiscoveryTestState=@{calls=[Collections.Generic.List[string]]::new();badNetwork='';duplicateNames=$false;subscription=$sub;network=$network;vnetId=$vnetId;accountState='Enabled'}
 function az {
     $sub=$global:BlobTransferDiscoveryTestState.subscription; $network=$global:BlobTransferDiscoveryTestState.network; $vnetId=$global:BlobTransferDiscoveryTestState.vnetId
     $arguments=@($args); $cmd=$arguments -join ' '; $global:BlobTransferDiscoveryTestState.calls.Add($cmd); $global:LASTEXITCODE=0
     $answer=switch -Regex ($cmd) {
         '^account list ' { if ($global:BlobTransferDiscoveryTestState.duplicateNames) { ,@(@{name='Sandbox';state='Enabled';id=$sub},@{name='Sandbox';state='Enabled';id='other'}) } else { ,@(@{name='Sandbox';state='Enabled';id=$sub}) }; break }
-        '^account show ' { @{id=$sub;name='Sandbox';state='Enabled';tenantId='tenant'}; break }
+        '^account show ' { @{id=$sub;name='Sandbox';state=$global:BlobTransferDiscoveryTestState.accountState;tenantId='tenant'}; break }
         '^network vnet list ' { ,@(@{id=$vnetId;name='shared';resourceGroup='network';location='eastus2'}); break }
         '^network vnet subnet list ' { ,@(@{id=$network.integrationSubnetId;name='functions';addressPrefix='10.2.0.0/26';delegations=@(@{serviceName='Microsoft.Web/serverFarms'});privateEndpointNetworkPolicies='Enabled'},@{id=$network.privateEndpointSubnetId;name='endpoints';addressPrefix='10.2.1.0/26';delegations=@();privateEndpointNetworkPolicies='Disabled'}); break }
         '^network private-dns zone list ' { ,@($network.privateDnsZoneIds.Keys | ForEach-Object { @{id=$network.privateDnsZoneIds[$_];name=($network.privateDnsZoneIds[$_] -split '/')[-1];resourceGroup='dns'} }); break }
@@ -67,6 +69,42 @@ function az {
     ConvertTo-Json -InputObject $answer -Depth 100 -Compress
 }
 try {
+    $fixture=Join-Path $testRoot connection-context
+    New-Item -ItemType Directory -Path (Join-Path $fixture scripts) -Force | Out-Null
+    foreach ($file in @('common.ps1','self-service-common.ps1','Export-DeploymentInventory.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $fixture scripts) }
+    $placeholder=Clone $target; $placeholder.subscriptionId=[guid]::Empty.ToString(); $placeholder.subscriptionAlias='unconfigured'; $placeholder.serviceConnection='SC-AZ-A-Bicep'
+    $profilePath=Join-Path $fixture self-service/targets/placeholder.json
+    Write-ServiceJson $placeholder $profilePath
+    $contextArgs=@{Workload='blobcopy';EnvironmentName='dev';SubscriptionAlias='unconfigured';NetworkProfile='shared';UseServiceConnectionSubscription=$true;BoundServiceConnection='SC-AZ-A-Bicep';OutputDirectory=(Join-Path $fixture evidence)}
+    $entry=Join-Path $fixture scripts/Export-DeploymentInventory.ps1
+    Case 'service connection discovers its active subscription from a disabled placeholder' {
+        $global:BlobTransferDiscoveryTestState.calls.Clear()
+        & $entry @contextArgs
+        $r=Get-Content (Join-Path $fixture evidence/inventory.json) -Raw | ConvertFrom-Json
+        Check ($r.subscription.id -eq $sub -and $r.subscriptionSource -eq 'service-connection-context' -and $r.boundServiceConnection -eq 'SC-AZ-A-Bicep')
+        Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^account list |^account set ' }).Count)
+        Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^network ' -and !$_.Contains("--subscription $sub") }).Count)
+        Check ((Get-Content $profilePath -Raw | ConvertFrom-Json).subscriptionId -eq [guid]::Empty.ToString())
+    }
+    Case 'connection context needs an explicit YAML binding' {
+        $bad=Clone $contextArgs; $bad.BoundServiceConnection=''; $global:BlobTransferDiscoveryTestState.calls.Clear()
+        Reject { & $entry @bad }; Check ($global:BlobTransferDiscoveryTestState.calls.Count -eq 0)
+    }
+    Case 'wrong service connection fails before discovery' {
+        $bad=Clone $contextArgs; $bad.BoundServiceConnection='another'; $global:BlobTransferDiscoveryTestState.calls.Clear()
+        Reject { & $entry @bad }; Check ($global:BlobTransferDiscoveryTestState.calls.Count -eq 0)
+    }
+    Case 'registered subscription mismatch cannot fall back to another subscription' {
+        $configured=Clone $placeholder; $configured.subscriptionId='33333333-3333-3333-3333-333333333333'; Write-ServiceJson $configured $profilePath
+        $global:BlobTransferDiscoveryTestState.calls.Clear(); Reject { & $entry @contextArgs }
+        Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^network ' }).Count)
+        Write-ServiceJson $placeholder $profilePath
+    }
+    Case 'disabled service connection subscription is rejected before inventory' {
+        $global:BlobTransferDiscoveryTestState.accountState='Disabled'; $global:BlobTransferDiscoveryTestState.calls.Clear()
+        try { Reject { & $entry @contextArgs }; Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^network ' }).Count) }
+        finally { $global:BlobTransferDiscoveryTestState.accountState='Enabled' }
+    }
     Case 'discovery by subscription name reads only selected subscription' {
         & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionName Sandbox -OutputDirectory (Join-Path $testRoot by-name)
         $r=Get-Content (Join-Path $testRoot by-name/inventory.json) -Raw | ConvertFrom-Json
