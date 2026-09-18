@@ -1,6 +1,6 @@
 # Developer self-service deployment
 
-Status: implemented in the repository, locally contract-tested, **not yet run in Azure DevOps or against Azure**. All four checked-in targets are deliberately disabled. The platform onboarding below must be completed before a developer can provision a target. See [completion status](completion-status.md) for the evidence and remaining work.
+Status: implemented in the repository and locally contract-tested; **successful live discovery/deployment remains unverified**. The first reported feature-branch discovery attempt was skipped by the former main-only stage condition. Discovery now allows manual feature-branch runs; deployment remains main-only. All four checked-in targets are deliberately disabled for deployment. The platform onboarding below must be completed before a developer can provision a target. See [completion status](completion-status.md) for the evidence and remaining work.
 
 This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 

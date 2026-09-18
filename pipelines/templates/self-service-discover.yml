@@ -10,7 +10,9 @@ parameters:
 stages:
   - stage: Discover
     displayName: Read-only discovery in the selected subscription
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
+    # Permit explicitly queued discovery from feature branches as well as main.
+    # Deployment retains its separate protected-main guards.
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/'), eq(variables['Build.Reason'], 'Manual'))
     jobs:
       - job: Inventory
         pool:
