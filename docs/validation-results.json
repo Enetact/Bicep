@@ -11,7 +11,7 @@
     "azuriteIntegrationCases": 15,
     "functionContractCases": 1,
     "toolingContractCases": 19,
-    "toolingContractScope": "Historical baseline tooling run; unchanged contracts.",
+    "toolingContractScope": "Re-run successfully on 2026-09-18 by Test-Project.ps1.",
     "localConfigurationCases": 9,
     "localLifecycleToolingCases": 6
   },
@@ -78,7 +78,41 @@
     "compiledLayoutVerified": true
   },
   "previousPackagingScript": "Build-Package.ps1",
-  "validationDate": "2026-09-17",
+  "validationDate": "2026-09-18",
+  "selfService": {
+    "implemented": true,
+    "targetsEnabled": false,
+    "offlineCasesPassed": 37,
+    "offlineCasesFailed": 0,
+    "azureCalls": "Mocked only in contract tests",
+    "evidence": "artifacts/self-service-tests/942c6fe7d4d641fe9e49ebe1b1b04ea0/results.json",
+    "yamlFilesParsed": 6,
+    "discovery": {
+      "implemented": true,
+      "defaultOperation": "discover",
+      "liveAzureQueried": false,
+      "offlineCasesPassed": 24,
+      "offlineCasesFailed": 0,
+      "evidence": "artifacts/discovery-tests/15a4245289a642c0a8092e7796ade9e3/results.json",
+      "dropdownRefresh": "Reviewed catalog generation for the next run; no live cascading form",
+      "existingNetworkSupport": true,
+      "existingNetworkLiveVerified": false
+    },
+    "azureDevOpsTemplateExpansionVerified": false,
+    "realBundleQualificationVerified": false,
+    "crossEnvironmentArtifactPromotionImplemented": false
+  },
+  "latestProjectRun": {
+    "date": "2026-09-18",
+    "unitPassed": 18,
+    "integrationSkipped": 15,
+    "failed": 0,
+    "allFourEnvironmentsCompiled": true,
+    "operatorBuildWarnings": 0,
+    "operatorBuildErrors": 0,
+    "unitEvidence": "artifacts/test-results/unit.trx",
+    "runtimeEvidenceDate": "2026-09-17"
+  },
   "azureDevOpsPipelineExecuted": false,
-  "dependencyAdvisoryCheck": "Historical baseline query passed for Function dependencies including transitives. Application package versions unchanged; this does not certify npm tools."
+  "dependencyAdvisoryCheck": "2026-09-18 query passed for Function dependencies including transitives; no reported vulnerabilities. This does not certify npm tools."
 }

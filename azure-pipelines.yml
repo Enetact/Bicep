@@ -1,10 +1,6 @@
-trigger:
-  branches:
-    include: [main]
-
-pr:
-  branches:
-    include: [main]
+# Explicitly disable push and pull-request triggers; queue runs manually in ADO.
+trigger: none
+pr: none
 
 pool:
   vmImage: windows-latest

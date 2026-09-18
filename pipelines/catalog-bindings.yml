@@ -1,0 +1,31 @@
+# Generated compile-time bindings. Never resolve service connections using runtime output variables.
+parameters:
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+variables:
+  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    serviceConnection: sc-blobcopy-dev
+    agentPool: blob-transfer-private
+    deploymentEnvironment: blobcopy-dev
+  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    serviceConnection: sc-blobcopy-prod
+    agentPool: blob-transfer-private
+    deploymentEnvironment: blobcopy-prod
+  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    serviceConnection: sc-blobcopy-qa
+    agentPool: blob-transfer-private
+    deploymentEnvironment: blobcopy-qa
+  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    serviceConnection: sc-blobcopy-uat
+    agentPool: blob-transfer-private
+    deploymentEnvironment: blobcopy-uat
+  ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')))) }}:
+    serviceConnection: UNREGISTERED_SELECTION
+    agentPool: UNREGISTERED_SELECTION
+    deploymentEnvironment: UNREGISTERED_SELECTION

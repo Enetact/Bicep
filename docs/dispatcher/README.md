@@ -78,7 +78,7 @@ The Bicep implementation requires a subscription/resource-group target, supporte
 | Deployment principal | Separate management-plane deployment/role-assignment permissions and approved destination-scope access. A package-upload role alone is insufficient. |
 | Package | Immutable ZIP with `host.json`, `functions.metadata`, `worker.config.json`, assemblies, and generated `.azurefunctions` contents. Blob package URL and identity must work before host startup. |
 | Monitoring | Workspace/Application Insights, appropriate metrics-publisher grant, configured action groups, and owners for poison/quarantine/missing-heartbeat alerts. |
-| Build/release tooling | Git, PowerShell, .NET SDK, Bicep 0.47.16 (standalone or Azure CLI adapter), and Azure CLI for deployment. Azure DevOps hosted CI exists; protected self-service release automation remains future work. |
+| Build/release tooling | Git, PowerShell, .NET SDK, Bicep 0.47.16 (standalone or Azure CLI adapter), and Azure CLI for deployment. CI and the manual self-service release pipeline are implemented. [Platform onboarding and live qualification](../self-service.md) remain required. |
 
 These are the repository's implemented grants, not a claim that every individual handler needs every permission. Source: [function app](../../modules/function-app.bicep), [storage access](../../modules/storage-access.bicep), [destination access](../../modules/destination-access.bicep), [main template](../../main.bicep), and [security/RBAC](../security-and-rbac.md). The binding-specific queue endpoint and identity requirements are confirmed in [Microsoft's connection guide](https://learn.microsoft.com/en-us/azure/azure-functions/manage-connections?tabs=identity).
 

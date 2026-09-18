@@ -45,6 +45,18 @@ From this checkout in PowerShell:
 
 The launcher checks prerequisites and installs missing tools into ignored project folders, starts Azurite and the real Functions host on loopback, and retains data on stop. No Azure account, Docker, Azure CLI, or Bicep is needed for this local workflow. See [local development](docs/local-development.md) for PowerShell bootstrap, tool versions, logs, explicit reset, and Azure-only validation limits. Stop local mode before `Test-Recovery.ps1`, which uses the same emulator ports.
 
+## Deploy through developer self-service
+
+Both pipeline entry points disable push and pull-request triggers explicitly. Start build/test or self-service runs manually with **Run pipeline** in Azure DevOps.
+
+The separate [self-service pipeline](azure-pipelines-self-service.yml) lets developers select **operation + workload + environment + subscription + network profile** in Azure DevOps. Read-only discovery is the default. Deployment qualifies and freezes a release, previews infrastructure, applies approved changes, verifies private access and Function indexing, and runs an upload-to-destination smoke test before reporting Ready.
+
+The [subscription discovery and naming guide](docs/subscription-discovery.md) explains scoped discovery, existing-subnet selection, generated dropdowns, standard names and templated data permissions. Azure DevOps dropdowns refresh after reviewed catalog changes are merged; they do not query Azure interactively when clicked.
+
+**The pipeline is implemented and locally contract-tested; Azure onboarding and a live pipeline run are still required.** All checked-in targets are disabled examples. Platform owners must configure real target parameters, federated service connections, private agents/networking, approvals and exclusive locks before enabling them.
+
+Start with the [developer and platform guide](docs/self-service.md) for exact access/setup steps and method documentation. The [completion audit](docs/completion-status.md) distinguishes implemented features, verified behavior, missing platform setup and deferred work. Each environment run builds a release; promotion of one previously built artifact across environments is not implemented.
+
 ## Files and local validation
 
 ```text
@@ -57,6 +69,9 @@ tests/BlobTransfer.Tests/  policy and Azurite integration tests
 scripts/                   validation, local recovery tests, deployment, smoke, packaging
 docs/                      design, operations, diagrams, evidence
 azure-pipelines.yml        test/package CI; no automatic deployment
+azure-pipelines-self-service.yml  manual workload/environment release
+pipelines/                 protected-resource bindings and plan/apply templates
+self-service/targets/      disabled catalog examples for platform onboarding
 ```
 
 Extract `blob-transfer-project.tar` with `tar -xf blob-transfer-project.tar`, then enter `blob-transfer`. Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward.
@@ -75,7 +90,7 @@ Ordinary unit-test runs skip emulator integration tests explicitly. `Test-Recove
 
 The project check also exercises tooling contracts and writes unit-test/advisory evidence to `artifacts/test-results`. Unavailable advisory data (`NU1900`) fails validation. Packaging checks the exact five Function names/triggers and writes the ZIP, SHA-256, generated metadata, compiled environment templates, and `release.json` to `artifacts/releases/<release-id>`. The receipt records the Git commit and whether local edits were present; it is provenance, not a signature or proof of approval. CI publishes this curated release folder and test results, rather than emulator tooling/data.
 
-After intentional source changes, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1` and review the diff. Do not regenerate it automatically in CI. The [self-service assessment](docs/self-service-azure-devops-assessment.md) describes the remaining platform integration work.
+After intentional source changes, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1` and review the diff. Do not regenerate it automatically in CI. Use the [current self-service guide](docs/self-service.md) for implementation/setup and the [historical assessment](docs/self-service-azure-devops-assessment.md) for original proposals and deferred architecture.
 
 ## Configure environments
 
@@ -119,7 +134,7 @@ $o = (az deployment group show --subscription $subscription --resource-group $rg
 
 The live smoke script performs ordinary blob uploads without queue sends or custom metadata, including two names with identical bytes and a repeated overwrite. It checks all three revision records and one shared destination. The tester needs source write, ledger read and destination read permissions. Synthetic data remains for audit.
 
-Bootstrap is for first provisioning. The script rejects Bootstrap when that workload/environment already has a Function App, preserving runtime alerts; use Release for subsequent updates. `-ParameterPath` accepts a workload-specific `.bicepparam` and checks that its environment matches `-EnvironmentName`. Deployment history is named `<workload>-<environment>`; compilation/effective parameters use a unique local folder for each invocation. The scripts still require one deployment at a time for a target; protected environment locks belong in the future release pipeline.
+Bootstrap is for first provisioning. The script rejects Bootstrap when that workload/environment already has a Function App, preserving runtime alerts; use Release for subsequent updates. `-ParameterPath` accepts a workload-specific `.bicepparam` and checks that its environment matches `-EnvironmentName`. Deployment history is named `<workload>-<environment>`; compilation/effective parameters use a unique local folder for each invocation. Manual scripts require operators to serialize deployments. The self-service pipeline uses sequential apply stages, but platform owners must configure the environment's exclusive lock check and prevent concurrent out-of-band changes.
 
 For a custom scope map, give the smoke test the same mapping used by the Function and an authorized prefix, for example `-SourcePrefix 'claims/smoke/' -ScopePrefixesJson '{"claims/":"claims"}'`. Pass custom upload/ledger container names too. The test derives the scope before writing any blob; an optional `-ScopeId` is checked against that mapping.
 
@@ -129,6 +144,7 @@ For a custom scope map, give the smoke test the same mapping used by the Functio
 - Polling is not immediate push or a real-time SLA. Two dispatcher and two copy invocations per host instance are configured; ordering is not guaranteed.
 - Only two storage accounts are created: host and solution. The solution account holds incoming blobs, work/poison queues and the separate ledger container. Both accounts remain private with shared keys disabled; no trusted-service firewall exception is added. The existing destination is referenced separately.
 - The template does not provision the external uploading system, VPN, peering, DNS resolver, runner, egress firewall, or malware scanner.
+- Network mode can create a dedicated VNet or reuse approved existing subnet/private DNS IDs. Existing mode does not redeploy the shared network; private endpoint creation and DNS records still require platform permissions.
 - Monitor endpoints remain public, authenticated TLS. Existing destination settings remain owner-managed.
 - Destination names now use `v1/<scope>/<content-sha256>/payload`; original names map through ledger records. Earlier destination files/receipts are not migrated automatically. If upgrading from a separate ledger account, follow the ledger migration procedure in [operations](docs/operations.md) before switching endpoints.
 - Full hash verification and scanning retained versions add IO/cost. Review retention, backup, load, poison handling, and operational ownership.

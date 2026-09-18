@@ -1,0 +1,42 @@
+parameters:
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+stages:
+  - stage: Discover
+    displayName: Read-only discovery in the selected subscription
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: Inventory
+        pool:
+          name: ${{ variables.agentPool }}
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: ${{ variables.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: scriptPath
+              scriptPath: scripts/Export-DeploymentInventory.ps1
+              arguments: >-
+                -Workload '${{ parameters.workload }}'
+                -EnvironmentName '${{ parameters.environment }}'
+                -SubscriptionAlias '${{ parameters.subscription }}'
+                -NetworkProfile '${{ parameters.network }}'
+                -OrganizationUrl '$(System.CollectionUri)'
+                -Project '$(System.TeamProject)'
+                -OutputDirectory '$(Build.ArtifactStagingDirectory)/discovery'
+              visibleAzLogin: false
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+              AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no'
+          - publish: $(Build.ArtifactStagingDirectory)/discovery
+            artifact: subscription-discovery
+            condition: succeededOrFailed()

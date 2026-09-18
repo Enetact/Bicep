@@ -53,10 +53,30 @@ $files=@{}; foreach ($file in @('main.json','parameters.json','target.json','app
 Write-ServiceJson @{schemaVersion=1;releaseId='offline-test';sourceCommit='test';files=$files} (Join-Path $bundleDir bundle.json)
 $bundle=Read-ServiceBundle $bundleDir
 Case 'tampered package rejected' { Add-Content (Join-Path $bundleDir application.zip) 'tampered'; Reject { Read-ServiceBundle $bundleDir } integrity; [IO.File]::WriteAllText((Join-Path $bundleDir application.zip),'Synthetic package fixture; never uploaded to Azure.') }
+foreach ($failure in @('branch','reason','binding','provenance')) {
+    Case "entrypoint rejects $failure and retains failed receipt" {
+        $saved=@{}; foreach ($key in @('BUILD_SOURCEBRANCH','BUILD_REASON','BUILD_SOURCEVERSION')) { $saved[$key]=[Environment]::GetEnvironmentVariable($key) }
+        try {
+            $env:BUILD_SOURCEBRANCH='refs/heads/main'; $env:BUILD_REASON='Manual'; $env:BUILD_SOURCEVERSION='test'
+            $binding=$target.serviceConnection
+            switch ($failure) {
+                branch { $env:BUILD_SOURCEBRANCH='refs/heads/feature' }
+                reason { $env:BUILD_REASON='PullRequest' }
+                binding { $binding='another-connection' }
+                provenance { $env:BUILD_SOURCEVERSION='another-commit' }
+            }
+            $evidence=Join-Path $testRoot "entry-$failure"
+            Reject { & "$PSScriptRoot/Invoke-SelfService.ps1" -Action PlanFoundation -BundleDirectory $bundleDir -EvidenceDirectory $evidence -BoundServiceConnection $binding -BoundEnvironment $target.deploymentEnvironment -BoundAgentPool $target.agentPool }
+            $receipt=Get-Content (Join-Path $evidence receipt.json) -Raw | ConvertFrom-Json
+            Check ($receipt.status -eq 'Failed' -and !$receipt.ready -and $receipt.error)
+        } finally { foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key,$saved[$key]) } }
+    }
+}
 
 # The only Azure boundary used below is this fake. Any unexpected CLI call fails.
 $script:commands=[Collections.Generic.List[string]]::new()
 $script:hasApp=$false; $script:drift=$false; $script:smokePass=$true; $script:connectionFails=$false
+$script:packageExists=$false; $script:packageConflict=$false; $script:duplicateRequests=$false
 $outputs=@{}
 $outValues=@{hostStorageAccountName='sthdevtest';uploadStorageAccountName='studevtest';uploadContainer='incoming';ledgerContainer='transfer-ledger';transferQueue='transfer-work';packageContainer='packages';functionAppName='func-blobcopy-dev-test';functionAppResourceId="/subscriptions/$($target.subscriptionId)/resourceGroups/rg-blobcopy-dev/providers/Microsoft.Web/sites/func-blobcopy-dev-test";managedIdentityPrincipalId='runtime-principal';workspaceId='/workspace'}
 foreach ($key in $outValues.Keys) { $outputs[$key]=@{value=$outValues[$key]} }
@@ -72,7 +92,13 @@ function Invoke-Az {
         '^deployment group show ' { @{properties=@{outputs=$outputs}}; break }
         '^deployment group what-if ' { @{status='Succeeded';changes=@(@{resourceId='/resource';changeType='Modify';after=@{version= $(if ($script:drift) {2} else {1})}})}; break }
         '^deployment group create ' { @{properties=@{provisioningState='Succeeded';outputs=$outputs}}; break }
-        '^storage blob exists ' { @{exists=$false}; break }
+        '^storage blob exists ' { @{exists=$script:packageExists}; break }
+        '^storage blob download ' {
+            $path=$Arguments[[Array]::IndexOf($Arguments,'--file')+1]
+            if ($script:packageConflict) { [IO.File]::WriteAllText($path,'Different package bytes') }
+            else { Copy-Item -LiteralPath (Join-Path $bundleDir application.zip) -Destination $path }
+            @{etag='existing'}; break
+        }
         '^storage blob upload ' { @{etag='uploaded'}; break }
         default { throw "Unexpected mocked Azure call: $cmd" }
     }
@@ -80,7 +106,7 @@ function Invoke-Az {
 }
 function Wait-ServiceConnectivity($Bundle,$Outputs) { if ($script:connectionFails) { throw 'Synthetic connectivity failure' } }
 function Wait-ServiceFunctions($Bundle,$Outputs) { }
-function Invoke-ServiceSmoke($Bundle,$Outputs,$EvidenceDirectory) { @{passed=$script:smokePass;requestIds=@('r1','r2','r3')} }
+function Invoke-ServiceSmoke($Bundle,$Outputs,$EvidenceDirectory) { @{passed=$script:smokePass;requestIds=$(if ($script:duplicateRequests) {@('r1','r1','r3')} else {@('r1','r2','r3')})} }
 
 $foundationPlan=Join-Path $testRoot foundation-plan
 $plan=New-ServicePlan $bundle Foundation $foundationPlan
@@ -111,6 +137,18 @@ Case 'failed connectivity prevents package and deployment mutation' {
     $script:connectionFails=$false
 }
 Case 'failed smoke never reports Ready' { $script:smokePass=$false; Reject { Invoke-ServiceApply $bundle Release $releasePlan (Join-Path $testRoot failed-smoke) } incomplete; $script:smokePass=$true }
+Case 'duplicate request evidence never reports Ready' { $script:duplicateRequests=$true; Reject { Invoke-ServiceApply $bundle Release $releasePlan (Join-Path $testRoot duplicate-smoke) } incomplete; $script:duplicateRequests=$false }
+Case 'existing identical package is reused without upload' {
+    $script:packageExists=$true; $script:commands.Clear()
+    $result=Invoke-ServiceApply $bundle Release $releasePlan (Join-Path $testRoot reuse-result)
+    Check ($result.ready -and !@($script:commands | Where-Object { $_ -match '^storage blob upload ' }).Count)
+}
+Case 'conflicting release ID prevents overwrite and deployment' {
+    $script:packageConflict=$true; $script:commands.Clear()
+    Reject { Invoke-ServiceApply $bundle Release $releasePlan (Join-Path $testRoot conflict-result) } 'different package bytes'
+    Check (!@($script:commands | Where-Object { $_ -match '^deployment group create |^storage blob upload ' }).Count)
+    $script:packageConflict=$false; $script:packageExists=$false
+}
 Case 'approved release uploads exact package then deploys and smoke-gates Ready' {
     $script:commands.Clear()
     $result=Invoke-ServiceApply $bundle Release $releasePlan (Join-Path $testRoot release-result)
