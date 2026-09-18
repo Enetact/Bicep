@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "workload": "blobcopy",
+  "environmentName": "qa",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "resourceGroup": "rg-blobcopy-qa",
+  "parameterFile": "environments/qa.bicepparam",
+  "serviceConnection": "sc-blobcopy-qa",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "blobcopy-qa",
+  "smokePrefix": "smoke/"
+}

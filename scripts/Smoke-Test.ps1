@@ -10,7 +10,8 @@ param(
     [Parameter(Mandatory)][string]$DestinationSubscriptionId,
     [Parameter(Mandatory)][string]$DestinationAccount,
     [Parameter(Mandatory)][string]$DestinationContainer,
-    [ValidateRange(60,7200)][int]$TimeoutSeconds = 1800
+    [ValidateRange(60,7200)][int]$TimeoutSeconds = 1800,
+    [string]$EvidencePath = ''
 )
 . "$PSScriptRoot/common.ps1"
 $root = Get-ProjectRoot
@@ -42,6 +43,7 @@ foreach ($sourceName in $sourceNames) {
     $requests += [pscustomobject]@{ Id=$request; Source=$sourceName }
 }
 $requests | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $folder 'requests.json')
+if (@($requests.Id | Select-Object -Unique).Count -ne 3) { throw 'Smoke uploads did not produce three distinct source revisions.' }
 $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
 $complete = $false
 while ([DateTimeOffset]::UtcNow -lt $deadline) {
@@ -66,5 +68,10 @@ if ((Get-FileHash -LiteralPath $download).Hash.ToLowerInvariant() -ne $hash) { t
 foreach ($sourceName in @($requests.Source | Select-Object -Unique)) {
     $exists = Invoke-Az -Arguments @('storage','blob','exists','--account-name',$UploadAccount,'--container-name',$UploadContainer,'--name',$sourceName,'--auth-mode','login','--subscription',$SubscriptionId,'--output','json') | ConvertFrom-Json
     if (!$exists.exists) { throw 'A source blob was unexpectedly removed.' }
+}
+if ($EvidencePath) {
+    New-Item -ItemType Directory -Path (Split-Path -Parent ([IO.Path]::GetFullPath($EvidencePath))) -Force | Out-Null
+    @{passed=$true; requestIds=@($requests.Id); sourceNames=@($requests.Source); destination=$name; sha256=$hash; sourceVersionsTested=$true; completedUtc=[DateTimeOffset]::UtcNow.ToString('O'); evidenceFolder=$folder} |
+        ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $EvidencePath -Encoding utf8
 }
 Write-Host "PASS: three external-style uploads/revisions completed to one byte-identical destination; sources retained. Evidence: $folder"

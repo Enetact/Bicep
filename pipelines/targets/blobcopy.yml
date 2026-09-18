@@ -1,0 +1,9 @@
+# Platform-owned bindings. These names must match the corresponding JSON target.
+parameters:
+  - name: environment
+    type: string
+    values: [dev, qa, uat, prod]
+variables:
+  serviceConnection: sc-blobcopy-${{ parameters.environment }}
+  agentPool: blob-transfer-private
+  deploymentEnvironment: blobcopy-${{ parameters.environment }}
