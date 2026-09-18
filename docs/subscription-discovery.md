@@ -89,8 +89,8 @@ Run `Update-ServiceCatalog.ps1` again after profile changes, review all generate
 
 The catalog generator produces:
 
-- `azure-pipelines-self-service.yml`: parameter values and discovery/deployment routing.
-- `pipelines/catalog-bindings.yml`: compile-time mapping to exact protected service connection/pool/environment.
+- `azure-pipelines-self-service.yml`: parameter values and a call to the generated stage router.
+- `pipelines/catalog-bindings.yml`: conditional stage routing that passes literal service connection/pool/environment values as explicit template parameters. Nested templates forward these parameters; they do not read implicit parent variables. Invalid combinations produce a failing validation stage before Azure access.
 
 Reusable deployment steps live in `pipelines/templates/self-service-stages.yml`; edit that template rather than the generated root YAML. The old per-workload binding file is superseded by the generated catalog.
 
@@ -140,4 +140,4 @@ Discovery includes available subscription-level ARM permission evidence, but mak
 
 ## Verification
 
-`Test-ServiceDiscovery.ps1` has 31 offline cases for scoped inventory, service-connection subscription lookup, binding/subscription mismatch rejection, disabled-placeholder isolation, duplicate-name rejection, filtered endpoint discovery, profile/name/identity derivation, catalog freshness/ambiguity, and subnet/region/delegation/DNS failures. Azure CLI calls are mocked with a strict read-only allowlist. The existing 37 deployment cases still pass. All four environment templates previously compiled with the new parameters. Live Azure discovery, generated YAML expansion on Azure DevOps, and an existing-network deployment remain unverified until run in the actual project.
+`Test-ServiceDiscovery.ps1` has 34 offline cases for scoped inventory, service-connection subscription lookup, binding/subscription mismatch rejection, disabled-placeholder isolation, duplicate-name rejection, filtered endpoint discovery, profile/name/identity derivation, catalog freshness/ambiguity, explicit template bindings and relative paths, and subnet/region/delegation/DNS failures. Azure CLI calls are mocked with a strict read-only allowlist. The existing 37 deployment cases still pass. All four environment templates previously compiled with the new parameters. A first live discovery attempt reached the Azure CLI task but failed before authentication because its expanded connection input was empty; the explicit-parameter fix awaits a new live run. See [validation](validation.md).

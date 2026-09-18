@@ -4,6 +4,14 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
+### Live discovery log diagnosis: logs_4.zip
+
+The supplied `logs_4.zip` records a manual `discover` run on `feature/selfservice`. Inventory reached the Azure CLI task (2.279.1, Azure CLI 2.90.0 with azure-devops 1.0.8 installed), but failed with `Input required: connectedServiceNameARM`. The expanded YAML contained top-level `serviceConnection: SC-AZ-A-Bicep` while both the Azure CLI `azureSubscription` input and script `BoundServiceConnection` argument were empty. Authentication and inventory never started. Artifact publication then failed because its directory had not been created. This is pipeline wiring evidence, not an Azure RBAC failure or a deployment attempt.
+
+The generator now emits a stage router with literal protected-resource values passed through explicit template parameters for both discovery and deployment. Nested deployment template paths are relative to their containing template. Discovery prepares its artifact directory and an explanatory README before Azure login.
+
+Validation of the fix: **34 discovery/catalog cases passed**, evidence `artifacts/discovery-tests/09ea87474ec7431b9de8fd4a68c026cf/results.json`; **37 deployment cases passed**, evidence `artifacts/self-service-tests/45fe741212a64388baf0a69db8731b65/results.json`. A local YAML/template-subset expansion check evaluated all eight environment/operation combinations and verified nonempty matching connection inputs, script bindings, pools and environments; an invalid combination produced the rejection stage. This local check is not Azure DevOps server validation. Queue a new run from the corrected source to verify the actual task login and resource discovery.
+
 ### Subscription discovery follow-up
 
 The subsequent service-connection bootstrap update passed **31 discovery cases** and **37 deployment cases**. Evidence: `artifacts/discovery-tests/f7a7ab3c850c498fbc89cc9e992d6ff4/results.json` and `artifacts/self-service-tests/30b5ef2aea0141478ffa3cf4c403c81d/results.json`. New cases prove that the disabled placeholder can discover the active service-connection subscription without enumerating alternatives or modifying the profile, while missing/wrong bindings, mismatched registered subscriptions, and disabled accounts fail. These are mocked Azure results, not live subscription evidence. Read-only discovery now uses a hosted agent; deployment retains the private pool.

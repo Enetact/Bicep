@@ -85,15 +85,15 @@
     "offlineCasesPassed": 37,
     "offlineCasesFailed": 0,
     "azureCalls": "Mocked only in contract tests",
-    "evidence": "artifacts/self-service-tests/30b5ef2aea0141478ffa3cf4c403c81d/results.json",
+    "evidence": "artifacts/self-service-tests/45fe741212a64388baf0a69db8731b65/results.json",
     "yamlFilesParsed": 6,
     "discovery": {
       "implemented": true,
       "defaultOperation": "discover",
       "liveAzureQueried": false,
-      "offlineCasesPassed": 31,
+      "offlineCasesPassed": 34,
       "offlineCasesFailed": 0,
-      "evidence": "artifacts/discovery-tests/f7a7ab3c850c498fbc89cc9e992d6ff4/results.json",
+      "evidence": "artifacts/discovery-tests/09ea87474ec7431b9de8fd4a68c026cf/results.json",
       "subscriptionFromServiceConnection": true,
       "discoveryAgent": "windows-latest",
       "dropdownRefresh": "Reviewed catalog generation for the next run; no live cascading form",
@@ -115,6 +115,17 @@
     "unitEvidence": "artifacts/test-results/unit.trx",
     "runtimeEvidenceDate": "2026-09-17"
   },
-  "azureDevOpsPipelineExecuted": false,
+  "azureDevOpsPipelineExecuted": true,
+  "azureDevOpsLastObservedRun": {
+    "source": "User-supplied logs_4.zip",
+    "operation": "discover",
+    "branch": "feature/selfservice",
+    "status": "Failed before Azure authentication",
+    "error": "Input required: connectedServiceNameARM",
+    "expandedConnectionInput": "empty",
+    "fix": "Literal catalog bindings passed through explicit template parameters",
+    "fixVerifiedInAzureDevOps": false,
+    "localParameterExpansionCombinationsChecked": 8
+  },
   "dependencyAdvisoryCheck": "2026-09-18 query passed for Function dependencies including transitives; no reported vulnerabilities. This does not certify npm tools."
 }
