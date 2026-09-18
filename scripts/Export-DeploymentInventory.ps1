@@ -7,6 +7,8 @@ param(
     [Parameter(Mandatory,ParameterSetName='Profile')][string]$EnvironmentName,
     [Parameter(Mandatory,ParameterSetName='Profile')][string]$SubscriptionAlias,
     [Parameter(Mandatory,ParameterSetName='Profile')][string]$NetworkProfile,
+    [Parameter(ParameterSetName='Profile')][switch]$UseServiceConnectionSubscription,
+    [Parameter(ParameterSetName='Profile')][string]$BoundServiceConnection='',
     [string]$OrganizationUrl='', [string]$Project='',
     [Parameter(Mandatory)][string]$OutputDirectory
 )
@@ -14,8 +16,17 @@ param(
 # Read-only Azure calls. Do not set the default subscription, install extensions,
 # create endpoints, alter delegates, or grant permissions from this script.
 if ($PSCmdlet.ParameterSetName -eq 'Profile') {
-    $target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile -AllowDisabled
+    $target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile -AllowDisabled -AllowDiscoveryPlaceholder:$UseServiceConnectionSubscription
     $SubscriptionId=$target.subscriptionId
+    if ($UseServiceConnectionSubscription) {
+        if (!$BoundServiceConnection -or $target.serviceConnection -cne $BoundServiceConnection) { throw 'Discovery target does not match the YAML-bound service connection.' }
+        # AzureCLI@2 selects the subscription configured on its service connection.
+        # Read that context; do not enumerate or arbitrarily choose a subscription.
+        $connected=Invoke-ServiceJson @('account','show')
+        if (!$connected -or $connected.state -ne 'Enabled' -or [guid]::Parse($connected.id) -eq [guid]::Empty) { throw 'Service connection has no enabled subscription context.' }
+        if ($SubscriptionId -ne [guid]::Empty.ToString() -and $SubscriptionId -ine $connected.id) { throw 'Service connection subscription differs from the registered target.' }
+        $SubscriptionId=$connected.id
+    }
 }
 if ($PSCmdlet.ParameterSetName -eq 'Name') {
     $subscriptions=@(Invoke-ServiceJson @('account','list','--all'))
@@ -28,6 +39,7 @@ $account=Invoke-ServiceJson @('account','show','--subscription',$SubscriptionId)
 if ($account.id -ine $SubscriptionId -or $account.state -ne 'Enabled') { throw 'Selected subscription is unavailable.' }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $report=@{schemaVersion=1;readOnly=$true;generatedUtc=[DateTimeOffset]::UtcNow.ToString('O');subscription=@{id=$account.id;name=$account.name;tenantId=$account.tenantId};networks=@();privateDnsZones=@();serviceConnections=@();permissionEvidence=@();warnings=@()}
+if ($UseServiceConnectionSubscription) { $report.subscriptionSource='service-connection-context'; $report.boundServiceConnection=$BoundServiceConnection }
 $vnets=@(Invoke-ServiceJson @('network','vnet','list','--subscription',$SubscriptionId))
 foreach ($vnet in $vnets) {
     $subnets=@(Invoke-ServiceJson @('network','vnet','subnet','list','--subscription',$SubscriptionId,'--resource-group',$vnet.resourceGroup,'--vnet-name',$vnet.name))
@@ -71,4 +83,5 @@ Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)
 $lines=@('# Read-only subscription discovery','',"Subscription: $($account.name) ($SubscriptionId)",'',"Networks: $($report.networks.Count); matching service connections: $($report.serviceConnections.Count)",'','Review inventory.json. No resources or permissions were changed.','')
 $lines+=@($report.warnings | ForEach-Object { "- $_" })
 $lines | Set-Content (Join-Path $OutputDirectory summary.md)
+if ($env:TF_BUILD -eq 'True') { Write-Host "##vso[task.uploadsummary]$(Join-Path $OutputDirectory summary.md)" }
 Write-Host "Read-only inventory saved: $OutputDirectory"

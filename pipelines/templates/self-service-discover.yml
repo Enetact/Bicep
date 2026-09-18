@@ -14,7 +14,8 @@ stages:
     jobs:
       - job: Inventory
         pool:
-          name: ${{ variables.agentPool }}
+          # ARM inventory reads do not need private storage/network connectivity.
+          vmImage: windows-latest
         steps:
           - checkout: self
             clean: true
@@ -30,6 +31,8 @@ stages:
                 -EnvironmentName '${{ parameters.environment }}'
                 -SubscriptionAlias '${{ parameters.subscription }}'
                 -NetworkProfile '${{ parameters.network }}'
+                -UseServiceConnectionSubscription
+                -BoundServiceConnection '${{ variables.serviceConnection }}'
                 -OrganizationUrl '$(System.CollectionUri)'
                 -Project '$(System.TeamProject)'
                 -OutputDirectory '$(Build.ArtifactStagingDirectory)/discovery'

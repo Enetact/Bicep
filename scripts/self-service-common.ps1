@@ -31,7 +31,7 @@ function Resolve-ServicePath([string]$Root, [string]$Relative) {
     }
     return $path
 }
-function Read-ServiceTarget([string]$Workload, [string]$EnvironmentName, [string]$SubscriptionAlias='', [string]$NetworkProfile='', [switch]$AllowDisabled) {
+function Read-ServiceTarget([string]$Workload, [string]$EnvironmentName, [string]$SubscriptionAlias='', [string]$NetworkProfile='', [switch]$AllowDisabled, [switch]$AllowDiscoveryPlaceholder) {
     if ($Workload -cnotmatch '^[a-z0-9]{3,10}$' -or $EnvironmentName -cnotin @('dev','qa','uat','prod')) { throw 'Invalid workload/environment selection.' }
     $path = Join-Path (Get-ProjectRoot) "self-service/targets/$Workload.$EnvironmentName.json"
     if ($SubscriptionAlias -or $NetworkProfile) {
@@ -43,17 +43,18 @@ function Read-ServiceTarget([string]$Workload, [string]$EnvironmentName, [string
         if ($matches.Count -ne 1) { throw 'Selection must match exactly one registered subscription/network target.' }
         $target=$matches[0]
     } else { $target = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable }
-    Assert-ServiceTarget $target $Workload $EnvironmentName -AllowDisabled:$AllowDisabled
+    Assert-ServiceTarget $target $Workload $EnvironmentName -AllowDisabled:$AllowDisabled -AllowDiscoveryPlaceholder:$AllowDiscoveryPlaceholder
     return $target
 }
-function Assert-ServiceTarget($Target, [string]$Workload, [string]$EnvironmentName, [switch]$AllowDisabled) {
+function Assert-ServiceTarget($Target, [string]$Workload, [string]$EnvironmentName, [switch]$AllowDisabled, [switch]$AllowDiscoveryPlaceholder) {
     if ($Workload -cnotmatch '^[a-z0-9]{3,10}$' -or $EnvironmentName -cnotin @('dev','qa','uat','prod')) { throw 'Invalid workload/environment selection.' }
     $required = @('schemaVersion','enabled','workload','environmentName','subscriptionId','resourceGroup','parameterFile','serviceConnection','agentPool','deploymentEnvironment','smokePrefix')
     if ($Target.schemaVersion -eq 2) { $required+=@('subscriptionAlias','networkProfile','parameterOverrides') }
     if (@($Target.Keys | Where-Object { $_ -notin $required }).Count -or @($required | Where-Object { !$Target.Contains($_) }).Count) { throw 'Target fields do not match its schemaVersion.' }
     if ($Target.schemaVersion -notin @(1,2) -or $Target.enabled -isnot [bool] -or (!$Target.enabled -and !$AllowDisabled)) { throw 'Target is disabled. Platform onboarding must be completed first.' }
     if ($Target.workload -cne $Workload -or $Target.environmentName -cne $EnvironmentName) { throw 'Target selection mismatch.' }
-    if ($Target.subscriptionId -notmatch '^[0-9a-fA-F-]{36}$' -or $Target.subscriptionId -eq [guid]::Empty.ToString()) { throw 'A real subscription GUID is required.' }
+    $discoveryPlaceholder=$AllowDiscoveryPlaceholder -and $AllowDisabled -and !$Target.enabled -and $Target.schemaVersion -eq 2 -and $Target.subscriptionAlias -ceq 'unconfigured'
+    if ($Target.subscriptionId -notmatch '^[0-9a-fA-F-]{36}$' -or ($Target.subscriptionId -eq [guid]::Empty.ToString() -and !$discoveryPlaceholder)) { throw 'A real subscription GUID is required.' }
     $null = [guid]::Parse($Target.subscriptionId)
     foreach ($key in @('resourceGroup','serviceConnection','agentPool','deploymentEnvironment')) {
         if ($Target[$key] -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$' -or $Target[$key] -match 'REPLACE') { throw "Invalid target field: $key" }
