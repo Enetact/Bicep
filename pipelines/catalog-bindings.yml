@@ -10,6 +10,12 @@ parameters:
     type: string
   - name: network
     type: string
+  - name: discoveryPipelineId
+    type: string
+    default: '0'
+  - name: discoveryRunId
+    type: string
+    default: '0'
 stages:
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
@@ -30,6 +36,8 @@ stages:
           serviceConnection: SC-AZ-A-Bicep
           agentPool: blob-transfer-private
           deploymentEnvironment: blobcopy-dev
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -49,6 +57,8 @@ stages:
           serviceConnection: SC-AZ-A-Bicep
           agentPool: blob-transfer-private
           deploymentEnvironment: blobcopy-prod
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -68,6 +78,8 @@ stages:
           serviceConnection: SC-AZ-A-Bicep
           agentPool: blob-transfer-private
           deploymentEnvironment: blobcopy-qa
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -87,6 +99,8 @@ stages:
           serviceConnection: SC-AZ-A-Bicep
           agentPool: blob-transfer-private
           deploymentEnvironment: blobcopy-uat
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
   - ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')))) }}:
     - stage: InvalidSelection
       jobs:

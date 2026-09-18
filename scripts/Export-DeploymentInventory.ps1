@@ -40,9 +40,21 @@ if ($account.id -ine $SubscriptionId -or $account.state -ne 'Enabled') { throw '
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $report=@{schemaVersion=1;readOnly=$true;generatedUtc=[DateTimeOffset]::UtcNow.ToString('O');subscription=@{id=$account.id;name=$account.name;tenantId=$account.tenantId};networks=@();privateDnsZones=@();serviceConnections=@();permissionEvidence=@();warnings=@()}
 if ($UseServiceConnectionSubscription) { $report.subscriptionSource='service-connection-context'; $report.boundServiceConnection=$BoundServiceConnection }
-$vnets=@(Invoke-ServiceJson @('network','vnet','list','--subscription',$SubscriptionId))
+$report.discoveryStatus='Complete'
+$report.networkQuery=@{status='Succeeded'}
+try { $vnets=@(Invoke-ServiceJson @('network','vnet','list','--subscription',$SubscriptionId)) }
+catch {
+    $vnets=@(); $report.discoveryStatus='Partial'; $report.networkQuery=@{status='Failed';error=$_.Exception.Message}
+    $report.warnings+='VNet listing failed; network availability is unknown. No networks were assumed absent.'
+}
 foreach ($vnet in $vnets) {
-    $subnets=@(Invoke-ServiceJson @('network','vnet','subnet','list','--subscription',$SubscriptionId,'--resource-group',$vnet.resourceGroup,'--vnet-name',$vnet.name))
+    try { $subnets=@(Invoke-ServiceJson @('network','vnet','subnet','list','--subscription',$SubscriptionId,'--resource-group',$vnet.resourceGroup,'--vnet-name',$vnet.name)) }
+    catch {
+        $report.discoveryStatus='Partial'
+        $report.networks+=@{id=$vnet.id;name=$vnet.name;location=$vnet.location;resourceGroup=$vnet.resourceGroup;subnets=@();subnetQuery=@{status='Failed';error=$_.Exception.Message}}
+        $report.warnings+="Subnet listing failed for $($vnet.id); its subnets are unknown."
+        continue
+    }
     $items=@($subnets | ForEach-Object {
         $delegations=@(); if ($_.Contains('delegations')) { $delegations=@($_.delegations | ForEach-Object { $_.serviceName }) }
         $prefixes=if ($_.Contains('addressPrefixes')) { @($_.addressPrefixes) } else { @($_.addressPrefix) }
@@ -52,10 +64,32 @@ foreach ($vnet in $vnets) {
           integrationCandidate=($delegations.Count -eq 1 -and $delegations[0] -eq 'Microsoft.Web/serverFarms' -and $largeEnough -and !$hasPrivateEndpoints);
           privateEndpointCandidate=($delegations.Count -eq 0 -and $_.privateEndpointNetworkPolicies -eq 'Disabled')}
     })
-    $report.networks+=@{id=$vnet.id;name=$vnet.name;location=$vnet.location;resourceGroup=$vnet.resourceGroup;subnets=$items}
+    $report.networks+=@{id=$vnet.id;name=$vnet.name;location=$vnet.location;resourceGroup=$vnet.resourceGroup;subnets=$items;subnetQuery=@{status='Succeeded';count=$items.Count}}
 }
-$zones=@(Invoke-ServiceJson @('network','private-dns','zone','list','--subscription',$SubscriptionId))
-$report.privateDnsZones=@($zones | ForEach-Object { @{id=$_.id;name=$_.name;resourceGroup=$_.resourceGroup} })
+if ($report.networkQuery.status -eq 'Succeeded') { $report.networkQuery.count=$vnets.Count }
+$report.privateDnsQuery=@{status='Succeeded';command="az network private-dns zone list --subscription $SubscriptionId"}
+$report.diagnostics=@{}
+try {
+    $zones=@(Invoke-ServiceJson @('network','private-dns','zone','list','--subscription',$SubscriptionId))
+    $report.privateDnsZones=@($zones | ForEach-Object { @{id=$_.id;name=$_.name;resourceGroup=$_.resourceGroup} })
+    $report.privateDnsQuery.count=$zones.Count
+} catch {
+    # An unavailable DNS API is not evidence that the subscription has no zones.
+    # Retain the other reads, publish evidence, then fail the run explicitly.
+    $report.discoveryStatus='Partial'
+    $report.privateDnsQuery.status='Failed'
+    $report.privateDnsQuery.error=$_.Exception.Message
+    $report.warnings+='Private DNS lookup failed. The empty privateDnsZones array means unknown, not zero zones. See the Azure CLI task error and diagnostics; do not register a target from this partial inventory.'
+    try {
+        $details=Invoke-ServiceJson @('rest','--method','get','--url',"https://management.azure.com/subscriptions/${SubscriptionId}?api-version=2022-12-01")
+        $report.diagnostics.subscriptionArm=@{status='Succeeded';subscriptionId=$details.subscriptionId;displayName=$details.displayName;state=$details.state}
+    } catch { $report.diagnostics.subscriptionArm=@{status='Failed';error=$_.Exception.Message} }
+    try {
+        $provider=Invoke-ServiceJson @('provider','show','--namespace','Microsoft.Network','--subscription',$SubscriptionId,
+            '--query',"{namespace:namespace,registrationState:registrationState,privateDnsResourceTypes:resourceTypes[?resourceType=='privateDnsZones'].{resourceType:resourceType,apiVersions:apiVersions,locations:locations}}")
+        $report.diagnostics.networkProvider=@{status='Succeeded';details=$provider}
+    } catch { $report.diagnostics.networkProvider=@{status='Failed';error=$_.Exception.Message} }
+}
 # Subscription-level ARM permissions are evidence only: conditional role grants,
 # deny assignments, downstream RG/subnet grants and data-plane access need live checks.
 try {
@@ -68,6 +102,7 @@ if ($OrganizationUrl -or $Project) {
         # Query projection is deliberate: never serialize endpoint authorization parameters.
         $connections=@(Invoke-ServiceJson @('devops','service-endpoint','list','--organization',$OrganizationUrl,'--project',$Project,
             '--query',"[?type=='azurerm'].{id:id,name:name,ready:isReady,subscriptionId:data.subscriptionId,tenantId:authorization.parameters.tenantid,applicationId:authorization.parameters.serviceprincipalid,scheme:authorization.scheme}"))
+        $report.serviceConnectionQuery=@{status='Succeeded'}
         foreach ($connection in @($connections | Where-Object { $_.subscriptionId -ieq $SubscriptionId -and $_.tenantId -ieq $account.tenantId })) {
             $objectId=$null
             if ($connection.applicationId) {
@@ -76,12 +111,40 @@ if ($OrganizationUrl -or $Project) {
             }
             $report.serviceConnections+=@{id=$connection.id;name=$connection.name;ready=$connection.ready;subscriptionId=$connection.subscriptionId;scheme=$connection.scheme;applicationId=$connection.applicationId;principalObjectId=$objectId}
         }
-    } catch { $report.warnings+='Azure DevOps endpoint discovery unavailable. Install/authenticate the azure-devops CLI extension separately and verify project endpoint-read access. No connection was selected automatically.' }
-} else { $report.warnings+='Azure DevOps organization/project not supplied: service connections were not discovered.' }
+        $report.serviceConnectionQuery.count=$report.serviceConnections.Count
+    } catch { $report.serviceConnectionQuery=@{status='Failed';error=$_.Exception.Message}; $report.warnings+='Azure DevOps endpoint discovery unavailable. Install/authenticate the azure-devops CLI extension separately and verify project endpoint-read access. No connection was selected automatically.' }
+} else { $report.serviceConnectionQuery=@{status='NotRequested'}; $report.warnings+='Azure DevOps organization/project not supplied: service connections were not discovered.' }
 $report.warnings+='Candidate flags do not prove free IP capacity, route/NSG safety, DNS resolution, pipeline authorization, or effective deployment/data-plane permissions. Cross-subscription DNS zones must be supplied explicitly.'
 Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)
-$lines=@('# Read-only subscription discovery','',"Subscription: $($account.name) ($SubscriptionId)",'',"Networks: $($report.networks.Count); matching service connections: $($report.serviceConnections.Count)",'','Review inventory.json. No resources or permissions were changed.','')
+$manifest=@{schemaVersion=1;kind='blob-transfer-discovery';generatedUtc=$report.generatedUtc;discoveryStatus=$report.discoveryStatus;inventorySha256=(Get-ServiceHash (Join-Path $OutputDirectory inventory.json));subscriptionId=$SubscriptionId;
+    serviceConnection=$BoundServiceConnection;selection=@{workload=$Workload;environment=$EnvironmentName;subscription=$SubscriptionAlias;network=$NetworkProfile};
+    source=@{runId=$env:BUILD_BUILDID;pipelineId=$env:SYSTEM_DEFINITIONID;projectId=$env:SYSTEM_TEAMPROJECTID;repositoryId=$env:BUILD_REPOSITORY_ID;branch=$env:BUILD_SOURCEBRANCH;commit=$env:BUILD_SOURCEVERSION}}
+Write-ServiceJson $manifest (Join-Path $OutputDirectory manifest.json)
+$lines=@('# Read-only subscription discovery','',"Status: $($report.discoveryStatus); private DNS query: $($report.privateDnsQuery.status)",'',"Subscription: $($account.name) ($SubscriptionId)",'','Review inventory.json. No resources or permissions were changed.','')
+foreach ($section in @(@{label='Virtual networks';query=$report.networkQuery;items=$report.networks},@{label='Private DNS zones';query=$report.privateDnsQuery;items=$report.privateDnsZones},@{label='Matching service connections';query=$report.serviceConnectionQuery;items=$report.serviceConnections})) {
+    $description=if ($section.query.status -eq 'NotRequested') { 'Not requested' } elseif ($section.query.status -ne 'Succeeded') { 'Unknown (listing failed)' } elseif ($section.items.Count -eq 0) { 'None found' } else { "$($section.items.Count) found" }
+    $lines+="$($section.label): $description."
+}
+foreach ($vnet in $report.networks) {
+    $description=if ($vnet.subnetQuery.status -ne 'Succeeded') { 'Unknown (listing failed)' } elseif ($vnet.subnets.Count -eq 0) { 'None found' } else { "$($vnet.subnets.Count) found" }
+    $lines+="Subnets in $($vnet.name): $description."
+}
+if ($report.privateDnsQuery.status -eq 'Failed') {
+    $lines+=@('Private DNS discovery failed. Azure CLI account context alone does not prove that the DNS service can access this subscription.',
+        "ARM subscription diagnostic: $($report.diagnostics.subscriptionArm.status); Microsoft.Network diagnostic: $($report.diagnostics.networkProvider.status).",
+        'Inspect diagnostics in inventory.json and the original Azure CLI error. Verify the service connection subscription/tenant, subscription state, provider registration, and read access. Provider registration is a separate platform action; this script never registers providers.','')
+}
 $lines+=@($report.warnings | ForEach-Object { "- $_" })
+if ($env:TF_BUILD -eq 'True') {
+    $lines+=@('', '## Deployment handoff', '', "Discovery pipeline ID: $($manifest.source.pipelineId)", "Discovery run ID: $($manifest.source.runId)",
+        'Artifact: subscription-discovery (manifest.json + inventory.json).',
+        'Queue azure-pipelines-self-service-deploy.yml after discovery succeeds. Enter these two IDs and select a registered target. Deployment requires a successful main-branch discovery from this repository within seven days. Feature-branch runs remain diagnostic only.',
+        'The next run uses catalog dropdowns; Azure DevOps cannot repopulate a running pipeline form from this artifact.')
+}
 $lines | Set-Content (Join-Path $OutputDirectory summary.md)
 if ($env:TF_BUILD -eq 'True') { Write-Host "##vso[task.uploadsummary]$(Join-Path $OutputDirectory summary.md)" }
 Write-Host "Read-only inventory saved: $OutputDirectory"
+if ($report.discoveryStatus -eq 'Partial') { throw 'Network discovery is incomplete. Available inventory and read-only diagnostics were saved to inventory.json; see summary.md. Failed listings are unknown, not evidence that resources are absent.' }
+# AzureCLI@2 propagates the last native exit code. Optional endpoint/directory or
+# permission probes may have failed and been reported above; required reads passed.
+$global:LASTEXITCODE=0

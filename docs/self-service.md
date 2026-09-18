@@ -1,6 +1,6 @@
 # Developer self-service deployment
 
-Status: implemented in the repository and locally contract-tested; **successful live discovery/deployment remains unverified**. The first reported feature-branch discovery attempt was skipped by the former main-only stage condition. Discovery now allows manual feature-branch runs; deployment remains main-only. All four checked-in targets are deliberately disabled for deployment. The platform onboarding below must be completed before a developer can provision a target. See [completion status](completion-status.md) for the evidence and remaining work.
+Status: implemented in the repository and locally contract-tested; **successful live discovery/deployment remains unverified**. The latest supplied run selected the connection's subscription but failed at private DNS listing. Discovery now saves partial results and diagnostics. Deployment uses a verified manifest from a separate successful main-branch discovery run. All four checked-in targets remain disabled for deployment until platform onboarding is complete. See [completion status](completion-status.md).
 
 This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 
@@ -9,9 +9,9 @@ This repository deploys the blob-transfer stack. It does not contain a claims UI
 After platform onboarding:
 
 1. Open the team's Azure DevOps project and select **Pipelines**.
-2. Open the pipeline registered from `/azure-pipelines-self-service.yml` and select **Run pipeline**.
-3. Select branch `main`, operation `deploy`, workload `blobcopy`, environment, approved subscription alias and network profile. The default operation is read-only `discover`; see [subscription discovery](subscription-discovery.md). Only enabled targets deploy. No secrets, resource groups, or package paths need to be entered by developers.
-4. Run the pipeline. Qualification tests and freezes the application, infrastructure, parameters, and selected target into one run artifact.
+2. Run `/azure-pipelines-self-service.yml` on `main` with operation `discover` and the approved target selections. Wait for success and note the pipeline ID and run ID in its discovery summary.
+3. Open the pipeline registered from `/azure-pipelines-self-service-deploy.yml`, choose **Run pipeline** on `main`, enter those IDs and select workload `blobcopy`, environment, subscription alias and network profile. Only enabled targets deploy. Naming and network configuration come from the reviewed profile. See [the handoff and new-network guide](subscription-discovery.md).
+4. The deployment run downloads and verifies the exact manifest and originating run, then qualifies and freezes the application, infrastructure, parameters, target and discovery evidence into one artifact. Missing, stale, partial or mismatched evidence stops before deployment.
 5. Inspect the Foundation preview summary and `plan-Foundation` artifact. The platform approver authorizes the protected environment stage. Existing applications skip Foundation changes but still check prerequisites.
 6. Inspect the Release preview and `plan-Release` artifact. After approval, the pipeline rechecks the plan, publishes the package, deploys the Function App, synchronizes triggers, and uploads synthetic blobs through the real dispatcher.
 7. Open `result-Release/receipt.json`. Success requires `status: Ready` and `ready: true`. `FoundationReady` only means infrastructure prerequisites passed; it does not mean the application is deployed.

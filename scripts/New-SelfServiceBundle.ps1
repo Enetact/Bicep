@@ -2,10 +2,11 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Workload,[Parameter(Mandatory)][ValidateSet('dev','qa','uat','prod')][string]$EnvironmentName,
     [Parameter(Mandatory)][string]$ReleaseDirectory,[Parameter(Mandatory)][string]$OutputDirectory,
-    [string]$SubscriptionAlias='', [string]$NetworkProfile='')
-. "$PSScriptRoot/self-service-common.ps1"
+    [string]$SubscriptionAlias='', [string]$NetworkProfile='', [string]$DiscoveryDirectory='')
+. "$PSScriptRoot/discovery-manifest-common.ps1"
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Bundle directory already exists; use a fresh run directory.' }
 $target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile
+$discovery=if ($DiscoveryDirectory) { Read-DiscoveryManifest $DiscoveryDirectory $target $target.serviceConnection } else { $null }
 $release=Get-Content (Join-Path $ReleaseDirectory release.json) -Raw | ConvertFrom-Json -AsHashtable
 if ($release.releaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$' -or $release.dirtyWorktree) { throw 'Self-service requires a clean, qualified release receipt.' }
 $package=Resolve-ServicePath $ReleaseDirectory ($release.releaseId + '.zip')
@@ -23,6 +24,16 @@ Copy-Item -LiteralPath (Join-Path $ReleaseDirectory functions.metadata) -Destina
 Write-ServiceJson $target (Join-Path $OutputDirectory target.json)
 $files=@{}
 foreach ($file in @('main.json','parameters.json','target.json','application.zip','functions.metadata')) { $files[$file]=Get-ServiceHash (Join-Path $OutputDirectory $file) }
-Write-ServiceJson @{schemaVersion=1;releaseId=$release.releaseId;sourceCommit=$release.sourceCommit;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');files=$files} (Join-Path $OutputDirectory bundle.json)
+$receipt=@{schemaVersion=1;releaseId=$release.releaseId;sourceCommit=$release.sourceCommit;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');files=$files}
+if ($discovery) {
+    New-Item -ItemType Directory -Path (Join-Path $OutputDirectory discovery) -Force | Out-Null
+    foreach ($file in @('manifest.json','inventory.json')) {
+        $relative="discovery/$file"
+        Copy-Item -LiteralPath (Join-Path $DiscoveryDirectory $file) -Destination (Join-Path $OutputDirectory $relative)
+        $files[$relative]=Get-ServiceHash (Join-Path $OutputDirectory $relative)
+    }
+    $receipt.discoverySource=$discovery.source
+}
+Write-ServiceJson $receipt (Join-Path $OutputDirectory bundle.json)
 $null=Read-ServiceBundle $OutputDirectory
 Write-Host "Frozen self-service bundle: $OutputDirectory"

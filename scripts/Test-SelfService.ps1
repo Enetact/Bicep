@@ -53,6 +53,20 @@ $files=@{}; foreach ($file in @('main.json','parameters.json','target.json','app
 Write-ServiceJson @{schemaVersion=1;releaseId='offline-test';sourceCommit='test';files=$files} (Join-Path $bundleDir bundle.json)
 $bundle=Read-ServiceBundle $bundleDir
 Case 'tampered package rejected' { Add-Content (Join-Path $bundleDir application.zip) 'tampered'; Reject { Read-ServiceBundle $bundleDir } integrity; [IO.File]::WriteAllText((Join-Path $bundleDir application.zip),'Synthetic package fixture; never uploaded to Azure.') }
+Case 'frozen bundle retains and hashes the discovery handoff' {
+    $withDiscovery=Join-Path $testRoot bundle-with-discovery
+    Copy-Item -LiteralPath $bundleDir -Destination $withDiscovery -Recurse
+    Write-ServiceJson @{source=@{runId='42'}} (Join-Path $withDiscovery discovery/manifest.json)
+    Write-ServiceJson @{readOnly=$true;discoveryStatus='Complete'} (Join-Path $withDiscovery discovery/inventory.json)
+    $receipt=Get-Content (Join-Path $withDiscovery bundle.json) -Raw | ConvertFrom-Json -AsHashtable
+    $receipt.discoverySource=@{runId='42'}
+    foreach ($file in @('discovery/manifest.json','discovery/inventory.json')) { $receipt.files[$file]=Get-ServiceHash (Join-Path $withDiscovery $file) }
+    Write-ServiceJson $receipt (Join-Path $withDiscovery bundle.json)
+    $read=Read-ServiceBundle $withDiscovery
+    Check ($read.receipt.discoverySource.runId -eq '42' -and $read.receipt.files.Count -eq 7)
+    Add-Content (Join-Path $withDiscovery discovery/inventory.json) ' '
+    Reject { Read-ServiceBundle $withDiscovery } integrity
+}
 foreach ($failure in @('branch','reason','binding','provenance')) {
     Case "entrypoint rejects $failure and retains failed receipt" {
         $saved=@{}; foreach ($key in @('BUILD_SOURCEBRANCH','BUILD_REASON','BUILD_SOURCEVERSION')) { $saved[$key]=[Environment]::GetEnvironmentVariable($key) }

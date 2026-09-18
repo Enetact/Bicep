@@ -4,13 +4,27 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
-### Live discovery log diagnosis: logs_4.zip
+### Empty inventory, DNS diagnostics and two-run deployment handoff
+
+The latest user-supplied AzureCLI excerpt selected subscription `f4f2eafe-2512-4c2f-9b5b-c88f6767e778` and reached `network private-dns zone list`, which returned `BadRequest: The specified subscription ... does not exist`. This shows progress beyond the earlier empty connection-input failure. It does not establish the cause of the DNS service error or prove zero DNS resources exist. No successful full inventory or Azure deployment is claimed.
+
+Discovery now distinguishes successful empty lists (`None found`) from failed reads (`Unknown`). Required network-read failures save a partial inventory/manifest before failing; private DNS failures also collect independent read-only ARM subscription/provider diagnostics. Optional endpoint failures remain warnings without leaking their native exit code into a successful required-inventory run.
+
+New-network target registration accepts complete empty inventory plus explicit naming/location/CIDRs. The separate deployment entry point consumes the selected discovery artifact and verifies its hashes, completeness, freshness, target scope and actual Azure DevOps source run before qualification. Discovery evidence is retained in the frozen deployment bundle. Shared-network reuse and deployment checks remain separate from resource creation.
+
+- **65 discovery/catalog/handoff cases passed**, zero failures: `artifacts/discovery-tests/ce8ca60d315c464f817d354777528bd3/results.json`.
+- **38 self-service/bundle/orchestration cases passed**, zero failures: `artifacts/self-service-tests/05b15cf9dbec477b8fd1818a88825ce8/results.json`.
+- **19 tooling cases passed**: `artifacts/tooling-tests/a997c2733db24ea6aced3f99c4a369c7/results.json`.
+- Eight YAML files and all PowerShell scripts parsed; generated catalogs match their source profiles. All four Bicep environments compiled successfully. All pipeline entry points explicitly disable automatic triggers.
+- These tests mock Azure calls and source-run records. They do not prove successful Azure DevOps artifact download, server-side template expansion, the DNS service fix, or live provisioning. The application runtime was not restarted or retested for these deployment-tooling changes.
+
+### Historical live discovery log diagnosis: logs_4.zip
 
 The supplied `logs_4.zip` records a manual `discover` run on `feature/selfservice`. Inventory reached the Azure CLI task (2.279.1, Azure CLI 2.90.0 with azure-devops 1.0.8 installed), but failed with `Input required: connectedServiceNameARM`. The expanded YAML contained top-level `serviceConnection: SC-AZ-A-Bicep` while both the Azure CLI `azureSubscription` input and script `BoundServiceConnection` argument were empty. Authentication and inventory never started. Artifact publication then failed because its directory had not been created. This is pipeline wiring evidence, not an Azure RBAC failure or a deployment attempt.
 
 The generator now emits a stage router with literal protected-resource values passed through explicit template parameters for both discovery and deployment. Nested deployment template paths are relative to their containing template. Discovery prepares its artifact directory and an explanatory README before Azure login.
 
-Validation of the fix: **34 discovery/catalog cases passed**, evidence `artifacts/discovery-tests/09ea87474ec7431b9de8fd4a68c026cf/results.json`; **37 deployment cases passed**, evidence `artifacts/self-service-tests/45fe741212a64388baf0a69db8731b65/results.json`. A local YAML/template-subset expansion check evaluated all eight environment/operation combinations and verified nonempty matching connection inputs, script bindings, pools and environments; an invalid combination produced the rejection stage. This local check is not Azure DevOps server validation. Queue a new run from the corrected source to verify the actual task login and resource discovery.
+Validation at that revision: **34 discovery/catalog cases passed**, evidence `artifacts/discovery-tests/09ea87474ec7431b9de8fd4a68c026cf/results.json`; **37 deployment cases passed**, evidence `artifacts/self-service-tests/45fe741212a64388baf0a69db8731b65/results.json`. A local YAML/template-subset expansion check evaluated all eight environment/operation combinations and verified nonempty matching connection inputs, script bindings, pools and environments; an invalid combination produced the rejection stage. This local check is not Azure DevOps server validation. The newer supplied log above reached the private DNS query.
 
 ### Subscription discovery follow-up
 

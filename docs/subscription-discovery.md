@@ -4,7 +4,33 @@ The self-service pipeline now has five selections: **operation**, **workload**, 
 
 The subscription dropdown uses a platform-owned friendly alias mapped to one exact subscription ID. Network profiles map to exact existing subnet and private DNS zone IDs, or the original new-network mode. Service connection, agent pool, deployment environment, naming and pipeline data permissions follow that approved combination.
 
-The checked-in alias `unconfigured` is a placeholder, not a discovered subscription. All four baseline profiles bind the user-supplied service connection `SC-AZ-A-Bicep`; its actual subscription and permissions have not been queried here.
+The checked-in alias `unconfigured` is a placeholder, not a discovered subscription. All four baseline profiles bind the user-supplied service connection `SC-AZ-A-Bicep`. The latest supplied pipeline log shows its selected subscription, but private DNS listing failed; successful full inventory and deployment permissions remain unverified.
+
+## Discover first, deploy in a second run
+
+Register two Azure DevOps pipelines against this GitHub repository:
+
+1. **Discover** uses `/azure-pipelines-self-service.yml`, operation `discover`. It publishes `subscription-discovery` with `inventory.json`, `manifest.json`, and `summary.md`. The summary gives the discovery **pipeline ID** and **run ID**.
+2. **Self-service deploy** uses `/azure-pipelines-self-service-deploy.yml`. Open **Run pipeline**, choose `main`, enter those two IDs, and select the registered workload, environment, subscription alias, and network profile. The pipeline downloads that exact artifact, validates it, builds the frozen release, and enters the existing preview/approval/apply stages.
+
+Azure DevOps cannot ask for new YAML runtime parameters halfway through a running pipeline or populate dropdown values from a previous stage's artifact. Runtime parameters are resolved during template parsing, before execution. This implementation therefore uses a second queued run with catalog dropdowns; it does not claim to provide live cascading resource choices. Naming, location, CIDRs, connections and resource IDs follow the selected reviewed profile. See Microsoft's [runtime parameter timing](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/runtime-parameters?view=azure-devops) and [specific-run artifact download](https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/download-pipeline-artifact-v2?view=azure-pipelines).
+
+The original entry point still accepts operation `deploy` for compatibility, but it now requires the same discovery IDs. Zero/default IDs do not deploy. Both entry points remain manual, with push/PR triggers disabled.
+
+The deployment handoff requires a complete inventory from a **successful `main` discovery in the same project/repository, no more than seven days old**. Its subscription, service-connection binding and workload/environment must match the approved target. The manifest hashes the inventory and identifies its originating run, pipeline, project, repository, branch and commit. `Test-DiscoveryHandoff.ps1` compares these values with the Azure DevOps build API using the project Build Service token. The Build Service needs read access to the source run and its artifacts. Partial, failed, feature-branch, mismatched, stale or altered evidence is rejected before qualification. The bundle retains both manifest and inventory under `discovery/`, with file hashes, for the remaining stages. Deployment still performs fresh Azure checks and what-if; saved discovery is not deployment authority.
+
+The four baseline profiles remain disabled. Onboarding still requires a real subscription, approved parameter file, existing resource group and external destination, deployment identity permissions, private agent connectivity and environment checks. Discovery does not create those prerequisites. Register/enable the target and regenerate the catalog before expecting deployment to work. If onboarding changes the connection binding (for example from its display name to its endpoint GUID), rerun discovery using that registered target.
+
+## Empty results versus failed queries
+
+| Result | Discovery behavior | Deployment meaning |
+|---|---|---|
+| Successful list with zero VNets, subnets or DNS zones | `None found`; successful inventory and manifest | A configured `new` network profile can provision its missing template resources. |
+| Successful list with objects | Records exact resource IDs and candidate flags | Existing mode reuses reviewed IDs; new mode manages its own standard-name resources. |
+| VNet, subnet or DNS list fails | Saves successful reads, marks inventory `Partial`, reports `Unknown (listing failed)`, then fails the job | Never interpreted as resource absence; no new-target fallback from that report. |
+| Optional endpoint/directory/permission lookup unavailable | Records a warning; endpoint query status distinguishes failure from no matches | Does not establish credentials or permissions. Onboarding may still require platform input. |
+
+For the reported `BadRequest: The specified subscription ... does not exist` from private DNS listing, the script also attempts read-only ARM subscription and `Microsoft.Network` provider metadata queries and saves their results in `diagnostics`. This error is not the same as a successful empty DNS list. It does not, by itself, establish that the service connection points at a nonexistent subscription or that provider registration is the cause. Inspect the original task error and saved diagnostics. Any provider registration or access correction is a separate platform action. See [Microsoft's provider troubleshooting](https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/error-register-resource-provider).
 
 To see the options, push this source to GitHub and register/select the Azure DevOps pipeline using `/azure-pipelines-self-service.yml`, then open **Run pipeline** on a branch containing these files. The build/test pipeline `/azure-pipelines.yml` does not expose self-service parameters. Authorize this pipeline to use `SC-AZ-A-Bicep`. The options appear from YAML before Azure authentication; the connection name does not populate real subscription or network choices. Read-only discovery permits manually queued repository branches, including feature branches. Deployment still requires a manually queued `main` run. Deployment profiles remain disabled pending onboarding.
 
@@ -90,9 +116,39 @@ Run `Update-ServiceCatalog.ps1` again after profile changes, review all generate
 The catalog generator produces:
 
 - `azure-pipelines-self-service.yml`: parameter values and a call to the generated stage router.
+- `azure-pipelines-self-service-deploy.yml`: the second-run deployment form with catalog choices and discovery pipeline/run IDs.
 - `pipelines/catalog-bindings.yml`: conditional stage routing that passes literal service connection/pool/environment values as explicit template parameters. Nested templates forward these parameters; they do not read implicit parent variables. Invalid combinations produce a failing validation stage before Azure access.
 
 Reusable deployment steps live in `pipelines/templates/self-service-stages.yml`; edit that template rather than the generated root YAML. The old per-workload binding file is superseded by the generated catalog.
+
+## Register a new network when discovery finds none
+
+Use a **complete** inventory, even if its VNet/DNS arrays are empty. Obtain the connection GUID from its projected `serviceConnections` list. Supply location and address ranges approved for this workload; discovery cannot allocate non-overlapping enterprise address space automatically.
+
+```powershell
+./scripts/New-ServiceTarget.ps1 `
+  -InventoryPath './artifacts/discovery/with-devops/inventory.json' `
+  -Workload blobcopy -EnvironmentName dev `
+  -SubscriptionAlias engineering-dev -NetworkProfile new-private `
+  -NetworkMode new -Location eastus2 `
+  -VnetAddressPrefix '10.40.0.0/16' `
+  -IntegrationSubnetPrefix '10.40.0.0/26' `
+  -PrivateEndpointSubnetPrefix '10.40.1.0/26' `
+  -ServiceConnectionId '<exact-azure-devops-endpoint-guid>' `
+  -OrganizationCode acme -RegionCode eus2 -Instance 001 `
+  -AgentPool blob-transfer-private
+
+./scripts/Update-ServiceCatalog.ps1
+./scripts/Test-ServiceDiscovery.ps1
+./scripts/Test-SelfService.ps1
+./scripts/Update-Manifest.ps1
+```
+
+This creates a disabled target with naming, location and CIDRs frozen as profile overrides. Review it, complete the prerequisites above and enable it through the catalog review process. New-network validation checks private/aligned IPv4 ranges, subnet containment, no overlap between the two subnets, and an integration subnet of `/26` or larger. It does not prove no overlap with networks elsewhere in your organization.
+
+On `deploy`, Bicep creates missing resources in the selected RG: `vnet-blobcopy-dev-acme-eus2-001`, `snet-functions`, `snet-private-endpoints`, the integration NSG, five private DNS zones and their links, plus the rest of the application stack. DNS zone names are fixed Azure service names, such as `privatelink.blob.core.windows.net`; they cannot be renamed to the workload naming convention. Storage/app uniqueness follows the existing deterministic Bicep expressions.
+
+Here, `networkMode: new` means **Bicep-managed create/update**, not a newly named network on every run. Incremental deployment creates missing resources and reconciles existing resources at those same IDs. Review Modify changes carefully: incremental deployment reapplies template properties and must not be used to take over an arbitrary shared VNet. Shared networks use `existing` mode and must already have the approved subnet/DNS configuration. See Microsoft's [incremental deployment behavior](https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/deployment-modes).
 
 ## Naming contract
 
@@ -140,4 +196,4 @@ Discovery includes available subscription-level ARM permission evidence, but mak
 
 ## Verification
 
-`Test-ServiceDiscovery.ps1` has 34 offline cases for scoped inventory, service-connection subscription lookup, binding/subscription mismatch rejection, disabled-placeholder isolation, duplicate-name rejection, filtered endpoint discovery, profile/name/identity derivation, catalog freshness/ambiguity, explicit template bindings and relative paths, and subnet/region/delegation/DNS failures. Azure CLI calls are mocked with a strict read-only allowlist. The existing 37 deployment cases still pass. All four environment templates previously compiled with the new parameters. A first live discovery attempt reached the Azure CLI task but failed before authentication because its expanded connection input was empty; the explicit-parameter fix awaits a new live run. See [validation](validation.md).
+Offline verification covers scoped inventory, empty and failed lists, saved diagnostics, new/existing profile generation, CIDR validation, standard names, catalog generation, manifest integrity/freshness/scope, source-run provenance and frozen-bundle retention. Azure CLI calls and run records are mocked. The latest supplied live log progressed past connection binding to private DNS discovery, which failed. Successful live discovery, the new artifact handoff and Azure provisioning remain unverified. See [validation](validation.md) for current counts and evidence.

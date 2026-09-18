@@ -47,9 +47,9 @@ The launcher checks prerequisites and installs missing tools into ignored projec
 
 ## Deploy through developer self-service
 
-Both pipeline entry points disable push and pull-request triggers explicitly. Start build/test or self-service runs manually with **Run pipeline** in Azure DevOps.
+All pipeline entry points disable push and pull-request triggers explicitly. Start build/test or self-service runs manually with **Run pipeline** in Azure DevOps.
 
-The separate [self-service pipeline](azure-pipelines-self-service.yml) lets developers select **operation + workload + environment + subscription + network profile** in Azure DevOps. Read-only discovery is the default. Deployment qualifies and freezes a release, previews infrastructure, applies approved changes, verifies private access and Function indexing, and runs an upload-to-destination smoke test before reporting Ready.
+Run the [discovery pipeline](azure-pipelines-self-service.yml) first. It saves inventory and a manifest, including the pipeline/run IDs, in `subscription-discovery`. Then queue the [self-service deployment pipeline](azure-pipelines-self-service-deploy.yml) with those IDs and the registered workload/environment/subscription/network selections. Deployment verifies the manifest and source run, freezes a release, previews infrastructure, applies approved changes, verifies private access and Function indexing, and runs an upload-to-destination smoke test before reporting Ready. A successful empty inventory can onboard a new-network profile; failed listings remain unknown and cannot authorize provisioning.
 
 The [subscription discovery and naming guide](docs/subscription-discovery.md) explains scoped discovery, existing-subnet selection, generated dropdowns, standard names and templated data permissions. Azure DevOps dropdowns refresh after reviewed catalog changes are merged; they do not query Azure interactively when clicked.
 
@@ -69,7 +69,8 @@ tests/BlobTransfer.Tests/  policy and Azurite integration tests
 scripts/                   validation, local recovery tests, deployment, smoke, packaging
 docs/                      design, operations, diagrams, evidence
 azure-pipelines.yml        test/package CI; no automatic deployment
-azure-pipelines-self-service.yml  manual workload/environment release
+azure-pipelines-self-service.yml  manual discovery and saved manifest
+azure-pipelines-self-service-deploy.yml  deployment from a selected discovery run
 pipelines/                 protected-resource bindings and plan/apply templates
 self-service/targets/      disabled catalog examples for platform onboarding
 ```

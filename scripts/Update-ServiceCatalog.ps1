@@ -23,9 +23,19 @@ foreach ($pair in @(@('workload','workload','Registered workload'),@('environmen
     $values=@($targets | ForEach-Object { $_[$pair[1]] } | Sort-Object -Unique)
     $yaml+=@("  - name: $($pair[0])","    displayName: $($pair[2])",'    type: string',"    default: $($values[0])",('    values: ['+($values -join ', ')+']'))
 }
-$yaml+=@('','stages:','  - template: pipelines/catalog-bindings.yml','    parameters:','      operation: ${{ parameters.operation }}','      workload: ${{ parameters.workload }}','      environment: ${{ parameters.environment }}','      subscription: ${{ parameters.subscription }}','      network: ${{ parameters.network }}')
+# The dedicated deployment entry point shares catalog choices and fixes operation=deploy.
+$deploymentYaml=@($yaml[0..4]) + @($yaml[10..($yaml.Count-1)])
+foreach ($key in @('discoveryPipelineId','discoveryRunId')) {
+    $label=if ($key -eq 'discoveryPipelineId') {'Discovery pipeline ID (from saved summary)'} else {'Discovery run ID (from saved summary)'}
+    $lines=@("  - name: $key","    displayName: $label",'    type: string',"    default: '0'")
+    $yaml+=$lines; $deploymentYaml+=$lines
+}
+$tail=@('','stages:','  - template: pipelines/catalog-bindings.yml','    parameters:','      operation: ${{ parameters.operation }}','      workload: ${{ parameters.workload }}','      environment: ${{ parameters.environment }}','      subscription: ${{ parameters.subscription }}','      network: ${{ parameters.network }}','      discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','      discoveryRunId: ${{ parameters.discoveryRunId }}')
+$yaml+=$tail
+$deploymentYaml+=@($tail | ForEach-Object { $_.Replace('operation: ${{ parameters.operation }}','operation: deploy') })
 $bindings=@('# Generated stage routing with literal protected-resource parameters.','parameters:')
 foreach ($key in @('operation','workload','environment','subscription','network')) { $bindings+=@("  - name: $key",'    type: string') }
+foreach ($key in @('discoveryPipelineId','discoveryRunId')) { $bindings+=@("  - name: $key",'    type: string',"    default: '0'") }
 $bindings+=@('stages:')
 $conditions=@()
 foreach ($t in $targets) {
@@ -37,12 +47,12 @@ foreach ($t in $targets) {
         $bindings+=@(('    - ${{ if eq(parameters.operation, '''+$op+''') }}:'),"      - template: templates/$template.yml",'        parameters:',
             "          workload: $($t.workload)","          environment: $($t.environmentName)","          subscription: $($t.subscriptionAlias)","          network: $($t.networkProfile)",
             "          serviceConnection: $($t.serviceConnection)")
-        if ($op -eq 'deploy') { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)") }
+        if ($op -eq 'deploy') { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)",'          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','          discoveryRunId: ${{ parameters.discoveryRunId }}') }
     }
 }
 $anyMatch=if ($conditions.Count -eq 1) {$conditions[0]} else {'or('+($conditions -join ', ')+')'}
 $bindings+=@(('  - ${{ if not('+$anyMatch+') }}:'),'    - stage: InvalidSelection','      jobs:','        - job: RejectSelection','          pool:','            vmImage: windows-latest','          steps:','            - checkout: none','            - pwsh: |','                throw ''This workload/environment/subscription/network combination is not registered.''','              displayName: Reject unregistered target before Azure access')
-foreach ($item in @(@('azure-pipelines-self-service.yml',$yaml),@('pipelines/catalog-bindings.yml',$bindings))) {
+foreach ($item in @(@('azure-pipelines-self-service.yml',$yaml),@('azure-pipelines-self-service-deploy.yml',$deploymentYaml),@('pipelines/catalog-bindings.yml',$bindings))) {
     $path=Join-Path $root $item[0]; $text=($item[1] -join "`n")+"`n"
     if ($Check) {
         if (!(Test-Path $path) -or ([IO.File]::ReadAllText($path).Replace("`r`n","`n")) -cne $text) { throw "Generated catalog is stale: $($item[0]). Run Update-ServiceCatalog.ps1." }

@@ -64,7 +64,7 @@ function Assert-ServiceTarget($Target, [string]$Workload, [string]$EnvironmentNa
     if ($Target.smokePrefix -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9/_-]{0,199}/$') { throw 'Invalid synthetic smoke prefix.' }
     if ($Target.schemaVersion -eq 2) {
         foreach ($key in @('subscriptionAlias','networkProfile')) { if ($Target[$key] -cnotmatch '^[a-z0-9][a-z0-9-]{0,39}$') { throw "Invalid catalog key: $key" } }
-        $allowed=@('namingSuffix','networkMode','existingNetwork','location','deploymentPrincipalObjectId')
+        $allowed=@('namingSuffix','networkMode','existingNetwork','location','deploymentPrincipalObjectId','vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix')
         if ($Target.parameterOverrides -isnot [Collections.IDictionary] -or @($Target.parameterOverrides.Keys | Where-Object { $_ -notin $allowed }).Count) { throw 'Unapproved profile parameter override.' }
     }
 }
@@ -108,12 +108,28 @@ function Assert-ServiceParameters($Target, $Parameters) {
     $mode=Get-ServiceParameter $Parameters networkMode new
     if ($mode -notin @('new','existing')) { throw 'Unknown network mode.' }
     if ($mode -eq 'new') {
-        foreach ($key in @('vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix')) { if (!(Get-ServiceParameter $Parameters $key '')) { throw "New network needs $key" } }
+        Assert-ServiceNewNetwork $Parameters
     } else {
         $network=Get-ServiceParameter $Parameters existingNetwork @{}
         Assert-ServiceNetworkIds $Target $network
         if (!(Get-ServiceParameter $Parameters location '')) { throw 'Existing network requires an explicit deployment location.' }
     }
+}
+function Assert-ServiceNewNetwork($Parameters) {
+    $ranges=@{}
+    foreach ($key in @('vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix')) {
+        $cidr=Get-ServiceParameter $Parameters $key ''
+        if ($cidr -cnotmatch '^(\d{1,3}\.){3}\d{1,3}/([0-9]{1,2})$') { throw "New network needs a valid IPv4 CIDR for $key." }
+        $parts=$cidr.Split('/'); $prefix=[int]$parts[1]; $ip=[Net.IPAddress]::Parse($parts[0])
+        if ($ip.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork -or $prefix -lt 8 -or $prefix -gt 29 -or ($key -eq 'integrationSubnetPrefix' -and $prefix -gt 26)) { throw "Unsupported address range for $key; integration needs /26 or larger." }
+        $bytes=$ip.GetAddressBytes(); [uint64]$start=([uint64]$bytes[0]*16777216)+([uint64]$bytes[1]*65536)+([uint64]$bytes[2]*256)+$bytes[3]
+        [uint64]$size=[math]::Pow(2,32-$prefix)
+        if ($start % $size -ne 0 -or !(Test-ServicePrivateAddress $ip.ToString())) { throw "Use an aligned private IPv4 network for $key." }
+        $ranges[$key]=@{start=$start;end=$start+$size-1}
+    }
+    $vnet=$ranges.vnetAddressPrefix; $integration=$ranges.integrationSubnetPrefix; $endpoints=$ranges.privateEndpointSubnetPrefix
+    foreach ($subnet in @($integration,$endpoints)) { if ($subnet.start -lt $vnet.start -or $subnet.end -gt $vnet.end) { throw 'Both subnets must be contained in the VNet address range.' } }
+    if ($integration.start -le $endpoints.end -and $endpoints.start -le $integration.end) { throw 'Integration and private endpoint subnet ranges must not overlap.' }
 }
 function Assert-ServiceNetworkIds($Target,$Network) {
     $pattern='^/subscriptions/([0-9a-fA-F-]{36})/resourceGroups/[^/]+/providers/Microsoft.Network/virtualNetworks/[^/]+/subnets/[^/]+$'
@@ -164,6 +180,7 @@ function Read-ServiceBundle([string]$Directory) {
     $receipt = Get-Content (Join-Path $Directory 'bundle.json') -Raw | ConvertFrom-Json -AsHashtable
     if ($receipt.schemaVersion -ne 1 -or $receipt.releaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$') { throw 'Invalid bundle receipt.' }
     $expected = @('main.json','parameters.json','target.json','application.zip','functions.metadata')
+    if ($receipt.Contains('discoverySource')) { $expected+=@('discovery/manifest.json','discovery/inventory.json') }
     if (@($receipt.files.Keys).Count -ne $expected.Count) { throw 'Unexpected bundle file set.' }
     foreach ($name in $expected) {
         if (!$receipt.files.Contains($name) -or (Get-ServiceHash (Resolve-ServicePath $Directory $name)) -cne $receipt.files[$name]) { throw "Bundle integrity failure: $name" }
@@ -256,6 +273,10 @@ function New-ServicePlan($Bundle, [ValidateSet('Foundation','Release')][string]$
     $plan.fingerprint = Get-ValueHash @{bundleHash=$plan.bundleHash; parametersHash=$plan.parametersHash; state=$state; outputs=$outputs; changes=$changes; phase=$Phase; skip=$skip}
     Write-ServiceJson $plan (Join-Path $Directory 'plan.json')
     $summary = @("# $Phase preview",'',"Target: $($Bundle.target.workload) / $($Bundle.target.environmentName)","Release: $($Bundle.receipt.releaseId)","Package SHA-256: $($Bundle.receipt.files['application.zip'])","Bundle SHA-256: $($Bundle.hash)","Skip existing foundation: $skip",'', 'Review what-if.json and plan.json before approving. Plans expire after 24 hours.','')
+    if ((Get-ServiceParameter $parameters.parameters networkMode new) -eq 'new') {
+        $summary+=@("Network: Bicep-managed vnet-$(Get-ServiceStem $parameters.parameters) in $($Bundle.target.resourceGroup).",
+            'Missing template resources are created on approved apply. Existing resources at the same IDs are reconciled to the template; review every Modify change. DNS zones use the fixed Azure service names.', '')
+    } else { $summary+=@('Network: reuse the approved subnet and DNS zone IDs. Shared-network resources must already exist; they are not created by this profile.','') }
     $summary += @($changes | ForEach-Object { "- $($_.changeType): $($_.resourceId)" })
     $summary | Set-Content (Join-Path $Directory 'summary.md')
     return $plan

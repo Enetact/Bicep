@@ -13,6 +13,10 @@ parameters:
     type: string
   - name: deploymentEnvironment
     type: string
+  - name: discoveryPipelineId
+    type: string
+  - name: discoveryRunId
+    type: string
 stages:
   - stage: Qualify
     displayName: Validate selection, test, and freeze release
@@ -28,7 +32,28 @@ stages:
           - pwsh: |
               . ./scripts/self-service-common.ps1
               $null = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}'
+              if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Run discovery first, then enter its pipeline ID and run ID from the saved summary.' }
             displayName: Reject disabled or invalid target before building
+            env:
+              DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+              DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+          - task: DownloadPipelineArtifact@2
+            displayName: Download the selected discovery manifest
+            inputs:
+              buildType: specific
+              project: $(System.TeamProject)
+              definition: ${{ parameters.discoveryPipelineId }}
+              buildVersionToDownload: specific
+              pipelineId: ${{ parameters.discoveryRunId }}
+              artifactName: subscription-discovery
+              targetPath: $(Pipeline.Workspace)/discovery-input
+          - pwsh: |
+              ./scripts/Test-DiscoveryHandoff.ps1 -Directory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -BoundServiceConnection '${{ parameters.serviceConnection }}' -DiscoveryPipelineId $env:DISCOVERY_PIPELINE_ID -DiscoveryRunId $env:DISCOVERY_RUN_ID
+            displayName: Verify complete discovery and source run before qualification
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+              DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
           - task: UseDotNet@2
             inputs:
               packageType: sdk
@@ -50,7 +75,7 @@ stages:
                 ./scripts/Stop-Local.ps1
               }
               ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
-              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}'
+              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input'
             displayName: Qualify application and freeze target/template/package
           - publish: artifacts/self-service/bundle
             artifact: self-service-bundle

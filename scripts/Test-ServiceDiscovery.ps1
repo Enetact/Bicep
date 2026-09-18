@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param()
 . "$PSScriptRoot/self-service-common.ps1"
+. "$PSScriptRoot/discovery-manifest-common.ps1"
 $testRoot=Join-Path (Get-ProjectRoot) ('artifacts/discovery-tests/'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 $results=[Collections.Generic.List[object]]::new()
@@ -55,19 +56,30 @@ Case 'one dropdown name cannot map to multiple subscriptions' { $t=Clone $target
 
 # Mock the az executable boundary, so the discovery entrypoint itself is tested.
 # Every unrecognized command fails: the script cannot silently mutate Azure.
-$global:BlobTransferDiscoveryTestState=@{calls=[Collections.Generic.List[string]]::new();badNetwork='';duplicateNames=$false;subscription=$sub;network=$network;vnetId=$vnetId;accountState='Enabled'}
+$global:BlobTransferDiscoveryTestState=@{calls=[Collections.Generic.List[string]]::new();badNetwork='';duplicateNames=$false;subscription=$sub;network=$network;vnetId=$vnetId;accountState='Enabled';dnsFailure=$false;diagnosticFailure=$false;emptyDns=$false;emptyNetwork=$false;emptySubnets=$false;networkFailure=$false;subnetFailure=$false;connectionFailure=$false;emptyConnections=$false}
 function az {
     $sub=$global:BlobTransferDiscoveryTestState.subscription; $network=$global:BlobTransferDiscoveryTestState.network; $vnetId=$global:BlobTransferDiscoveryTestState.vnetId
     $arguments=@($args); $cmd=$arguments -join ' '; $global:BlobTransferDiscoveryTestState.calls.Add($cmd); $global:LASTEXITCODE=0
+    if (($global:BlobTransferDiscoveryTestState.dnsFailure -and $cmd -match '^network private-dns zone list ') -or
+        ($global:BlobTransferDiscoveryTestState.diagnosticFailure -and $cmd -match '^provider show |^rest .*subscriptions/[^/]+\?') -or
+        ($global:BlobTransferDiscoveryTestState.networkFailure -and $cmd -match '^network vnet list ') -or
+        ($global:BlobTransferDiscoveryTestState.subnetFailure -and $cmd -match '^network vnet subnet list ') -or
+        ($global:BlobTransferDiscoveryTestState.connectionFailure -and $cmd -match '^devops service-endpoint list ')) {
+        $global:LASTEXITCODE=1
+        return
+    }
     $answer=switch -Regex ($cmd) {
         '^account list ' { if ($global:BlobTransferDiscoveryTestState.duplicateNames) { ,@(@{name='Sandbox';state='Enabled';id=$sub},@{name='Sandbox';state='Enabled';id='other'}) } else { ,@(@{name='Sandbox';state='Enabled';id=$sub}) }; break }
         '^account show ' { @{id=$sub;name='Sandbox';state=$global:BlobTransferDiscoveryTestState.accountState;tenantId='tenant'}; break }
-        '^network vnet list ' { ,@(@{id=$vnetId;name='shared';resourceGroup='network';location='eastus2'}); break }
-        '^network vnet subnet list ' { ,@(@{id=$network.integrationSubnetId;name='functions';addressPrefix='10.2.0.0/26';delegations=@(@{serviceName='Microsoft.Web/serverFarms'});privateEndpointNetworkPolicies='Enabled'},@{id=$network.privateEndpointSubnetId;name='endpoints';addressPrefix='10.2.1.0/26';delegations=@();privateEndpointNetworkPolicies='Disabled'}); break }
-        '^network private-dns zone list ' { ,@($network.privateDnsZoneIds.Keys | ForEach-Object { @{id=$network.privateDnsZoneIds[$_];name=($network.privateDnsZoneIds[$_] -split '/')[-1];resourceGroup='dns'} }); break }
+        '^network vnet list ' { if ($global:BlobTransferDiscoveryTestState.emptyNetwork) { ,@() } else { ,@(@{id=$vnetId;name='shared';resourceGroup='network';location='eastus2'}) }; break }
+        '^network vnet subnet list ' { if ($global:BlobTransferDiscoveryTestState.emptySubnets) { ,@() } else { ,@(@{id=$network.integrationSubnetId;name='functions';addressPrefix='10.2.0.0/26';delegations=@(@{serviceName='Microsoft.Web/serverFarms'});privateEndpointNetworkPolicies='Enabled'},@{id=$network.privateEndpointSubnetId;name='endpoints';addressPrefix='10.2.1.0/26';delegations=@();privateEndpointNetworkPolicies='Disabled'}) }; break }
+        '^network private-dns zone list ' { if ($global:BlobTransferDiscoveryTestState.emptyDns) { ,@() } else { ,@($network.privateDnsZoneIds.Keys | ForEach-Object { @{id=$network.privateDnsZoneIds[$_];name=($network.privateDnsZoneIds[$_] -split '/')[-1];resourceGroup='dns'} }) }; break }
+        '^rest .*subscriptions/[^/]+\?' { @{subscriptionId=$sub;displayName='Sandbox';state='Enabled'}; break }
+        '^provider show ' { Check ($cmd.Contains("--subscription $sub") -and $cmd.Contains('--namespace Microsoft.Network') -and $cmd.Contains('--query')); @{namespace='Microsoft.Network';registrationState='Registered';privateDnsResourceTypes=@(@{resourceType='privateDnsZones';apiVersions=@('2024-06-01');locations=@('global')})}; break }
         '^rest .*Microsoft.Authorization/permissions' { @{value=@(@{actions=@('*/read');notActions=@()})}; break }
         '^devops service-endpoint list ' {
             if (!$cmd.Contains('--query')) { throw 'Unprojected endpoint data must never be requested.' }
+            if ($global:BlobTransferDiscoveryTestState.emptyConnections) { ,@(); break }
             ,@(@{id='44444444-4444-4444-4444-444444444444';name='safe';ready=$true;subscriptionId=$sub;tenantId='tenant';applicationId='application';scheme='WorkloadIdentityFederation'},@{id='wrong';name='other-subscription';ready=$true;subscriptionId='other';tenantId='tenant';applicationId='application';scheme='WorkloadIdentityFederation'}); break
         }
         '^ad sp show ' { '22222222-2222-2222-2222-222222222222'; break }
@@ -100,6 +112,8 @@ try {
         Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^account list |^account set ' }).Count)
         Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^network ' -and !$_.Contains("--subscription $sub") }).Count)
         Check ((Get-Content $profilePath -Raw | ConvertFrom-Json).subscriptionId -eq [guid]::Empty.ToString())
+        $m=Get-Content (Join-Path $fixture evidence/manifest.json) -Raw | ConvertFrom-Json
+        Check ($m.inventorySha256 -eq (Get-ServiceHash (Join-Path $fixture evidence/inventory.json)) -and $m.subscriptionId -eq $sub)
     }
     Case 'connection context needs an explicit YAML binding' {
         $bad=Clone $contextArgs; $bad.BoundServiceConnection=''; $global:BlobTransferDiscoveryTestState.calls.Clear()
@@ -133,8 +147,167 @@ try {
         Check ($r.serviceConnections.Count -eq 1 -and $r.serviceConnections[0].principalObjectId -eq '22222222-2222-2222-2222-222222222222')
         Check (!(Get-Content (Join-Path $testRoot with-devops/inventory.json) -Raw).Contains('"authorization":'))
     }
+    Case 'optional connection failure reports unknown without leaking a native failure exit code' {
+        $global:BlobTransferDiscoveryTestState.connectionFailure=$true
+        try {
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl https://dev.azure.com/example -Project Example -OutputDirectory (Join-Path $testRoot connection-failed)
+            Check ($global:LASTEXITCODE -eq 0)
+            $r=Get-Content (Join-Path $testRoot connection-failed/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Complete' -and $r.serviceConnectionQuery.status -eq 'Failed')
+            Check ((Get-Content (Join-Path $testRoot connection-failed/summary.md) -Raw).Contains('Matching service connections: Unknown (listing failed)'))
+        } finally { $global:BlobTransferDiscoveryTestState.connectionFailure=$false }
+    }
+    Case 'successful empty connection list reports none found' {
+        $global:BlobTransferDiscoveryTestState.emptyConnections=$true
+        try {
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl https://dev.azure.com/example -Project Example -OutputDirectory (Join-Path $testRoot empty-connections)
+            Check ((Get-Content (Join-Path $testRoot empty-connections/summary.md) -Raw).Contains('Matching service connections: None found.'))
+        } finally { $global:BlobTransferDiscoveryTestState.emptyConnections=$false }
+    }
     $bundle=@{target=$target;parameters=@{parameters=$p}}
     $register=@{InventoryPath=(Join-Path $testRoot with-devops/inventory.json);Workload='blobcopy';EnvironmentName='dev';SubscriptionAlias='sandbox';NetworkProfile='shared';IntegrationSubnetId=$network.integrationSubnetId;PrivateEndpointSubnetId=$network.privateEndpointSubnetId;ServiceConnectionId='44444444-4444-4444-4444-444444444444';OrganizationCode='acme';RegionCode='eus2';OutputDirectory=(Join-Path $testRoot registered)}
+    Case 'DNS native failure preserves other inventory and diagnostics before failing' {
+        $global:BlobTransferDiscoveryTestState.dnsFailure=$true
+        $global:BlobTransferDiscoveryTestState.calls.Clear()
+        try {
+            Reject { & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl https://dev.azure.com/example -Project Example -OutputDirectory (Join-Path $testRoot dns-failed) }
+            $r=Get-Content (Join-Path $testRoot dns-failed/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Partial' -and $r.privateDnsQuery.status -eq 'Failed' -and $r.privateDnsZones.Count -eq 0)
+            Check ($r.networks.Count -eq 1 -and $r.serviceConnections.Count -eq 1 -and $r.permissionEvidence.Count -eq 1)
+            Check ($r.diagnostics.subscriptionArm.subscriptionId -eq $sub -and $r.diagnostics.networkProvider.details.registrationState -eq 'Registered')
+            Check ((Get-Content (Join-Path $testRoot dns-failed/summary.md) -Raw).Contains('Status: Partial'))
+            Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^provider register |^account set |^role assignment create ' }).Count)
+        } finally { $global:BlobTransferDiscoveryTestState.dnsFailure=$false }
+    }
+    Case 'partial inventory cannot register a target even with explicit DNS IDs' {
+        $bad=Clone $register; $bad.InventoryPath=Join-Path $testRoot dns-failed/inventory.json; $bad.PrivateDnsZoneIds=$network.privateDnsZoneIds
+        Reject { & "$PSScriptRoot/New-ServiceTarget.ps1" @bad }
+        Check (!(Test-Path (Join-Path $testRoot registered/blobcopy.dev.sandbox.shared.json)))
+    }
+    Case 'unavailable diagnostics do not discard partial inventory' {
+        $global:BlobTransferDiscoveryTestState.dnsFailure=$true; $global:BlobTransferDiscoveryTestState.diagnosticFailure=$true
+        try {
+            Reject { & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory (Join-Path $testRoot diagnostics-failed) }
+            $r=Get-Content (Join-Path $testRoot diagnostics-failed/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Partial' -and $r.networks.Count -eq 1 -and $r.diagnostics.subscriptionArm.status -eq 'Failed' -and $r.diagnostics.networkProvider.status -eq 'Failed')
+        } finally { $global:BlobTransferDiscoveryTestState.dnsFailure=$false; $global:BlobTransferDiscoveryTestState.diagnosticFailure=$false }
+    }
+    Case 'successful empty DNS inventory is distinct from a failed query' {
+        $global:BlobTransferDiscoveryTestState.emptyDns=$true; $global:BlobTransferDiscoveryTestState.calls.Clear()
+        try {
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory (Join-Path $testRoot empty-dns)
+            $r=Get-Content (Join-Path $testRoot empty-dns/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Complete' -and $r.privateDnsQuery.status -eq 'Succeeded' -and $r.privateDnsZones.Count -eq 0)
+            Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^provider show |^rest .*subscriptions/[^/]+\?' }).Count)
+        } finally { $global:BlobTransferDiscoveryTestState.emptyDns=$false }
+    }
+    Case 'empty network and DNS lists succeed with explicit none-found summary' {
+        $global:BlobTransferDiscoveryTestState.emptyDns=$true; $global:BlobTransferDiscoveryTestState.emptyNetwork=$true
+        try {
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl https://dev.azure.com/example -Project Example -OutputDirectory (Join-Path $testRoot empty-network)
+            $r=Get-Content (Join-Path $testRoot empty-network/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Complete' -and $r.networkQuery.count -eq 0 -and $r.privateDnsQuery.count -eq 0)
+            $summary=Get-Content (Join-Path $testRoot empty-network/summary.md) -Raw
+            Check ($summary.Contains('Virtual networks: None found.') -and $summary.Contains('Private DNS zones: None found.'))
+        } finally { $global:BlobTransferDiscoveryTestState.emptyDns=$false; $global:BlobTransferDiscoveryTestState.emptyNetwork=$false }
+    }
+    Case 'empty subnet list succeeds with explicit none-found summary' {
+        $global:BlobTransferDiscoveryTestState.emptySubnets=$true
+        try {
+            & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory (Join-Path $testRoot empty-subnets)
+            $r=Get-Content (Join-Path $testRoot empty-subnets/inventory.json) -Raw | ConvertFrom-Json
+            Check ($r.discoveryStatus -eq 'Complete' -and $r.networks[0].subnetQuery.count -eq 0)
+            Check ((Get-Content (Join-Path $testRoot empty-subnets/summary.md) -Raw).Contains('Subnets in shared: None found.'))
+        } finally { $global:BlobTransferDiscoveryTestState.emptySubnets=$false }
+    }
+    foreach ($failure in @('networkFailure','subnetFailure')) {
+        Case "$failure saves unknown status while retaining successful DNS listing" {
+            $global:BlobTransferDiscoveryTestState[$failure]=$true
+            try {
+                Reject { & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory (Join-Path $testRoot $failure) }
+                $r=Get-Content (Join-Path $testRoot "$failure/inventory.json") -Raw | ConvertFrom-Json
+                Check ($r.discoveryStatus -eq 'Partial' -and $r.privateDnsQuery.status -eq 'Succeeded' -and $r.privateDnsZones.Count -eq 5)
+                Check ((Get-Content (Join-Path $testRoot "$failure/summary.md") -Raw).Contains('Unknown (listing failed)'))
+            } finally { $global:BlobTransferDiscoveryTestState[$failure]=$false }
+        }
+    }
+    $newRegister=Clone $register
+    $newRegister.Remove('IntegrationSubnetId'); $newRegister.Remove('PrivateEndpointSubnetId')
+    $newRegister.InventoryPath=Join-Path $testRoot empty-network/inventory.json
+    $newRegister.NetworkMode='new'; $newRegister.NetworkProfile='new-private'; $newRegister.Location='eastus2'
+    $newRegister.VnetAddressPrefix='10.40.0.0/16'; $newRegister.IntegrationSubnetPrefix='10.40.0.0/26'; $newRegister.PrivateEndpointSubnetPrefix='10.40.1.0/26'
+    Case 'empty inventory registers a standard-name managed network without existing IDs' {
+        $global:BlobTransferDiscoveryTestState.calls.Clear()
+        & "$PSScriptRoot/New-ServiceTarget.ps1" @newRegister
+        $registered=Get-Content (Join-Path $testRoot registered/blobcopy.dev.sandbox.new-private.json) -Raw | ConvertFrom-Json -AsHashtable
+        $compiled=Clone $p; Set-ServiceProfileParameters $registered $compiled; Assert-ServiceParameters $registered $compiled
+        Check (!$registered.enabled -and $registered.resourceGroup -eq 'rg-blobcopy-dev-acme-eus2-001' -and $compiled.networkMode.value -eq 'new')
+        Check ((Get-ServiceStem $compiled) -eq 'blobcopy-dev-acme-eus2-001' -and $compiled.vnetAddressPrefix.value -eq '10.40.0.0/16' -and !$registered.parameterOverrides.ContainsKey('existingNetwork'))
+        Check ($global:BlobTransferDiscoveryTestState.calls.Count -eq 0)
+    }
+    Case 'partial discovery cannot select new provisioning as a fallback' {
+        $bad=Clone $newRegister; $bad.InventoryPath=Join-Path $testRoot dns-failed/inventory.json
+        Reject { & "$PSScriptRoot/New-ServiceTarget.ps1" @bad }
+    }
+    $handoff=Join-Path $testRoot handoff
+    New-Item -ItemType Directory -Path $handoff -Force | Out-Null
+    Copy-Item (Join-Path $testRoot empty-network/inventory.json) (Join-Path $handoff inventory.json)
+    $handoffInventory=Get-Content (Join-Path $handoff inventory.json) -Raw | ConvertFrom-Json -AsHashtable
+    $handoffTarget=Get-Content (Join-Path $testRoot registered/blobcopy.dev.sandbox.new-private.json) -Raw | ConvertFrom-Json -AsHashtable
+    $manifest=@{schemaVersion=1;kind='blob-transfer-discovery';generatedUtc=$handoffInventory.generatedUtc;discoveryStatus='Complete';inventorySha256=(Get-ServiceHash (Join-Path $handoff inventory.json));subscriptionId=$sub;serviceConnection=$handoffTarget.serviceConnection;selection=@{workload='blobcopy';environment='dev'};source=@{runId='42';pipelineId='7';projectId='project';repositoryId='repo';branch='refs/heads/main';commit='commit'}}
+    $build=@{id=42;definition=@{id=7};project=@{id='project'};repository=@{id='repo'};status='completed';result='succeeded';sourceBranch='refs/heads/main';sourceVersion='commit'}
+    Write-ServiceJson $manifest (Join-Path $handoff manifest.json)
+    Case 'second pipeline accepts complete empty inventory for approved new-network target' {
+        $read=Read-DiscoveryManifest $handoff $handoffTarget $handoffTarget.serviceConnection
+        Assert-DiscoveryRun $read $build 7 42 project repo
+        Check ($read.inventorySha256 -eq $manifest.inventorySha256)
+    }
+    Case 'manifest rejects changed inventory bytes' {
+        Add-Content (Join-Path $handoff inventory.json) ' '
+        Reject { Read-DiscoveryManifest $handoff $handoffTarget $handoffTarget.serviceConnection }
+        Copy-Item (Join-Path $testRoot empty-network/inventory.json) (Join-Path $handoff inventory.json) -Force
+    }
+    foreach ($change in @(@('discoveryStatus','Partial'),@('subscriptionId','33333333-3333-3333-3333-333333333333'),@('serviceConnection','wrong'),@('generatedUtc',[DateTimeOffset]::UtcNow.AddDays(-8).ToString('O')))) {
+        Case "manifest rejects $($change[0]) mismatch or stale evidence" {
+            $bad=Clone $manifest; $bad[$change[0]]=$change[1]; Write-ServiceJson $bad (Join-Path $handoff manifest.json)
+            Reject { Read-DiscoveryManifest $handoff $handoffTarget $handoffTarget.serviceConnection }
+            Write-ServiceJson $manifest (Join-Path $handoff manifest.json)
+        }
+    }
+    foreach ($change in @(@('sourceBranch','refs/heads/feature'),@('result','failed'),@('result','partiallySucceeded'),@('sourceVersion','other'),@('status','inProgress'))) {
+        Case "handoff rejects run $($change[0])=$($change[1])" {
+            $bad=Clone $build; $bad[$change[0]]=$change[1]
+            Reject { Assert-DiscoveryRun $manifest $bad 7 42 project repo }
+        }
+    }
+    Case 'handoff rejects another run pipeline project or repository' {
+        foreach ($args in @(@('8','42','project','repo'),@('7','43','project','repo'),@('7','42','other','repo'),@('7','42','project','other'))) {
+            Reject { Assert-DiscoveryRun $manifest $build @args }
+        }
+    }
+    Case 'handoff rejects subnet selection absent from saved discovery' {
+        $existing=Clone $target; $existing.serviceConnection=$handoffTarget.serviceConnection
+        Reject { Read-DiscoveryManifest $handoff $existing $existing.serviceConnection }
+    }
+    Case 'deployment entry point fixes deploy and requires the chosen discovery artifact' {
+        $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service-deploy.yml) -Raw
+        Check ($yaml.Contains('operation: deploy') -and !$yaml.Contains('name: operation') -and $yaml.Contains('name: discoveryRunId'))
+        $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-stages.yml) -Raw
+        Check ($template.Contains('buildVersionToDownload: specific') -and $template.Contains('Test-DiscoveryHandoff.ps1') -and $template.Contains('-DiscoveryDirectory'))
+        Check ($template.IndexOf('Test-DiscoveryHandoff.ps1') -lt $template.IndexOf('Build-Package.ps1'))
+    }
+    Case 'new network needs explicit location and approved CIDRs' {
+        foreach ($key in @('Location','VnetAddressPrefix','IntegrationSubnetPrefix','PrivateEndpointSubnetPrefix')) {
+            $bad=Clone $newRegister; $bad[$key]=''; $bad.OutputDirectory=Join-Path $testRoot "missing-$key"
+            Reject { & "$PSScriptRoot/New-ServiceTarget.ps1" @bad }; Check (!(Test-Path $bad.OutputDirectory))
+        }
+    }
+    foreach ($pair in @(@('IntegrationSubnetPrefix','10.40.0.0/28'),@('IntegrationSubnetPrefix','10.41.0.0/26'),@('PrivateEndpointSubnetPrefix','10.40.0.0/26'),@('VnetAddressPrefix','8.8.0.0/16'))) {
+        Case "new network rejects invalid allocation $($pair[0]) $($pair[1])" {
+            $bad=Clone $newRegister; $bad[$pair[0]]=$pair[1]; $bad.OutputDirectory=Join-Path $testRoot invalid-allocation
+            Reject { & "$PSScriptRoot/New-ServiceTarget.ps1" @bad }; Check (!(Test-Path $bad.OutputDirectory))
+        }
+    }
     Case 'registration derives disabled target names and mapped identity' {
         & "$PSScriptRoot/New-ServiceTarget.ps1" @register
         $registered=Get-Content (Join-Path $testRoot registered/blobcopy.dev.sandbox.shared.json) -Raw | ConvertFrom-Json
