@@ -6,6 +6,8 @@ This records the external-uploader design with the ledger co-located in solution
 
 ### Subscription discovery follow-up
 
+The subsequent service-connection bootstrap update passed **31 discovery cases** and **37 deployment cases**. Evidence: `artifacts/discovery-tests/f7a7ab3c850c498fbc89cc9e992d6ff4/results.json` and `artifacts/self-service-tests/30b5ef2aea0141478ffa3cf4c403c81d/results.json`. New cases prove that the disabled placeholder can discover the active service-connection subscription without enumerating alternatives or modifying the profile, while missing/wrong bindings, mismatched registered subscriptions, and disabled accounts fail. These are mocked Azure results, not live subscription evidence. Read-only discovery now uses a hosted agent; deployment retains the private pool.
+
 - Added read-only `discover` versus `deploy` routing, subscription/network dropdown generation, identity-mapped disabled profile generation, existing-network Bicep support, naming suffixes and optional container/queue-scoped pipeline roles.
 - **24 discovery/catalog/network tests passed**, zero failures, with strict mocked Azure calls. Evidence: `artifacts/discovery-tests/15a4245289a642c0a8092e7796ade9e3/results.json`. Coverage includes selected-subscription scoping, duplicate subscription names, filtered Azure DevOps endpoints, principal object-ID mapping, standard names, overwrite rejection, ambiguous catalog entries and existing network/DNS failures.
 - The existing **37 self-service cases passed again**: `artifacts/self-service-tests/942c6fe7d4d641fe9e49ebe1b1b04ea0/results.json`.
