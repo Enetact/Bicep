@@ -1,0 +1,48 @@
+parameters:
+  - name: phase
+    type: string
+    values: [Foundation, Release]
+  - name: dependsOn
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: agentPool
+    type: string
+  - name: deploymentEnvironment
+    type: string
+stages:
+  - stage: Plan${{ parameters.phase }}
+    dependsOn: ${{ parameters.dependsOn }}
+    displayName: Preview ${{ parameters.phase }} changes
+    jobs:
+      - job: Preview
+        timeoutInMinutes: 60
+        pool:
+          name: ${{ parameters.agentPool }}
+        workspace:
+          clean: all
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - download: current
+            artifact: self-service-bundle
+          - task: AzureCLI@2
+            displayName: Validate Azure prerequisites and save what-if
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: scriptPath
+              scriptPath: scripts/Invoke-SelfService.ps1
+              arguments: >-
+                -Action Plan${{ parameters.phase }}
+                -BundleDirectory "$(Pipeline.Workspace)/self-service-bundle"
+                -EvidenceDirectory "$(Build.ArtifactStagingDirectory)/preview"
+                -BoundServiceConnection "${{ parameters.serviceConnection }}"
+                -BoundEnvironment "${{ parameters.deploymentEnvironment }}"
+                -BoundAgentPool "${{ parameters.agentPool }}"
+              workingDirectory: $(Build.SourcesDirectory)
+              visibleAzLogin: false
+          - publish: $(Build.ArtifactStagingDirectory)/preview
+            artifact: plan-${{ parameters.phase }}
+            condition: succeededOrFailed()

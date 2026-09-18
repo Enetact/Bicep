@@ -1,0 +1,9 @@
+flowchart TD
+    A[External uploader with private connectivity] --> B[Solution blob endpoint: incoming and ledger]
+    C[Integrated Function App] --> B
+    C --> D[Solution queue private endpoint]
+    C --> F[Host storage private endpoints]
+    C --> G[Existing destination private endpoints]
+    H[Private DNS zones] --> C
+    I[Approved deployment runner] --> J[Function and SCM private endpoint]
+    C --> K[Authenticated public Azure Monitor endpoints]

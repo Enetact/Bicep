@@ -1,0 +1,84 @@
+{
+  "design": "external-upload-polling-dispatcher-storage-queue-worker",
+  "eventGrid": false,
+  "mcp": false,
+  "uploaderChangesRequired": false,
+  "tests": {
+    "passed": 33,
+    "failed": 0,
+    "skipped": 0,
+    "policyCases": 8,
+    "azuriteIntegrationCases": 15,
+    "functionContractCases": 1,
+    "toolingContractCases": 19,
+    "toolingContractScope": "Historical baseline tooling run; unchanged contracts.",
+    "localConfigurationCases": 9,
+    "localLifecycleToolingCases": 6
+  },
+  "tools": {
+    "dotnet": "10.0.300",
+    "bicep": "0.47.16",
+    "azurite": "3.37.0",
+    "mermaid": "11.17.2",
+    "functionsCoreTools": "4.14.0",
+    "node": "24.16.0"
+  },
+  "compiledEnvironments": [
+    "dev",
+    "qa",
+    "uat",
+    "prod"
+  ],
+  "scriptsExecuted": [
+    "Test-Project.ps1",
+    "Test-Recovery.ps1",
+    "Test-Tooling.ps1",
+    "Build-Package.ps1",
+    "Setup-Local.ps1",
+    "Run-Local.ps1",
+    "Test-Local.ps1",
+    "Stop-Local.ps1",
+    "Reset-Local.ps1",
+    "Test-LocalTooling.ps1"
+  ],
+  "scriptsNotExecutedAgainstAzure": [
+    "Deploy.ps1",
+    "Smoke-Test.ps1"
+  ],
+  "package": {
+    "entries": 93,
+    "sha256": "5b4d1587884b07d0da579a3a3c3def3485fba09a27ba56c3d2e2f69421ce81a0",
+    "triggers": {
+      "blob": 1,
+      "queue": 1,
+      "timer": 3
+    },
+    "validationScope": "Historical baseline package before local-mode changes; not a newly qualified package of current source.",
+    "releaseId": "selfservice-fixes-20260917-01"
+  },
+  "diagrams": {
+    "count": 12,
+    "rendered": true,
+    "visuallyInspected": true,
+    "validationScope": "Historical render evidence; not re-rendered during repository baseline fixes."
+  },
+  "azureDeployed": false,
+  "azureIdentityNetworkVerified": false,
+  "azureSourceVersionsVerified": false,
+  "functionHostRuntimeTested": true,
+  "functionHostRuntimeScope": "Windows ARM64 local host against Azurite; actual BlobTrigger, QueueTrigger and three timers. No Azure host test.",
+  "localHostEvidence": ".local/logs/134580633e584f8ab616bef43851df21/smoke-639e99603e814147a9054fbd1d638fb3.json",
+  "localRecoveryEvidence": "artifacts/recovery-tests/aa1e3cd1d4d8440db27f5982bee9d636/recovery.trx",
+  "localInstallationBranchesNotTested": ["missing-dotnet", "missing-node", "missing-powershell-download", "windows-x64"],
+  "storage": {
+    "newAccountCount": 2,
+    "ledgerAccount": "solution",
+    "ledgerContainer": "transfer-ledger",
+    "separateLedgerPrivateEndpoint": false,
+    "compiledLayoutVerified": true
+  },
+  "previousPackagingScript": "Build-Package.ps1",
+  "validationDate": "2026-09-17",
+  "azureDevOpsPipelineExecuted": false,
+  "dependencyAdvisoryCheck": "Historical baseline query passed for Function dependencies including transitives. Application package versions unchanged; this does not certify npm tools."
+}

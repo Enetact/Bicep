@@ -1,0 +1,7 @@
+flowchart TD
+    A[main.bicep module declaration] --> B[Symbolic name: uploadStorage]
+    A --> C[File: modules/storage.bicep]
+    A --> D[Deployment name: upload-storage-dev]
+    C --> E[Actual storage account resource]
+    E --> F[Azure account name derived from environment and suffix]
+    B --> G[Reference outputs in main.bicep]

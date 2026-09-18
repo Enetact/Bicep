@@ -1,0 +1,55 @@
+parameters:
+  - name: phase
+    type: string
+    values: [Foundation, Release]
+  - name: serviceConnection
+    type: string
+  - name: agentPool
+    type: string
+  - name: deploymentEnvironment
+    type: string
+stages:
+  - stage: Apply${{ parameters.phase }}
+    dependsOn: Plan${{ parameters.phase }}
+    displayName: Approve, recheck, and apply ${{ parameters.phase }}
+    lockBehavior: sequential
+    jobs:
+      - deployment: ApplyStack
+        timeoutInMinutes: 180
+        environment: ${{ parameters.deploymentEnvironment }}
+        pool:
+          name: ${{ parameters.agentPool }}
+        workspace:
+          clean: all
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  clean: true
+                  persistCredentials: false
+                - download: none
+                - download: current
+                  artifact: self-service-bundle
+                - download: current
+                  artifact: plan-${{ parameters.phase }}
+                - task: AzureCLI@2
+                  displayName: Recheck approved plan, deploy, and verify readiness
+                  inputs:
+                    azureSubscription: ${{ parameters.serviceConnection }}
+                    scriptType: pscore
+                    scriptLocation: scriptPath
+                    scriptPath: scripts/Invoke-SelfService.ps1
+                    arguments: >-
+                      -Action Apply${{ parameters.phase }}
+                      -BundleDirectory "$(Pipeline.Workspace)/self-service-bundle"
+                      -PlanDirectory "$(Pipeline.Workspace)/plan-${{ parameters.phase }}"
+                      -EvidenceDirectory "$(Build.ArtifactStagingDirectory)/result"
+                      -BoundServiceConnection "${{ parameters.serviceConnection }}"
+                      -BoundEnvironment "${{ parameters.deploymentEnvironment }}"
+                      -BoundAgentPool "${{ parameters.agentPool }}"
+                    workingDirectory: $(Build.SourcesDirectory)
+                    visibleAzLogin: false
+                - publish: $(Build.ArtifactStagingDirectory)/result
+                  artifact: result-${{ parameters.phase }}
+                  condition: succeededOrFailed()

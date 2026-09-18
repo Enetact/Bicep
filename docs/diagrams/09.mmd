@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant U as External uploader
+    participant S as Solution blobs
+    participant D as BlobTrigger dispatcher
+    participant Q as Work queue
+    participant W as Queue worker
+    participant L as Ledger container in solution
+    participant T as Data lake
+    U->>S: Upload ordinary blob
+    D->>S: Detect blob and read revision
+    D->>Q: Send source pointer
+    Q->>W: Invoke copy job
+    W->>L: Acquire request lease
+    W->>S: Read exact revision and hash bytes
+    W->>L: Acquire scope and content lease
+    W->>T: Conditionally create if absent
+    W->>T: Verify actual destination bytes
+    W->>L: Record completion

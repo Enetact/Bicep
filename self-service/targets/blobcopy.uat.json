@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "workload": "blobcopy",
+  "environmentName": "uat",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "resourceGroup": "rg-blobcopy-uat",
+  "parameterFile": "environments/uat.bicepparam",
+  "serviceConnection": "sc-blobcopy-uat",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "blobcopy-uat",
+  "smokePrefix": "smoke/"
+}

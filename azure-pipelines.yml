@@ -1,0 +1,65 @@
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: windows-latest
+
+steps:
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      useGlobalJson: true
+  - pwsh: |
+      az bicep install --version v0.47.16
+      if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+      ./scripts/Update-Manifest.ps1 -Check
+      ./scripts/Test-Project.ps1
+    displayName: Compile all environments and test transfer contracts
+  - task: NodeTool@0
+    inputs:
+      versionSpec: 22.x
+  - pwsh: ./scripts/Test-Recovery.ps1
+    displayName: Exercise duplicates and recovery using local Azurite
+  - pwsh: |
+      ./scripts/Test-LocalTooling.ps1
+      try {
+        ./scripts/Run-Local.ps1
+        ./scripts/Test-Local.ps1
+      } finally {
+        ./scripts/Stop-Local.ps1
+      }
+    displayName: Verify actual local Function triggers and timers
+  - task: PublishPipelineArtifact@1
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: .local/logs
+      artifact: local-host-evidence
+    displayName: Publish local host logs and smoke evidence
+  - pwsh: ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
+    displayName: Build immutable Function package
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: artifacts/releases/$(Build.BuildId)
+      artifact: blob-transfer
+    displayName: Publish compiled templates and package
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: 'artifacts/**/*.trx'
+      failTaskOnFailedTests: true
+      failTaskOnMissingResultsFile: true
+    displayName: Publish unit and recovery test results
+  - task: PublishPipelineArtifact@1
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: artifacts/test-results
+      artifact: validation-evidence
+    displayName: Publish validation evidence
+# No automatic deployment. Add protected environment approvals and a private-network
+# self-hosted deployment agent with workload identity federation for release stages.

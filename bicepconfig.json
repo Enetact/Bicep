@@ -1,0 +1,13 @@
+{
+  "analyzers": {
+    "core": {
+      "enabled": true,
+      "verbose": false,
+      "rules": {
+        "no-unused-params": { "level": "error" },
+        "secure-parameter-default": { "level": "error" },
+        "use-secure-value-for-secure-inputs": { "level": "error" }
+      }
+    }
+  }
+}

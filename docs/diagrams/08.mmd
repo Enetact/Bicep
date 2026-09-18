@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant O as Operator
+    participant B as Bicep deployment
+    participant S as Private storage
+    participant F as Function App
+    O->>B: Bootstrap with deployFunctionApp false
+    B->>S: Provision storage queues ledger and access
+    O->>O: Establish private connectivity and validate RBAC
+    O->>S: Publish immutable Function ZIP
+    O->>B: Release with deployFunctionApp true
+    B->>F: Configure app and package identity
+    F->>S: Read package with managed identity
+    O->>F: Synchronize and validate triggers

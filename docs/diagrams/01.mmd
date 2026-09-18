@@ -1,0 +1,9 @@
+flowchart TD
+    A[External system uploads normally] --> B[Solution storage container]
+    B --> C[Polling BlobTrigger dispatcher]
+    C --> D[Explicit Storage work queue]
+    D --> E[QueueTrigger copy worker]
+    E --> F[Existing data lake container]
+    E --> G[Ledger container in solution storage]
+    H[Reconciliation timer] --> B
+    H --> D

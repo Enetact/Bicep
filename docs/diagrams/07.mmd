@@ -1,0 +1,11 @@
+flowchart TD
+    A[Identity] --> B[Monitoring]
+    B --> C[Storage accounts and queues]
+    C --> D[Storage role assignments]
+    E[VNet and DNS] --> F[Private endpoints]
+    C --> F
+    G[Existing destination] --> H[Destination RBAC and endpoints]
+    D --> I[Function App release]
+    F --> I
+    H --> I
+    J[Published package] --> I
