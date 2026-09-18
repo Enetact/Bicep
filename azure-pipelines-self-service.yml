@@ -29,26 +29,11 @@ parameters:
     default: new-private
     values: [new-private]
 
-variables:
+stages:
   - template: pipelines/catalog-bindings.yml
     parameters:
+      operation: ${{ parameters.operation }}
       workload: ${{ parameters.workload }}
       environment: ${{ parameters.environment }}
       subscription: ${{ parameters.subscription }}
       network: ${{ parameters.network }}
-
-stages:
-  - ${{ if eq(parameters.operation, 'discover') }}:
-    - template: pipelines/templates/self-service-discover.yml
-      parameters:
-        workload: ${{ parameters.workload }}
-        environment: ${{ parameters.environment }}
-        subscription: ${{ parameters.subscription }}
-        network: ${{ parameters.network }}
-  - ${{ if eq(parameters.operation, 'deploy') }}:
-    - template: pipelines/templates/self-service-stages.yml
-      parameters:
-        workload: ${{ parameters.workload }}
-        environment: ${{ parameters.environment }}
-        subscription: ${{ parameters.subscription }}
-        network: ${{ parameters.network }}

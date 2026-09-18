@@ -35,6 +35,21 @@ Case 'legacy naming preserved' { $old=Clone $p; $old.Remove('namingSuffix'); Che
 $catalog=Join-Path $testRoot catalog; $generated=Join-Path $testRoot generated
 Write-ServiceJson $target (Join-Path $catalog target.json)
 Case 'catalog generation and freshness check' { & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $catalog -OutputRoot $generated; & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $catalog -OutputRoot $generated -Check }
+Case 'catalog passes literal protected resources through stage parameters' {
+    $routing=Get-Content (Join-Path $generated pipelines/catalog-bindings.yml) -Raw
+    Check ($routing.Contains("serviceConnection: $($target.serviceConnection)") -and $routing.Contains("agentPool: $($target.agentPool)") -and $routing.Contains("deploymentEnvironment: $($target.deploymentEnvironment)"))
+    Check ($routing.Contains('stages:') -and !$routing.Contains('variables:') -and $routing.Contains('stage: InvalidSelection'))
+}
+Case 'discovery task and script receive the same explicit connection parameter' {
+    $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-discover.yml) -Raw
+    Check ($template.Contains('azureSubscription: ${{ parameters.serviceConnection }}') -and $template.Contains('-BoundServiceConnection ''${{ parameters.serviceConnection }}''') -and !$template.Contains('variables.serviceConnection'))
+    Check ($template.IndexOf('Prepare evidence before Azure authentication') -lt $template.IndexOf('task: AzureCLI@2'))
+}
+Case 'deployment forwards explicit resources and relative nested template paths' {
+    $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-stages.yml) -Raw
+    foreach ($key in @('serviceConnection','agentPool','deploymentEnvironment')) { Check (!$template.Contains("variables.$key") -and $template.Contains('parameters.'+$key)) }
+    Check ($template.Contains('template: self-service-plan.yml') -and $template.Contains('template: self-service-apply.yml') -and !$template.Contains('template: pipelines/templates/'))
+}
 Case 'duplicate target cannot select arbitrary credentials' { Write-ServiceJson $target (Join-Path $catalog duplicate.json); Reject { & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $catalog -OutputRoot $generated }; Remove-Item -LiteralPath (Join-Path $catalog duplicate.json) }
 Case 'one dropdown name cannot map to multiple subscriptions' { $t=Clone $target; $t.subscriptionId='33333333-3333-3333-3333-333333333333'; $t.environmentName='qa'; Write-ServiceJson $t (Join-Path $catalog ambiguous.json); Reject { & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $catalog -OutputRoot $generated }; Remove-Item -LiteralPath (Join-Path $catalog ambiguous.json) }
 

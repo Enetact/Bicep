@@ -7,6 +7,8 @@ parameters:
     type: string
   - name: network
     type: string
+  - name: serviceConnection
+    type: string
 stages:
   - stage: Discover
     displayName: Read-only discovery in the selected subscription
@@ -22,9 +24,14 @@ stages:
           - checkout: self
             clean: true
             persistCredentials: false
+          - pwsh: |
+              $folder = '$(Build.ArtifactStagingDirectory)/discovery'
+              New-Item -ItemType Directory -Path $folder -Force | Out-Null
+              'Discovery was queued. If inventory.json is absent, inspect the Azure CLI task log; discovery did not complete.' | Set-Content (Join-Path $folder README.txt)
+            displayName: Prepare evidence before Azure authentication
           - task: AzureCLI@2
             inputs:
-              azureSubscription: ${{ variables.serviceConnection }}
+              azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: pscore
               scriptLocation: scriptPath
               scriptPath: scripts/Export-DeploymentInventory.ps1
@@ -34,7 +41,7 @@ stages:
                 -SubscriptionAlias '${{ parameters.subscription }}'
                 -NetworkProfile '${{ parameters.network }}'
                 -UseServiceConnectionSubscription
-                -BoundServiceConnection '${{ variables.serviceConnection }}'
+                -BoundServiceConnection '${{ parameters.serviceConnection }}'
                 -OrganizationUrl '$(System.CollectionUri)'
                 -Project '$(System.TeamProject)'
                 -OutputDirectory '$(Build.ArtifactStagingDirectory)/discovery'

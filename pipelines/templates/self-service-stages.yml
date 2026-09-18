@@ -7,6 +7,12 @@ parameters:
     type: string
   - name: network
     type: string
+  - name: serviceConnection
+    type: string
+  - name: agentPool
+    type: string
+  - name: deploymentEnvironment
+    type: string
 stages:
   - stage: Qualify
     displayName: Validate selection, test, and freeze release
@@ -77,29 +83,29 @@ stages:
               targetPath: $(Build.ArtifactStagingDirectory)/qualification
               artifact: self-service-tests
 
-  - template: pipelines/templates/self-service-plan.yml
+  - template: self-service-plan.yml
     parameters:
       phase: Foundation
       dependsOn: Qualify
-      serviceConnection: ${{ variables.serviceConnection }}
-      agentPool: ${{ variables.agentPool }}
-      deploymentEnvironment: ${{ variables.deploymentEnvironment }}
-  - template: pipelines/templates/self-service-apply.yml
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}
+  - template: self-service-apply.yml
     parameters:
       phase: Foundation
-      serviceConnection: ${{ variables.serviceConnection }}
-      agentPool: ${{ variables.agentPool }}
-      deploymentEnvironment: ${{ variables.deploymentEnvironment }}
-  - template: pipelines/templates/self-service-plan.yml
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}
+  - template: self-service-plan.yml
     parameters:
       phase: Release
       dependsOn: ApplyFoundation
-      serviceConnection: ${{ variables.serviceConnection }}
-      agentPool: ${{ variables.agentPool }}
-      deploymentEnvironment: ${{ variables.deploymentEnvironment }}
-  - template: pipelines/templates/self-service-apply.yml
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}
+  - template: self-service-apply.yml
     parameters:
       phase: Release
-      serviceConnection: ${{ variables.serviceConnection }}
-      agentPool: ${{ variables.agentPool }}
-      deploymentEnvironment: ${{ variables.deploymentEnvironment }}
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}

@@ -23,22 +23,25 @@ foreach ($pair in @(@('workload','workload','Registered workload'),@('environmen
     $values=@($targets | ForEach-Object { $_[$pair[1]] } | Sort-Object -Unique)
     $yaml+=@("  - name: $($pair[0])","    displayName: $($pair[2])",'    type: string',"    default: $($values[0])",('    values: ['+($values -join ', ')+']'))
 }
-$yaml+=@('','variables:','  - template: pipelines/catalog-bindings.yml','    parameters:','      workload: ${{ parameters.workload }}','      environment: ${{ parameters.environment }}','      subscription: ${{ parameters.subscription }}','      network: ${{ parameters.network }}','','stages:')
-foreach ($op in @('discover','deploy')) {
-    $template=if ($op -eq 'discover') {'self-service-discover'} else {'self-service-stages'}
-    $yaml+=@(('  - ${{ if eq(parameters.operation, '''+$op+''') }}:'),"    - template: pipelines/templates/$template.yml",'      parameters:','        workload: ${{ parameters.workload }}','        environment: ${{ parameters.environment }}','        subscription: ${{ parameters.subscription }}','        network: ${{ parameters.network }}')
-}
-$bindings=@('# Generated compile-time bindings. Never resolve service connections using runtime output variables.','parameters:')
-foreach ($key in @('workload','environment','subscription','network')) { $bindings+=@("  - name: $key",'    type: string') }
-$bindings+=@('variables:')
+$yaml+=@('','stages:','  - template: pipelines/catalog-bindings.yml','    parameters:','      operation: ${{ parameters.operation }}','      workload: ${{ parameters.workload }}','      environment: ${{ parameters.environment }}','      subscription: ${{ parameters.subscription }}','      network: ${{ parameters.network }}')
+$bindings=@('# Generated stage routing with literal protected-resource parameters.','parameters:')
+foreach ($key in @('operation','workload','environment','subscription','network')) { $bindings+=@("  - name: $key",'    type: string') }
+$bindings+=@('stages:')
 $conditions=@()
 foreach ($t in $targets) {
     $condition='and(eq(parameters.workload, '''+$t.workload+'''), eq(parameters.environment, '''+$t.environmentName+'''), eq(parameters.subscription, '''+$t.subscriptionAlias+'''), eq(parameters.network, '''+$t.networkProfile+'''))'
     $conditions+=$condition
-    $bindings+=@(('  ${{ if '+$condition+' }}:'),"    serviceConnection: $($t.serviceConnection)","    agentPool: $($t.agentPool)","    deploymentEnvironment: $($t.deploymentEnvironment)")
+    $bindings+=('  - ${{ if '+$condition+' }}:')
+    foreach ($op in @('discover','deploy')) {
+        $template=if ($op -eq 'discover') {'self-service-discover'} else {'self-service-stages'}
+        $bindings+=@(('    - ${{ if eq(parameters.operation, '''+$op+''') }}:'),"      - template: templates/$template.yml",'        parameters:',
+            "          workload: $($t.workload)","          environment: $($t.environmentName)","          subscription: $($t.subscriptionAlias)","          network: $($t.networkProfile)",
+            "          serviceConnection: $($t.serviceConnection)")
+        if ($op -eq 'deploy') { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)") }
+    }
 }
 $anyMatch=if ($conditions.Count -eq 1) {$conditions[0]} else {'or('+($conditions -join ', ')+')'}
-$bindings+=@(('  ${{ if not('+$anyMatch+') }}:'),'    serviceConnection: UNREGISTERED_SELECTION','    agentPool: UNREGISTERED_SELECTION','    deploymentEnvironment: UNREGISTERED_SELECTION')
+$bindings+=@(('  - ${{ if not('+$anyMatch+') }}:'),'    - stage: InvalidSelection','      jobs:','        - job: RejectSelection','          pool:','            vmImage: windows-latest','          steps:','            - checkout: none','            - pwsh: |','                throw ''This workload/environment/subscription/network combination is not registered.''','              displayName: Reject unregistered target before Azure access')
 foreach ($item in @(@('azure-pipelines-self-service.yml',$yaml),@('pipelines/catalog-bindings.yml',$bindings))) {
     $path=Join-Path $root $item[0]; $text=($item[1] -join "`n")+"`n"
     if ($Check) {

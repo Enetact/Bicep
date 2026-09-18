@@ -1,5 +1,7 @@
-# Generated compile-time bindings. Never resolve service connections using runtime output variables.
+# Generated stage routing with literal protected-resource parameters.
 parameters:
+  - name: operation
+    type: string
   - name: workload
     type: string
   - name: environment
@@ -8,24 +10,91 @@ parameters:
     type: string
   - name: network
     type: string
-variables:
-  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: SC-AZ-A-Bicep
-    agentPool: blob-transfer-private
-    deploymentEnvironment: blobcopy-dev
-  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: SC-AZ-A-Bicep
-    agentPool: blob-transfer-private
-    deploymentEnvironment: blobcopy-prod
-  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: SC-AZ-A-Bicep
-    agentPool: blob-transfer-private
-    deploymentEnvironment: blobcopy-qa
-  ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: SC-AZ-A-Bicep
-    agentPool: blob-transfer-private
-    deploymentEnvironment: blobcopy-uat
-  ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')))) }}:
-    serviceConnection: UNREGISTERED_SELECTION
-    agentPool: UNREGISTERED_SELECTION
-    deploymentEnvironment: UNREGISTERED_SELECTION
+stages:
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: dev
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: dev
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-dev
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: prod
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: prod
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-prod
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: qa
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: qa
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-qa
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: uat
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: uat
+          subscription: unconfigured
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-uat
+  - ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')))) }}:
+    - stage: InvalidSelection
+      jobs:
+        - job: RejectSelection
+          pool:
+            vmImage: windows-latest
+          steps:
+            - checkout: none
+            - pwsh: |
+                throw 'This workload/environment/subscription/network combination is not registered.'
+              displayName: Reject unregistered target before Azure access
