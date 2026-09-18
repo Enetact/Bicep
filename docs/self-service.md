@@ -62,7 +62,7 @@ The existing [dispatcher reference](dispatcher/README.md) documents the applicat
 
 ### 2. Prepare identity and a private agent
 
-Use a workload identity federation Azure Resource Manager service connection for each approved target. The disabled baseline examples name `sc-blobcopy-dev`, `sc-blobcopy-qa`, `sc-blobcopy-uat`, and `sc-blobcopy-prod`; discovery-generated profiles instead bind the selected existing connection by its exact Azure DevOps endpoint ID. Do not embed client secrets in YAML.
+The four disabled baseline profiles now bind the user-supplied Azure Resource Manager service connection `SC-AZ-A-Bicep`. Authorize the self-service pipeline to use this exact connection in its Azure DevOps project. Its authentication scheme, subscription and permissions have not been inspected here; verify workload identity federation and the intended scope before enabling deployment. Discovery-generated profiles can instead bind a selected existing connection by its exact Azure DevOps endpoint ID. Do not embed client secrets in YAML.
 
 The deployment identity needs resource deployment permissions in the target RG, including the Bicep resources and role assignments. Contributor alone cannot create role assignments. The destination module also performs a nested deployment in the destination RG and a runtime identity role assignment at the existing destination container. Have the destination owner approve appropriately scoped deployment, read and role-assignment permissions. Private endpoint approval rights may require a separate owner action. Use constrained custom roles or constrained RBAC delegation where available; this repository does not provision the service connection's permissions.
 

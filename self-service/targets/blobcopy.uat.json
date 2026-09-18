@@ -9,7 +9,7 @@
   "subscriptionId": "00000000-0000-0000-0000-000000000000",
   "resourceGroup": "rg-blobcopy-uat",
   "parameterFile": "environments/uat.bicepparam",
-  "serviceConnection": "sc-blobcopy-uat",
+  "serviceConnection": "SC-AZ-A-Bicep",
   "agentPool": "blob-transfer-private",
   "deploymentEnvironment": "blobcopy-uat",
   "smokePrefix": "smoke/"

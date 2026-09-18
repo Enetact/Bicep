@@ -10,19 +10,19 @@ parameters:
     type: string
 variables:
   ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: sc-blobcopy-dev
+    serviceConnection: SC-AZ-A-Bicep
     agentPool: blob-transfer-private
     deploymentEnvironment: blobcopy-dev
   ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: sc-blobcopy-prod
+    serviceConnection: SC-AZ-A-Bicep
     agentPool: blob-transfer-private
     deploymentEnvironment: blobcopy-prod
   ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: sc-blobcopy-qa
+    serviceConnection: SC-AZ-A-Bicep
     agentPool: blob-transfer-private
     deploymentEnvironment: blobcopy-qa
   ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')) }}:
-    serviceConnection: sc-blobcopy-uat
+    serviceConnection: SC-AZ-A-Bicep
     agentPool: blob-transfer-private
     deploymentEnvironment: blobcopy-uat
   ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'unconfigured'), eq(parameters.network, 'new-private')))) }}:

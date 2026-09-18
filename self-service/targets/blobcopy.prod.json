@@ -9,7 +9,7 @@
   "subscriptionId": "00000000-0000-0000-0000-000000000000",
   "resourceGroup": "rg-blobcopy-prod",
   "parameterFile": "environments/prod.bicepparam",
-  "serviceConnection": "sc-blobcopy-prod",
+  "serviceConnection": "SC-AZ-A-Bicep",
   "agentPool": "blob-transfer-private",
   "deploymentEnvironment": "blobcopy-prod",
   "smokePrefix": "smoke/"

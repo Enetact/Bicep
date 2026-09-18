@@ -4,7 +4,9 @@ The self-service pipeline now has five selections: **operation**, **workload**, 
 
 The subscription dropdown uses a platform-owned friendly alias mapped to one exact subscription ID. Network profiles map to exact existing subnet and private DNS zone IDs, or the original new-network mode. Service connection, agent pool, deployment environment, naming and pipeline data permissions follow that approved combination.
 
-The checked-in alias `unconfigured` is a placeholder, not a discovered subscription. No Azure DevOps organization or live subscription has been supplied or queried during this implementation.
+The checked-in alias `unconfigured` is a placeholder, not a discovered subscription. All four baseline profiles bind the user-supplied service connection `SC-AZ-A-Bicep`; its actual subscription and permissions have not been queried here.
+
+To see the options, push this source to GitHub and register/select the Azure DevOps pipeline using `/azure-pipelines-self-service.yml`, then open **Run pipeline** on a branch containing these files. The build/test pipeline `/azure-pipelines.yml` does not expose self-service parameters. Authorize this pipeline to use `SC-AZ-A-Bicep`. The options appear from YAML before Azure authentication; the connection name does not populate real subscription or network choices. Running discovery still requires a real subscription ID in the profile and the configured private agent pool. The current stage guards require a manually queued `main` run; choosing another branch may show the form but skip its stages. Deployment profiles remain disabled pending onboarding.
 
 ## Can Contributor or Owner refresh the dropdowns?
 
