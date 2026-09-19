@@ -17,6 +17,12 @@ parameters:
     type: string
   - name: discoveryRunId
     type: string
+  - name: createDestinationPrivateEndpoints
+    type: boolean
+    default: true
+  - name: enableLogAlerts
+    type: boolean
+    default: true
 stages:
   - stage: Qualify
     displayName: Validate selection, test, and freeze release
@@ -32,11 +38,13 @@ stages:
           - pwsh: |
               . ./scripts/self-service-common.ps1
               $null = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}'
-              if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Run discovery first, then enter its pipeline ID and run ID from the saved summary.' }
+              if ('${{ parameters.environment }}' -eq 'prod' -and ![bool]::Parse($env:ENABLE_LOG_ALERTS)) { throw 'Production requires log alerts.' }
+              if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Run discovery first, then select its successful main run under Run pipeline > Resources > discovery. Check pipeline-resource authorization if its IDs are unavailable.' }
             displayName: Reject disabled or invalid target before building
             env:
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+              ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}
           - task: DownloadPipelineArtifact@2
             displayName: Download the selected discovery manifest
             inputs:
@@ -75,8 +83,11 @@ stages:
                 ./scripts/Stop-Local.ps1
               }
               ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
-              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input'
+              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -CreateDestinationPrivateEndpoints ([bool]::Parse($env:CREATE_DESTINATION_ENDPOINTS)) -EnableLogAlerts ([bool]::Parse($env:ENABLE_LOG_ALERTS))
             displayName: Qualify application and freeze target/template/package
+            env:
+              CREATE_DESTINATION_ENDPOINTS: ${{ parameters.createDestinationPrivateEndpoints }}
+              ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}
           - publish: artifacts/self-service/bundle
             artifact: self-service-bundle
             displayName: Publish immutable inputs for this run
@@ -93,6 +104,7 @@ stages:
                 @{ path='artifacts/test-results'; name='project' },
                 @{ path='artifacts/self-service-tests'; name='self-service' },
                 @{ path='artifacts/discovery-tests'; name='discovery' },
+                @{ path='artifacts/cost-tests'; name='costs' },
                 @{ path='.local/logs'; name='local-host' }
               )) {
                 if (Test-Path -LiteralPath $entry.path) {

@@ -4,6 +4,30 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
+### Separate native Discover and Deploy menus
+
+Discover now exposes only four target selectors and a fixed discovery operation. Deploy owns resource/cost descriptions and boolean options, and declares the existing `Enetact.Bicep` definition as its `discovery` pipeline resource. Developers select a saved run through **Run pipeline > Resources > discovery**. Runtime resource metadata supplies the existing exact-run artifact download and manifest checks. No manual ID fields or automatic completion triggers remain in either entry point. Shared stage templates and all four protected target bindings remain in use.
+
+- **76 discovery/catalog/handoff cases passed**, zero failures: `artifacts/discovery-tests/f5e712dd92bf4937b30cfdda0dc2d39b/results.json`. Includes menu separation, source resource metadata, UTC-stable generated price dates, and existing failure/branch/scope/freshness checks.
+- All eight YAML files parsed successfully. Structural checks verified the native resource declaration, four deployment routes, task/environment metadata forwarding, exact-run artifact inputs and checkbox types. Catalog freshness, PowerShell parsing and source-manifest checks passed.
+- The browser showed existing definition `Enetact.Bicep` (ID 1) and a successful run 9. That establishes its name/status, not deployment readiness or live rendering of the new local YAML.
+- The updated menus require publishing these source changes. The ADO new-pipeline wizard redirected to GitHub sign-in, so the separate Deploy definition was not created. Live resource selection, Azure DevOps template expansion and deployment remain unverified. All checked-in deployment targets remain disabled.
+
+### Cost references, real checkboxes and frozen estimates
+
+Both menus now display reviewed USD retail rates and boolean options for destination private endpoints and log alerts. Public pricing was retrieved from Microsoft's retail API on 19 September UTC / 18 September US Central; the snapshot retains meter IDs, units, region, tiers and effective dates. The selected cost report is hashed into the release bundle and shown before approvals. Required private access and core resources remain enforced; production rejects disabled alerts. This change did not deploy or alter Azure resources.
+
+- **15 cost/option cases passed**: `artifacts/cost-tests/45d66537b070415b90ceba7c03ca332a/results.json`. Covers all four checkbox combinations, non-HNS destinations, reused DNS, hosting/instance counts, stale/missing regional prices and production constraints.
+- **41 deployment cases passed**: `artifacts/self-service-tests/a3b66d1960aa4a248e7d07460c253d5f/results.json`. Includes report tampering, frozen options, production parameter validation and approval-preview cost/option display.
+- **74 discovery/catalog cases passed**: `artifacts/discovery-tests/793c285dd66d49b89f759328a79d6294/results.json`; **19 tooling cases passed**: `artifacts/tooling-tests/d03e4fea040d4152bff540516cae6f05/results.json`.
+- All four environment templates compiled under `artifacts/cost-compile/`. Inspection confirmed both destination endpoint conditions and all three alert enabled expressions use the selected booleans. Actual compiled default configurations produced full-release fixed subtotals of dev $77.81, qa $134.75, uat $291.70 and prod $404.85 per 730-hour month, plus excluded usage.
+- YAML parsing verified boolean forwarding through both entry points and all four deployment routes; discovery receives no resource options. PowerShell parsing, catalog freshness and source-manifest checks passed.
+- Offline tests use synthetic prices/Azure responses; the separate pricing refresh used only the public retail API. Live menu rendering, deployment of optional configurations and actual billed costs remain unverified. No app runtime tests were rerun for these infrastructure/menu changes.
+
+### Workload resource descriptions in the run menu
+
+Both generated self-service entry points now describe the blob-transfer workload and expose three single-value informational parameters covering package resources, networking, and billable deployment prerequisites. These values are not passed to deployment templates; workload IDs and protected-resource routing remain unchanged. The existing 74 offline discovery/catalog/handoff cases passed again: `artifacts/discovery-tests/0f255b82470842bda65145d9d0c3cfe5/results.json`. Catalog freshness passed. Live rendering of this updated Azure DevOps form remains unverified until the changes are pushed.
+
 ### DNS inventory fallback
 
 Build 7 published its discovery artifact but reported partial inventory because the private DNS list failed. Its browser summary showed successful ARM subscription/provider diagnostic calls; those statuses alone do not establish the provider registration state or explain the DNS error. The user reports that no DNS zones have been created.

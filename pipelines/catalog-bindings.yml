@@ -16,6 +16,12 @@ parameters:
   - name: discoveryRunId
     type: string
     default: '0'
+  - name: createDestinationPrivateEndpoints
+    type: boolean
+    default: true
+  - name: enableLogAlerts
+    type: boolean
+    default: true
 stages:
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
@@ -38,6 +44,8 @@ stages:
           deploymentEnvironment: blobcopy-dev
           discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
           discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -59,6 +67,8 @@ stages:
           deploymentEnvironment: blobcopy-prod
           discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
           discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -80,6 +90,8 @@ stages:
           deploymentEnvironment: blobcopy-qa
           discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
           discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
   - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -101,6 +113,8 @@ stages:
           deploymentEnvironment: blobcopy-uat
           discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
           discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
   - ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')))) }}:
     - stage: InvalidSelection
       jobs:

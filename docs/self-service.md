@@ -1,16 +1,37 @@
 # Developer self-service deployment
 
-Status: implemented in the repository and locally contract-tested; **successful live discovery/deployment remains unverified**. The latest supplied run selected the connection's subscription but failed at private DNS listing. Discovery now saves partial results and diagnostics. Deployment uses a verified manifest from a separate successful main-branch discovery run. All four checked-in targets remain disabled for deployment until platform onboarding is complete. See [completion status](completion-status.md).
+Status: implemented in the repository and locally contract-tested. Run 8 on `feature/selfservice` completed discovery using the DNS inventory fallback and published its artifact; successful Azure deployment remains unverified. Deployment requires a verified manifest from a separate successful main-branch discovery run. All four checked-in targets remain disabled for deployment until platform onboarding is complete. See [completion status](completion-status.md).
 
 This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
+
+## What developers select in Run pipeline
+
+`blobcopy` is the registered workload code for the automated blob-transfer package, not an Azure service or pricing tier. The workload code and environment contribute to resource names, for example `asp-blobcopy-dev`. An exact workload/environment/subscription/network combination selects one reviewed target profile. Registering another workload code in this repository gives the same deployment blueprint another identity; it does not select an unrelated application template.
+
+Discover shows just four target selectors: workload, environment, subscription and network profile. Deploy shows the same selectors plus the cost reference fields and two deployment checkboxes below. In Deploy, **Resources > discovery** opens Azure DevOps' native run picker for selecting the saved inventory; pipeline/run IDs do not need to be typed.
+
+| Field | What the developer can see before running |
+|---|---|
+| Included core resources | Function App and hosting; two storage accounts; queues and ledger; managed identity and scoped RBAC; Log Analytics and Application Insights. These dependencies cannot be unchecked. |
+| Hosting reference | Dated East US 2 USD prices per instance/month for B1, S1 and P1v3. The reviewed environment profile determines the SKU and instance count. |
+| Required private networking | Estimated charge for six required storage/app private endpoints and five new DNS zones; existing-network mode reuses approved zones. |
+| Additional usage charges / Estimate basis | Log ingestion and DNS query rates, variable storage/data/agent costs, date, region, currency, and exclusions. |
+| Create destination private endpoints | Checked by default. Adds one blob endpoint, plus dfs when the destination is HNS-enabled, at the displayed per-endpoint monthly rate. Uncheck only when existing private connectivity and DNS are already available. |
+| Enable 3 log alerts | Checked by default, with the estimated monthly rule cost. Unchecked disables alert evaluation while retaining the rule resources and telemetry. Production rejects unchecked alerts before building. |
+
+The reference fields are single-value string parameters used only to display information. The two boolean parameters are real deployment options: the generator passes them through the stage router, `New-SelfServiceBundle.ps1` writes them into the frozen ARM parameters, and Bicep uses them. They do not grant approval, enable a disabled target, change discovery, or allow removal of core security/network dependencies. Azure DevOps supports labels, allowed values and booleans in the [parameter schema](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/parameters-parameter?view=azure-pipelines). The form cannot recalculate a live total as checkboxes change. Qualification publishes the selected estimate, and each deployment preview repeats the choices and full-release fixed subtotal. See [cost assumptions and refresh instructions](self-service-costs.md).
+
+Unchecking destination endpoints on a subsequent incremental deployment does **not** delete endpoints already created. Their charges can continue; removal is a separate reviewed action. Reusing existing resources also does not make those resources free. Disabling alerts updates `enabled: false` rather than omitting the rules, so existing evaluations stop on approved apply. Log collection and its usage charges continue. Discovery creates no resources; Foundation and Release can incur charges.
+
+The generator owns these labels and summaries, with prices from the reviewed `self-service/pricing/usd-eastus2.json` snapshot. Regenerate the catalog after changes, then commit the source and generated entry points together. After pushing, open a new Run pipeline dialog on that branch. Local generation and regression checks do not verify how the updated form renders in Azure DevOps.
 
 ## Developer access and exact workflow
 
 After platform onboarding:
 
 1. Open the team's Azure DevOps project and select **Pipelines**.
-2. Run `/azure-pipelines-self-service.yml` on `main` with operation `discover` and the approved target selections. Wait for success and note the pipeline ID and run ID in its discovery summary.
-3. Open the pipeline registered from `/azure-pipelines-self-service-deploy.yml`, choose **Run pipeline** on `main`, enter those IDs and select workload `blobcopy`, environment, subscription alias and network profile. Only enabled targets deploy. Naming and network configuration come from the reviewed profile. See [the handoff and new-network guide](subscription-discovery.md).
+2. Run Discover (`Enetact.Bicep`, `/azure-pipelines-self-service.yml`) on `main` with the approved target selections. Wait for success and inspect its discovery summary.
+3. Open the pipeline registered from `/azure-pipelines-self-service-deploy.yml`, choose **Run pipeline** on `main`, then **Resources > discovery** and select that successful main-branch run. Select matching workload `blobcopy`, environment, subscription alias and network profile, then choose the endpoint/alert checkboxes. These checkboxes are chosen now, not during discovery. Only enabled targets deploy. Naming and network configuration come from the reviewed profile. See [the handoff and new-network guide](subscription-discovery.md).
 4. The deployment run downloads and verifies the exact manifest and originating run, then qualifies and freezes the application, infrastructure, parameters, target and discovery evidence into one artifact. Missing, stale, partial or mismatched evidence stops before deployment.
 5. Inspect the Foundation preview summary and `plan-Foundation` artifact. The platform approver authorizes the protected environment stage. Existing applications skip Foundation changes but still check prerequisites.
 6. Inspect the Release preview and `plan-Release` artifact. After approval, the pipeline rechecks the plan, publishes the package, deploys the Function App, synchronizes triggers, and uploads synthetic blobs through the real dispatcher.
@@ -35,7 +56,7 @@ Developers need project access, pipeline view/queue permissions, and artifact ac
 |---|---|
 | `Read-ServiceTarget`, `Assert-ServiceTarget`, `Resolve-ServicePath` | Allowlisted selection, exact target fields, enabled flag, approved relative parameter paths, traversal/reparse-point rejection. |
 | `Assert-ServiceParameters`, `Get-ServiceParameter` | Explicit ownership/destination/network settings; environment match; placeholder rejection; valid source, ledger and queue names; mapped synthetic prefix; source-version reconciliation; production action groups. |
-| `Read-ServiceBundle`, `Get-ServiceHash` | Verify SHA-256 of the exact five frozen files and validate Function metadata before Azure calls. |
+| `Read-ServiceBundle`, `Get-ServiceHash` | Verify SHA-256 of the frozen template, parameters, target, package, Function metadata and included discovery/cost evidence before Azure calls. |
 | `ConvertTo-Canonical`, `Get-ValueHash` | Order-independent object hashing; preserve array ordering and values for preview comparisons. |
 | `Invoke-ServiceJson` | Checked Azure CLI invocation and JSON parsing. No storage account keys are used. |
 | `Test-ServiceDestination`, `Get-ServiceState`, `Get-ServiceOutputs` | Existing same-tenant destination/container, HNS agreement, target RG/app lookup, deployment output contract and unchanged container/queue names. |
@@ -84,7 +105,7 @@ Ensure the private agent resolves/reaches the actual private storage endpoints. 
 
 ### 3. Configure Azure DevOps controls
 
-1. Connect the Azure DevOps project to the GitHub repository. Register a **separate pipeline** using Existing Azure Pipelines YAML → `/azure-pipelines-self-service.yml`. Keep `/azure-pipelines.yml` as build/test/package CI.
+1. Connect the Azure DevOps project to the GitHub repository. Keep existing `Enetact.Bicep` (definition ID 1) on `/azure-pipelines-self-service.yml` for Discover. Register a second definition, suggested name **BlobTransfer - Deploy**, using **New pipeline > GitHub > Enetact/Bicep > Existing Azure Pipelines YAML file**, branch `main`, path `/azure-pipelines-self-service-deploy.yml`. Use **Save** from the Run/Save and run split-button menu to register without executing. Keep `/azure-pipelines.yml` as the separate build/test entry point. Publish the source changes before expecting the updated forms.
 2. Precreate the exact deployment environment named by each target profile. Baseline examples use `blobcopy-dev`, `blobcopy-qa`, `blobcopy-uat`, and `blobcopy-prod`; newly generated profiles include their naming suffix. Authorize only the intended pipeline and approvers. Do not depend on implicit environment creation.
 3. Configure environment approvals, main-branch control and an **exclusive lock check**. YAML sets `lockBehavior: sequential`, but this only works when the resource has an exclusive lock configured. Approvals run for each apply stage.
 4. Restrict each service connection and the private agent pool to the trusted deployment pipeline; add branch control/checks as appropriate. Do not enable access for all pipelines or permit untrusted PR jobs on the private pool. Service-connection checks can also pause the preview stages.
@@ -92,6 +113,8 @@ Ensure the private agent resolves/reaches the actual private storage endpoints. 
 6. Set retention/access for deployment artifacts and logs. These contain infrastructure identifiers, configuration and synthetic transfer evidence; they are not public deliverables.
 
 Microsoft documents [resource checks and approvals](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/approvals?view=azure-devops) outside YAML and [AzureCLI task configuration](https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/azure-cli-v2?view=azure-pipelines). The repository cannot enforce missing organization settings by itself.
+
+The Deploy definition declares a pipeline resource named `discovery`, sourced from the exact ADO name in `self-service/pipeline-settings.json` (currently `Enetact.Bicep`). If renaming/moving Discover, update that setting and regenerate the catalog. The resource has completion triggers disabled. Its selected `pipelineID` and `runID` metadata feed the existing exact-run artifact download and handoff validation. Grant the intended deployment pipeline resource authorization where required, and give its project Build Service read access to the discovery builds/artifacts. An administrator may need to authorize the protected resources on first use; avoid granting all pipelines access. The [native run picker](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/resources?view=azure-devops#manual-resource-version-picker) is available before queueing, not between stages.
 
 ### 4. Enable the registered target
 
@@ -112,7 +135,7 @@ For another workload, add target JSON profiles and parameter files, then regener
 
 | Artifact | Contents |
 |---|---|
-| `self-service-bundle` | `main.json`, `parameters.json`, `target.json`, `application.zip`, `functions.metadata`, and `bundle.json` with five file hashes, release ID and source commit. |
+| `self-service-bundle` | `main.json`, `parameters.json`, `target.json`, `application.zip`, `functions.metadata`, `cost-estimate.json`, `discovery/` evidence, and `bundle.json` with file hashes, release ID and source commit. |
 | `self-service-tests` | Project test/advisory output, offline deployment contract results, local Function host logs when those steps ran. VSTest results also appear in the Tests tab. |
 | `plan-Foundation`, `plan-Release` | `summary.md`, `what-if.json`, `effective.parameters.json`, `plan.json`, and preview receipt. |
 | `result-Foundation`, `result-Release` | Recheck preview, deployment outputs, success/failure receipt; release smoke evidence when completed. |

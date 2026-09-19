@@ -392,10 +392,25 @@ try {
     }
     Case 'deployment entry point fixes deploy and requires the chosen discovery artifact' {
         $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service-deploy.yml) -Raw
-        Check ($yaml.Contains('operation: deploy') -and !$yaml.Contains('name: operation') -and $yaml.Contains('name: discoveryRunId'))
+        Check ($yaml.Contains('operation: deploy') -and !$yaml.Contains('name: operation') -and !$yaml.Contains('name: discoveryRunId'))
+        Check ($yaml.Contains('pipeline: discovery') -and $yaml.Contains('branch: refs/heads/main') -and $yaml.Contains('discoveryRunId: $(resources.pipeline.discovery.runID)') -and $yaml.Contains('discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)'))
         $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-stages.yml) -Raw
         Check ($template.Contains('buildVersionToDownload: specific') -and $template.Contains('Test-DiscoveryHandoff.ps1') -and $template.Contains('-DiscoveryDirectory'))
         Check ($template.IndexOf('Test-DiscoveryHandoff.ps1') -lt $template.IndexOf('Build-Package.ps1'))
+    }
+    Case 'generated price date uses UTC regardless of the local timezone' {
+        $snapshot=Get-Content (Join-Path (Get-ProjectRoot) self-service/pricing/usd-eastus2.json) -Raw
+        $document=[System.Text.Json.JsonDocument]::Parse($snapshot)
+        try { $expected=([DateTimeOffset]::Parse($document.RootElement.GetProperty('retrievedUtc').GetString())).UtcDateTime.ToString('yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture) }
+        finally { $document.Dispose() }
+        $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service-deploy.yml) -Raw
+        Check ($yaml.Contains("USD retail as of $expected") -and $yaml.Contains("East US 2; $expected"))
+    }
+    Case 'discovery menu cannot select deployment or expose deployment-only choices' {
+        $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service.yml) -Raw
+        Check ($yaml.Contains('operation: discover') -and !$yaml.Contains('operation: deploy'))
+        foreach ($key in @('operation','discoveryRunId','discoveryPipelineId','createDestinationPrivateEndpoints','enableLogAlerts','hostingEstimate','packageResources')) { Check (!$yaml.Contains("name: $key")) }
+        Check (!$yaml.Contains('resources:') -and !$yaml.Contains('resources.pipeline.'))
     }
     Case 'new network needs explicit location and approved CIDRs' {
         foreach ($key in @('Location','VnetAddressPrefix','IntegrationSubnetPrefix','PrivateEndpointSubnetPrefix')) {

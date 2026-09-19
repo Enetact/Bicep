@@ -2,8 +2,10 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Workload,[Parameter(Mandatory)][ValidateSet('dev','qa','uat','prod')][string]$EnvironmentName,
     [Parameter(Mandatory)][string]$ReleaseDirectory,[Parameter(Mandatory)][string]$OutputDirectory,
-    [string]$SubscriptionAlias='', [string]$NetworkProfile='', [string]$DiscoveryDirectory='')
+    [string]$SubscriptionAlias='', [string]$NetworkProfile='', [string]$DiscoveryDirectory='',
+    [bool]$CreateDestinationPrivateEndpoints=$true, [bool]$EnableLogAlerts=$true)
 . "$PSScriptRoot/discovery-manifest-common.ps1"
+. "$PSScriptRoot/service-cost-common.ps1"
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Bundle directory already exists; use a fresh run directory.' }
 $target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile
 $discovery=if ($DiscoveryDirectory) { Read-DiscoveryManifest $DiscoveryDirectory $target $target.serviceConnection } else { $null }
@@ -17,14 +19,17 @@ if ($LASTEXITCODE -ne 0 -or $commit -cne $release.sourceCommit) { throw 'Release
 $null=Export-Templates -EnvironmentName $EnvironmentName -ParameterPath (Resolve-ServicePath $root $target.parameterFile) -OutputPath $OutputDirectory
 $parameters=Get-Content (Join-Path $OutputDirectory parameters.json) -Raw | ConvertFrom-Json -AsHashtable
 Set-ServiceProfileParameters $target $parameters.parameters
+Set-ServiceDeploymentOptions $target $parameters.parameters $CreateDestinationPrivateEndpoints $EnableLogAlerts
 Assert-ServiceParameters $target $parameters.parameters
 Write-ServiceJson $parameters (Join-Path $OutputDirectory parameters.json)
 Copy-Item -LiteralPath $package -Destination (Join-Path $OutputDirectory application.zip)
 Copy-Item -LiteralPath (Join-Path $ReleaseDirectory functions.metadata) -Destination $OutputDirectory
 Write-ServiceJson $target (Join-Path $OutputDirectory target.json)
+$estimate=Get-ServiceCostEstimate $parameters.parameters
+Write-ServiceJson $estimate (Join-Path $OutputDirectory cost-estimate.json)
 $files=@{}
-foreach ($file in @('main.json','parameters.json','target.json','application.zip','functions.metadata')) { $files[$file]=Get-ServiceHash (Join-Path $OutputDirectory $file) }
-$receipt=@{schemaVersion=1;releaseId=$release.releaseId;sourceCommit=$release.sourceCommit;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');files=$files}
+foreach ($file in @('main.json','parameters.json','target.json','application.zip','functions.metadata','cost-estimate.json')) { $files[$file]=Get-ServiceHash (Join-Path $OutputDirectory $file) }
+$receipt=@{schemaVersion=1;releaseId=$release.releaseId;sourceCommit=$release.sourceCommit;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');files=$files;costEstimateIncluded=$true}
 if ($discovery) {
     New-Item -ItemType Directory -Path (Join-Path $OutputDirectory discovery) -Force | Out-Null
     foreach ($file in @('manifest.json','inventory.json')) {
@@ -36,4 +41,7 @@ if ($discovery) {
 }
 Write-ServiceJson $receipt (Join-Path $OutputDirectory bundle.json)
 $null=Read-ServiceBundle $OutputDirectory
+$summaryPath=Join-Path (Split-Path -Parent $OutputDirectory) cost-summary.md
+Write-ServiceCostSummary $estimate $summaryPath
+if ($env:TF_BUILD -eq 'True') { Write-Host "##vso[task.uploadsummary]$summaryPath" }
 Write-Host "Frozen self-service bundle: $OutputDirectory"

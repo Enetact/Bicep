@@ -7,6 +7,7 @@ param principalId string
 param alertActionGroupIds array
 param operatorGroupObjectId string
 param enableRuntimeAlerts bool = false
+param enableLogAlerts bool = true
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${name}'
@@ -51,7 +52,7 @@ resource failures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
     displayName: '${name}: function errors'
     description: 'Review transfer-work-poison, quarantined ledger records, and recovery timers. No payloads in notifications.'
     severity: 2
-    enabled: true
+    enabled: enableLogAlerts
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
     scopes: [workspace.id]
@@ -88,7 +89,7 @@ resource recoveryFailures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = 
   properties: {
     displayName: '${name}: poison messages or transfers needing review'
     severity: 1
-    enabled: enableRuntimeAlerts
+    enabled: enableLogAlerts && enableRuntimeAlerts
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
     scopes: [workspace.id]
@@ -112,7 +113,7 @@ resource recoveryHeartbeat 'Microsoft.Insights/scheduledQueryRules@2023-12-01' =
     displayName: '${name}: reconciliation heartbeat absent'
     description: 'Default five-minute timer must emit a heartbeat within 30 minutes. Reassess this window if scheduling changes.'
     severity: 1
-    enabled: enableRuntimeAlerts
+    enabled: enableLogAlerts && enableRuntimeAlerts
     evaluationFrequency: 'PT5M'
     windowSize: 'PT30M'
     scopes: [workspace.id]

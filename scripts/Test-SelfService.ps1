@@ -67,6 +67,30 @@ Case 'frozen bundle retains and hashes the discovery handoff' {
     Add-Content (Join-Path $withDiscovery discovery/inventory.json) ' '
     Reject { Read-ServiceBundle $withDiscovery } integrity
 }
+Case 'frozen bundle retains and hashes selected options and cost report' {
+    $withCosts=Join-Path $testRoot bundle-with-costs
+    Copy-Item -LiteralPath $bundleDir -Destination $withCosts -Recurse
+    $p=Get-Content (Join-Path $withCosts parameters.json) -Raw | ConvertFrom-Json -AsHashtable
+    Set-ServiceDeploymentOptions $target $p.parameters $false $false
+    Write-ServiceJson $p (Join-Path $withCosts parameters.json)
+    Write-ServiceJson @{status='Estimated';fixedMonthlySubtotalUsd=58.71;pricingAsOf='offline-fixture'} (Join-Path $withCosts cost-estimate.json)
+    $r=Get-Content (Join-Path $withCosts bundle.json) -Raw | ConvertFrom-Json -AsHashtable
+    $r.costEstimateIncluded=$true
+    foreach ($file in @('parameters.json','cost-estimate.json')) { $r.files[$file]=Get-ServiceHash (Join-Path $withCosts $file) }
+    Write-ServiceJson $r (Join-Path $withCosts bundle.json)
+    $read=Read-ServiceBundle $withCosts
+    Check (!$read.parameters.parameters.enableLogAlerts.value -and !$read.parameters.parameters.createDestinationPrivateEndpoints.value -and $read.receipt.files.Count -eq 6)
+    Add-Content (Join-Path $withCosts cost-estimate.json) ' '
+    Reject { Read-ServiceBundle $withCosts } integrity
+    Write-ServiceJson @{status='Estimated';fixedMonthlySubtotalUsd=58.71;pricingAsOf='offline-fixture'} (Join-Path $withCosts cost-estimate.json)
+}
+Case 'parameter validation rejects non-boolean options and production alert bypass' {
+    $p=Clone $params; $p.enableLogAlerts=@{value='false'}
+    Reject { Assert-ServiceParameters $target $p } boolean
+    $p=Clone $params; $p.enableLogAlerts=@{value=$false}; $p.environmentName.value='prod'; $p.alertActionGroupIds=@{value=@('/action-group')}
+    $t=Clone $target; $t.environmentName='prod'
+    Reject { Assert-ServiceParameters $t $p } 'requires log alerts'
+}
 foreach ($failure in @('branch','reason','binding','provenance')) {
     Case "entrypoint rejects $failure and retains failed receipt" {
         $saved=@{}; foreach ($key in @('BUILD_SOURCEBRANCH','BUILD_REASON','BUILD_SOURCEVERSION')) { $saved[$key]=[Environment]::GetEnvironmentVariable($key) }
@@ -121,6 +145,16 @@ function Invoke-Az {
 function Wait-ServiceConnectivity($Bundle,$Outputs) { if ($script:connectionFails) { throw 'Synthetic connectivity failure' } }
 function Wait-ServiceFunctions($Bundle,$Outputs) { }
 function Invoke-ServiceSmoke($Bundle,$Outputs,$EvidenceDirectory) { @{passed=$script:smokePass;requestIds=$(if ($script:duplicateRequests) {@('r1','r1','r3')} else {@('r1','r2','r3')})} }
+Case 'approval preview shows frozen checkbox choices and full-release costs' {
+    $read=Read-ServiceBundle (Join-Path $testRoot bundle-with-costs)
+    $path=Join-Path $testRoot cost-preview
+    $null=New-ServicePlan $read Release $path
+    $summary=Get-Content (Join-Path $path summary.md) -Raw
+    Check ($summary.Contains('USD 58.71/month plus usage') -and $summary.Contains('Enable log alerts: False') -and $summary.Contains('Create destination private endpoints: False'))
+    $p=Get-Content (Join-Path $path effective.parameters.json) -Raw | ConvertFrom-Json
+    Check (!$p.parameters.enableLogAlerts.value -and !$p.parameters.createDestinationPrivateEndpoints.value)
+    $script:commands.Clear()
+}
 
 $foundationPlan=Join-Path $testRoot foundation-plan
 $plan=New-ServicePlan $bundle Foundation $foundationPlan
