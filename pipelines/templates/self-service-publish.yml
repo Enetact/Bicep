@@ -12,9 +12,13 @@ stages:
     lockBehavior: sequential
     jobs:
       - deployment: PublishTemplateSpec
+        timeoutInMinutes: 60
+        cancelTimeoutInMinutes: 5
         environment: ${{ parameters.deploymentEnvironment }}
         pool:
           name: ${{ parameters.agentPool }}
+        workspace:
+          clean: all
         strategy:
           runOnce:
             deploy:
@@ -23,6 +27,9 @@ stages:
                   clean: true
                   persistCredentials: false
                 - download: none
+                - template: steps/prepare-stage-evidence.yml
+                  parameters:
+                    directory: $(Build.ArtifactStagingDirectory)/publication
                 - download: current
                   artifact: self-service-bundle
                 - task: AzureCLI@2
@@ -41,4 +48,4 @@ stages:
                     visibleAzLogin: false
                 - publish: $(Build.ArtifactStagingDirectory)/publication
                   artifact: template-publication
-                  condition: succeededOrFailed()
+                  condition: and(always(), eq(variables['stageEvidencePrepared'], 'true'))

@@ -1,0 +1,23 @@
+# Runs before artifact download and AzureCLI sign-in. A receipt can only be
+# written by the action script; this context file must never imply readiness.
+parameters:
+  - name: directory
+    type: string
+steps:
+  - pwsh: |
+      New-Item -ItemType Directory -Path $env:EVIDENCE_DIRECTORY -Force | Out-Null
+      @{
+        schemaVersion = 1
+        stage = $env:SYSTEM_STAGENAME
+        stageAttempt = $env:SYSTEM_STAGEATTEMPT
+        jobAttempt = $env:SYSTEM_JOBATTEMPT
+        runId = $env:BUILD_BUILDID
+        sourceCommit = $env:BUILD_SOURCEVERSION
+        startedUtc = [DateTimeOffset]::UtcNow.ToString('O')
+        evidenceKind = 'StageEntered'
+      } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_DIRECTORY 'pipeline-context.json')
+      'Stage entry context only. If receipt.json is absent, the action script did not produce a result. Inspect the job log for artifact download, Azure sign-in, cancellation or agent failures. Only the Release readiness receipt can establish workload readiness.' | Set-Content (Join-Path $env:EVIDENCE_DIRECTORY README.txt)
+      Write-Host '##vso[task.setvariable variable=stageEvidencePrepared]true'
+    displayName: Prepare evidence before artifact download and Azure sign-in
+    env:
+      EVIDENCE_DIRECTORY: ${{ parameters.directory }}

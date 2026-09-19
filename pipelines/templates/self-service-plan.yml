@@ -17,6 +17,7 @@ stages:
     jobs:
       - job: Preview
         timeoutInMinutes: 60
+        cancelTimeoutInMinutes: 5
         pool:
           name: ${{ parameters.agentPool }}
         workspace:
@@ -25,6 +26,9 @@ stages:
           - checkout: self
             clean: true
             persistCredentials: false
+          - template: steps/prepare-stage-evidence.yml
+            parameters:
+              directory: $(Build.ArtifactStagingDirectory)/preview
           - download: current
             artifact: self-service-bundle
           - task: AzureCLI@2
@@ -45,4 +49,4 @@ stages:
               visibleAzLogin: false
           - publish: $(Build.ArtifactStagingDirectory)/preview
             artifact: plan-${{ parameters.phase }}
-            condition: succeededOrFailed()
+            condition: and(always(), eq(variables['stageEvidencePrepared'], 'true'))

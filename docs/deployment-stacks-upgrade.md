@@ -19,6 +19,8 @@ The design follows Microsoft's [Deployment Stacks guidance](https://learn.micros
 
 Enabled targets execute **Qualify → PublishTemplate → PlanFoundation → ApplyFoundation → PlanRelease → ApplyRelease**. Discovery remains a separate read-only menu and required handoff.
 
+The [pipeline flow reference](pipeline-flow.md) maps all script/artifact handoffs and the shared qualification/evidence refactor. Module registry publication is deferred; local modules are embedded during compilation.
+
 `workloads/blob-transfer/stack.bicep` runs at subscription scope. It creates the dedicated workload RG and invokes `./main.bicep`, forwarding its parameters/outputs. Existing names remain stable. The resource-group composition moved from the repository root to `workloads/blob-transfer/main.bicep`; `Deploy.ps1` also compiles that source for legacy manual incremental deployment. Do not use the manual path to modify stack-managed instances. See the [source layout and migration](repository-structure.md).
 
 The frozen bundle adds `stack-template.json` and `stack.json`; both are hashed in `bundle.json`. New pipeline bundles require `deploymentEngine: deploymentStack`. Legacy bundles cannot be silently applied by the new pipeline. Stack configuration must also match the reviewed checkout when the bundle is consumed.

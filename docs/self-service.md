@@ -4,6 +4,8 @@ Status: implemented in the repository and locally contract-tested. Run 8 on `fea
 
 This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 
+See the [full pipeline flow](pipeline-flow.md) for the entrypoint/stage diagram, script calls, artifact handoffs, shared qualification steps, failure evidence and remaining platform setup. Module registry setup is excluded; local modules are compiled into the published Template Spec.
+
 ### Temporary hosted setup check
 
 While a selected target has `enabled: false`, the Deploy entry point now expands to **Hosted setup check - no Azure deployment**, using `pool: { vmImage: windows-latest }` in the Microsoft-hosted Azure Pipelines pool. It checks the target/catalog and publishes remaining setup requirements. It does not download/validate the discovery artifact, build a release, run what-if or deploy Azure resources. A successful setup check is not deployment readiness; platform-managed resource settings are reported but not applied.

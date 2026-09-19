@@ -16,6 +16,7 @@ stages:
     jobs:
       - deployment: ApplyStack
         timeoutInMinutes: 180
+        cancelTimeoutInMinutes: 5
         environment: ${{ parameters.deploymentEnvironment }}
         pool:
           name: ${{ parameters.agentPool }}
@@ -29,6 +30,9 @@ stages:
                   clean: true
                   persistCredentials: false
                 - download: none
+                - template: steps/prepare-stage-evidence.yml
+                  parameters:
+                    directory: $(Build.ArtifactStagingDirectory)/result
                 - download: current
                   artifact: self-service-bundle
                 - download: current
@@ -52,4 +56,4 @@ stages:
                     visibleAzLogin: false
                 - publish: $(Build.ArtifactStagingDirectory)/result
                   artifact: result-${{ parameters.phase }}
-                  condition: succeededOrFailed()
+                  condition: and(always(), eq(variables['stageEvidencePrepared'], 'true'))
