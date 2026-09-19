@@ -32,12 +32,19 @@ parameters:
     default: "eastus2"
     values:
       - "eastus2"
+  - name: executionMode
+    displayName: "Run stages"
+    type: string
+    default: "Preview only"
+    values:
+      - "Preview only"
+      - "Preview and deploy"
   - name: runGuidance
     displayName: "Current target status"
     type: string
-    default: "All Event flow targets are disabled: this run creates NO Azure resources; hosted setup checks only."
+    default: "All Event flow targets are disabled: Preview is available with configured inputs; Deploy is blocked until platform enablement."
     values:
-      - "All Event flow targets are disabled: this run creates NO Azure resources; hosted setup checks only."
+      - "All Event flow targets are disabled: Preview is available with configured inputs; Deploy is blocked until platform enablement."
   - name: workloadSummary
     displayName: "Event flow - resources created when enabled"
     type: string
@@ -53,20 +60,21 @@ parameters:
   - name: lifecycle
     displayName: "Deployment and discovery handoff"
     type: string
-    default: "Select a successful main run from Discover - Event flow under Resources > discovery. Enabled deployment uses a dedicated resource group and Deployment Stack, a versioned Template Spec, approvals and application verification."
+    default: "Select a successful main run from Discover - Event flow under Resources > discovery. Preview only is the default: validates Bicep and uploads resource/property changes to Summary / Extensions. Preview and deploy runs stage 2 after stage 1 succeeds, using the reviewed inputs, Template Specs, Deployment Stacks and application verification. Environment approvals must be configured in ADO."
     values:
-      - "Select a successful main run from Discover - Event flow under Resources > discovery. Enabled deployment uses a dedicated resource group and Deployment Stack, a versioned Template Spec, approvals and application verification."
+      - "Select a successful main run from Discover - Event flow under Resources > discovery. Preview only is the default: validates Bicep and uploads resource/property changes to Summary / Extensions. Preview and deploy runs stage 2 after stage 1 succeeds, using the reviewed inputs, Template Specs, Deployment Stacks and application verification. Environment approvals must be configured in ADO."
   - name: costAssumptions
     displayName: "Cost assumptions - retail as of 2026-09-19"
     type: string
-    default: "USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Qualification freezes the selected estimate; this is not a spending cap. Event Grid operations and alerts are also additional."
+    default: "USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Preview freezes the selected estimate; this is not a spending cap. Event Grid operations and alerts are also additional."
     values:
-      - "USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Qualification freezes the selected estimate; this is not a spending cap. Event Grid operations and alerts are also additional."
+      - "USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Preview freezes the selected estimate; this is not a spending cap. Event Grid operations and alerts are also additional."
 
 extends:
   template: pipelines/deploy-entry.yml
   parameters:
     workloadType: logic-app-event-grid
+    executionMode: ${{ parameters.executionMode }}
     workloadName: ${{ parameters.workloadName }}
     environment: ${{ parameters.environment }}
     region: ${{ parameters.region }}

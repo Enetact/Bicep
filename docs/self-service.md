@@ -6,13 +6,13 @@ This repository implements `blob-transfer` / `blobcopy` and `logic-app-event-gri
 
 See the [full pipeline flow](pipeline-flow.md) for the entrypoint/stage diagram, script calls, artifact handoffs, shared qualification steps, failure evidence and remaining platform setup. Module registry setup is excluded; local modules are compiled into the published Template Spec.
 
-### Temporary hosted setup check
+## Preview first, deploy second
 
-While a selected target has `enabled: false`, the Deploy entry point now expands to **Hosted setup check - no Azure deployment**, using `pool: { vmImage: windows-latest }` in the Microsoft-hosted Azure Pipelines pool. It checks the target/catalog and publishes remaining setup requirements. It does not download/validate the discovery artifact, build a release, run what-if or deploy Azure resources. A successful setup check is not deployment readiness; platform-managed resource settings are reported but not applied.
+The workload-specific Deploy pipelines now have **Preview** and **Deploy** stages. **Run stages = Preview only** is the default. Preview consumes the selected Discover artifact, compiles the full runtime-enabled stack and performs Azure validation/What-If without deploying workload resources. Its `README.md` appears under run **Summary / Extensions** and in the **deployment-preview** artifact. See the [preview guide](deployment-preview.md) for exact actions, permissions and evidence.
 
-The generated route omits private-pool jobs and deployment environments entirely, avoiding the reported missing/unauthorized `blob-transfer-private` lookup for these disabled targets. A skipped job condition alone would not fix queue-time resource validation. The discovery pipeline resource must still exist/be accessible, and executing the check requires hosted agent capacity. There is no built-in image called `windows-default`; the supported image here is `windows-latest`.
+All checked-in targets remain disabled. A disabled target may preview once its real parameters and Azure permissions are configured; actual Deploy still rejects it. Placeholder owner/destination/network values are blockers, not an empty successful plan. Preview runs on hosted `windows-latest`; Preview-only and disabled routes omit all private pools and deployment environments at compile time. The discovery definition, artifact and service connection still require authorization.
 
-After onboarding, configure existing enterprise networking or an explicit isolated-network exception in `config/platform.json`, set the target's `enabled` flag to `true`, regenerate the catalog and manifest, and merge. Its reviewed private pool, environment checks, discovery validation and original deployment stages are then restored. The Azure deployment scripts continue rejecting disabled targets. See Microsoft's [hosted agent configuration](https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops).
+The legacy generic Deploy file retains its original hosted `SetupOnly` behavior for disabled targets and six-stage flow for enabled targets. Use the dedicated workload files for the new two-stage experience.
 
 ## Choose the workload pipeline first
 
@@ -27,7 +27,7 @@ Use a separate ADO definition for each workload and operation. Each native Run p
 
 In Discover, select instance, environment, subscription and network. The only blueprint shown is the selected pipeline's workload; discovery itself creates nothing. In Deploy, select instance (`blobcopy` or `eventflow`, already restricted by pipeline), environment and region. Read that workload's resources, dependencies, costs and enabled/disabled status. Choose the matching successful main-branch discovery run under **Resources > discovery**. Summary fields are informational and never flow into resource settings.
 
-The two Deploy menus use the same `pipelines/deploy-entry.yml` and six-stage implementation. The two Discover menus use the same catalog routing and inventory script. Literal service connections, pools, approvals, manifests and instance validation remain unchanged. Separate menus do not enable a target or authorize deployment.
+The two Deploy menus extend the same `pipelines/deploy-entry.yml`, routing to `pipelines/templates/self-service-two-stage.yml`. The two Discover menus use the same catalog routing and inventory script. Literal service connections, pools, approvals, manifests and instance validation remain unchanged. Separate menus do not enable a target or authorize deployment.
 
 ### Register the new definitions in ADO
 
@@ -35,7 +35,7 @@ The two Deploy menus use the same `pipelines/deploy-entry.yml` and six-stage imp
 2. In Azure DevOps **Pipelines > New pipeline**, select the connected GitHub repository and **Existing Azure Pipelines YAML file** on `main`.
 3. Create the two **Discover** definitions first, using the paths and exact names above. Authorize their existing discovery service connection when ADO requests it.
 4. Create the two **Deploy** definitions from the corresponding YAML files. Their pipeline-resource sources are `Discover - Blob copy` and `Discover - Event flow`. Authorize access to that discovery pipeline/artifact for each Deploy definition, and configure protected-resource permissions/checks as required by onboarding.
-5. Run the chosen Discover definition successfully on `main`. Reopen its matching Deploy definition's Run pipeline menu and select that run under **Resources > discovery**. All checked-in targets currently run setup only.
+5. Run the chosen Discover definition successfully on `main`. Reopen its matching Deploy definition's Run pipeline menu and select that run under **Resources > discovery**. Leave **Run stages = Preview only** to inspect planned changes; real environment configuration and Azure validation permissions are required, even while the target is disabled.
 
 These definitions have not been created remotely by the repository change. YAML file names do not set ADO definition names automatically: rename each definition to match this table. If names or ADO folders differ, set the exact discovery definition paths in `self-service/pipeline-settings.json` under `workloadDiscoveryPipelineNames`, regenerate with `Update-ServiceCatalog.ps1`, update the source manifest and merge. This prevents a Deploy menu from accidentally selecting another workload's discovery pipeline. Existing runs from the generic discovery definition do not appear in the new dedicated resource pickers; run each new Discover definition once.
 
@@ -45,20 +45,22 @@ ADO parameter declarations have static labels/allowed values and no visibility r
 
 ## Developer access and exact workflow
 
-After platform onboarding:
-
-1. Open the team's Azure DevOps project and select **Pipelines**.
-2. Run Discover (`Enetact.Bicep`, `/azure-pipelines-self-service.yml`) on `main` with the approved target selections. Wait for success and inspect its discovery summary.
-3. Open **Deploy - Blob copy**, registered from `/azure-pipelines-blobcopy-deploy.yml`, choose **Run pipeline** on `main`, then **Resources > discovery** and select that successful main-branch run. Select instance `blobcopy`, the matching environment and approved region. Platform configuration resolves the infrastructure bindings and options. Only enabled targets deploy. Naming and network configuration come from the reviewed profile. See [the handoff and new-network guide](subscription-discovery.md).
-4. The deployment run downloads and verifies the exact manifest and originating run, then qualifies and freezes the application, infrastructure, parameters, target and discovery evidence into one artifact. Missing, stale, partial or mismatched evidence stops before deployment. The protected PublishTemplate stage publishes or verifies the content-addressed Template Spec; review its publication receipt.
-5. Inspect the Foundation preview summary and `plan-Foundation` artifact. The platform approver authorizes the protected environment stage. Stacks that already reached Release skip Foundation changes but still check prerequisites.
-6. Inspect the Release preview and `plan-Release` artifact. After approval, the pipeline rechecks the plan, publishes the package, deploys the Function App, synchronizes triggers, and uploads synthetic blobs through the real dispatcher.
-7. Open `result-Release/receipt.json`. Success requires `status: Ready` and `ready: true`. `FoundationReady` only means infrastructure prerequisites passed; it does not mean the application is deployed.
-8. Use the source account/container in `outputs.json`, with separately granted uploader identity and private connectivity. The live smoke leaves synthetic source, destination, and ledger records for audit.
+1. Open **Discover - Blob copy** or **Discover - Event flow** and run it successfully on `main` with the approved instance/environment.
+2. Open the matching **Deploy** definition on `main`. Select the same instance/environment and approved region; choose that successful run under **Resources > discovery**.
+3. Leave **Run stages = Preview only**. The Preview stage verifies discovery provenance, compiles the full stack, validates it and obtains the Azure resource/property changes. No application build, Template Spec publication or workload apply runs in this mode.
+4. Open **Summary / Extensions > Bicep deployment preview**, or download **deployment-preview/README.md**. Inspect creates, modifications, removals, unchanged resources, certainty, property deltas, diagnostics and costs. A failed report includes blockers; it never represents a zero-change approval.
+5. When ready and the target is enabled, queue a fresh run with **Preview and deploy**. Review that run's Preview report before granting the configured ADO Deploy environment approval. Preview-only runs cannot be switched into deployment after queueing.
+6. Deploy qualifies the application, verifies its infrastructure matches Preview, publishes the pinned Template Spec, rechecks the full preview for drift, then runs the existing Foundation/Release apply and readiness checks.
+7. Inspect **deployment-result/receipt.json**: readiness requires `status: Ready` and `ready: true`. Phase-specific plans/results remain inside this artifact. A failed deployment can leave resources; there is no automatic rollback.
+8. For Blob copy, use the source account/container from the Release outputs with a separately authorized uploader and private connectivity. Live smoke retains synthetic records for audit.
 
 Developers need project access, pipeline view/queue permissions, and artifact access. Deployment permissions remain with the selected service connection. Queue permission does not grant recovery, administration, or production approval rights.
 
 ## Stages and exact entry points
+
+The dedicated pipelines expose only **Preview** and **Deploy**. [Preview methods and exact job sequencing](deployment-preview.md#method-and-command-map) document their implementation. Foundation/Release remain internal operations of Deploy, preserving workload lifecycle and runtime checks.
+
+### Legacy generic pipeline stage map
 
 | Stage | Calls | Result and effects |
 |---|---|---|

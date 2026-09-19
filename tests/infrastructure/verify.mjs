@@ -63,7 +63,7 @@ function expand(name, supplied={}, ancestry=[], section='stages'){
   if(doc.extends)return referenced(doc.extends,section);
   function content(value){
     if(Array.isArray(value))return value.map(content);
-    if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,key==='steps'?items(item,'steps'):content(item)]));
+    if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,['steps','jobs'].includes(key)?items(item,key):content(item)]));
     return substitute(value,parameters);
   }
   function items(values,kind){return values.flatMap(item=>{
@@ -234,7 +234,7 @@ for(const [type,slug,title] of [['blob-transfer','blobcopy','Blob copy'],['logic
     assert.equal(specific.extends.template,'pipelines/deploy-entry.yml');assert.equal(specific.extends.parameters.workloadType,type);
     assert.equal(specific.resources.pipelines[0].source,json('self-service/pipeline-settings.json').workloadDiscoveryPipelineNames[type]);
     assert.equal(specific.resources.pipelines[0].trigger,'none');assert.equal(specific.resources.pipelines[0].branch,'refs/heads/main');
-    const supplied=substitute(specific.extends.parameters,bind(specific,{}));assert.deepEqual(Object.keys(supplied).sort(),['workloadType','workloadName','environment','region','discoveryPipelineId','discoveryRunId'].sort());
+    const supplied=substitute(specific.extends.parameters,bind(specific,{}));assert.deepEqual(Object.keys(supplied).sort(),['workloadType','workloadName','environment','region','discoveryPipelineId','discoveryRunId','executionMode'].sort());
     assert.throws(()=>expand(deployFile,{workloadName:type==='blob-transfer'?'eventflow':'blobcopy'}),/Disallowed value/);
   });
   for(const target of targets.filter(t=>(t.workloadType||'blob-transfer')===type)){
@@ -242,7 +242,27 @@ for(const [type,slug,title] of [['blob-transfer','blobcopy','Blob copy'],['logic
       const common={workload:target.workload,environment:target.environmentName,subscription:target.subscriptionAlias,network:target.networkProfile};
       assert.deepEqual(expand(discoverFile,common),expand('azure-pipelines-self-service.yml',{...common,workloadType:menuType('azure-pipelines-self-service.yml',type)}));
       const request={workloadName:target.workload,environment:target.environmentName,region:target.parameterOverrides.location||platform.defaultRegion};
-      assert.deepEqual(expand(deployFile,request),expand('azure-pipelines-self-service-deploy.yml',{...request,workloadType:menuType('azure-pipelines-self-service-deploy.yml',type)}));
+      const [preview,apply]=expand(deployFile,request);
+      assert.deepEqual([preview.stage,apply.stage],['Preview','Deploy']);assert.equal(apply.dependsOn,'Preview');assert(apply.condition.includes('Preview only'));
+      walk([preview,apply],n=>{if(n.pool)assert.equal(n.pool.vmImage,'windows-latest');assert(!n.deployment&&!n.environment);});
+      const steps=preview.jobs[0].steps;
+      assert(steps.some(n=>n.inputs?.artifactName==='subscription-discovery'));
+      assert(steps.some(n=>n.pwsh?.includes('Test-DiscoveryHandoff.ps1')&&n.pwsh.includes('-AllowDisabled')));
+      assert(steps.some(n=>n.pwsh?.includes('task.uploadsummary')&&n.condition.includes('always()')));
+      assert(steps.some(n=>n.artifact==='deployment-preview'&&n.condition.includes('always()')));
+      assert(!JSON.stringify(preview).includes('qualify-application'));
+      const enabled=expand('pipelines/templates/self-service-two-stage.yml',{...common,workloadType:type,serviceConnection:target.serviceConnection,agentPool:target.agentPool,deploymentEnvironment:target.deploymentEnvironment,publisherServiceConnection:publication.publisherServiceConnection,publisherEnvironment:publication.publisherEnvironment,publisherAgentPool:publication.publisherAgentPool,discoveryPipelineId:'1',discoveryRunId:'42',executionMode:'Preview and deploy',deploymentEnabled:true});
+      assert.deepEqual(enabled.map(x=>x.stage),['Preview','Deploy']);
+      const jobs=enabled[1].jobs;assert.deepEqual(jobs.map(j=>j.job||j.deployment),['BuildBundle','PublishTemplateSpec','ApplyStack']);
+      assert.equal(jobs[1].dependsOn,'BuildBundle');assert.equal(jobs[2].dependsOn,'PublishTemplateSpec');
+      assert(jobs[0].steps.some(n=>n.pwsh?.includes('-Action VerifyBundle')));
+      assert.equal(jobs[1].environment,publication.publisherEnvironment);assert.equal(jobs[2].environment,target.deploymentEnvironment);
+      assert.equal(jobs[1].pool.name,publication.publisherAgentPool);assert.equal(jobs[2].pool.name,target.agentPool);
+      const artifactsSeen=new Set(['deployment-preview']);
+      for(const job of jobs){const emitted=[];walk(job,n=>{if(n.download==='current')assert(artifactsSeen.has(n.artifact));if(n.publish)emitted.push(n.artifact);if(n.task==='AzureCLI@2')assert.equal(n.inputs.azureSubscription,job.deployment==='PublishTemplateSpec'?publication.publisherServiceConnection:target.serviceConnection);});emitted.forEach(x=>artifactsSeen.add(x));}
+      const disabled=expand(deployFile,{...request,executionMode:'Preview and deploy'});
+      if(!target.enabled){assert.equal(disabled[1].jobs[0].job,'DeploymentUnavailable');walk(disabled,n=>{if(n.pool)assert.equal(n.pool.vmImage,'windows-latest');});}
+
     });
   }
 }

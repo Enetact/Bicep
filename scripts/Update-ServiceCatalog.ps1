@@ -113,13 +113,18 @@ $yaml+=$tail+@('      operation: discover')
 $deploymentYaml+=@('','extends:','  template: pipelines/deploy-entry.yml','  parameters:',"    workloadType: `${{ split(parameters.workloadType, ' | ')[1] }}",'    workloadName: ${{ parameters.workloadName }}','    environment: ${{ parameters.environment }}','    region: ${{ parameters.region }}','    discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)','    discoveryRunId: $(resources.pipeline.discovery.runID)')
 $deployEntry=@('# Generated platform-owned entry template. Protect this file and its generator.','parameters:')
 foreach($key in @('workloadType','workloadName','environment','region','discoveryPipelineId','discoveryRunId')) { $deployEntry+=@("  - name: $key",'    type: string') }
-$deployEntry+=@('stages:')
+$deployEntry+=@('  - name: executionMode','    type: string','    default: Legacy','    values: [Legacy, Preview only, Preview and deploy]','stages:')
 $intentConditions=@()
 foreach ($intent in $intents) {
     $condition='and(eq(parameters.workloadName, '''+$intent.workloadName+'''), eq(parameters.environment, '''+$intent.environment+'''), eq(parameters.region, '''+$intent.region+'''), eq(parameters.workloadType, '''+$intent.workloadType+'''))'
     $intentConditions+=$condition
     $t=$intent.target
-    $deployEntry+=@(('  - ${{ if '+$condition+' }}:'),'    - template: catalog-bindings.yml','      parameters:',"        workloadType: $($intent.workloadType)","        workload: $($t.workload)","        environment: $($t.environmentName)","        subscription: $($t.subscriptionAlias)","        network: $($t.networkProfile)",'        operation: deploy','        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','        discoveryRunId: ${{ parameters.discoveryRunId }}',"        createDestinationPrivateEndpoints: $($platform.createDestinationPrivateEndpoints.ToString().ToLowerInvariant())","        enableLogAlerts: $($platform.enableLogAlerts.ToString().ToLowerInvariant())")
+    $legacy=@('    - template: catalog-bindings.yml','      parameters:',"        workloadType: $($intent.workloadType)","        workload: $($t.workload)","        environment: $($t.environmentName)","        subscription: $($t.subscriptionAlias)","        network: $($t.networkProfile)",'        operation: deploy','        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','        discoveryRunId: ${{ parameters.discoveryRunId }}',"        createDestinationPrivateEndpoints: $($platform.createDestinationPrivateEndpoints.ToString().ToLowerInvariant())","        enableLogAlerts: $($platform.enableLogAlerts.ToString().ToLowerInvariant())")
+    $deployEntry+=@(('  - ${{ if '+$condition+' }}:'),'    - ${{ if eq(parameters.executionMode, ''Legacy'') }}:')
+    $deployEntry+=@($legacy|ForEach-Object {'  '+$_})
+    $deployEntry+=@('    - ${{ if not(eq(parameters.executionMode, ''Legacy'')) }}:','      - template: templates/self-service-two-stage.yml','        parameters:',"          workloadType: $($intent.workloadType)","          workload: $($t.workload)","          environment: $($t.environmentName)","          subscription: $($t.subscriptionAlias)","          network: $($t.networkProfile)","          serviceConnection: $($t.serviceConnection)","          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)","          deploymentEnabled: $($t.enabled.ToString().ToLowerInvariant())",'          executionMode: ${{ parameters.executionMode }}','          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','          discoveryRunId: ${{ parameters.discoveryRunId }}',"          createDestinationPrivateEndpoints: $($platform.createDestinationPrivateEndpoints.ToString().ToLowerInvariant())","          enableLogAlerts: $($platform.enableLogAlerts.ToString().ToLowerInvariant())")
+    foreach($key in @('publisherServiceConnection','publisherEnvironment','publisherAgentPool')){$deployEntry+="          ${key}: $($stackConfiguration.templateSpec[$key])"}
+
 }
 $deployEntry+=@(New-CatalogRejection $intentConditions @('    - stage: InvalidIntent','      jobs:','        - job: RejectIntent','          pool:','            vmImage: windows-latest','          steps:','            - checkout: none',"            - pwsh: throw 'Unregistered workload request. Contact the platform team.'"))
 $bindings=@('# Generated stage routing with literal protected-resource parameters.','parameters:')
@@ -183,17 +188,18 @@ foreach($type in @($targets|ForEach-Object {Get-TargetWorkloadType $_}|Sort-Obje
         $choices=@($requests|ForEach-Object {$_.($pair[0])}|Sort-Object -Unique)
         $deploy+=New-MenuField $pair[0] $pair[1] $requests[0].($pair[0]) $choices
     }
+    $deploy+=New-MenuField 'executionMode' 'Run stages' 'Preview only' @('Preview only','Preview and deploy')
     $enabled=@($profiles|Where-Object {$_.enabled}).Count
-    $status=if(!$enabled){"All $title targets are disabled: this run creates NO Azure resources; hosted setup checks only."}else{"$enabled of $($profiles.Count) $title targets are enabled. Disabled targets run setup checks only."}
+    $status=if(!$enabled){"All $title targets are disabled: Preview is available with configured inputs; Deploy is blocked until platform enablement."}else{"$enabled of $($profiles.Count) $title targets are enabled. Disabled targets can preview configured inputs but cannot deploy."}
     $requirementsKey=if($type -eq 'blob-transfer'){'blobTransferRequirements'}else{'eventFlowRequirements'}
     $requirements=@($deployInfo|Where-Object {$_[0] -eq $requirementsKey})[0][2]
     $ownDate=if($type -eq 'blob-transfer'){$priceDate}else{([DateTimeOffset]$logicPrices.retrievedUtc).UtcDateTime.ToString('yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)}
-    $costText='USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Qualification freezes the selected estimate; this is not a spending cap.'
+    $costText='USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Preview freezes the selected estimate; this is not a spending cap.'
     if($type -eq 'logic-app-event-grid'){$costText+=' Event Grid operations and alerts are also additional.'}
-    foreach($info in @(@('runGuidance','Current target status',$status),@('workloadSummary',"$title - resources created when enabled",$blueprints[$type]),@('requirements','Existing dependencies and cost',$requirements),@('lifecycle','Deployment and discovery handoff',"Select a successful main run from $sourceName under Resources > discovery. Enabled deployment uses a dedicated resource group and Deployment Stack, a versioned Template Spec, approvals and application verification."),@('costAssumptions',"Cost assumptions - retail as of $ownDate",$costText))){
+    foreach($info in @(@('runGuidance','Current target status',$status),@('workloadSummary',"$title - resources created when enabled",$blueprints[$type]),@('requirements','Existing dependencies and cost',$requirements),@('lifecycle','Deployment and discovery handoff',"Select a successful main run from $sourceName under Resources > discovery. Preview only is the default: validates Bicep and uploads resource/property changes to Summary / Extensions. Preview and deploy runs stage 2 after stage 1 succeeds, using the reviewed inputs, Template Specs, Deployment Stacks and application verification. Environment approvals must be configured in ADO."),@('costAssumptions',"Cost assumptions - retail as of $ownDate",$costText))){
         $deploy+=New-MenuField $info[0] $info[1] $info[2] @($info[2])
     }
-    $deploy+=@('','extends:','  template: pipelines/deploy-entry.yml','  parameters:',"    workloadType: $type",'    workloadName: ${{ parameters.workloadName }}','    environment: ${{ parameters.environment }}','    region: ${{ parameters.region }}','    discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)','    discoveryRunId: $(resources.pipeline.discovery.runID)')
+    $deploy+=@('','extends:','  template: pipelines/deploy-entry.yml','  parameters:',"    workloadType: $type",'    executionMode: ${{ parameters.executionMode }}','    workloadName: ${{ parameters.workloadName }}','    environment: ${{ parameters.environment }}','    region: ${{ parameters.region }}','    discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)','    discoveryRunId: $(resources.pipeline.discovery.runID)')
     $workloadMenus+=,@("azure-pipelines-$slug-discover.yml",$discover)
     $workloadMenus+=,@("azure-pipelines-$slug-deploy.yml",$deploy)
 }

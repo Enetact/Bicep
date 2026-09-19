@@ -4,7 +4,7 @@ The manual Build definition and four workload-specific Discover/Deploy definitio
 
 ## Entry points
 
-Recommended menus: `Discover - Blob copy` (`/azure-pipelines-blobcopy-discover.yml`), `Deploy - Blob copy` (`/azure-pipelines-blobcopy-deploy.yml`), `Discover - Event flow` (`/azure-pipelines-eventflow-discover.yml`), `Deploy - Event flow` (`/azure-pipelines-eventflow-deploy.yml`). Each fixes the workload type and exposes only its summaries. Each Deploy definition selects runs from its own named Discover definition. [Registration steps](self-service.md#register-the-new-definitions-in-ado) are required; shared stages and protected resources are unchanged.
+Recommended menus: `Discover - Blob copy` (`/azure-pipelines-blobcopy-discover.yml`), `Deploy - Blob copy` (`/azure-pipelines-blobcopy-deploy.yml`), `Discover - Event flow` (`/azure-pipelines-eventflow-discover.yml`), `Deploy - Event flow` (`/azure-pipelines-eventflow-deploy.yml`). Each fixes the workload type and exposes only its summaries. Each Deploy definition selects runs from its own named Discover definition. [Registration steps](self-service.md#register-the-new-definitions-in-ado) are required; the dedicated Deploy menus use the two-stage flow below; protected resource names remain unchanged.
 
 The table below lists the original generic entry points retained for compatibility.
 
@@ -18,33 +18,39 @@ Push, PR and discovery-completion triggers remain disabled. Deploy downloads the
 
 The native Resources picker operates before queueing. A discovery artifact cannot populate a new interactive form midway through an executing YAML pipeline. Platform owners review inventory, update approved target configuration and regenerate the catalog. See Microsoft's [pipeline resource picker](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/resources?view=azure-devops#manual-resource-version-picker) and our [discovery handoff guide](subscription-discovery.md).
 
-**All eight checked-in targets remain disabled.** Deploy currently runs hosted `SetupOnly` and publishes `setup-guidance`. It does not download discovery, publish a Template Spec or deploy a stack. Successful setup checks do not establish Azure readiness.
+**All eight checked-in targets remain disabled.** Dedicated Deploy menus default to hosted Preview and can analyze fully configured targets while keeping workload deployment disabled. Placeholders and missing Azure permissions produce blockers. Legacy generic Deploy retains `SetupOnly` for disabled targets.
 
 ## Workload routing
 
 `config/workloads.json` identifies both patterns and their allowlisted composition/wrapper/package/phase contracts. Blobcopy keeps the Function qualifier and phase parameter `deployFunctionApp`. Eventflow uses `qualify-logic-app.yml`, deterministic Standard workflow packaging and `releaseActivated`. Its schema-2 discovery/bundle cannot be substituted with blobcopy artifacts.
 
-Eventflow Qualify compiles/tests but does not run a local Logic Apps host. In ApplyRelease it applies the stack first, then deploys/compares workflow files, verifies indexing and waits for a matching synthetic receipt. Blobcopy retains its original Function deployment and three-request smoke path. Both use the six stages below; the detailed action rows describe blobcopy unless otherwise stated. See the [Event Flow action/method map](../workloads/logic-app-event-grid/README.md). The standalone Build also packages both applications.
+Eventflow Qualify compiles/tests but does not run a local Logic Apps host. In ApplyRelease it applies the stack first, then deploys/compares workflow files, verifies indexing and waits for a matching synthetic receipt. Blobcopy retains its original Function deployment and three-request smoke path. The dedicated menus group qualification, publication and Foundation/Release execution inside stage Deploy. The legacy generic menu retains the six-stage map below; those detailed action rows describe blobcopy unless otherwise stated. See the [Event Flow action/method map](../workloads/logic-app-event-grid/README.md). The standalone Build also packages both applications.
 
-## Full enabled flow
+## Dedicated two-stage flow
 
 ```mermaid
 flowchart TD
-    G[Reviewed GitHub main] --> D[Discover: scoped inventory]
-    D --> I[subscription-discovery artifact]
-    I --> M[Deploy menu: choose matching discovery run]
-    M --> E{Target enabled?}
-    E -->|No| S[Hosted SetupOnly and setup-guidance]
-    E -->|Yes| Q[Qualify: verify handoff, test and freeze bundle]
-    G --> Q
-    Q --> P[Protected PublishTemplate: publish or verify version]
-    P --> PF[PlanFoundation: validate and preview]
-    PF --> AF[Protected ApplyFoundation: recheck and apply]
-    AF --> PR[PlanRelease: preview runtime changes]
-    PR --> AR[Protected ApplyRelease: package, stack and smoke]
-    AR --> R[Release receipt: Ready only after checks pass]
-    B[Standalone Build: shared qualification steps] --> V[Package and validation evidence]
+    D[Discover on main] --> I[Selected subscription-discovery artifact]
+    I --> P[Stage 1 Preview: verify manifest and compile full release]
+    P --> W[Azure validation and stack What-If]
+    W --> R[README in Summary / Extensions and deployment-preview]
+    R --> M{Run stages setting}
+    M -->|Preview only| S[Deploy skipped]
+    M -->|Preview and deploy, enabled target| A[Stage 2 Deploy: configured environment checks]
+    A --> Q[Qualify application and match preview inputs]
+    Q --> T[Publish or verify pinned Template Spec]
+    T --> C[Recheck full preview for drift]
+    C --> F[Foundation then Release stack apply]
+    F --> V[Application verification and readiness receipt]
 ```
+
+Preview uses hosted `windows-latest` and publishes failed as well as successful reports. It performs management-plane validation using local compiled Bicep, before Template Spec publication or application packaging. It creates/deletes temporary stack What-If metadata only. The full infrastructure release includes the application host; ZIP contents are outside ARM What-If. [Full report, method and permission details](deployment-preview.md).
+
+Deploy contains sequential `BuildBundle`, `PublishTemplateSpec` and `ApplyStack` jobs. Frozen infrastructure/discovery/source must match Preview; a fresh full What-If must match its fingerprint before workload apply. Environment approvals and exclusive locks must be configured outside YAML; selecting both stages does not create an approval automatically. The private jobs are excluded at compile time for Preview-only or disabled selections.
+
+## Legacy generic six-stage flow
+
+The following map applies to `/azure-pipelines-self-service-deploy.yml`. It remains compatible with existing ADO definitions; use a dedicated workload Deploy definition for Preview-first execution.
 
 | Stage | Implementation and actions | Artifact | Agent / gate |
 |---|---|---|---|
@@ -56,7 +62,7 @@ flowchart TD
 | PlanRelease | `Invoke-SelfService.ps1 -Action PlanRelease` previews the complete runtime-enabled stack and freezes its fingerprint. | `plan-Release` | Private deployment pool; deployment connection. |
 | ApplyRelease | `Invoke-SelfService.ps1 -Action ApplyRelease` rechecks the approved plan, uploads/verifies the package, applies the same stack and checks private connectivity, five indexed Functions and three smoke requests. | `result-Release` | Protected deployment environment, approval and exclusive lock. |
 
-Every enabled stage depends on its predecessor succeeding. Apply consumes the matching current-run plan and bundle. A failed/missing plan cannot authorize apply. Plan stages write temporary Azure preview metadata; they differ from read-only Discover. See [stack ownership, preview cleanup and recovery](deployment-stacks-upgrade.md).
+Every legacy enabled stage depends on its predecessor succeeding. Apply consumes the matching current-run plan and bundle. A failed/missing plan cannot authorize apply. Plan stages write temporary Azure preview metadata; they differ from read-only Discover. See [stack ownership, preview cleanup and recovery](deployment-stacks-upgrade.md).
 
 ## Source and deployment responsibilities
 
@@ -92,8 +98,8 @@ This follows Microsoft's [include and extends templates](https://learn.microsoft
 
 1. Open the first failed task and its log. Qualification actions now have separate names.
 2. Inspect artifacts. `pipeline-context.json` means an Azure stage entered its job, not that its action succeeded. If `receipt.json` is absent, check download, authentication or interruption logs.
-3. Review plan artifacts and cost summaries before approvals. Apply rechecks after approval; drift requires new review. An exclusive lock serializes the protected stage, not the entire six-stage run, so rechecks remain necessary with concurrent runs.
-4. Inspect `result-Release/receipt.json` and smoke evidence. Discovery, publication, Foundation or setup success does not establish workload readiness. Failure can leave resources in Azure; there is no automatic rollback or destructive teardown.
+3. For dedicated pipelines, review `deployment-preview/README.md` in Summary / Extensions before approving Deploy. Drift requires a fresh preview. Configure an exclusive lock on the protected deployment environment. Legacy runs retain separate Foundation/Release approvals and rechecks.
+4. Inspect `deployment-result/receipt.json` and its phase/smoke evidence (legacy: `result-Release/receipt.json`). Discovery, publication, Foundation or setup success does not establish workload readiness. Failure can leave resources in Azure; there is no automatic rollback or destructive teardown.
 
 ## Platform rollout and checks
 

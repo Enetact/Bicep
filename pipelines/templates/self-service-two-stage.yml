@@ -1,0 +1,245 @@
+parameters:
+  - name: workloadType
+    type: string
+    default: blob-transfer
+    values: [blob-transfer, logic-app-event-grid]
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: agentPool
+    type: string
+  - name: deploymentEnvironment
+    type: string
+  - name: publisherServiceConnection
+    type: string
+  - name: publisherEnvironment
+    type: string
+  - name: publisherAgentPool
+    type: string
+  - name: discoveryPipelineId
+    type: string
+  - name: discoveryRunId
+    type: string
+  - name: createDestinationPrivateEndpoints
+    type: boolean
+    default: true
+  - name: enableLogAlerts
+    type: boolean
+    default: true
+  - name: executionMode
+    type: string
+    values: [Preview only, Preview and deploy]
+  - name: deploymentEnabled
+    type: boolean
+stages:
+  - stage: Preview
+    displayName: Validate Bicep and preview all resource changes
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: PreviewInfrastructure
+        timeoutInMinutes: 90
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - pwsh: |
+              . ./scripts/workload-preview-common.ps1
+              Write-WorkloadPreviewReadme '$(Build.ArtifactStagingDirectory)/preview' 'Not completed' 'Discovery download, prerequisites or Azure validation have not completed. Inspect the task logs.'
+              Write-Host '##vso[task.setvariable variable=previewEvidencePrepared]true'
+              if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Select a successful matching main run under Resources > discovery.' }
+            displayName: Prepare preview report and check discovery selection
+            env:
+              DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+              DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+          - pwsh: |
+              az bicep install --version v0.47.16
+              if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+              ./scripts/Update-Manifest.ps1 -Check
+            displayName: Install pinned Bicep and verify source manifest
+          - task: DownloadPipelineArtifact@2
+            displayName: Consume selected Discover artifact
+            inputs:
+              buildType: specific
+              project: $(System.TeamProject)
+              definition: ${{ parameters.discoveryPipelineId }}
+              buildVersionToDownload: specific
+              pipelineId: ${{ parameters.discoveryRunId }}
+              artifactName: subscription-discovery
+              targetPath: $(Pipeline.Workspace)/discovery-input
+          - pwsh: |
+              ./scripts/Test-DiscoveryHandoff.ps1 -Directory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -BoundServiceConnection '${{ parameters.serviceConnection }}' -DiscoveryPipelineId $env:DISCOVERY_PIPELINE_ID -DiscoveryRunId $env:DISCOVERY_RUN_ID -AllowDisabled
+              ./scripts/Invoke-WorkloadPreview.ps1 -Action Prepare -Directory '$(Build.ArtifactStagingDirectory)/preview' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -ReleaseId '$(Build.BuildId)'
+            displayName: Verify discovery and compile full release Bicep
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+              DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+          - task: AzureCLI@2
+            displayName: Validate and What-If (no workload deployment)
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: scriptPath
+              scriptPath: scripts/Invoke-WorkloadPreview.ps1
+              arguments: >-
+                -Action Preview -Directory "$(Build.ArtifactStagingDirectory)/preview"
+                -BoundServiceConnection "${{ parameters.serviceConnection }}"
+              workingDirectory: $(Build.SourcesDirectory)
+              visibleAzLogin: false
+          - pwsh: |
+              Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/preview/README.md'
+            condition: and(always(), eq(variables['previewEvidencePrepared'], 'true'))
+            displayName: Show resource-change README in Summary / Extensions
+          - publish: $(Build.ArtifactStagingDirectory)/preview
+            artifact: deployment-preview
+            condition: and(always(), eq(variables['previewEvidencePrepared'], 'true'))
+            displayName: Retain preview inputs, README and Azure evidence
+
+  - stage: Deploy
+    displayName: Deploy reviewed infrastructure and verify application
+    dependsOn: Preview
+    condition: and(succeeded(), eq('${{ parameters.executionMode }}', 'Preview and deploy'))
+    lockBehavior: sequential
+    jobs:
+      # Compile private resources out of Preview-only and disabled-target runs.
+      - ${{ if and(eq(parameters.executionMode, 'Preview and deploy'), eq(parameters.deploymentEnabled, true)) }}:
+        - job: BuildBundle
+          timeoutInMinutes: 120
+          cancelTimeoutInMinutes: 5
+          pool:
+            vmImage: windows-latest
+          steps:
+            - checkout: self
+              clean: true
+              persistCredentials: false
+            - pwsh: |
+                . ./scripts/self-service-common.ps1
+                $null = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}'
+                if ('${{ parameters.environment }}' -eq 'prod' -and ![bool]::Parse($env:ENABLE_LOG_ALERTS)) { throw 'Production requires log alerts.' }
+                if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Run discovery first, then select its successful main run under Run pipeline > Resources > discovery. Check pipeline-resource authorization if its IDs are unavailable.' }
+              displayName: Reject disabled or invalid target before building
+              env:
+                DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+                DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+                ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}
+            - download: current
+              artifact: deployment-preview
+            - ${{ if eq(parameters.workloadType, 'blob-transfer') }}:
+              - template: steps/qualify-application.yml
+            - ${{ if eq(parameters.workloadType, 'logic-app-event-grid') }}:
+              - template: steps/qualify-logic-app.yml
+            - pwsh: |
+                $releaseDirectory = if ('${{ parameters.workloadType }}' -eq 'logic-app-event-grid') { 'artifacts/logic-releases/$(Build.BuildId)' } else { 'artifacts/releases/$(Build.BuildId)' }
+                ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory $releaseDirectory -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/deployment-preview/discovery' -CreateDestinationPrivateEndpoints ([bool]::Parse($env:CREATE_DESTINATION_ENDPOINTS)) -EnableLogAlerts ([bool]::Parse($env:ENABLE_LOG_ALERTS))
+              displayName: Freeze verified discovery, target, template and package
+              env:
+                CREATE_DESTINATION_ENDPOINTS: ${{ parameters.createDestinationPrivateEndpoints }}
+                ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}
+            - pwsh: |
+                ./scripts/Invoke-WorkloadPreview.ps1 -Action VerifyBundle -Directory '$(Pipeline.Workspace)/deployment-preview' -BundleDirectory 'artifacts/self-service/bundle'
+              displayName: Require exact match with successful Preview
+            - publish: artifacts/self-service/bundle
+              artifact: self-service-bundle
+              displayName: Publish immutable inputs for this run
+            - template: steps/publish-qualification.yml
+              parameters:
+                artifactName: self-service-tests
+        - deployment: PublishTemplateSpec
+          dependsOn: BuildBundle
+          timeoutInMinutes: 60
+          cancelTimeoutInMinutes: 5
+          environment: ${{ parameters.publisherEnvironment }}
+          pool:
+            name: ${{ parameters.publisherAgentPool }}
+          workspace:
+            clean: all
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                    clean: true
+                    persistCredentials: false
+                  - download: none
+                  - template: steps/prepare-stage-evidence.yml
+                    parameters:
+                      directory: $(Build.ArtifactStagingDirectory)/publication
+                  - download: current
+                    artifact: self-service-bundle
+                  - task: AzureCLI@2
+                    inputs:
+                      azureSubscription: ${{ parameters.publisherServiceConnection }}
+                      scriptType: pscore
+                      scriptLocation: scriptPath
+                      scriptPath: scripts/Publish-WorkloadTemplate.ps1
+                      arguments: >-
+                        -BundleDirectory "$(Pipeline.Workspace)/self-service-bundle"
+                        -EvidenceDirectory "$(Build.ArtifactStagingDirectory)/publication"
+                        -BoundServiceConnection "${{ parameters.publisherServiceConnection }}"
+                        -BoundEnvironment "${{ parameters.publisherEnvironment }}"
+                        -BoundAgentPool "${{ parameters.publisherAgentPool }}"
+                      workingDirectory: $(Build.SourcesDirectory)
+                      visibleAzLogin: false
+                  - publish: $(Build.ArtifactStagingDirectory)/publication
+                    artifact: template-publication
+                    condition: and(always(), eq(variables['stageEvidencePrepared'], 'true'))
+        - deployment: ApplyStack
+          dependsOn: PublishTemplateSpec
+          timeoutInMinutes: 180
+          cancelTimeoutInMinutes: 5
+          environment: ${{ parameters.deploymentEnvironment }}
+          pool:
+            name: ${{ parameters.agentPool }}
+          workspace:
+            clean: all
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                    clean: true
+                    persistCredentials: false
+                  - download: none
+                  - template: steps/prepare-stage-evidence.yml
+                    parameters:
+                      directory: $(Build.ArtifactStagingDirectory)/result
+                  - download: current
+                    artifact: self-service-bundle
+                  - download: current
+                    artifact: deployment-preview
+                  - task: AzureCLI@2
+                    displayName: Recheck approved plan, deploy, and verify readiness
+                    inputs:
+                      azureSubscription: ${{ parameters.serviceConnection }}
+                      scriptType: pscore
+                      scriptLocation: scriptPath
+                      scriptPath: scripts/Deploy-PreviewedWorkload.ps1
+                      arguments: >-
+                        -BundleDirectory "$(Pipeline.Workspace)/self-service-bundle"
+                        -PreviewDirectory "$(Pipeline.Workspace)/deployment-preview"
+                        -EvidenceDirectory "$(Build.ArtifactStagingDirectory)/result"
+                        -BoundServiceConnection "${{ parameters.serviceConnection }}"
+                        -BoundEnvironment "${{ parameters.deploymentEnvironment }}"
+                        -BoundAgentPool "${{ parameters.agentPool }}"
+                      workingDirectory: $(Build.SourcesDirectory)
+                      visibleAzLogin: false
+                  - publish: $(Build.ArtifactStagingDirectory)/result
+                    artifact: deployment-result
+                    condition: and(always(), eq(variables['stageEvidencePrepared'], 'true'))
+      - ${{ if not(and(eq(parameters.executionMode, 'Preview and deploy'), eq(parameters.deploymentEnabled, true))) }}:
+        - job: DeploymentUnavailable
+          pool:
+            vmImage: windows-latest
+          steps:
+            - checkout: none
+            - pwsh: throw 'Target is disabled. Preview is available, but platform onboarding and enablement are required before Deploy.'
+              displayName: Explain deployment prerequisite
