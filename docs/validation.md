@@ -4,7 +4,17 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
-### Legacy Azure DevOps URL and evidence-retention fix
+### DNS inventory fallback
+
+Build 7 published its discovery artifact but reported partial inventory because the private DNS list failed. Its browser summary showed successful ARM subscription/provider diagnostic calls; those statuses alone do not establish the provider registration state or explain the DNS error. The user reports that no DNS zones have been created.
+
+Discovery now falls back to the subscription-scoped ARM resource list for `Microsoft.Network/privateDnsZones`. Successful empty and populated responses produce complete DNS inventory with explicit fallback provenance. Both reads failing still save partial evidence and stop. Recovery does not clear failed VNet/subnet status. Bicep's existing new-network module defines all five private DNS zones and links; no Azure resources were created during this change.
+
+- **74 discovery/catalog/handoff cases passed**, zero failures: `artifacts/discovery-tests/2bfe280f86da481bb18d7a2a712a6c1d/results.json`.
+- New cases exercise empty and populated fallback results, exact subscription/type scope, manifest hashes, summary text, native exit-code recovery and preservation of VNet/subnet failures. Existing cases cover failure of both DNS paths and rejection of partial inventory.
+- Azure calls were mocked. Successful live fallback, deployment handoff and provisioning remain unverified; rerun discovery from the updated source.
+
+### Historical legacy Azure DevOps URL and evidence-retention fix
 
 The latest supplied run signed in using workload identity federation, selected its subscription, received the private DNS `BadRequest`, and then stopped at organization/project validation before writing discovery evidence. The supplied project URL is `https://enetactgames.visualstudio.com/Enetact`: organization `https://enetactgames.visualstudio.com/`, project `Enetact`. The previous validator only accepted the modern `dev.azure.com` form.
 
