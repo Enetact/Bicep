@@ -4,6 +4,7 @@
 . "$PSScriptRoot/stack-service-common.ps1"
 . "$PSScriptRoot/workload-common.ps1"
 . "$PSScriptRoot/logicapp-service-common.ps1"
+. "$PSScriptRoot/logic-prerequisites-common.ps1"
 
 function Resolve-ServiceOrganizationUrl([string]$OrganizationUrl) {
     $value=$OrganizationUrl.Trim()

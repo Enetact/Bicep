@@ -5,6 +5,7 @@ param environmentName string
 param location string
 param owner string
 param costCenter string
+param prerequisitePlan object = {}
 param integrationSubnetId string
 param privateEndpointSubnetId string
 param privateDnsZoneIds object
@@ -23,15 +24,20 @@ var runtimeName = take('strt${workload}${environmentName}${suffix}', 24)
 var eventName = take('stev${workload}${environmentName}${suffix}', 24)
 var topicName = 'evgt-${stem}'
 var tags = { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, workloadType: 'logic-app-event-grid', trustedServiceReview: trustedServiceException.reviewReference, runtimeCredentialReview: runtimeStorageCredentialException.reviewReference }
+module prerequisites './modules/prerequisites.bicep' = if (!empty(prerequisitePlan)) {
+  name: 'workload-prerequisites'
+  params: { plan: prerequisitePlan, location: location, tags: tags }
+}
 resource insights 'Microsoft.Insights/components@2020-02-02' = {
+  dependsOn: [prerequisites]
   name: 'appi-${stem}'
   location: location
   tags: tags
   kind: 'web'
   properties: { Application_Type: 'web', WorkspaceResourceId: existingLogAnalyticsWorkspaceId }
 }
-module runtime './modules/storage.bicep' = { name: 'runtime-storage', params: { name: runtimeName, location: location, tags: tags, runtime: true, workspaceId: existingLogAnalyticsWorkspaceId } }
-module events './modules/storage.bicep' = { name: 'event-storage', params: { name: eventName, location: location, tags: tags, runtime: false, workspaceId: existingLogAnalyticsWorkspaceId } }
+module runtime './modules/storage.bicep' = { name: 'runtime-storage', dependsOn: [prerequisites], params: { name: runtimeName, location: location, tags: tags, runtime: true, workspaceId: existingLogAnalyticsWorkspaceId } }
+module events './modules/storage.bicep' = { name: 'event-storage', dependsOn: [prerequisites], params: { name: eventName, location: location, tags: tags, runtime: false, workspaceId: existingLogAnalyticsWorkspaceId } }
 module topic '../../modules/event-grid/topic/main.bicep' = { name: 'event-topic', params: { name: topicName, location: location, tags: tags } }
 var storageEndpoints = [
   { name: 'runtime-blob', target: resourceId('Microsoft.Storage/storageAccounts', runtimeName), group: 'blob' }
@@ -43,7 +49,7 @@ var storageEndpoints = [
 ]
 module endpoints '../../modules/network/private-endpoint/main.bicep' = [for endpoint in storageEndpoints: {
   name: 'pe-${endpoint.name}'
-  dependsOn: [runtime, events]
+  dependsOn: [prerequisites, runtime, events]
   params: { name: 'pe-${stem}-${endpoint.name}', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: endpoint.target, groupIds: [endpoint.group], privateDnsZoneIds: [privateDnsZoneIds[endpoint.group]] }
 }]
 module host '../../modules/logic-app/standard/main.bicep' = {
@@ -52,7 +58,7 @@ module host '../../modules/logic-app/standard/main.bicep' = {
   dependsOn: [endpoints]
 }
 module appEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-app', params: { name: 'pe-${stem}-app', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: host.outputs.id, groupIds: ['sites'], privateDnsZoneIds: [privateDnsZoneIds.sites] } }
-module topicEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-topic', params: { name: 'pe-${stem}-topic', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: topic.outputs.id, groupIds: ['topic'], privateDnsZoneIds: [privateDnsZoneIds.topic] } }
+module topicEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-topic', dependsOn: [prerequisites], params: { name: 'pe-${stem}-topic', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: topic.outputs.id, groupIds: ['topic'], privateDnsZoneIds: [privateDnsZoneIds.topic] } }
 module access './modules/access.bicep' = { name: 'event-access', params: { storageName: eventName, logicPrincipalId: host.outputs.principalId, topicPrincipalId: topic.outputs.principalId, deploymentPrincipalId: deploymentPrincipalObjectId } }
 resource topicRef 'Microsoft.EventGrid/topics@2025-02-15' existing = { name: topicName }
 resource sender 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -70,6 +76,7 @@ resource diagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' 
 }
 resource backlog 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
   name: 'alert-${stem}-workflow-failures'
+  dependsOn: [prerequisites]
   location: location
   tags: tags
   properties: {
@@ -120,6 +127,7 @@ resource queueBacklog 'Microsoft.Insights/metricAlerts@2018-03-01' = {
 }
 resource quarantineAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
   name: 'alert-${stem}-quarantine'
+  dependsOn: [prerequisites]
   location: location
   tags: tags
   properties: {

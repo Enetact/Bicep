@@ -21,6 +21,7 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
     Invoke-Bicep -Arguments @('build-params',(Resolve-ServicePath $root $Target.parameterFile),'--outfile',(Join-Path $Directory parameters.json))
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
     Set-ServiceProfileParameters $Target $p.parameters
+    if($type -eq 'logic-app-event-grid'){Set-LogicDiscoveredPrerequisites $Target $p.parameters $DiscoveryDirectory $Directory}
     if($type -eq 'blob-transfer'){$platform=Read-PlatformConfiguration;Set-ServiceDeploymentOptions $Target $p.parameters $platform.createDestinationPrivateEndpoints $platform.enableLogAlerts}
     Write-ServiceJson $p (Join-Path $Directory parameters.json)
     if($type -eq 'logic-app-event-grid'){
@@ -51,6 +52,7 @@ function Read-WorkloadPreviewInputs([string]$Directory) {
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
     Assert-ServiceParameters $target $p.parameters
     $manifest=Read-DiscoveryManifest (Join-Path $Directory discovery) $target $target.serviceConnection
+    if((Get-TargetWorkloadType $target) -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $target $p.parameters (Join-Path $Directory discovery)}
     if((Get-ValueHash $manifest.source) -cne (Get-ValueHash $r.discoverySource)){throw 'Preview discovery provenance mismatch.'}
     $stack=Get-Content (Join-Path $Directory stack.json) -Raw|ConvertFrom-Json -AsHashtable
     $template=Get-Content (Join-Path $Directory stack-template.json) -Raw|ConvertFrom-Json -AsHashtable
@@ -68,6 +70,7 @@ function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory) {
     }
     Assert-StackTooling
     $state=Get-WorkloadStackState $Bundle
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){Assert-LogicPrerequisiteLiveState $Bundle $state}
     $path=Join-Path $Bundle.directory effective.parameters.json
     $report=New-StackPreview $Bundle $state $path $Directory -UseLocalTemplate
     $plan=@{schemaVersion=1;kind='full-release-preview';inputHash=$Bundle.hash;sourceCommit=$Bundle.receipt.sourceCommit;runId=$Bundle.receipt.runId;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');state=$state;changes=$report.changes;deployable=$true;workloadDeployed=$false}
@@ -125,9 +128,11 @@ function Write-WorkloadPreviewReadme([string]$Directory,[string]$Status,[string]
         if($onboarding.issues.Count){
             $lines+=@('## Required environment settings','',"Update repository file: $(ConvertTo-PreviewCell $onboarding.parameterFile)",'','| Parameter | Required action |','|---|---|')
             foreach($issue in $onboarding.issues){$lines+="| $(ConvertTo-PreviewCell $issue.parameter) | $(ConvertTo-PreviewCell $issue.requirement) |"}
-            $lines+=@('','Discovery lists available resources; it does not choose approved IDs or grant platform approvals. If the shared subnets, DNS zones or workspace are absent, platform provisioning is required first. This Event flow stack references those shared resources. The target can remain disabled for Preview.','')
+            $lines+=@('','Discovery lists available resources; it does not choose approved IDs or grant platform approvals. Review the prerequisite plan for Reuse/Create/Manage decisions. Owner, cost-center, identity and platform approvals still require real values. The target can remain disabled for Preview.','')
         }
     }
+    $prerequisitePath=Join-Path $Directory prerequisite-plan.json
+    if(Test-Path -LiteralPath $prerequisitePath){$lines+=@(Get-LogicPrerequisiteSummary (Get-Content -LiteralPath $prerequisitePath -Raw|ConvertFrom-Json -AsHashtable))}
     $rawPath=Join-Path $Directory azure/stack-what-if.json
     if(Test-Path $rawPath){
         $raw=Get-Content $rawPath -Raw|ConvertFrom-Json -AsHashtable

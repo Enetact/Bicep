@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "mode": "discover-or-create",
+  "environments": {
+    "dev": {
+      "vnetAddressPrefix": "10.70.0.0/16",
+      "integrationSubnetPrefix": "10.70.0.0/26",
+      "privateEndpointSubnetPrefix": "10.70.1.0/26"
+    },
+    "qa": {
+      "vnetAddressPrefix": "10.71.0.0/16",
+      "integrationSubnetPrefix": "10.71.0.0/26",
+      "privateEndpointSubnetPrefix": "10.71.1.0/26"
+    },
+    "uat": {
+      "vnetAddressPrefix": "10.72.0.0/16",
+      "integrationSubnetPrefix": "10.72.0.0/26",
+      "privateEndpointSubnetPrefix": "10.72.1.0/26"
+    },
+    "prod": {
+      "vnetAddressPrefix": "10.73.0.0/16",
+      "integrationSubnetPrefix": "10.73.0.0/26",
+      "privateEndpointSubnetPrefix": "10.73.1.0/26"
+    }
+  }
+}

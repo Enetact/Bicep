@@ -62,6 +62,12 @@ function Get-LogicCostEstimate($P) {
     $sku=Get-ServiceParameter $P hostingSku WS1
     if ($snapshot.currency -ne 'USD' -or $snapshot.region -ne $P.location.value -or !$snapshot.rates.Contains($sku) -or ([DateTimeOffset]::UtcNow-[DateTimeOffset]::Parse($snapshot.retrievedUtc)).TotalDays -gt 30) { return @{status='Unavailable';reason='Refresh reviewed regional Logic App prices.';fixedMonthlySubtotalUsd=$null} }
     $lines=@(@{resource="Workflow Standard $sku";quantity=1;monthlyUnitUsd=$snapshot.rates[$sku]*730},@{resource='Private endpoints';quantity=8;monthlyUnitUsd=$snapshot.rates.privateEndpoint*730})
+    $prerequisites=Get-ServiceParameter $P prerequisitePlan @{}
+    if($prerequisites.Count -and @($prerequisites.createDnsZoneNames).Count){
+        $dnsPrices=Get-Content (Join-Path (Get-ProjectRoot) self-service/pricing/usd-eastus2.json) -Raw|ConvertFrom-Json -AsHashtable
+        if(([DateTimeOffset]::UtcNow-[DateTimeOffset]::Parse($dnsPrices.retrievedUtc)).TotalDays -gt 30){return @{status='Unavailable';reason='Refresh reviewed DNS prices.';fixedMonthlySubtotalUsd=$null}}
+        $lines+=@{resource='Owned private DNS zones';quantity=@($prerequisites.createDnsZoneNames).Count;monthlyUnitUsd=$dnsPrices.rates.privateDnsZone.retailPrice}
+    }
     return @{status='Estimated';currency='USD';region=$snapshot.region;pricingAsOf=$snapshot.retrievedUtc;lines=$lines;fixedMonthlySubtotalUsd=($lines|ForEach-Object {$_.quantity*$_.monthlyUnitUsd}|Measure-Object -Sum).Sum;exclusions=@('Storage, Event Grid operations, logs, alerts, DNS, network transfer and pipeline agents are usage or additional charges.','Retail estimate; not a spending cap.');workflowPackageSeparateFromTemplateSpec=$true}
 }
 function Test-LogicPackage([string]$ZipPath) {
@@ -92,7 +98,9 @@ function New-LogicBundle($Target,[string]$ReleaseDirectory,[string]$Directory,[s
     Invoke-Bicep -Arguments @('build',(Join-Path $root $definition.composition),'--outfile',(Join-Path $Directory main.json))
     Invoke-Bicep -Arguments @('build-params',(Resolve-ServicePath $root $Target.parameterFile),'--outfile',(Join-Path $Directory parameters.json))
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
-    Set-ServiceProfileParameters $Target $p.parameters; Assert-LogicParameters $Target $p.parameters
+    Set-ServiceProfileParameters $Target $p.parameters
+    Set-LogicDiscoveredPrerequisites $Target $p.parameters $DiscoveryDirectory $Directory
+    Assert-LogicParameters $Target $p.parameters
     Assert-LogicDiscoveryResources $Target $p.parameters $DiscoveryDirectory
     Write-ServiceJson $p (Join-Path $Directory parameters.json)
     Invoke-Bicep -Arguments @('build',(Join-Path $root $definition.stack),'--outfile',(Join-Path $Directory stack-template.json))
@@ -156,14 +164,17 @@ function Assert-LogicChange($Change,$Bundle) {
     }
     Assert-ServiceChange $c
 }
-function Test-LogicPrerequisites($Bundle) {
+function Test-LogicPrerequisites($Bundle,[switch]$AllowPlannedCreates) {
     $p=$Bundle.parameters.parameters
     foreach($provider in @('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')) {
         $r=Invoke-ServiceJson @('provider','show','--namespace',$provider,'--subscription',$Bundle.target.subscriptionId)
         if($r.registrationState -ne 'Registered'){throw "Provider must be registered by platform: $provider"}
     }
+    $resolved=Get-ServiceParameter $p prerequisitePlan @{}
+    $skipNetwork=$AllowPlannedCreates -and $resolved.Count -and $resolved.createNetwork
     $network=@{}
     foreach($key in @('integrationSubnetId','privateEndpointSubnetId')){
+        if($skipNetwork){continue}
         $s=Invoke-ServiceJson @('network','vnet','subnet','show','--ids',$p[$key].value)
         $delegations=@($s.delegations|ForEach-Object {$_.serviceName})
         if ($key -eq 'integrationSubnetId' -and 'Microsoft.Web/serverFarms' -notin $delegations) { throw 'Integration subnet must be delegated to Microsoft.Web/serverFarms.' }
@@ -171,13 +182,16 @@ function Test-LogicPrerequisites($Bundle) {
         $network[$key]=$s
     }
     $vnetId=$p.integrationSubnetId.value -replace '/subnets/[^/]+$',''
+    if(!$skipNetwork){
     $vnet=Invoke-ServiceJson @('network','vnet','show','--ids',$vnetId)
     if ($vnet.location -cne $p.location.value -or @($vnet.dhcpOptions.dnsServers).Count) { throw 'V1 requires same-region VNet and Azure-provided DNS with directly linked zones.' }
+    }
     foreach($zone in $p.privateDnsZoneIds.value.Values){
+        if($AllowPlannedCreates -and $resolved.Count -and ($zone.Split('/')[-1] -in $resolved.createDnsZoneNames)){continue}
         $links=Invoke-ServiceJson @('rest','--method','get','--url',"https://management.azure.com$zone/virtualNetworkLinks?api-version=2024-06-01")
         if(!@($links.value|Where-Object {$_.properties.virtualNetwork.id -ieq $vnetId -and $_.properties.provisioningState -eq 'Succeeded'}).Count){throw 'Approved private DNS zone needs a VNet link.'}
     }
-    $null=Invoke-ServiceJson @('resource','show','--ids',$p.existingLogAnalyticsWorkspaceId.value,'--api-version','2023-09-01')
+    if(!($AllowPlannedCreates -and $resolved.Count -and $resolved.createWorkspace)){$null=Invoke-ServiceJson @('resource','show','--ids',$p.existingLogAnalyticsWorkspaceId.value,'--api-version','2023-09-01')}
     return $network
 }
 function Get-LogicOutputs($Bundle) {
@@ -217,8 +231,10 @@ function Get-LogicWorkflowState($Outputs) {
 }
 function New-LogicPlan($Bundle,[string]$Phase,[string]$Directory) {
     New-Item -ItemType Directory -Path $Directory -Force|Out-Null
-    $network=Test-LogicPrerequisites $Bundle
-    $state=Get-WorkloadStackState $Bundle; $state.network=$network
+    $state=Get-WorkloadStackState $Bundle
+    Assert-LogicPrerequisiteLiveState $Bundle $state
+    $network=Test-LogicPrerequisites $Bundle -AllowPlannedCreates:(!$state.stackExists -and $Phase -eq 'Foundation')
+    $state.network=$network
     $skip=$Phase -eq 'Foundation' -and $state.hasApp
     $p=$Bundle.parameters|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
     $p.parameters.releaseActivated=@{value=($Phase -eq 'Release')}
@@ -321,6 +337,7 @@ function Protect-LogicEvidence($Value) {
 }
 function Assert-LogicDiscoveryResources($Target,$P,[string]$Directory) {
     $inventory=Get-Content (Join-Path $Directory inventory.json) -Raw|ConvertFrom-Json -AsHashtable
+    if((Get-ServiceParameter $P prerequisitePlan @{}).Count){$null=Assert-LogicResolvedPrerequisites $Target $P $inventory;return}
     foreach($key in @('integrationSubnetId','privateEndpointSubnetId')){
         if(@($inventory.networks|ForEach-Object {$_.subnets}|Where-Object {$_.id -ieq $P[$key].value}).Count -ne 1){throw 'Selected subnet is missing or ambiguous in saved discovery.'}
     }
