@@ -10,14 +10,16 @@ This repository deploys the blob-transfer stack. It does not contain a claims UI
 
 Discover shows just four target selectors: workload, environment, subscription and network profile. Deploy shows the same selectors plus the cost reference fields and two deployment checkboxes below. In Deploy, **Resources > discovery** opens Azure DevOps' native run picker for selecting the saved inventory; pipeline/run IDs do not need to be typed.
 
+The two checkboxes appear immediately after the target selectors, before the reference fields. Their labels are **Create destination private endpoints (~USD $7.30-$14.60/month)** and **Enable log alerts (~USD $4.50/month)** at the current reviewed rates. Both default to checked. Endpoint prerequisites and alert behavior are explained in the networking and requirements fields below, keeping the controls concise.
+
 | Field | What the developer can see before running |
 |---|---|
 | Included core resources | Function App and hosting; two storage accounts; queues and ledger; managed identity and scoped RBAC; Log Analytics and Application Insights. These dependencies cannot be unchecked. |
 | Hosting reference | Dated East US 2 USD prices per instance/month for B1, S1 and P1v3. The reviewed environment profile determines the SKU and instance count. |
-| Required private networking | Estimated charge for six required storage/app private endpoints and five new DNS zones; existing-network mode reuses approved zones. |
-| Additional usage charges / Estimate basis | Log ingestion and DNS query rates, variable storage/data/agent costs, date, region, currency, and exclusions. |
+| Private networking and endpoint options | Estimated charge for six required storage/app private endpoints and five new DNS zones; existing-network mode reuses approved zones. Explains the destination endpoint option and existing-connectivity requirement. |
+| Additional usage charges / Requirements | Log ingestion and DNS query rates, variable storage/data/agent costs, date, region, currency, exclusions and the production alert requirement. |
 | Create destination private endpoints | Checked by default. Adds one blob endpoint, plus dfs when the destination is HNS-enabled, at the displayed per-endpoint monthly rate. Uncheck only when existing private connectivity and DNS are already available. |
-| Enable 3 log alerts | Checked by default, with the estimated monthly rule cost. Unchecked disables alert evaluation while retaining the rule resources and telemetry. Production rejects unchecked alerts before building. |
+| Enable log alerts | Checked by default, with the estimated monthly cost for three rules. Unchecked disables alert evaluation while retaining the rule resources and telemetry. Production rejects unchecked alerts before building. |
 
 The reference fields are single-value string parameters used only to display information. The two boolean parameters are real deployment options: the generator passes them through the stage router, `New-SelfServiceBundle.ps1` writes them into the frozen ARM parameters, and Bicep uses them. They do not grant approval, enable a disabled target, change discovery, or allow removal of core security/network dependencies. Azure DevOps supports labels, allowed values and booleans in the [parameter schema](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/parameters-parameter?view=azure-pipelines). The form cannot recalculate a live total as checkboxes change. Qualification publishes the selected estimate, and each deployment preview repeats the choices and full-release fixed subtotal. See [cost assumptions and refresh instructions](self-service-costs.md).
 

@@ -4,6 +4,10 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
+### Deployment checkbox cleanup
+
+The two deployment checkboxes now follow the four target selectors, with short action/cost labels. Endpoint prerequisites, production alert requirements and pricing assumptions remain in the reference fields below. Both default to checked. Parsed-YAML comparison against the previous revision confirmed identical resource selection, stage inputs and checkbox defaults. Catalog freshness and PowerShell parsing passed; all **76 discovery/catalog/handoff cases passed** again: `artifacts/discovery-tests/1c598b7d5cc84c12bdffb1e59d40e7f1/results.json`. The updated form has not been inspected live. The reported missing/unauthorized `blob-transfer-private` pool remains a platform setup blocker; this label change does not create or authorize a pool.
+
 ### Separate native Discover and Deploy menus
 
 Discover now exposes only four target selectors and a fixed discovery operation. Deploy owns resource/cost descriptions and boolean options, and declares the existing `Enetact.Bicep` definition as its `discovery` pipeline resource. Developers select a saved run through **Run pipeline > Resources > discovery**. Runtime resource metadata supplies the existing exact-run artifact download and manifest checks. No manual ID fields or automatic completion triggers remain in either entry point. Shared stage templates and all four protected target bindings remain in use.

@@ -31,12 +31,20 @@ parameters:
     type: string
     default: new-private
     values: [new-private]
+  - name: createDestinationPrivateEndpoints
+    displayName: "Create destination private endpoints (~USD $7.30-$14.60/month)"
+    type: boolean
+    default: true
+  - name: enableLogAlerts
+    displayName: "Enable log alerts (~USD $4.50/month)"
+    type: boolean
+    default: true
   - name: packageResources
     displayName: "Included core resources (required)"
     type: string
-    default: "Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights. Optional choices below apply only to deploy."
+    default: "Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights."
     values:
-      - "Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights. Optional choices below apply only to deploy."
+      - "Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights."
   - name: hostingEstimate
     displayName: "Hosting reference - USD per instance/month (East US 2; 2026-09-19)"
     type: string
@@ -44,31 +52,23 @@ parameters:
     values:
       - "B1 $12.41; S1 $69.35; P1v3 $113.15. Multiply by profile instance count; exact selected subtotal is published during qualification."
   - name: packageNetworking
-    displayName: "Required private networking - estimated USD/month"
+    displayName: "Private networking and endpoint options"
     type: string
-    default: "6 storage/app private endpoints: $43.80. New mode adds 5 DNS zones: $2.50 + queries, VNet, 2 subnets and NSG. Existing mode reuses approved networking."
+    default: "Required: 6 private endpoints $43.80/month; new mode adds 5 DNS zones $2.50/month, VNet, 2 subnets and NSG. Destination option adds blob + dfs if HNS. Uncheck only with existing private access/DNS; existing endpoints are not deleted."
     values:
-      - "6 storage/app private endpoints: $43.80. New mode adds 5 DNS zones: $2.50 + queries, VNet, 2 subnets and NSG. Existing mode reuses approved networking."
+      - "Required: 6 private endpoints $43.80/month; new mode adds 5 DNS zones $2.50/month, VNet, 2 subnets and NSG. Destination option adds blob + dfs if HNS. Uncheck only with existing private access/DNS; existing endpoints are not deleted."
   - name: usageEstimate
     displayName: "Additional usage charges - not included in fixed amounts"
     type: string
-    default: "Storage capacity/transactions, endpoint data, egress and agent costs vary. Logs: $2.76/GB at paid tier; DNS queries: $0.40/million. Allowances depend on subscription usage."
+    default: "Storage capacity/transactions, endpoint data, egress, notifications and agent costs vary. Logs: $2.76/GB at paid tier; DNS queries: $0.40/million. Allowances depend on subscription usage."
     values:
-      - "Storage capacity/transactions, endpoint data, egress and agent costs vary. Logs: $2.76/GB at paid tier; DNS queries: $0.40/million. Allowances depend on subscription usage."
+      - "Storage capacity/transactions, endpoint data, egress, notifications and agent costs vary. Logs: $2.76/GB at paid tier; DNS queries: $0.40/million. Allowances depend on subscription usage."
   - name: packageRequirements
-    displayName: "Estimate basis - USD retail as of 2026-09-19"
+    displayName: "Requirements / USD retail as of 2026-09-19"
     type: string
-    default: "East US 2; 730 hours/month; no tax, discounts or credits. Not a quote or spending cap. Existing destination storage and private build agent required. Exact resource changes appear in preview."
+    default: "Existing destination storage and private agent required. Alerts: 3 rules; required in production; disabling keeps log collection. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a quote or spending cap. Review exact changes in preview."
     values:
-      - "East US 2; 730 hours/month; no tax, discounts or credits. Not a quote or spending cap. Existing destination storage and private build agent required. Exact resource changes appear in preview."
-  - name: createDestinationPrivateEndpoints
-    displayName: "Create destination private endpoints (~$7.30 each/month; blob+dfs ~$14.60). Uncheck only to reuse existing private connectivity."
-    type: boolean
-    default: true
-  - name: enableLogAlerts
-    displayName: "Enable 3 log alerts (~$4.50/month + notifications). Required in production; logs remain enabled when unchecked."
-    type: boolean
-    default: true
+      - "Existing destination storage and private agent required. Alerts: 3 rules; required in production; disabling keeps log collection. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a quote or spending cap. Review exact changes in preview."
 
 stages:
   - template: pipelines/catalog-bindings.yml

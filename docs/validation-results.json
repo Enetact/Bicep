@@ -109,7 +109,7 @@
       "liveQueryEvidence": "User-supplied pipeline log reached private DNS listing and failed; no successful complete inventory.",
       "offlineCasesPassed": 76,
       "offlineCasesFailed": 0,
-      "evidence": "artifacts/discovery-tests/f5e712dd92bf4937b30cfdda0dc2d39b/results.json",
+      "evidence": "artifacts/discovery-tests/1c598b7d5cc84c12bdffb1e59d40e7f1/results.json",
       "separateNativeMenusImplemented": true,
       "discoveryPipelineResourceSource": "Enetact.Bicep",
       "manualSourceIdFieldsRemoved": true,
