@@ -24,7 +24,7 @@ Storage capacity and transactions, Private Link data processing, bandwidth/egres
 ## Checkbox behavior
 
 - **Create destination private endpoints**, default checked: maps to the existing `createDestinationPrivateEndpoints` Bicep parameter. Blob is created; dfs is added only for an HNS destination. Unchecked requires pre-existing private routes and DNS. Runtime readiness and smoke checks still apply; this never enables public storage access. Incremental deployment does not delete existing endpoints when unchecked, so deselection alone does not guarantee savings.
-- **Enable 3 log alerts**, default checked: maps to `enableLogAlerts`. Disabling keeps all three rules but sets their `enabled` properties to false; log ingestion stays on. Production rejects false in both early pipeline validation and parameter/bundle validation. Microsoft lists disabled alert rules as uncharged; any remaining log ingestion is separate.
+- **Enable log alerts**, default checked: maps to `enableLogAlerts`. Disabling keeps all three rules but sets their `enabled` properties to false; log ingestion stays on. Production rejects false in both early pipeline validation and parameter/bundle validation. Microsoft lists disabled alert rules as uncharged; any remaining log ingestion is separate.
 - Hosting, the Function App, storage/queues/ledger, identity, private app/storage access, and telemetry are required dependencies of this blueprint. There are no pretend switches for these resources. Network creation versus reuse is selected through the registered network profile.
 - Choices apply only to deployment. Discovery remains read-only. Values are frozen in `parameters.json` and covered by the bundle hash; later stages use that bundle, not new queue-time overrides.
 

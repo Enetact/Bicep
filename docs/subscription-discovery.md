@@ -10,6 +10,8 @@ All four baseline profiles explicitly pin subscription `f4f2eafe-2512-4c2f-9b5b-
 
 ## Discover first, deploy in a second run
 
+Temporary onboarding behavior: a disabled target selected in Deploy runs only a hosted Windows configuration check. Its selected discovery artifact is not consumed until the target is enabled and the catalog is regenerated. This lets the menu/setup check work before the private deployment pool exists. The workflow below describes enabled deployment targets.
+
 Register two Azure DevOps pipelines against this GitHub repository:
 
 1. **Discover** uses `/azure-pipelines-self-service.yml`. The existing ADO definition is named `Enetact.Bicep` (ID 1). It publishes `subscription-discovery` with `inventory.json`, `manifest.json`, and `summary.md`. Pipeline/run IDs remain in the summary for audit.

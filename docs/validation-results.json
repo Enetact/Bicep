@@ -101,15 +101,22 @@
       "compiledAllEnvironments": true,
       "checkboxes": ["createDestinationPrivateEndpoints", "enableLogAlerts"]
     },
-    "yamlFilesParsed": 8,
+    "yamlFilesParsed": 9,
+    "disabledTargetHostedSetup": {
+      "implemented": true,
+      "agentImage": "windows-latest",
+      "deploysAzure": false,
+      "validatesDiscoveryArtifact": false,
+      "liveVerified": false
+    },
     "discovery": {
       "implemented": true,
       "defaultOperation": "discover",
       "liveAzureQueried": true,
       "liveQueryEvidence": "User-supplied pipeline log reached private DNS listing and failed; no successful complete inventory.",
-      "offlineCasesPassed": 76,
+      "offlineCasesPassed": 78,
       "offlineCasesFailed": 0,
-      "evidence": "artifacts/discovery-tests/f5e712dd92bf4937b30cfdda0dc2d39b/results.json",
+      "evidence": "artifacts/discovery-tests/b65919c1652b4eb5b12afac9e04a0e01/results.json",
       "separateNativeMenusImplemented": true,
       "discoveryPipelineResourceSource": "Enetact.Bicep",
       "manualSourceIdFieldsRemoved": true,

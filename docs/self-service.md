@@ -4,20 +4,30 @@ Status: implemented in the repository and locally contract-tested. Run 8 on `fea
 
 This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 
+### Temporary hosted setup check
+
+While a selected target has `enabled: false`, the Deploy entry point now expands to **Hosted setup check - no Azure deployment**, using `pool: { vmImage: windows-latest }` in the Microsoft-hosted Azure Pipelines pool. It checks the target/catalog and publishes remaining setup requirements. It does not download/validate the discovery artifact, build a release, run what-if or deploy Azure resources. A successful setup check is not deployment readiness; resource checkboxes are displayed but not applied.
+
+The generated route omits private-pool jobs and deployment environments entirely, avoiding the reported missing/unauthorized `blob-transfer-private` lookup for these disabled targets. A skipped job condition alone would not fix queue-time resource validation. The discovery pipeline resource must still exist/be accessible, and executing the check requires hosted agent capacity. There is no built-in image called `windows-default`; the supported image here is `windows-latest`.
+
+After onboarding, set the target's `enabled` flag to `true`, regenerate the catalog and manifest, and merge. Its reviewed private pool, environment checks, discovery validation and original deployment stages are then restored. The Azure deployment scripts continue rejecting disabled targets. See Microsoft's [hosted agent configuration](https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops).
+
 ## What developers select in Run pipeline
 
 `blobcopy` is the registered workload code for the automated blob-transfer package, not an Azure service or pricing tier. The workload code and environment contribute to resource names, for example `asp-blobcopy-dev`. An exact workload/environment/subscription/network combination selects one reviewed target profile. Registering another workload code in this repository gives the same deployment blueprint another identity; it does not select an unrelated application template.
 
 Discover shows just four target selectors: workload, environment, subscription and network profile. Deploy shows the same selectors plus the cost reference fields and two deployment checkboxes below. In Deploy, **Resources > discovery** opens Azure DevOps' native run picker for selecting the saved inventory; pipeline/run IDs do not need to be typed.
 
+The two checkboxes appear immediately after the target selectors, before the reference fields. Their labels are **Create destination private endpoints (~USD $7.30-$14.60/month)** and **Enable log alerts (~USD $4.50/month)** at the current reviewed rates. Both default to checked. Endpoint prerequisites and alert behavior are explained in the networking and requirements fields below, keeping the controls concise.
+
 | Field | What the developer can see before running |
 |---|---|
 | Included core resources | Function App and hosting; two storage accounts; queues and ledger; managed identity and scoped RBAC; Log Analytics and Application Insights. These dependencies cannot be unchecked. |
 | Hosting reference | Dated East US 2 USD prices per instance/month for B1, S1 and P1v3. The reviewed environment profile determines the SKU and instance count. |
-| Required private networking | Estimated charge for six required storage/app private endpoints and five new DNS zones; existing-network mode reuses approved zones. |
-| Additional usage charges / Estimate basis | Log ingestion and DNS query rates, variable storage/data/agent costs, date, region, currency, and exclusions. |
+| Private networking and endpoint options | Estimated charge for six required storage/app private endpoints and five new DNS zones; existing-network mode reuses approved zones. Explains the destination endpoint option and existing-connectivity requirement. |
+| Additional usage charges / Requirements | Log ingestion and DNS query rates, variable storage/data/agent costs, date, region, currency, exclusions and the production alert requirement. |
 | Create destination private endpoints | Checked by default. Adds one blob endpoint, plus dfs when the destination is HNS-enabled, at the displayed per-endpoint monthly rate. Uncheck only when existing private connectivity and DNS are already available. |
-| Enable 3 log alerts | Checked by default, with the estimated monthly rule cost. Unchecked disables alert evaluation while retaining the rule resources and telemetry. Production rejects unchecked alerts before building. |
+| Enable log alerts | Checked by default, with the estimated monthly cost for three rules. Unchecked disables alert evaluation while retaining the rule resources and telemetry. Production rejects unchecked alerts before building. |
 
 The reference fields are single-value string parameters used only to display information. The two boolean parameters are real deployment options: the generator passes them through the stage router, `New-SelfServiceBundle.ps1` writes them into the frozen ARM parameters, and Bicep uses them. They do not grant approval, enable a disabled target, change discovery, or allow removal of core security/network dependencies. Azure DevOps supports labels, allowed values and booleans in the [parameter schema](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/parameters-parameter?view=azure-pipelines). The form cannot recalculate a live total as checkboxes change. Qualification publishes the selected estimate, and each deployment preview repeats the choices and full-release fixed subtotal. See [cost assumptions and refresh instructions](self-service-costs.md).
 
@@ -44,6 +54,7 @@ Developers need project access, pipeline view/queue permissions, and artifact ac
 
 | Stage | Calls | Result and effects |
 |---|---|---|
+| SetupOnly (disabled targets only) | `Read-ServiceTarget -AllowDisabled`; `Update-ServiceCatalog.ps1 -Check` | Hosted Windows configuration check and setup summary. No discovery download/validation, Azure tasks, private pool, release bundle or deployment readiness result. Enabled targets use the stages below instead. |
 | Qualify | `Read-ServiceTarget`; `Test-Project.ps1`; `Test-Recovery.ps1`; `Test-LocalTooling.ps1`; `Run-Local.ps1` → `Test-Local.ps1` → `Stop-Local.ps1`; `Build-Package.ps1`; `New-SelfServiceBundle.ps1` | Rejects disabled targets, validates manifest, compiles four environments, tests and builds. Freezes selected target/template/parameters/package. No Azure deployment. |
 | PlanFoundation | `Invoke-SelfService.ps1 -Action PlanFoundation` → `New-ServicePlan` | Checks destination and existing application; runs ARM what-if unless an app already exists. Publishes preview. |
 | ApplyFoundation | `Invoke-SelfService.ps1 -Action ApplyFoundation` → `Invoke-ServiceApply` | Rechecks approved preview; provisions infrastructure when needed; verifies output contract and private storage access. |
@@ -127,7 +138,7 @@ Update a schemaVersion 2 profile under `self-service/targets/` with the real sub
 ./scripts/Update-Manifest.ps1 -Check
 ```
 
-Review and merge the changes through the protected branch. Queue a dev run and complete live acceptance before enabling higher environments. Disabled targets fail early by design; they are not a runnable Azure demo configuration.
+Review and merge the changes through the protected branch. Queue a dev run and complete live acceptance before enabling higher environments. Disabled targets run only the hosted setup check through the Deploy menu; actual deployment scripts still reject them.
 
 For another workload, add target JSON profiles and parameter files, then regenerate the catalog to populate dropdown values and compile-time protected-resource bindings. Create the corresponding external resources/controls first. Each workload/environment/subscription/network combination must be unique. The current catalog contains only `blobcopy`.
 

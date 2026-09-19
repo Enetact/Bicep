@@ -35,28 +35,29 @@ foreach ($pair in @(@('workload','workload','Workload package (blobcopy = automa
 }
 $yaml=$header+@('# Discover only. Publishes inventory; never provisions resources.','','parameters:')+$choices
 $deploymentYaml=$header+@('# Deploy only. Choose the discovery run using Run pipeline > Resources > discovery.','','resources:','  pipelines:','    - pipeline: discovery',"      source: $discoverySource",'      branch: refs/heads/main','      trigger: none','','parameters:')+$choices
-# Native Run pipeline forms support labels and allowed values, not rich help panels.
-# Single-value fields describe this repository's common deployment blueprint.
-# They are informational only and are never forwarded to scripts or templates.
-foreach ($info in @(
-    @('packageResources','Included core resources (required)','Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights. Optional choices below apply only to deploy.'),
-    @('hostingEstimate',"Hosting reference - USD per instance/month (East US 2; $priceDate)","$hosting. Multiply by profile instance count; exact selected subtotal is published during qualification."),
-    @('packageNetworking','Required private networking - estimated USD/month',"6 storage/app private endpoints: $(Format-ServiceUsd ($endpointMonthly*6)). New mode adds 5 DNS zones: $(Format-ServiceUsd ([double]$prices.rates.privateDnsZone.retailPrice*5)) + queries, VNet, 2 subnets and NSG. Existing mode reuses approved networking."),
-    @('usageEstimate','Additional usage charges - not included in fixed amounts',"Storage capacity/transactions, endpoint data, egress and agent costs vary. Logs: $(Format-ServiceUsd $prices.rates.logIngestion.retailPrice)/GB at paid tier; DNS queries: $(Format-ServiceUsd $prices.rates.privateDnsQueries.retailPrice)/million. Allowances depend on subscription usage."),
-    @('packageRequirements',"Estimate basis - USD retail as of $priceDate",'East US 2; 730 hours/month; no tax, discounts or credits. Not a quote or spending cap. Existing destination storage and private build agent required. Exact resource changes appear in preview.')
-)) {
-    $label=ConvertTo-Json -InputObject $info[1] -Compress
-    $value=ConvertTo-Json -InputObject $info[2] -Compress
-    $deploymentYaml+=@("  - name: $($info[0])","    displayName: $label",'    type: string',"    default: $value",'    values:',"      - $value")
-}
+# Keep actionable choices together, ahead of the reference fields.
 # Boolean runtime parameters render as checkboxes and are frozen into the bundle.
 $optionLabels=@{
-    createDestinationPrivateEndpoints="Create destination private endpoints (~$(Format-ServiceUsd $endpointMonthly) each/month; blob+dfs ~$(Format-ServiceUsd ($endpointMonthly*2))). Uncheck only to reuse existing private connectivity."
-    enableLogAlerts="Enable 3 log alerts (~$(Format-ServiceUsd $alertsMonthly)/month + notifications). Required in production; logs remain enabled when unchecked."
+    createDestinationPrivateEndpoints="Create destination private endpoints (~USD $(Format-ServiceUsd $endpointMonthly)-$(Format-ServiceUsd ($endpointMonthly*2))/month)"
+    enableLogAlerts="Enable log alerts (~USD $(Format-ServiceUsd $alertsMonthly)/month)"
 }
 foreach ($key in @('createDestinationPrivateEndpoints','enableLogAlerts')) {
     $label=ConvertTo-Json -InputObject $optionLabels[$key] -Compress
     $deploymentYaml+=@("  - name: $key","    displayName: $label",'    type: boolean','    default: true')
+}
+# Native Run pipeline forms support labels and allowed values, not rich help panels.
+# Single-value fields describe this repository's common deployment blueprint.
+# They are informational only and are never forwarded to scripts or templates.
+foreach ($info in @(
+    @('packageResources','Included core resources (required)','Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights.'),
+    @('hostingEstimate',"Hosting reference - USD per instance/month (East US 2; $priceDate)","$hosting. Multiply by profile instance count; exact selected subtotal is published during qualification."),
+    @('packageNetworking','Private networking and endpoint options',"Required: 6 private endpoints $(Format-ServiceUsd ($endpointMonthly*6))/month; new mode adds 5 DNS zones $(Format-ServiceUsd ([double]$prices.rates.privateDnsZone.retailPrice*5))/month, VNet, 2 subnets and NSG. Destination option adds blob + dfs if HNS. Uncheck only with existing private access/DNS; existing endpoints are not deleted."),
+    @('usageEstimate','Additional usage charges - not included in fixed amounts',"Storage capacity/transactions, endpoint data, egress, notifications and agent costs vary. Logs: $(Format-ServiceUsd $prices.rates.logIngestion.retailPrice)/GB at paid tier; DNS queries: $(Format-ServiceUsd $prices.rates.privateDnsQueries.retailPrice)/million. Allowances depend on subscription usage."),
+    @('packageRequirements',"Requirements / USD retail as of $priceDate",'Existing destination storage and private agent required. Alerts: 3 rules; required in production; disabling keeps log collection. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a quote or spending cap. Review exact changes in preview.')
+)) {
+    $label=ConvertTo-Json -InputObject $info[1] -Compress
+    $value=ConvertTo-Json -InputObject $info[2] -Compress
+    $deploymentYaml+=@("  - name: $($info[0])","    displayName: $label",'    type: string',"    default: $value",'    values:',"      - $value")
 }
 # Operation is fixed by each entry point; source run IDs come from native resource metadata.
 # Macro strings resolve in task inputs/environment at runtime, not template conditions.
@@ -74,11 +75,16 @@ foreach ($t in $targets) {
     $conditions+=$condition
     $bindings+=('  - ${{ if '+$condition+' }}:')
     foreach ($op in @('discover','deploy')) {
-        $template=if ($op -eq 'discover') {'self-service-discover'} else {'self-service-stages'}
+        # Omit private-pool/environment jobs entirely for disabled targets. A runtime
+        # condition would still let ADO validate their missing resources at queue time.
+        $template=if ($op -eq 'discover') {'self-service-discover'} elseif (!$t.enabled) {'self-service-setup'} else {'self-service-stages'}
         $bindings+=@(('    - ${{ if eq(parameters.operation, '''+$op+''') }}:'),"      - template: templates/$template.yml",'        parameters:',
             "          workload: $($t.workload)","          environment: $($t.environmentName)","          subscription: $($t.subscriptionAlias)","          network: $($t.networkProfile)",
             "          serviceConnection: $($t.serviceConnection)")
-        if ($op -eq 'deploy') { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)",'          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','          discoveryRunId: ${{ parameters.discoveryRunId }}','          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}','          enableLogAlerts: ${{ parameters.enableLogAlerts }}') }
+        if ($op -eq 'deploy') {
+            if ($t.enabled) { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)") }
+            $bindings+=@('          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','          discoveryRunId: ${{ parameters.discoveryRunId }}','          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}','          enableLogAlerts: ${{ parameters.enableLogAlerts }}')
+        }
     }
 }
 $anyMatch=if ($conditions.Count -eq 1) {$conditions[0]} else {'or('+($conditions -join ', ')+')'}

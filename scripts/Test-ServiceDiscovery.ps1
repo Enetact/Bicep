@@ -46,10 +46,25 @@ Case 'legacy naming preserved' { $old=Clone $p; $old.Remove('namingSuffix'); Che
 $catalog=Join-Path $testRoot catalog; $generated=Join-Path $testRoot generated
 Write-ServiceJson $target (Join-Path $catalog target.json)
 Case 'catalog generation and freshness check' { & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $catalog -OutputRoot $generated; & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $catalog -OutputRoot $generated -Check }
-Case 'catalog passes literal protected resources through stage parameters' {
+Case 'disabled catalog routes deploy to hosted setup without private resources' {
     $routing=Get-Content (Join-Path $generated pipelines/catalog-bindings.yml) -Raw
-    Check ($routing.Contains("serviceConnection: $($target.serviceConnection)") -and $routing.Contains("agentPool: $($target.agentPool)") -and $routing.Contains("deploymentEnvironment: $($target.deploymentEnvironment)"))
+    Check ($routing.Contains("serviceConnection: $($target.serviceConnection)") -and !$routing.Contains('agentPool:') -and !$routing.Contains('deploymentEnvironment:'))
+    Check ($routing.Contains('template: templates/self-service-setup.yml') -and !$routing.Contains('template: templates/self-service-stages.yml'))
     Check ($routing.Contains('stages:') -and !$routing.Contains('variables:') -and $routing.Contains('stage: InvalidSelection'))
+}
+Case 'enabled catalog restores exact private deployment bindings' {
+    $enabledCatalog=Join-Path $testRoot enabled-catalog; $enabledOutput=Join-Path $testRoot enabled-output
+    $enabledTarget=Clone $target; $enabledTarget.enabled=$true
+    Write-ServiceJson $enabledTarget (Join-Path $enabledCatalog target.json)
+    & "$PSScriptRoot/Update-ServiceCatalog.ps1" -CatalogDirectory $enabledCatalog -OutputRoot $enabledOutput
+    $routing=Get-Content (Join-Path $enabledOutput pipelines/catalog-bindings.yml) -Raw
+    Check ($routing.Contains('template: templates/self-service-stages.yml') -and !$routing.Contains('template: templates/self-service-setup.yml'))
+    foreach ($key in @('serviceConnection','agentPool','deploymentEnvironment')) { Check ($routing.Contains("${key}: $($target[$key])")) }
+}
+Case 'hosted setup has no Azure deployment or protected execution resources' {
+    $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-setup.yml) -Raw
+    Check ($template.Contains('vmImage: windows-latest') -and $template.Contains('stage: SetupOnly') -and $template.Contains('if ($target.enabled)'))
+    foreach ($text in @('AzureCLI@','deployment:','Invoke-SelfService.ps1','self-service-apply.yml','name: blob-transfer-private','environment: ${{')) { Check (!$template.Contains($text)) }
 }
 Case 'discovery task and script receive the same explicit connection parameter' {
     $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-discover.yml) -Raw
