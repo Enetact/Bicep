@@ -15,12 +15,12 @@ parameters:
     displayName: Approved workload pattern
     type: string
     default: blob-transfer
-    values: [blob-transfer]
+    values: [blob-transfer, logic-app-event-grid]
   - name: workloadName
     displayName: Registered workload
     type: string
     default: blobcopy
-    values: [blobcopy]
+    values: [blobcopy, eventflow]
   - name: environment
     displayName: Environment
     type: string
@@ -40,21 +40,21 @@ parameters:
   - name: packageResources
     displayName: "Included core resources (required)"
     type: string
-    default: "Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights."
+    default: "blob-transfer: Function App, 2 Storage accounts, queues, ledger, identity, monitoring. logic-app-event-grid: Logic App Standard, Event Grid topic/subscription, 2 Storage accounts, receipt/quarantine/dead-letter storage, 8 private endpoints, identity and monitoring."
     values:
-      - "Function App + hosting; 2 Storage accounts, queues + ledger; managed identity + RBAC; Log Analytics + Application Insights."
+      - "blob-transfer: Function App, 2 Storage accounts, queues, ledger, identity, monitoring. logic-app-event-grid: Logic App Standard, Event Grid topic/subscription, 2 Storage accounts, receipt/quarantine/dead-letter storage, 8 private endpoints, identity and monitoring."
   - name: hostingEstimate
     displayName: "Hosting reference - USD per instance/month (East US 2; 2026-09-19)"
     type: string
-    default: "B1 $12.41; S1 $69.35; P1v3 $113.15. Multiply by profile instance count; exact selected subtotal is published during qualification."
+    default: "Blob-transfer: B1 $12.41; S1 $69.35; P1v3 $113.15. Logic App WS1 + 8 endpoints: $233.56/month plus usage (USD East US 2, 2026-09-19). Multiply by profile instance count; exact selected subtotal is published during qualification."
     values:
-      - "B1 $12.41; S1 $69.35; P1v3 $113.15. Multiply by profile instance count; exact selected subtotal is published during qualification."
+      - "Blob-transfer: B1 $12.41; S1 $69.35; P1v3 $113.15. Logic App WS1 + 8 endpoints: $233.56/month plus usage (USD East US 2, 2026-09-19). Multiply by profile instance count; exact selected subtotal is published during qualification."
   - name: packageNetworking
     displayName: "Platform-managed private access"
     type: string
-    default: "Private access, endpoints, DNS and routing follow the approved platform profile. Reference: 6 core endpoints $43.80/month; destination adds up to $14.60/month. Shared networking remains separately billable."
+    default: "Private access, endpoints, DNS and routing follow the approved platform profile. Blob-transfer reference: 6 core endpoints $43.80/month; destination adds up to $14.60/month. Logic App has 8 endpoints already included in its hosting reference above. Shared networking remains separately billable."
     values:
-      - "Private access, endpoints, DNS and routing follow the approved platform profile. Reference: 6 core endpoints $43.80/month; destination adds up to $14.60/month. Shared networking remains separately billable."
+      - "Private access, endpoints, DNS and routing follow the approved platform profile. Blob-transfer reference: 6 core endpoints $43.80/month; destination adds up to $14.60/month. Logic App has 8 endpoints already included in its hosting reference above. Shared networking remains separately billable."
   - name: usageEstimate
     displayName: "Additional usage charges - not included in fixed amounts"
     type: string
@@ -64,9 +64,9 @@ parameters:
   - name: packageRequirements
     displayName: "Requirements / USD retail as of 2026-09-19"
     type: string
-    default: "Platform owns connection, destination, agent, network and alert settings. 3 alert rules: ~4.5/month plus usage. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a spending cap. Disabled targets run setup only."
+    default: "Platform owns connection, destination, agent, network and alert settings. Blob-transfer: 3 log alert rules ~4.5/month plus usage. Logic App: 5 alert rules; alert costs are additional. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a spending cap. Disabled targets run setup only."
     values:
-      - "Platform owns connection, destination, agent, network and alert settings. 3 alert rules: ~4.5/month plus usage. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a spending cap. Disabled targets run setup only."
+      - "Platform owns connection, destination, agent, network and alert settings. Blob-transfer: 3 log alert rules ~4.5/month plus usage. Logic App: 5 alert rules; alert costs are additional. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a spending cap. Disabled targets run setup only."
 
 extends:
   template: pipelines/deploy-entry.yml

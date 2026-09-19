@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "retrievedUtc": "2026-09-19T18:13:03.579696+00:00",
+  "currency": "USD",
+  "region": "eastus2",
+  "source": "https://prices.azure.com/api/retail/prices",
+  "filter": "serviceName eq 'Logic Apps' and armRegionName eq 'eastus2' and priceType eq 'Consumption'",
+  "meterEvidence": [
+    {
+      "currencyCode": "USD",
+      "tierMinimumUnits": 0.0,
+      "retailPrice": 0.192,
+      "unitPrice": 0.192,
+      "armRegionName": "eastus2",
+      "location": "US East 2",
+      "effectiveStartDate": "2021-06-01T00:00:00Z",
+      "meterId": "55642d46-bc15-57ce-b805-3ced4fc91dae",
+      "meterName": "Standard vCPU Duration",
+      "productId": "DZH318Z0BQN4",
+      "skuId": "DZH318Z0BQN4/002J",
+      "productName": "Logic Apps",
+      "skuName": "Standard",
+      "serviceName": "Logic Apps",
+      "serviceId": "DZH319T30TWX",
+      "serviceFamily": "Integration",
+      "unitOfMeasure": "1 Hour",
+      "type": "Consumption",
+      "isPrimaryMeterRegion": true,
+      "armSkuName": "Standard"
+    },
+    {
+      "currencyCode": "USD",
+      "tierMinimumUnits": 0.0,
+      "retailPrice": 0.0137,
+      "unitPrice": 0.0137,
+      "armRegionName": "eastus2",
+      "location": "US East 2",
+      "effectiveStartDate": "2021-06-01T00:00:00Z",
+      "meterId": "da514b4f-795e-5984-aa45-c50d036c19d1",
+      "meterName": "Standard Memory Duration",
+      "productId": "DZH318Z0BQN4",
+      "skuId": "DZH318Z0BQN4/002J",
+      "productName": "Logic Apps",
+      "skuName": "Standard",
+      "serviceName": "Logic Apps",
+      "serviceId": "DZH319T30TWX",
+      "serviceFamily": "Integration",
+      "unitOfMeasure": "1 GiB Hour",
+      "type": "Consumption",
+      "isPrimaryMeterRegion": true,
+      "armSkuName": "Standard"
+    }
+  ],
+  "hoursPerMonth": 730,
+  "rates": {
+    "WS1": 0.23995,
+    "WS2": 0.4799,
+    "WS3": 0.9598,
+    "privateEndpoint": 0.01
+  },
+  "privateEndpointSource": "self-service/pricing/usd-eastus2.json",
+  "privateEndpointAsOf": "2026-09-19T00:34:15.9063001+00:00",
+  "assumptions": [
+    "WS1 = 1 vCPU + 3.5 GiB; WS2 = 2 + 7; WS3 = 4 + 14.",
+    "One instance, eight private endpoints. Excludes storage, Event Grid operations, DNS, logs, alerts, egress and agents."
+  ]
+}

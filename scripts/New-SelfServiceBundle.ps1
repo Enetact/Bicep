@@ -9,6 +9,7 @@ param([Parameter(Mandatory)][string]$Workload,[Parameter(Mandatory)][ValidateSet
 . "$PSScriptRoot/platform-contract.ps1"
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Bundle directory already exists; use a fresh run directory.' }
 $target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile
+if ((Get-TargetWorkloadType $target) -eq 'logic-app-event-grid') { New-LogicBundle $target $ReleaseDirectory $OutputDirectory $DiscoveryDirectory; return }
 $discovery=if ($DiscoveryDirectory) { Read-DiscoveryManifest $DiscoveryDirectory $target $target.serviceConnection } else { $null }
 $release=Get-Content (Join-Path $ReleaseDirectory release.json) -Raw | ConvertFrom-Json -AsHashtable
 if ($release.releaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$' -or $release.dirtyWorktree) { throw 'Self-service requires a clean, qualified release receipt.' }

@@ -7,14 +7,20 @@ Three manual Azure DevOps definitions use the same GitHub checkout. Discovery su
 | ADO definition | YAML path | Purpose |
 |---|---|---|
 | Build / Validate | `/azure-pipelines.yml` | Compile, test, exercise local runtime and package; no Azure deployment. |
-| Discover (`Enetact.Bicep`) | `/azure-pipelines-self-service.yml` | Read selected subscription scope and publish `subscription-discovery`. |
+| Discover (`Enetact.Bicep`) | `/azure-pipelines-self-service.yml` | Read selected subscription scope and publish `wosubscription-discovery`. |
 | Deploy | `/azure-pipelines-self-service-deploy.yml` | Select workload type/name, environment and region; choose the discovery run under **Resources > discovery**. |
 
 Push, PR and discovery-completion triggers remain disabled. Deploy downloads the exact selected discovery run. The standalone Build artifact is for validation/inspection; Deploy does not consume or promote its application ZIP.
 
 The native Resources picker operates before queueing. A discovery artifact cannot populate a new interactive form midway through an executing YAML pipeline. Platform owners review inventory, update approved target configuration and regenerate the catalog. See Microsoft's [pipeline resource picker](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/resources?view=azure-devops#manual-resource-version-picker) and our [discovery handoff guide](subscription-discovery.md).
 
-**All four checked-in targets remain disabled.** Deploy currently runs hosted `SetupOnly` and publishes `setup-guidance`. It does not download discovery, publish a Template Spec or deploy a stack. Successful setup checks do not establish Azure readiness.
+**All eight checked-in targets remain disabled.** Deploy currently runs hosted `SetupOnly` and publishes `setup-guidance`. It does not download discovery, publish a Template Spec or deploy a stack. Successful setup checks do not establish Azure readiness.
+
+## Workload routing
+
+`config/workloads.json` identifies both patterns and their allowlisted composition/wrapper/package/phase contracts. Blobcopy keeps the Function qualifier and phase parameter `deployFunctionApp`. Eventflow uses `qualify-logic-app.yml`, deterministic Standard workflow packaging and `releaseActivated`. Its schema-2 discovery/bundle cannot be substituted with blobcopy artifacts.
+
+Eventflow Qualify compiles/tests but does not run a local Logic Apps host. In ApplyRelease it applies the stack first, then deploys/compares workflow files, verifies indexing and waits for a matching synthetic receipt. Blobcopy retains its original Function deployment and three-request smoke path. Both use the six stages below; the detailed action rows describe blobcopy unless otherwise stated. See the [Event Flow action/method map](../workloads/logic-app-event-grid/README.md). The standalone Build also packages both applications.
 
 ## Full enabled flow
 

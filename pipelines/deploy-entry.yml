@@ -16,6 +16,7 @@ stages:
   - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
     - template: catalog-bindings.yml
       parameters:
+        workloadType: blob-transfer
         workload: blobcopy
         environment: dev
         subscription: azure-subscription-a
@@ -28,6 +29,7 @@ stages:
   - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
     - template: catalog-bindings.yml
       parameters:
+        workloadType: blob-transfer
         workload: blobcopy
         environment: prod
         subscription: azure-subscription-a
@@ -40,6 +42,7 @@ stages:
   - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
     - template: catalog-bindings.yml
       parameters:
+        workloadType: blob-transfer
         workload: blobcopy
         environment: qa
         subscription: azure-subscription-a
@@ -52,6 +55,7 @@ stages:
   - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
     - template: catalog-bindings.yml
       parameters:
+        workloadType: blob-transfer
         workload: blobcopy
         environment: uat
         subscription: azure-subscription-a
@@ -61,12 +65,66 @@ stages:
         discoveryRunId: ${{ parameters.discoveryRunId }}
         createDestinationPrivateEndpoints: true
         enableLogAlerts: true
-  - ${{ if not(or(and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')))) }}:
-    - stage: InvalidIntent
-      jobs:
-        - job: RejectIntent
-          pool:
-            vmImage: windows-latest
-          steps:
-            - checkout: none
-            - pwsh: throw 'Unregistered workload request. Contact the platform team.'
+  - ${{ if and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workloadType: logic-app-event-grid
+        workload: eventflow
+        environment: dev
+        subscription: azure-subscription-a
+        network: central-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workloadType: logic-app-event-grid
+        workload: eventflow
+        environment: prod
+        subscription: azure-subscription-a
+        network: central-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workloadType: logic-app-event-grid
+        workload: eventflow
+        environment: qa
+        subscription: azure-subscription-a
+        network: central-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workloadType: logic-app-event-grid
+        workload: eventflow
+        environment: uat
+        subscription: azure-subscription-a
+        network: central-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if not(or(and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')))) }}:
+    - ${{ if not(or(and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')))) }}:
+      - ${{ if not(or(and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')))) }}:
+        - stage: InvalidIntent
+          jobs:
+            - job: RejectIntent
+              pool:
+                vmImage: windows-latest
+              steps:
+                - checkout: none
+                - pwsh: throw 'Unregistered workload request. Contact the platform team.'

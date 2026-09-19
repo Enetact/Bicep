@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workloadType",
+    "workloadName",
+    "environment",
+    "region"
+  ],
+  "properties": {
+    "workloadType": {
+      "const": "logic-app-event-grid"
+    },
+    "workloadName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]{3,10}$"
+    },
+    "environment": {
+      "enum": [
+        "dev",
+        "qa",
+        "uat",
+        "prod"
+      ]
+    },
+    "region": {
+      "enum": [
+        "eastus2"
+      ]
+    }
+  }
+}

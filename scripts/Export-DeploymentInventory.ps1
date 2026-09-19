@@ -135,9 +135,21 @@ if ($OrganizationUrl -or $Project) {
 } else { $report.serviceConnectionQuery=@{status='NotRequested'}; $report.warnings+='Azure DevOps organization/project not supplied: service connections were not discovered.' }
 $report.warnings+='Candidate flags do not prove free IP capacity, route/NSG safety, DNS resolution, pipeline authorization, or effective deployment/data-plane permissions. Cross-subscription DNS zones must be supplied explicitly.'
 Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)
+if ($PSCmdlet.ParameterSetName -eq 'Profile' -and (Get-TargetWorkloadType $target) -eq 'logic-app-event-grid') {
+    $report.workloadType='logic-app-event-grid'; $report.providers=@(); $report.resources=@()
+    try {
+        foreach($provider in @('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')) {
+            $item=Invoke-ServiceJson @('provider','show','--namespace',$provider,'--subscription',$SubscriptionId)
+            $report.providers+=@{namespace=$item.namespace;registrationState=$item.registrationState}
+        }
+        $report.resources=@(Invoke-ServiceJson @('resource','list','--subscription',$SubscriptionId,'--query','[].{id:id,name:name,type:type,location:location}'))
+    } catch { $report.discoveryStatus='Partial'; $report.warnings+=('Workload prerequisite inventory failed: '+$_.Exception.Message) }
+    Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)
+}
 $manifest=@{schemaVersion=1;kind='blob-transfer-discovery';generatedUtc=$report.generatedUtc;discoveryStatus=$report.discoveryStatus;inventorySha256=(Get-ServiceHash (Join-Path $OutputDirectory inventory.json));subscriptionId=$SubscriptionId;
     serviceConnection=$BoundServiceConnection;selection=@{workload=$Workload;environment=$EnvironmentName;subscription=$SubscriptionAlias;network=$NetworkProfile};
     source=@{runId=$env:BUILD_BUILDID;pipelineId=$env:SYSTEM_DEFINITIONID;projectId=$env:SYSTEM_TEAMPROJECTID;repositoryId=$env:BUILD_REPOSITORY_ID;branch=$env:BUILD_SOURCEBRANCH;commit=$env:BUILD_SOURCEVERSION}}
+if ($report.Contains('workloadType')) { $manifest.schemaVersion=2; $manifest.kind='workload-discovery'; $manifest.workloadType=$report.workloadType; $manifest.selection.region=if($target.parameterOverrides.Contains('location')){$target.parameterOverrides.location}else{'eastus2'} }
 Write-ServiceJson $manifest (Join-Path $OutputDirectory manifest.json)
 $lines=@('# Read-only subscription discovery','',"Status: $($report.discoveryStatus); private DNS query: $($report.privateDnsQuery.status)",'',"Subscription: $($account.name) ($SubscriptionId)",'','Review inventory.json. No resources or permissions were changed.','')
 $lines+=@('Scope: networks, subnets, private DNS zones and accessible matching ADO service connections. This is not an inventory of every Azure resource or a validation of Template Spec publishing, Deployment Stack ownership, private connectivity or application readiness.','')
@@ -159,11 +171,16 @@ if ($report.privateDnsQuery.primaryStatus -eq 'Failed') {
         "ARM subscription diagnostic: $($report.diagnostics.subscriptionArm.status); Microsoft.Network diagnostic: $($report.diagnostics.networkProvider.status).",
         'Inspect diagnostics in inventory.json and the original Azure CLI error. Verify the service connection subscription/tenant, subscription state, provider registration, and read access. Provider registration is a separate platform action; this script never registers providers.','')
 }
+if($report.Contains('workloadType')) {
+    $lines+=@('',"Workload pattern: $($report.workloadType). Resource catalog: $($report.resources.Count) ARM resources (ID/name/type/location only).")
+    foreach($provider in $report.providers){$lines+="Provider $($provider.namespace): $($provider.registrationState)."}
+    $lines+='This does not enumerate data, secrets, workflow content or every child resource. Missing shared prerequisites require platform onboarding; deployment creates only resources owned by this workload.'
+}
 $lines+=@($report.warnings | ForEach-Object { "- $_" })
 if ($env:TF_BUILD -eq 'True') {
     $lines+=@('', '## Deployment handoff', '', "Discovery pipeline ID: $($manifest.source.pipelineId)", "Discovery run ID: $($manifest.source.runId)",
         'Artifact: subscription-discovery (manifest.json + inventory.json).',
-        'Next: open the Deploy pipeline (azure-pipelines-self-service-deploy.yml) on main. In Run pipeline > Resources > discovery, select this run. Choose workload pattern blob-transfer, the matching registered workload/environment and its approved region. Pipeline/run IDs are supplied automatically by the resource picker.',
+        'Next: open the Deploy pipeline (azure-pipelines-self-service-deploy.yml) on main. In Run pipeline > Resources > discovery, select this run. Choose the matching workload pattern, registered workload/environment and approved region. Pipeline/run IDs are supplied automatically by the resource picker.',
         'Deployment requires a successful main-branch discovery from this repository within seven days. Feature-branch runs remain diagnostic only. Resource selection does not bypass these checks.',
         'Platform configuration supplies subscription, connection, networking and alert settings. Enabled targets qualify, publish the approved template, preview changes for approval, deploy and verify the application. Disabled targets run setup checks only; discovery does not enable them.',
         'Discover and Deploy have separate native run menus. Deployment dropdowns come from the reviewed catalog; they are not dynamically generated by this artifact.')

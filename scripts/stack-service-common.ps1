@@ -6,12 +6,14 @@ function Assert-StackTooling {
     foreach($flag in @('--template-spec','--validation-level','--no-pretty-print','--retention-interval')) { if (($help -join "`n") -notmatch [regex]::Escape($flag)) { throw "CLI lacks required stack preview support: $flag" } }
 }
 function Read-StackConfiguration {
+    param([string]$WorkloadType='blob-transfer')
     $c=Get-Content (Join-Path (Get-ProjectRoot) config/deployment-stack.json) -Raw | ConvertFrom-Json -AsHashtable
     if ($c.schemaVersion -ne 1 -or $c.actionOnUnmanage -cne 'detachAll' -or $c.denySettingsMode -cnotin @('none','denyDelete')) { throw 'Unsupported stack lifecycle policy; destructive and deny-write modes require a separate migration.' }
     $s=$c.templateSpec
     if ([guid]::Parse($s.subscriptionId) -eq [guid]::Empty) { throw 'Template Spec subscription is required.' }
     foreach($key in @('resourceGroup','name','publisherServiceConnection','publisherEnvironment','publisherAgentPool')) { if ($s[$key] -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$') { throw "Invalid Template Spec binding: $key" } }
     if ($s.location -cnotmatch '^[a-z0-9]+$') { throw 'Invalid publication region.' }
+    if ($WorkloadType -eq 'logic-app-event-grid') { $c.templateSpec.name='logic-app-event-grid' } elseif ($WorkloadType -ne 'blob-transfer') { throw 'Unsupported stack workload.' }
     return $c
 }
 function Assert-StackTemplate($Template) {
@@ -26,7 +28,7 @@ function Assert-StackTemplate($Template) {
     }
     if ($Template['$schema'] -notlike '*subscriptionDeploymentTemplate.json#') { throw 'Stack template must own a subscription-scoped workload composition.' }
 }
-function New-StackContract($Target,$Template,$Configuration=(Read-StackConfiguration)) {
+function New-StackContract($Target,$Template,$Configuration=(Read-StackConfiguration (Get-TargetWorkloadType $Target))) {
     Assert-StackTemplate $Template
     $s=$Configuration.templateSpec; $hash=Get-ValueHash $Template
     $name="stack-$($Target.workload)-$($Target.environmentName)"
@@ -90,6 +92,7 @@ function Get-WorkloadStack($Bundle) {
 function Assert-StackManagedId($Bundle,[string]$Id) {
     $rg="/subscriptions/$($Bundle.target.subscriptionId)/resourceGroups/$($Bundle.target.resourceGroup)"
     if ($Id -ieq $rg -or $Id.StartsWith($rg+'/providers/',[StringComparison]::OrdinalIgnoreCase)) { return }
+    if ((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { throw 'Logic App stack cannot own resources outside its dedicated resource group.' }
     # Only workload-created grants (not destination storage itself) cross this lifecycle boundary.
     $p=$Bundle.parameters.parameters
     $destination="/subscriptions/$($p.destinationSubscriptionId.value)/resourceGroups/$($p.destinationResourceGroupName.value)"
@@ -108,8 +111,9 @@ function Get-WorkloadStackState($Bundle) {
         return @{hasApp=$false;appIds=@();stackExists=$false;managedResources=@()}
     }
     $p=$stack.properties
-    if (!$p.Contains('parameters') -or !$p.parameters.Contains('deployFunctionApp') -or !$p.parameters.deployFunctionApp.Contains('value') -or $p.parameters.deployFunctionApp.value -isnot [bool]) { throw 'Stack phase parameter is missing or invalid; platform recovery required.' }
-    $released=$p.parameters.deployFunctionApp.value
+    $phaseParameter=(Get-WorkloadDefinition (Get-TargetWorkloadType $Bundle.target)).phaseParameter
+    if (!$p.Contains('parameters') -or !$p.parameters.Contains($phaseParameter) -or !$p.parameters[$phaseParameter].Contains('value') -or $p.parameters[$phaseParameter].value -isnot [bool]) { throw 'Stack phase parameter is missing or invalid; platform recovery required.' }
+    $released=$p.parameters[$phaseParameter].value
     foreach($resource in $p.resources) { if($resource.Contains('status') -and $resource.status -ine 'managed') { throw 'Stack has an unhealthy managed resource; platform recovery required.' } }
     $ids=@($p.resources | ForEach-Object {$_.id.ToLowerInvariant()} | Sort-Object)
     if (!$ids.Count) { throw 'Stack managed-resource inventory is empty.' }
@@ -157,7 +161,7 @@ function Convert-StackPreview($Report,$Bundle,$State) {
     if (!$changes.Count) { throw 'Empty stack preview cannot establish coverage.' }
     $rg="/subscriptions/$($Bundle.target.subscriptionId)/resourceGroups/$($Bundle.target.resourceGroup)"
     if(!$seen.ContainsKey($rg)) { throw 'Stack preview must include ownership of the workload resource group.' }
-    $null=Get-ServiceChanges @{status='Succeeded';changes=$changes}
+    $null=Get-ServiceChanges @{status='Succeeded';changes=$changes} $Bundle
     return @{status='Succeeded';changes=@($changes | Sort-Object resourceId)}
 }
 function Get-StackDeploymentArguments($Bundle,[string]$ParametersPath) {
@@ -167,11 +171,13 @@ function New-StackPreview($Bundle,$State,[string]$ParametersPath,[string]$Direct
     $null=Get-PublishedStackTemplate $Bundle
     $deploymentArguments=Get-StackDeploymentArguments $Bundle $ParametersPath
     $validation=Invoke-ServiceJson (@('stack','sub','validate')+$deploymentArguments)
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){$validation=Protect-LogicEvidence $validation}
     Write-ServiceJson $validation (Join-Path $Directory arm-validation.json)
     $name='preview-'+[guid]::NewGuid().ToString('N')
     $previewArgs=@('--subscription',$Bundle.target.subscriptionId,'--name',$name,'--location',$Bundle.parameters.parameters.location.value,'--stack-id',$Bundle.stack.stackId,'--template-spec',$Bundle.stack.templateSpecId,'--parameters',"@$ParametersPath",'--action-on-unmanage',$Bundle.stack.actionOnUnmanage,'--deny-settings-mode',$Bundle.stack.denySettingsMode,'--validation-level','Provider','--retention-interval','P1D','--no-pretty-print')
     try {
         $raw=Invoke-ServiceJson (@('stack-whatif','sub','create')+$previewArgs)
+        if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){$raw=Protect-LogicEvidence $raw}
         Write-ServiceJson $raw (Join-Path $Directory stack-what-if.json)
         return Convert-StackPreview $raw $Bundle $State
     } finally {
@@ -183,7 +189,8 @@ function Invoke-WorkloadStackApply($Bundle,[string]$ParametersPath,[string]$Dire
     $null=Get-PublishedStackTemplate $Bundle
     $deploymentArguments=Get-StackDeploymentArguments $Bundle $ParametersPath
     $stack=Invoke-ServiceJson (@('stack','sub','create')+$deploymentArguments+@('--tags',"targetKey=$($Bundle.stack.targetKey)",'managedBy=blob-transfer-platform','--yes'))
-    Write-ServiceJson $stack (Join-Path $Directory stack-result.json)
+    $evidence=if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){Protect-LogicEvidence $stack}else{$stack}
+    Write-ServiceJson $evidence (Join-Path $Directory stack-result.json)
     if ($stack.id -ine $Bundle.stack.stackId -or $stack.properties.provisioningState -ne 'Succeeded') { throw 'Stack deployment did not succeed.' }
     $managed=@($stack.properties.resources | ForEach-Object {$_.id.ToLowerInvariant()} | Sort-Object)
     foreach($id in $managed){Assert-StackManagedId $Bundle $id}

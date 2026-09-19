@@ -27,7 +27,8 @@ azure-pipelines-self-service-deploy.yml   Deploy menu, extends platform entry
 bicepconfig.json                          common lint rules
 .editorconfig                            source formatting and LF endings
 config/
-  platform.json                          approved pattern, region and topology policy
+  platform.json                          blob-transfer defaults, region and topology policy
+  workloads.json                         two allowlisted composition/package/phase contracts
   deployment-stack.json                  lifecycle policy and publishing bindings
 workloads/blob-transfer/
   main.bicep                             resource-group composition
@@ -38,7 +39,17 @@ workloads/blob-transfer/
   request.schema.json                    developer request shape
   request.example.json
   README.md
+workloads/logic-app-event-grid/
+  main.bicep, stack.bicep                 second composition and subscription wrapper
+  environments/                          four parameter profiles
+  modules/                               event/runtime storage and scoped access
+  event.schema.json, request.schema.json  message and developer contracts
+  README.md                              requirements, methods, onboarding, operations
+src/LogicAppEventFlow/                    separately packaged Standard workflow files
 modules/
+  event-grid/topic/main.bicep             private custom topic
+  event-grid/event-subscription/main.bicep queue delivery and dead lettering
+  logic-app/standard/main.bicep           private Standard hosting
   network/private-endpoint/main.bicep     reusable endpoint + DNS zone group
   storage/storage-account/main.bicep     reusable private account + children/diagnostics
 platform/
@@ -91,7 +102,7 @@ From the repository root, with PowerShell 7.4+, .NET from `global.json`, Bicep 0
 ./scripts/Update-Manifest.ps1 -Check
 ```
 
-`Test-Project.ps1` compiles all four environments plus stack/platform templates, runs existing offline contracts, and calls `Test-PipelineStructure.ps1`. The latter restores only the locked YAML test dependency using `npm ci --ignore-scripts`, then parses all pipeline YAML, checks template/script paths, parameter bindings, discovery routing, disabled/enabled stage contracts, protected-resource bindings and the artifact chain. It checks that the subscription wrapper forwards every composition parameter/output. The build pipeline now installs Node before these checks; Deploy qualification already does so.
+`Test-Project.ps1` compiles four environments for each of the two patterns plus their stack/platform templates, runs existing offline contracts, and calls `Test-PipelineStructure.ps1`. The latter restores only the locked YAML test dependency using `npm ci --ignore-scripts`, then parses all pipeline YAML, checks template/script paths, parameter bindings, discovery routing, disabled/enabled stage contracts, protected-resource bindings and the artifact chain. It checks that the subscription wrapper forwards every composition parameter/output. The build pipeline now installs Node before these checks; Deploy qualification already does so.
 
 This local verifier supports only the template-expression forms used here and fails on unsupported expressions. It is not the ADO server compiler. Live ADO resource authorization, approval checks, agent capacity, successful discovery, Template Spec publication, stack What-If and private runtime acceptance still require platform setup. Targets stay disabled until that acceptance is performed.
 

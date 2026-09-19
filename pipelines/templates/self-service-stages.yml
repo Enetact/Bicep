@@ -1,4 +1,8 @@
 parameters:
+  - name: workloadType
+    type: string
+    default: blob-transfer
+    values: [blob-transfer, logic-app-event-grid]
   - name: workload
     type: string
   - name: environment
@@ -70,9 +74,13 @@ stages:
               SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
-          - template: steps/qualify-application.yml
+          - ${{ if eq(parameters.workloadType, 'blob-transfer') }}:
+            - template: steps/qualify-application.yml
+          - ${{ if eq(parameters.workloadType, 'logic-app-event-grid') }}:
+            - template: steps/qualify-logic-app.yml
           - pwsh: |
-              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -CreateDestinationPrivateEndpoints ([bool]::Parse($env:CREATE_DESTINATION_ENDPOINTS)) -EnableLogAlerts ([bool]::Parse($env:ENABLE_LOG_ALERTS))
+              $releaseDirectory = if ('${{ parameters.workloadType }}' -eq 'logic-app-event-grid') { 'artifacts/logic-releases/$(Build.BuildId)' } else { 'artifacts/releases/$(Build.BuildId)' }
+              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory $releaseDirectory -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -CreateDestinationPrivateEndpoints ([bool]::Parse($env:CREATE_DESTINATION_ENDPOINTS)) -EnableLogAlerts ([bool]::Parse($env:ENABLE_LOG_ALERTS))
             displayName: Freeze verified discovery, target, template and package
             env:
               CREATE_DESTINATION_ENDPOINTS: ${{ parameters.createDestinationPrivateEndpoints }}

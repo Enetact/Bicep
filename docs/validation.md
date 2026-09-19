@@ -2,6 +2,28 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Second workload and typed platform flow: 19 September 2026
+
+Implemented Logic App Standard + Event Grid Basic through the queue bridge described in the [workload runbook](../workloads/logic-app-event-grid/README.md). Both compositions use local modules, content-hashed Template Specs and independently owned Deployment Stacks. All eight targets remain disabled.
+
+The final `Test-Project.ps1` run passed **225 existing contracts**, **46 Logic App contracts**, **34 pipeline/infrastructure contracts** and **18 application tests**, with **15 opt-in emulator tests skipped**, zero failures. All eight environment parameter sets, both stack wrappers and the optional Policy/registry templates compile. All 15 YAML files parse; both embedded wrapper compositions and complete parameter/output forwarding match. Operator build: zero warnings/errors. Function dependency advisory check: no reported vulnerabilities.
+
+| Suite | Evidence |
+|---|---|
+| Tooling: 19 | `artifacts/tooling-tests/db021c020bdd4b98b5f4fdfd864088ea/results.json` |
+| Self-service: 42 | `artifacts/self-service-tests/029317e595564317b9acfdce66637d05/results.json` |
+| Discovery: 78 | `artifacts/discovery-tests/8a2a4a444d6f49b5b0543f01d5ef1729/results.json` |
+| Costs: 15 | `artifacts/cost-tests/cf511899c7f74497811e89c1a3b0bea3/results.json` |
+| Platform: 37 | `artifacts/platform-tests/0618c6cf15e546ff9e466731cabe813b/results.json` |
+| Stacks: 34 | `artifacts/stack-tests/ab8d6b7645ab4c6e9e2f906b3409d024/results.json` |
+| Logic App: 46 | `artifacts/logic-tests/1f8c6c84566d443dacd15ad156ef4d05/results.json` |
+| Pipelines: 34 | `artifacts/test-results/pipeline-structure.json` |
+| Application: 18 passed / 15 skipped | `artifacts/test-results/unit.trx` |
+
+New contracts cover typed intent/provenance, effective shared-resource inventory, schema, package traversal/tampering, scoped public-storage exception handling, cost floor, one-event JSON batch serialization, runtime-key evidence redaction and mocked Foundation/Release failures. Package bytes were built locally; clean-source release qualification is not claimed for this dirty checkout.
+
+No actual Logic Apps host, Event Grid delivery, Azure sign-in/publication/deployment, ADO server expansion or UI authorization was exercised. The ordinary test run did not rerun the existing opt-in Functions/Azurite integration cases. Azure private runtime/mounts, expression execution, RBAC propagation, SCM indexing, duplicates/quarantine/dead letters and alert notifications remain acceptance gates. Only public documentation and retail price endpoints were read.
+
 ## Shared qualification and pipeline evidence refactor: 19 September 2026
 
 The [full flow guide](pipeline-flow.md) records the three stable manual entry points, six enabled deployment stages and local-module/Template Spec/Deployment Stack boundaries. Build and Deploy now share qualification, cancellation cleanup and complete evidence collection. Azure stages prepare context before download/sign-in, and disabled setup publishes current onboarding guidance. Module registry setup/publication is deferred.

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "workloads": {
+    "blob-transfer": {
+      "composition": "workloads/blob-transfer/main.bicep",
+      "stack": "workloads/blob-transfer/stack.bicep",
+      "packageKind": "functions",
+      "phaseParameter": "deployFunctionApp",
+      "templateSpecName": "blob-transfer"
+    },
+    "logic-app-event-grid": {
+      "composition": "workloads/logic-app-event-grid/main.bicep",
+      "stack": "workloads/logic-app-event-grid/stack.bicep",
+      "packageKind": "logicAppStandard",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "logic-app-event-grid"
+    }
+  }
+}

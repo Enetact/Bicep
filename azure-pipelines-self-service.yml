@@ -4,11 +4,16 @@ pr: none
 # Discover only. Publishes inventory; never provisions resources.
 
 parameters:
+  - name: workloadType
+    displayName: Approved workload pattern
+    type: string
+    default: blob-transfer
+    values: [blob-transfer, logic-app-event-grid]
   - name: workload
-    displayName: Workload package (blobcopy = automated blob transfer)
+    displayName: Registered workload (blobcopy = blob transfer; eventflow = Logic App events)
     type: string
     default: blobcopy
-    values: [blobcopy]
+    values: [blobcopy, eventflow]
   - name: environment
     displayName: Target environment
     type: string
@@ -23,13 +28,13 @@ parameters:
     displayName: Registered network profile
     type: string
     default: new-private
-    values: [new-private]
+    values: [central-private, new-private]
   - name: discoveryScope
     displayName: "What this run checks - read only"
     type: string
-    default: "Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Empty results and failed reads are reported separately. No Azure resources or permissions are changed."
+    default: "Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Logic App discovery also records provider registration and resource IDs/types. Empty results and failed reads are reported separately. No Azure resources or permissions are changed."
     values:
-      - "Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Empty results and failed reads are reported separately. No Azure resources or permissions are changed."
+      - "Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Logic App discovery also records provider registration and resource IDs/types. Empty results and failed reads are reported separately. No Azure resources or permissions are changed."
   - name: deploymentHandoff
     displayName: "Next step - use the saved discovery in Deploy"
     type: string
@@ -40,6 +45,7 @@ parameters:
 stages:
   - template: pipelines/catalog-bindings.yml
     parameters:
+      workloadType: ${{ parameters.workloadType }}
       workload: ${{ parameters.workload }}
       environment: ${{ parameters.environment }}
       subscription: ${{ parameters.subscription }}

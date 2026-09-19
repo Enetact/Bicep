@@ -1,0 +1,10 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "APP_KIND": "workflowApp",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "EVENT_STORAGE_NAME": "REPLACE",
+    "EXPECTED_TOPIC": "REPLACE"
+  }
+}
