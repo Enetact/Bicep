@@ -295,5 +295,15 @@
     "logicAppsRuntimeExecuted": false,
     "evidence": "artifacts/logic-tests/1f8c6c84566d443dacd15ad156ef4d05/results.json",
     "runbook": "workloads/logic-app-event-grid/README.md"
+  },
+  "workloadMenus": {
+    "date": "2026-09-19",
+    "pipelineContractsPassed": 45,
+    "discoveryContractsPassed": 80,
+    "yamlFilesParsed": 19,
+    "dedicatedRoots": 4,
+    "adoDefinitionsCreated": false,
+    "adoUiVerified": false,
+    "azureDeploymentPerformed": false
   }
 }

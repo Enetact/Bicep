@@ -2,6 +2,14 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Separate native workload menus: 19 September 2026
+
+Added four generated manual roots: Blob copy Discover/Deploy and Event flow Discover/Deploy. Each fixes its workload type and restricts instance/options/help to that pattern. Deploy resources bind to distinct configured Discover definitions. Original generic roots remain compatible but omit both resource-summary panels. The shared protected deployment/catalog templates and target enabled flags are unchanged.
+
+Targeted validation passed **45 pipeline/infrastructure checks** across **19 YAML files**, including unrelated-summary exclusion, fixed type binding, correct discovery source, foreign-instance rejection and expansion parity with original routing for all eight targets. **80 discovery/catalog/network checks** passed, including generation/freshness and dedicated versus legacy handoff summaries. Evidence: `artifacts/test-results/pipeline-structure.json` and `artifacts/discovery-tests/dd4d6416415045acb5c3f5c0af406a94/results.json`. No application/emulator rerun was needed for this menu change. Source manifest and whitespace checks passed.
+
+No remote ADO definitions were created, UI rendered, resource authorization performed or Azure resources deployed. Register the exact four names/paths documented in [self-service](self-service.md#register-the-new-definitions-in-ado), creating Discover definitions before their matching Deploy definitions, and run fresh discovery. All targets remain disabled pending onboarding.
+
 ## Workload run-menu clarity: 19 September 2026
 
 Discover and Deploy now use descriptive workload choices with resource names. Deployment reference fields separately describe each pattern's resources, existing dependencies and cost assumptions. Discovery clearly creates no resources; deployment guidance reflects catalog enablement. Display values are normalized to canonical IDs before protected template routing. Existing resource configuration, protected bindings and enabled flags are unchanged.

@@ -1,8 +1,12 @@
 # Pipeline flow and refactor
 
-Three manual Azure DevOps definitions use the same GitHub checkout. Discovery supplies verified inventory. Deploy freezes its own release, publishes the compiled infrastructure as a Template Spec, then manages the workload through a Deployment Stack. Reusable Bicep modules remain local to this repository; no module registry is required.
+The manual Build definition and four workload-specific Discover/Deploy definitions use the same GitHub checkout. Two original generic roots remain compatible with existing ADO definitions. Discovery supplies verified inventory. Deploy freezes its own release, publishes the compiled infrastructure as a Template Spec, then manages the workload through a Deployment Stack. Reusable Bicep modules remain local to this repository; no module registry is required.
 
 ## Entry points
+
+Recommended menus: `Discover - Blob copy` (`/azure-pipelines-blobcopy-discover.yml`), `Deploy - Blob copy` (`/azure-pipelines-blobcopy-deploy.yml`), `Discover - Event flow` (`/azure-pipelines-eventflow-discover.yml`), `Deploy - Event flow` (`/azure-pipelines-eventflow-deploy.yml`). Each fixes the workload type and exposes only its summaries. Each Deploy definition selects runs from its own named Discover definition. [Registration steps](self-service.md#register-the-new-definitions-in-ado) are required; shared stages and protected resources are unchanged.
+
+The table below lists the original generic entry points retained for compatibility.
 
 | ADO definition | YAML path | Purpose |
 |---|---|---|

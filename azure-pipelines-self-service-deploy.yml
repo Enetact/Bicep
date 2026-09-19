@@ -46,36 +46,12 @@ parameters:
     default: "All checked-in targets are disabled: Deploy currently creates NO Azure resources. Once enabled, it creates the selected workload in its own resource group and Deployment Stack, publishes/reuses a Template Spec, and verifies the application. Use main and choose matching Resources > discovery."
     values:
       - "All checked-in targets are disabled: Deploy currently creates NO Azure resources. Once enabled, it creates the selected workload in its own resource group and Deployment Stack, publishes/reuses a Template Spec, and verifies the application. Use main and choose matching Resources > discovery."
-  - name: blobTransferCreates
-    displayName: "BLOB COPY / blobcopy - creates (reference only)"
-    type: string
-    default: "Copies uploaded files to an existing data lake: 1 Function App + hosting plan, 2 Storage accounts, work/poison queues, transfer ledger, managed identity, Application Insights and alerts. Private endpoints and DNS follow the approved environment profile."
-    values:
-      - "Copies uploaded files to an existing data lake: 1 Function App + hosting plan, 2 Storage accounts, work/poison queues, transfer ledger, managed identity, Application Insights and alerts. Private endpoints and DNS follow the approved environment profile."
-  - name: blobTransferRequirements
-    displayName: "BLOB COPY / blobcopy - existing dependencies and cost"
-    type: string
-    default: "Requires an existing destination data lake/container and approved network/monitoring profile. Network/DNS/workspace may be reused or created only as permitted by that profile. Hosting: B1 $12.41; S1 $69.35; P1v3 $113.15 per instance/month; 6 core endpoints $43.80/month, up to 2 destination endpoints extra. 3 log alerts ~4.5/month. Usage extra."
-    values:
-      - "Requires an existing destination data lake/container and approved network/monitoring profile. Network/DNS/workspace may be reused or created only as permitted by that profile. Hosting: B1 $12.41; S1 $69.35; P1v3 $113.15 per instance/month; 6 core endpoints $43.80/month, up to 2 destination endpoints extra. 3 log alerts ~4.5/month. Usage extra."
-  - name: eventFlowCreates
-    displayName: "EVENT FLOW / eventflow - creates (reference only)"
-    type: string
-    default: "Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts."
-    values:
-      - "Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts."
-  - name: eventFlowRequirements
-    displayName: "EVENT FLOW / eventflow - existing dependencies and cost"
-    type: string
-    default: "Requires 2 existing subnets, 6 linked private DNS zones, a Log Analytics workspace, private agent and 2 platform exception approvals. Creates NO shared VNet/DNS/workspace or destination data lake. WS1 + 8 endpoints: $233.56/month fixed subtotal; usage and 5 alerts extra."
-    values:
-      - "Requires 2 existing subnets, 6 linked private DNS zones, a Log Analytics workspace, private agent and 2 platform exception approvals. Creates NO shared VNet/DNS/workspace or destination data lake. WS1 + 8 endpoints: $233.56/month fixed subtotal; usage and 5 alerts extra."
   - name: usageEstimate
     displayName: "Cost assumptions - USD East US 2 retail as of 2026-09-19"
     type: string
-    default: "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. Both blueprint summaries stay visible; only your selected pattern is deployed."
+    default: "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu."
     values:
-      - "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. Both blueprint summaries stay visible; only your selected pattern is deployed."
+      - "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu."
 
 extends:
   template: pipelines/deploy-entry.yml

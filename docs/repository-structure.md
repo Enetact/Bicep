@@ -22,8 +22,10 @@ Clean Architecture remains an application design choice for `src/`; it is not a 
 
 ```text
 azure-pipelines.yml                       manual build, tests and package
-azure-pipelines-self-service.yml          Discover menu
-azure-pipelines-self-service-deploy.yml   Deploy menu, extends platform entry
+azure-pipelines-{blobcopy,eventflow}-discover.yml  workload-specific Discover menus
+azure-pipelines-{blobcopy,eventflow}-deploy.yml    workload-specific Deploy menus
+azure-pipelines-self-service.yml          legacy generic Discover menu
+azure-pipelines-self-service-deploy.yml   legacy generic Deploy menu
 bicepconfig.json                          common lint rules
 .editorconfig                            source formatting and LF endings
 config/

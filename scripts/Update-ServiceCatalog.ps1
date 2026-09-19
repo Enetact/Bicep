@@ -69,12 +69,13 @@ foreach ($pair in @(@('workload','workload','2. Instance name (Blob copy = blobc
     $choices+=@("  - name: $($pair[0])","    displayName: $($pair[2])",'    type: string',"    default: $($defaultTarget[$pair[1]])",('    values: ['+($values -join ', ')+']'))
 }
 $yaml=$header+@('# Discover only. Publishes inventory; never provisions resources.','','parameters:')+$choices
-foreach ($info in @(
+$discoverInfo=@(
     @('blobTransferBlueprint','Blob copy / blobcopy - what a later Deploy creates',$blueprints['blob-transfer']),
     @('eventFlowBlueprint','Event flow / eventflow - what a later Deploy creates',$blueprints['logic-app-event-grid']),
     @('discoveryScope','What this run checks - read only','Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Logic App discovery also records provider registration and resource IDs/types. Empty results and failed reads are reported separately. No Azure resources or permissions are changed.'),
     @('deploymentHandoff','Next step - use the saved discovery in Deploy','For deployment, run discovery on main for the matching workload/environment. After success, open Deploy on main and select this run under Resources > discovery within seven days. Feature runs are diagnostic only. Discovery does not enable a target or prove deployment readiness.')
-)) {
+)
+foreach ($info in @($discoverInfo|Where-Object {$_[0] -notin @('blobTransferBlueprint','eventFlowBlueprint')})) {
     $label=ConvertTo-Json -InputObject $info[1] -Compress
     $value=ConvertTo-Json -InputObject $info[2] -Compress
     $yaml+=@("  - name: $($info[0])","    displayName: $label",'    type: string',"    default: $value",'    values:',"      - $value")
@@ -92,14 +93,15 @@ $catalogStatus=if($enabledCount -eq 0){'All checked-in targets are disabled: Dep
 # Native forms cannot provide dependent help panels. Give each pattern its own
 # static create/reuse/cost fields, clearly marked as reference information.
 # These single-value fields never flow into infrastructure parameters.
-foreach ($info in @(
+$deployInfo=@(
     @('runGuidance','Current behavior - deployment depends on target enablement',"$catalogStatus Once enabled, it creates the selected workload in its own resource group and Deployment Stack, publishes/reuses a Template Spec, and verifies the application. Use main and choose matching Resources > discovery."),
     @('blobTransferCreates','BLOB COPY / blobcopy - creates (reference only)',$blueprints['blob-transfer']),
     @('blobTransferRequirements','BLOB COPY / blobcopy - existing dependencies and cost',"Requires an existing destination data lake/container and approved network/monitoring profile. Network/DNS/workspace may be reused or created only as permitted by that profile. Hosting: $hosting per instance/month; 6 core endpoints $(Format-ServiceUsd ($endpointMonthly*6))/month, up to 2 destination endpoints extra. 3 log alerts ~$alertsMonthly/month. Usage extra."),
     @('eventFlowCreates','EVENT FLOW / eventflow - creates (reference only)',$blueprints['logic-app-event-grid']),
     @('eventFlowRequirements','EVENT FLOW / eventflow - existing dependencies and cost',"Requires 2 existing subnets, 6 linked private DNS zones, a Log Analytics workspace, private agent and 2 platform exception approvals. Creates NO shared VNet/DNS/workspace or destination data lake. WS1 + 8 endpoints: $logicMonthly/month fixed subtotal; usage and 5 alerts extra."),
-    @('usageEstimate',"Cost assumptions - USD East US 2 retail as of $priceDate",'References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. Both blueprint summaries stay visible; only your selected pattern is deployed.')
-)) {
+    @('usageEstimate',"Cost assumptions - USD East US 2 retail as of $priceDate",'References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu.')
+)
+foreach ($info in @($deployInfo|Where-Object {$_[0] -in @('runGuidance','usageEstimate')})) {
     $label=ConvertTo-Json -InputObject $info[1] -Compress
     $value=ConvertTo-Json -InputObject $info[2] -Compress
     $deploymentYaml+=@("  - name: $($info[0])","    displayName: $label",'    type: string',"    default: $value",'    values:',"      - $value")
@@ -145,7 +147,58 @@ foreach ($t in $targets) {
     }
 }
 $bindings+=@(New-CatalogRejection $conditions @('    - stage: InvalidSelection','      jobs:','        - job: RejectSelection','          pool:','            vmImage: windows-latest','          steps:','            - checkout: none','            - pwsh: |','                throw ''This workload/environment/subscription/network combination is not registered.''','              displayName: Reject unregistered target before Azure access'))
-foreach ($item in @(@('azure-pipelines-self-service.yml',$yaml),@('azure-pipelines-self-service-deploy.yml',$deploymentYaml),@('pipelines/catalog-bindings.yml',$bindings),@('pipelines/deploy-entry.yml',$deployEntry))) {
+# Workload-specific native forms: select the ADO definition first. The workload
+# is a literal protected-template argument, never a second dropdown or UI condition.
+function New-MenuField([string]$Name,[string]$Label,[string]$Default,[string[]]$Values) {
+    $lines=@("  - name: $Name",('    displayName: '+(ConvertTo-Json -InputObject $Label -Compress)),'    type: string',('    default: '+(ConvertTo-Json -InputObject $Default -Compress)),'    values:')
+    foreach($value in $Values){$lines+=('      - '+(ConvertTo-Json -InputObject $value -Compress))}
+    return $lines
+}
+$workloadMenus=@()
+$discoveryNames=@{}
+foreach($type in @($targets|ForEach-Object {Get-TargetWorkloadType $_}|Sort-Object -Unique)) {
+    if(!$settings.workloadDiscoveryPipelineNames -or !$settings.workloadDiscoveryPipelineNames.Contains($type)){throw "Configure workloadDiscoveryPipelineNames for $type."}
+    $sourceName=$settings.workloadDiscoveryPipelineNames[$type]
+    if($sourceName -isnot [string] -or [string]::IsNullOrWhiteSpace($sourceName) -or $sourceName -match '[\r\n$]'){throw 'Invalid workload discovery pipeline name.'}
+    if($discoveryNames.ContainsKey($sourceName) -or $sourceName -ieq $settings.discoveryPipelineName){throw 'Each workload discovery definition must have its own name, distinct from the generic definition.'}
+    $discoveryNames[$sourceName]=$true
+    $slug=if($type -eq 'blob-transfer'){'blobcopy'}else{'eventflow'}
+    $title=if($type -eq 'blob-transfer'){'Blob copy'}else{'Event flow'}
+    $profiles=@($targets|Where-Object {(Get-TargetWorkloadType $_) -ceq $type})
+    $requests=@($intents|Where-Object {$_.workloadType -ceq $type})
+    $sourceLiteral=ConvertTo-Json -InputObject $sourceName -Compress
+    $discover=$header+@("# ADO definition: $sourceName. Fixed workload: $type.",'','parameters:')
+    foreach($pair in @(@('workload','workload','Instance'),@('environment','environmentName','Environment'),@('subscription','subscriptionAlias','Approved subscription'),@('network','networkProfile','Approved network profile'))){
+        $choices=@($profiles|ForEach-Object {$_[$pair[1]]}|Sort-Object -Unique)
+        $discover+=New-MenuField $pair[0] $pair[2] $profiles[0][$pair[1]] $choices
+    }
+    $scope='Read-only networks, subnets, private DNS and accessible matching service connections. Creates no Azure resources.'
+    if($type -eq 'logic-app-event-grid'){$scope+=' Also checks provider registration and resource IDs/types.'}
+    foreach($info in @(@('workloadSummary',"$title - what a later deployment creates",$blueprints[$type]),@('discoveryScope','This run - discovery only',$scope),@('deploymentHandoff','Next step',"After successful main discovery, open Deploy - $title. Under Resources > discovery select this run. Use the same instance/environment; the artifact must be at most seven days old."))){
+        $discover+=New-MenuField $info[0] $info[1] $info[2] @($info[2])
+    }
+    $discover+=@('','stages:','  - template: pipelines/catalog-bindings.yml','    parameters:',"      workloadType: $type",'      workload: ${{ parameters.workload }}','      environment: ${{ parameters.environment }}','      subscription: ${{ parameters.subscription }}','      network: ${{ parameters.network }}','      operation: discover')
+    $deploy=$header+@("# ADO definition: Deploy - $title. Fixed workload: $type.",'','resources:','  pipelines:','    - pipeline: discovery',"      source: $sourceLiteral",'      branch: refs/heads/main','      trigger: none','','parameters:')
+    foreach($pair in @(@('workloadName','Instance'),@('environment','Environment'),@('region','Approved region'))){
+        $choices=@($requests|ForEach-Object {$_.($pair[0])}|Sort-Object -Unique)
+        $deploy+=New-MenuField $pair[0] $pair[1] $requests[0].($pair[0]) $choices
+    }
+    $enabled=@($profiles|Where-Object {$_.enabled}).Count
+    $status=if(!$enabled){"All $title targets are disabled: this run creates NO Azure resources; hosted setup checks only."}else{"$enabled of $($profiles.Count) $title targets are enabled. Disabled targets run setup checks only."}
+    $requirementsKey=if($type -eq 'blob-transfer'){'blobTransferRequirements'}else{'eventFlowRequirements'}
+    $requirements=@($deployInfo|Where-Object {$_[0] -eq $requirementsKey})[0][2]
+    $ownDate=if($type -eq 'blob-transfer'){$priceDate}else{([DateTimeOffset]$logicPrices.retrievedUtc).UtcDateTime.ToString('yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)}
+    $costText='USD East US 2 retail, 730 hours/month; tax, discounts and credits excluded. Storage, logs, DNS, network transfer and agents are additional. Qualification freezes the selected estimate; this is not a spending cap.'
+    if($type -eq 'logic-app-event-grid'){$costText+=' Event Grid operations and alerts are also additional.'}
+    foreach($info in @(@('runGuidance','Current target status',$status),@('workloadSummary',"$title - resources created when enabled",$blueprints[$type]),@('requirements','Existing dependencies and cost',$requirements),@('lifecycle','Deployment and discovery handoff',"Select a successful main run from $sourceName under Resources > discovery. Enabled deployment uses a dedicated resource group and Deployment Stack, a versioned Template Spec, approvals and application verification."),@('costAssumptions',"Cost assumptions - retail as of $ownDate",$costText))){
+        $deploy+=New-MenuField $info[0] $info[1] $info[2] @($info[2])
+    }
+    $deploy+=@('','extends:','  template: pipelines/deploy-entry.yml','  parameters:',"    workloadType: $type",'    workloadName: ${{ parameters.workloadName }}','    environment: ${{ parameters.environment }}','    region: ${{ parameters.region }}','    discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)','    discoveryRunId: $(resources.pipeline.discovery.runID)')
+    $workloadMenus+=,@("azure-pipelines-$slug-discover.yml",$discover)
+    $workloadMenus+=,@("azure-pipelines-$slug-deploy.yml",$deploy)
+}
+$generatedFiles=@(@('azure-pipelines-self-service.yml',$yaml),@('azure-pipelines-self-service-deploy.yml',$deploymentYaml),@('pipelines/catalog-bindings.yml',$bindings),@('pipelines/deploy-entry.yml',$deployEntry))+$workloadMenus
+foreach ($item in $generatedFiles) {
     $path=Join-Path $root $item[0]; $text=($item[1] -join "`n")+"`n"
     if ($Check) {
         if (!(Test-Path $path) -or ([IO.File]::ReadAllText($path).Replace("`r`n","`n")) -cne $text) { throw "Generated catalog is stale: $($item[0]). Run Update-ServiceCatalog.ps1." }

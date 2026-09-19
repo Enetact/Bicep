@@ -135,6 +135,8 @@ try {
     $placeholder=Clone $target; $placeholder.subscriptionId=[guid]::Empty.ToString(); $placeholder.subscriptionAlias='unconfigured'; $placeholder.serviceConnection='SC-AZ-A-Bicep'
     $profilePath=Join-Path $fixture self-service/targets/placeholder.json
     Write-ServiceJson $placeholder $profilePath
+    $pipelineSettings=Get-Content (Join-Path (Get-ProjectRoot) self-service/pipeline-settings.json) -Raw|ConvertFrom-Json -AsHashtable
+    Write-ServiceJson $pipelineSettings (Join-Path $fixture self-service/pipeline-settings.json)
     $contextArgs=@{Workload='blobcopy';EnvironmentName='dev';SubscriptionAlias='unconfigured';NetworkProfile='shared';UseServiceConnectionSubscription=$true;BoundServiceConnection='SC-AZ-A-Bicep';OutputDirectory=(Join-Path $fixture evidence)}
     $entry=Join-Path $fixture scripts/Export-DeploymentInventory.ps1
     Case 'service connection discovers its active subscription from a disabled placeholder' {
@@ -147,6 +149,16 @@ try {
         Check ((Get-Content $profilePath -Raw | ConvertFrom-Json).subscriptionId -eq [guid]::Empty.ToString())
         $m=Get-Content (Join-Path $fixture evidence/manifest.json) -Raw | ConvertFrom-Json
         Check ($m.inventorySha256 -eq (Get-ServiceHash (Join-Path $fixture evidence/inventory.json)) -and $m.subscriptionId -eq $sub)
+    }
+    foreach($binding in @(@($pipelineSettings.workloadDiscoveryPipelineNames['blob-transfer'],'azure-pipelines-blobcopy-deploy.yml'),@($pipelineSettings.discoveryPipelineName,'azure-pipelines-self-service-deploy.yml'))){
+        Case "discovery summary links matching deployment menu for $($binding[0])" {
+            $savedBuildFlag=$env:TF_BUILD;$savedDefinition=$env:BUILD_DEFINITIONNAME
+            try{
+                $env:TF_BUILD='True';$env:BUILD_DEFINITIONNAME=$binding[0]
+                & $entry @contextArgs
+                Check ((Get-Content (Join-Path $fixture evidence/summary.md) -Raw).Contains("Deploy pipeline ($($binding[1]))"))
+            }finally{$env:TF_BUILD=$savedBuildFlag;$env:BUILD_DEFINITIONNAME=$savedDefinition}
+        }
     }
     Case 'connection context needs an explicit YAML binding' {
         $bad=Clone $contextArgs; $bad.BoundServiceConnection=''; $global:BlobTransferDiscoveryTestState.calls.Clear()

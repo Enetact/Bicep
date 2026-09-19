@@ -113,11 +113,9 @@ check('Workload menus explain separate blueprints and normalize IDs before routi
     const values=bind(doc,{});const supplied=substitute((doc.extends||doc.stages[0]).parameters,values);assert.equal(supplied.workloadType,'blob-transfer');
     assert(!Object.keys(supplied).some(k=>/Creates|Requirements|Blueprint|Estimate/.test(k)),'Help fields must never become resource options');
   }
-  const fields=Object.fromEntries(deploy.parameters.map(p=>[p.name,p.default]));
-  assert(fields.blobTransferCreates.includes('transfer ledger'));assert(fields.eventFlowCreates.includes('8 private endpoints'));
-  assert(fields.blobTransferRequirements.includes('existing destination'));assert(fields.eventFlowRequirements.includes('6 linked private DNS zones'));
-  assert(fields.eventFlowRequirements.includes('fixed subtotal'));assert(fields.usageEstimate.includes('Both blueprint summaries stay visible'));
-  assert(fields.runGuidance.includes('creates NO Azure resources'));
+  assert(!deploy.parameters.some(p=>/Creates|Requirements/.test(p.name)),'Generic menu must not show both workload summaries');
+  assert(!document('azure-pipelines-self-service.yml').parameters.some(p=>p.name.endsWith('Blueprint')));
+
 });
 const platform=json('config/platform.json');const publication=json('config/deployment-stack.json').templateSpec;
 const sharedQualification=expand('pipelines/templates/steps/qualify-application.yml',{},[],'steps');
@@ -222,6 +220,32 @@ check('Default menus select valid routes and cross-workload intent fails',()=>{
   assert.deepEqual(expand('azure-pipelines-self-service-deploy.yml',{}).map(x=>x.stage),['SetupOnly']);
   assert.deepEqual(expand('pipelines/deploy-entry.yml',{workloadType:'logic-app-event-grid',workloadName:'blobcopy',environment:'dev',region:'eastus2',discoveryPipelineId:'1',discoveryRunId:'42'}).map(x=>x.stage),['InvalidIntent']);
 });
+for(const [type,slug,title] of [['blob-transfer','blobcopy','Blob copy'],['logic-app-event-grid','eventflow','Event flow']]){
+  const discoverFile=`azure-pipelines-${slug}-discover.yml`;const deployFile=`azure-pipelines-${slug}-deploy.yml`;
+  const discover=document(discoverFile);const specific=document(deployFile);
+  check(title+' menu contains only its own blueprint and fixed workload binding',()=>{
+    for(const doc of [discover,specific]){
+      assert.equal(doc.trigger,'none');assert.equal(doc.pr,'none');assert(!doc.parameters.some(p=>p.name==='workloadType'));
+      const menu=JSON.stringify(doc.parameters);const foreign=type==='blob-transfer'?/Event flow|eventflow|Logic App|Event Grid/:/Blob copy|blobcopy|Function App/;
+      assert(!foreign.test(menu),'Unrelated workload leaked into the menu');
+      assert(doc.parameters.some(p=>p.name==='workloadSummary'));
+    }
+    assert.equal(discover.stages[0].parameters.workloadType,type);
+    assert.equal(specific.extends.template,'pipelines/deploy-entry.yml');assert.equal(specific.extends.parameters.workloadType,type);
+    assert.equal(specific.resources.pipelines[0].source,json('self-service/pipeline-settings.json').workloadDiscoveryPipelineNames[type]);
+    assert.equal(specific.resources.pipelines[0].trigger,'none');assert.equal(specific.resources.pipelines[0].branch,'refs/heads/main');
+    const supplied=substitute(specific.extends.parameters,bind(specific,{}));assert.deepEqual(Object.keys(supplied).sort(),['workloadType','workloadName','environment','region','discoveryPipelineId','discoveryRunId'].sort());
+    assert.throws(()=>expand(deployFile,{workloadName:type==='blob-transfer'?'eventflow':'blobcopy'}),/Disallowed value/);
+  });
+  for(const target of targets.filter(t=>(t.workloadType||'blob-transfer')===type)){
+    check(title+' '+target.environmentName+' dedicated routes preserve existing protected templates',()=>{
+      const common={workload:target.workload,environment:target.environmentName,subscription:target.subscriptionAlias,network:target.networkProfile};
+      assert.deepEqual(expand(discoverFile,common),expand('azure-pipelines-self-service.yml',{...common,workloadType:menuType('azure-pipelines-self-service.yml',type)}));
+      const request={workloadName:target.workload,environment:target.environmentName,region:target.parameterOverrides.location||platform.defaultRegion};
+      assert.deepEqual(expand(deployFile,request),expand('azure-pipelines-self-service-deploy.yml',{...request,workloadType:menuType('azure-pipelines-self-service-deploy.yml',type)}));
+    });
+  }
+}
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');
 console.log(`PASS: ${cases.length} pipeline/infrastructure contracts; ${yamlFiles.length} YAML files. No Azure calls or ADO server expansion.`);
