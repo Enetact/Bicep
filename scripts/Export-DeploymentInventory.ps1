@@ -67,7 +67,7 @@ foreach ($vnet in $vnets) {
     $report.networks+=@{id=$vnet.id;name=$vnet.name;location=$vnet.location;resourceGroup=$vnet.resourceGroup;subnets=$items;subnetQuery=@{status='Succeeded';count=$items.Count}}
 }
 if ($report.networkQuery.status -eq 'Succeeded') { $report.networkQuery.count=$vnets.Count }
-$report.privateDnsQuery=@{status='Succeeded';command="az network private-dns zone list --subscription $SubscriptionId"}
+$report.privateDnsQuery=@{status='Succeeded';primaryStatus='Succeeded';source='private-dns-api';command="az network private-dns zone list --subscription $SubscriptionId"}
 $report.diagnostics=@{}
 try {
     $zones=@(Invoke-ServiceJson @('network','private-dns','zone','list','--subscription',$SubscriptionId))
@@ -75,11 +75,25 @@ try {
     $report.privateDnsQuery.count=$zones.Count
 } catch {
     # An unavailable DNS API is not evidence that the subscription has no zones.
-    # Retain the other reads, publish evidence, then fail the run explicitly.
-    $report.discoveryStatus='Partial'
-    $report.privateDnsQuery.status='Failed'
-    $report.privateDnsQuery.error=$_.Exception.Message
-    $report.warnings+='Private DNS lookup failed. The empty privateDnsZones array means unknown, not zero zones. See the Azure CLI task error and diagnostics; do not register a target from this partial inventory.'
+    # ARM's general resource inventory can still establish which zones exist.
+    $report.privateDnsQuery.primaryStatus='Failed'
+    $report.privateDnsQuery.primaryError=$_.Exception.Message
+    $report.privateDnsQuery.fallback=@{status='Succeeded';command="az resource list --subscription $SubscriptionId --resource-type Microsoft.Network/privateDnsZones"}
+    try {
+        $zones=@(Invoke-ServiceJson @('resource','list','--subscription',$SubscriptionId,'--resource-type','Microsoft.Network/privateDnsZones'))
+        $report.privateDnsZones=@($zones | ForEach-Object { @{id=$_.id;name=$_.name;resourceGroup=$_.resourceGroup} })
+        $report.privateDnsQuery.source='arm-resource-inventory'
+        $report.privateDnsQuery.count=$zones.Count
+        $report.privateDnsQuery.fallback.count=$zones.Count
+        $report.warnings+='Private DNS API listing failed; DNS inventory was recovered using the subscription-scoped ARM resource list. This establishes inventory, not DNS API health or deployment readiness.'
+    } catch {
+        $report.discoveryStatus='Partial'
+        $report.privateDnsQuery.status='Failed'
+        $report.privateDnsQuery.source='unavailable'
+        $report.privateDnsQuery.fallback.status='Failed'
+        $report.privateDnsQuery.fallback.error=$_.Exception.Message
+        $report.warnings+='Both private DNS API and ARM resource inventory lookups failed. The empty privateDnsZones array means unknown, not zero zones. See diagnostics; do not register a target from this partial inventory.'
+    }
     try {
         $details=Invoke-ServiceJson @('rest','--method','get','--url',"https://management.azure.com/subscriptions/${SubscriptionId}?api-version=2022-12-01")
         $report.diagnostics.subscriptionArm=@{status='Succeeded';subscriptionId=$details.subscriptionId;displayName=$details.displayName;state=$details.state}
@@ -134,8 +148,13 @@ foreach ($vnet in $report.networks) {
     $description=if ($vnet.subnetQuery.status -ne 'Succeeded') { 'Unknown (listing failed)' } elseif ($vnet.subnets.Count -eq 0) { 'None found' } else { "$($vnet.subnets.Count) found" }
     $lines+="Subnets in $($vnet.name): $description."
 }
-if ($report.privateDnsQuery.status -eq 'Failed') {
-    $lines+=@('Private DNS discovery failed. Azure CLI account context alone does not prove that the DNS service can access this subscription.',
+if ($report.privateDnsQuery.primaryStatus -eq 'Failed') {
+    if ($report.privateDnsQuery.status -eq 'Succeeded') {
+        $lines+='DNS inventory source: subscription-scoped ARM resource inventory (fallback succeeded).'
+    } else {
+        $lines+='Private DNS discovery failed through both inventory paths. Azure CLI account context alone does not prove that the DNS service can access this subscription.'
+    }
+    $lines+=@(
         "ARM subscription diagnostic: $($report.diagnostics.subscriptionArm.status); Microsoft.Network diagnostic: $($report.diagnostics.networkProvider.status).",
         'Inspect diagnostics in inventory.json and the original Azure CLI error. Verify the service connection subscription/tenant, subscription state, provider registration, and read access. Provider registration is a separate platform action; this script never registers providers.','')
 }

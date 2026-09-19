@@ -16,8 +16,8 @@ parameters:
   - name: subscription
     displayName: Approved subscription
     type: string
-    default: unconfigured
-    values: [unconfigured]
+    default: azure-subscription-a
+    values: [azure-subscription-a]
   - name: network
     displayName: Network profile
     type: string
