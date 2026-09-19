@@ -1,5 +1,7 @@
 #requires -Version 7.4
 . "$PSScriptRoot/common.ps1"
+. "$PSScriptRoot/what-if-governance.ps1"
+. "$PSScriptRoot/stack-service-common.ps1"
 
 function Resolve-ServiceOrganizationUrl([string]$OrganizationUrl) {
     $value=$OrganizationUrl.Trim()
@@ -69,12 +71,12 @@ function Assert-ServiceTarget($Target, [string]$Workload, [string]$EnvironmentNa
     foreach ($key in @('resourceGroup','serviceConnection','agentPool','deploymentEnvironment')) {
         if ($Target[$key] -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$' -or $Target[$key] -match 'REPLACE') { throw "Invalid target field: $key" }
     }
-    if ($Target.parameterFile -cnotmatch '^(environments|self-service/parameters)/[a-zA-Z0-9/._-]+\.bicepparam$') { throw 'Parameter file must be in an approved source directory.' }
+    if ($Target.parameterFile -cnotmatch '^(workloads/blob-transfer/environments|self-service/parameters)/[a-zA-Z0-9/._-]+\.bicepparam$') { throw 'Parameter file must be in an approved source directory.' }
     $null = Resolve-ServicePath (Get-ProjectRoot) $Target.parameterFile
     if ($Target.smokePrefix -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9/_-]{0,199}/$') { throw 'Invalid synthetic smoke prefix.' }
     if ($Target.schemaVersion -eq 2) {
         foreach ($key in @('subscriptionAlias','networkProfile')) { if ($Target[$key] -cnotmatch '^[a-z0-9][a-z0-9-]{0,39}$') { throw "Invalid catalog key: $key" } }
-        $allowed=@('namingSuffix','networkMode','existingNetwork','location','deploymentPrincipalObjectId','vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix')
+        $allowed=@('namingSuffix','networkMode','existingNetwork','location','deploymentPrincipalObjectId','vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix','existingLogAnalyticsWorkspaceId')
         if ($Target.parameterOverrides -isnot [Collections.IDictionary] -or @($Target.parameterOverrides.Keys | Where-Object { $_ -notin $allowed }).Count) { throw 'Unapproved profile parameter override.' }
     }
 }
@@ -124,6 +126,8 @@ function Assert-ServiceParameters($Target, $Parameters) {
     if ($suffix.Length -gt 14) { throw 'Naming suffix is too long.' }
     $principal=Get-ServiceParameter $Parameters deploymentPrincipalObjectId ''
     if ($principal) { if ([guid]::Parse($principal) -eq [guid]::Empty) { throw 'Invalid deployment principal object ID.' } }
+    $workspace=Get-ServiceParameter $Parameters existingLogAnalyticsWorkspaceId ''
+    if ($workspace -and $workspace -notmatch '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft.OperationalInsights/workspaces/[a-zA-Z0-9-]+$') { throw 'Invalid platform Log Analytics workspace resource ID.' }
     $mode=Get-ServiceParameter $Parameters networkMode new
     if ($mode -notin @('new','existing')) { throw 'Unknown network mode.' }
     if ($mode -eq 'new') {
@@ -162,6 +166,10 @@ function Assert-ServiceNetworkIds($Target,$Network) {
     foreach ($key in $zones.Keys) {
         if (!$Network.Contains('privateDnsZoneIds') -or !$Network.privateDnsZoneIds.Contains($key) -or $Network.privateDnsZoneIds[$key] -notmatch ('^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/'+[regex]::Escape($zones[$key])+'$')) { throw "Expected existing private DNS zone ID for $key" }
     }
+    if ($Network.Contains('dnsResolver')) {
+        $resolver=$Network.dnsResolver
+        if ($resolver -isnot [Collections.IDictionary] -or !$resolver.Contains('id') -or !$resolver.Contains('inboundEndpointId') -or $resolver.id -notmatch '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/dnsResolvers/[^/]+$' -or $resolver.inboundEndpointId -notmatch ('^'+[regex]::Escape($resolver.id)+'/inboundEndpoints/[^/]+$')) { throw 'Resolver mode requires explicit resolver and owned inbound endpoint IDs.' }
+    }
 }
 function Test-ServiceNetwork($Bundle) {
     $p=$Bundle.parameters.parameters
@@ -185,12 +193,24 @@ function Test-ServiceNetwork($Bundle) {
         } elseif ($delegations.Count -or $props.privateEndpointNetworkPolicies -ne 'Disabled') { throw 'Private endpoint subnet must be undelegated with private endpoint network policies Disabled.' }
         $state.subnets[$key]=$props
     }
+    $dnsVnetId=$vnetId
+    if ($n.Contains('dnsResolver')) {
+        $resolver=Invoke-ServiceJson @('resource','show','--ids',$n.dnsResolver.id,'--api-version','2022-07-01')
+        $inbound=Invoke-ServiceJson @('resource','show','--ids',$n.dnsResolver.inboundEndpointId,'--api-version','2022-07-01')
+        if ($resolver.properties.provisioningState -ne 'Succeeded' -or $inbound.properties.provisioningState -ne 'Succeeded') { throw 'Central DNS resolver and inbound endpoint must be ready.' }
+        $dnsVnetId=$resolver.properties.virtualNetwork.id
+        if ($dnsVnetId -notmatch '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/virtualNetworks/[^/]+$') { throw 'Resolver VNet ID is invalid.' }
+        $addresses=@($inbound.properties.ipConfigurations | ForEach-Object { $_.privateIpAddress })
+        $servers=@(if ($vnet.properties.Contains('dhcpOptions') -and $vnet.properties.dhcpOptions.Contains('dnsServers')) { $vnet.properties.dhcpOptions.dnsServers })
+        if (!$addresses.Count -or !$servers.Count -or @($addresses | Where-Object { !(Test-ServicePrivateAddress $_) }).Count -or @($servers | Where-Object { $_ -notin $addresses }).Count) { throw 'Spoke DNS servers must use the approved resolver inbound addresses.' }
+        $state.dnsResolver=@{id=$n.dnsResolver.id;inboundEndpointId=$n.dnsResolver.inboundEndpointId;vnetId=$dnsVnetId;addresses=$addresses}
+    }
     foreach ($key in $n.privateDnsZoneIds.Keys) {
         $zoneId=$n.privateDnsZoneIds[$key]
         $null=Invoke-ServiceJson @('resource','show','--ids',$zoneId,'--api-version','2024-06-01')
         # Query the actual link instead of assuming equal DNS names imply connectivity.
         $links=Invoke-ServiceJson @('rest','--method','get','--url',"https://management.azure.com$zoneId/virtualNetworkLinks?api-version=2024-06-01")
-        if (!@($links.value | Where-Object { $_.properties.virtualNetwork.id -ieq $vnetId -and $_.properties.provisioningState -eq 'Succeeded' }).Count) { throw "Private DNS zone $key needs an existing link to the selected VNet." }
+        if (!@($links.value | Where-Object { $_.properties.virtualNetwork.id -ieq $dnsVnetId -and $_.properties.provisioningState -eq 'Succeeded' }).Count) { throw "Private DNS zone $key needs an existing link to the selected DNS resolution VNet." }
         $state.zones[$key]=$zoneId
     }
     return $state
@@ -201,6 +221,10 @@ function Read-ServiceBundle([string]$Directory) {
     $expected = @('main.json','parameters.json','target.json','application.zip','functions.metadata')
     if ($receipt.Contains('discoverySource')) { $expected+=@('discovery/manifest.json','discovery/inventory.json') }
     if ($receipt.Contains('costEstimateIncluded') -and $receipt.costEstimateIncluded) { $expected+=@('cost-estimate.json') }
+    if ($receipt.Contains('deploymentEngine')) {
+        if ($receipt.deploymentEngine -cne 'deploymentStack') { throw 'Unknown deployment engine.' }
+        $expected+=@('stack.json','stack-template.json')
+    }
     if (@($receipt.files.Keys).Count -ne $expected.Count) { throw 'Unexpected bundle file set.' }
     foreach ($name in $expected) {
         if (!$receipt.files.Contains($name) -or (Get-ServiceHash (Resolve-ServicePath $Directory $name)) -cne $receipt.files[$name]) { throw "Bundle integrity failure: $name" }
@@ -215,13 +239,20 @@ function Read-ServiceBundle([string]$Directory) {
         }
     }
     Test-FunctionMetadata (Join-Path $Directory functions.metadata)
-    return @{ receipt=$receipt; target=$target; parameters=$parameters; directory=$Directory; hash=(Get-ServiceHash (Join-Path $Directory bundle.json)) }
+    $bundle=@{ receipt=$receipt; target=$target; parameters=$parameters; directory=$Directory; hash=(Get-ServiceHash (Join-Path $Directory bundle.json)) }
+    if ($receipt.Contains('deploymentEngine')) {
+        $bundle.stack=Get-Content (Join-Path $Directory stack.json) -Raw | ConvertFrom-Json -AsHashtable
+        $template=Get-Content (Join-Path $Directory stack-template.json) -Raw | ConvertFrom-Json -AsHashtable
+        Assert-StackContract $bundle.stack $target $template
+    }
+    return $bundle
 }
 function Invoke-ServiceJson([string[]]$Arguments) {
     $raw = Invoke-Az -Arguments ($Arguments + @('--output','json'))
     return ($raw -join "`n" | ConvertFrom-Json -AsHashtable)
 }
 function Get-ServiceState($Bundle) {
+    if ($Bundle.Contains('stack')) { return Get-WorkloadStackState $Bundle }
     $t = $Bundle.target
     $null = Invoke-ServiceJson @('group','show','--subscription',$t.subscriptionId,'--name',$t.resourceGroup)
     $apps = @(Invoke-ServiceJson @('resource','list','--subscription',$t.subscriptionId,'--resource-group',$t.resourceGroup,'--resource-type','Microsoft.Web/sites'))
@@ -241,7 +272,8 @@ function Test-ServiceDestination($Bundle) {
 }
 function Get-ServiceOutputs($Bundle) {
     $t=$Bundle.target
-    $deployment = Invoke-ServiceJson @('deployment','group','show','--subscription',$t.subscriptionId,'--resource-group',$t.resourceGroup,'--name',"$($t.workload)-$($t.environmentName)")
+    $deployment = if ($Bundle.Contains('stack')) { Get-WorkloadStack $Bundle } else { Invoke-ServiceJson @('deployment','group','show','--subscription',$t.subscriptionId,'--resource-group',$t.resourceGroup,'--name',"$($t.workload)-$($t.environmentName)") }
+    if (!$deployment) { throw 'Foundation stack must exist before Release.' }
     $outputs = $deployment.properties.outputs
     foreach ($name in @('hostStorageAccountName','uploadStorageAccountName','uploadContainer','ledgerContainer','transferQueue','packageContainer','functionAppName','functionAppResourceId','managedIdentityPrincipalId','workspaceId')) {
         if (!$outputs.Contains($name) -or !$outputs[$name].value) { throw "Deployment output missing: $name. Import existing stacks using the documented deployment contract." }
@@ -267,6 +299,7 @@ function Get-ServiceChanges($Report) {
     $changes = @($Report.changes | Sort-Object resourceId)
     foreach ($change in $changes) {
         if ($change.changeType -notin @('Create','Modify','NoChange','NoEffect')) { throw "Unapproved or unanalyzed what-if change: $($change.changeType). Review outside self-service." }
+        Assert-ServiceChange $change
     }
     return ,$changes
 }
@@ -279,13 +312,22 @@ function New-ServicePlan($Bundle, [ValidateSet('Foundation','Release')][string]$
     $parameters = ConvertFrom-Json (ConvertTo-Json $Bundle.parameters -Depth 100) -AsHashtable
     $parameters.parameters.deployFunctionApp = @{value=($Phase -eq 'Release')}
     $parameters.parameters.packageBlobName = @{value="releases/$($Bundle.receipt.releaseId).zip"}
+    if ($Bundle.Contains('stack')) { $parameters.parameters.workloadResourceGroupName=@{value=$Bundle.target.resourceGroup} }
     $parametersPath = Join-Path $Directory 'effective.parameters.json'
     Write-ServiceJson $parameters $parametersPath
     $outputs = if ($state.hasApp -or $Phase -eq 'Release') { Get-ServiceOutputs $Bundle } else { @{} }
     $report = @{status='Succeeded'; changes=@()}
     if (!$skip) {
         $t=$Bundle.target
+        if ($Bundle.Contains('stack')) {
+            $report=New-StackPreview $Bundle $state $parametersPath $Directory
+        } else {
+        # ARM/provider validation exercises permissions and applicable deny policies.
+        # It is not an asynchronous compliance scan or proof of complete policy coverage.
+        $validation=Invoke-ServiceJson @('deployment','group','validate','--subscription',$t.subscriptionId,'--resource-group',$t.resourceGroup,'--template-file',(Join-Path $Bundle.directory 'main.json'),'--parameters',"@$parametersPath",'--validation-level','Provider')
+        Write-ServiceJson $validation (Join-Path $Directory 'arm-validation.json')
         $report = Invoke-ServiceJson @('deployment','group','what-if','--subscription',$t.subscriptionId,'--resource-group',$t.resourceGroup,'--name',"$($t.workload)-$($t.environmentName)",'--template-file',(Join-Path $Bundle.directory 'main.json'),'--parameters',"@$parametersPath",'--mode','Incremental','--result-format','FullResourcePayloads')
+        }
     }
     Write-ServiceJson $report (Join-Path $Directory 'what-if.json')
     $changes=Get-ServiceChanges $report
@@ -293,9 +335,10 @@ function New-ServicePlan($Bundle, [ValidateSet('Foundation','Release')][string]$
     $plan.fingerprint = Get-ValueHash @{bundleHash=$plan.bundleHash; parametersHash=$plan.parametersHash; state=$state; outputs=$outputs; changes=$changes; phase=$Phase; skip=$skip}
     Write-ServiceJson $plan (Join-Path $Directory 'plan.json')
     $summary = @("# $Phase preview",'',"Target: $($Bundle.target.workload) / $($Bundle.target.environmentName)","Release: $($Bundle.receipt.releaseId)","Package SHA-256: $($Bundle.receipt.files['application.zip'])","Bundle SHA-256: $($Bundle.hash)","Skip existing foundation: $skip",'', 'Review what-if.json and plan.json before approving. Plans expire after 24 hours.','')
+    if ($Bundle.Contains('stack')) { $summary+=@("Stack: $($Bundle.stack.stackId)","Template Spec: $($Bundle.stack.templateSpecId)","Template hash: $($Bundle.stack.templateHash)","Lifecycle: $($Bundle.stack.actionOnUnmanage); deny mode: $($Bundle.stack.denySettingsMode). Detach/Delete changes are rejected by self-service.",'') }
     $summary+=@("Create destination private endpoints: $(Get-ServiceParameter $parameters.parameters createDestinationPrivateEndpoints $true)",
         "Enable log alerts: $(Get-ServiceParameter $parameters.parameters enableLogAlerts $true)",
-        'Unchecked destination endpoints require existing private connectivity. Incremental deployment does not delete previously created endpoints. Disabled alerts keep their rule resources; log collection remains enabled.','')
+        'Omitting destination endpoints requires existing private connectivity. Stack self-service rejects removal of managed endpoints; the legacy incremental path retains existing endpoints. Disabled alerts keep their rule resources; log collection remains enabled.','')
     if ($Bundle.receipt.Contains('costEstimateIncluded') -and $Bundle.receipt.costEstimateIncluded) {
         $cost=Get-Content (Join-Path $Bundle.directory cost-estimate.json) -Raw | ConvertFrom-Json -AsHashtable
         if ($cost.status -eq 'Estimated') {
@@ -402,7 +445,11 @@ function Invoke-ServiceApply($Bundle, [string]$Phase, [string]$PlanDirectory, [s
         Publish-ServicePackage $Bundle $current.outputs $EvidenceDirectory
     }
     if (!$current.skip) {
+        if ($Bundle.Contains('stack')) {
+            $deployment=Invoke-WorkloadStackApply $Bundle (Join-Path $EvidenceDirectory recheck/effective.parameters.json) $EvidenceDirectory $current
+        } else {
         $deployment=Invoke-ServiceJson @('deployment','group','create','--subscription',$t.subscriptionId,'--resource-group',$t.resourceGroup,'--name',"$($t.workload)-$($t.environmentName)",'--template-file',(Join-Path $Bundle.directory main.json),'--parameters',('@'+(Join-Path $EvidenceDirectory recheck/effective.parameters.json)),'--mode','Incremental')
+        }
         if ($deployment.properties.provisioningState -ne 'Succeeded') { throw 'ARM deployment did not succeed.' }
     }
     $outputs=Get-ServiceOutputs $Bundle

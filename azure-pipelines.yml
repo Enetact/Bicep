@@ -10,15 +10,15 @@ steps:
     inputs:
       packageType: sdk
       useGlobalJson: true
+  - task: NodeTool@0
+    inputs:
+      versionSpec: 22.x
   - pwsh: |
       az bicep install --version v0.47.16
       if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
       ./scripts/Update-Manifest.ps1 -Check
       ./scripts/Test-Project.ps1
     displayName: Compile all environments and test transfer contracts
-  - task: NodeTool@0
-    inputs:
-      versionSpec: 22.x
   - pwsh: ./scripts/Test-Recovery.ps1
     displayName: Exercise duplicates and recovery using local Azurite
   - pwsh: |

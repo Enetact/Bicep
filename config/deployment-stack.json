@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "actionOnUnmanage": "detachAll",
+  "denySettingsMode": "denyDelete",
+  "templateSpec": {
+    "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+    "resourceGroup": "rg-bicep-template-specs",
+    "name": "blob-transfer",
+    "location": "eastus2",
+    "publisherServiceConnection": "SC-AZ-A-Bicep",
+    "publisherEnvironment": "bicep-template-publication",
+    "publisherAgentPool": "blob-transfer-private"
+  }
+}

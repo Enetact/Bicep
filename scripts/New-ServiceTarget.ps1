@@ -65,7 +65,7 @@ if ($NetworkMode -eq 'new') {
     $overrides.location=$vnets[0].location
     $overrides.existingNetwork=@{integrationSubnetId=$IntegrationSubnetId;privateEndpointSubnetId=$PrivateEndpointSubnetId;privateDnsZoneIds=$zones}
 }
-if (!$ParameterFile) { $ParameterFile="environments/$EnvironmentName.bicepparam" }
+if (!$ParameterFile) { $ParameterFile="workloads/blob-transfer/environments/main.$EnvironmentName.bicepparam" }
 $target=@{schemaVersion=2;enabled=$false;workload=$Workload;environmentName=$EnvironmentName;subscriptionId=$inventory.subscription.id;subscriptionAlias=$SubscriptionAlias;networkProfile=$NetworkProfile;resourceGroup=$ResourceGroup;parameterFile=$ParameterFile;serviceConnection=$connection.id;agentPool=$AgentPool;deploymentEnvironment=$stem;smokePrefix='smoke/';parameterOverrides=$overrides}
 Assert-ServiceTarget $target $Workload $EnvironmentName -AllowDisabled
 if ($NetworkMode -eq 'existing') { Assert-ServiceNetworkIds $target $target.parameterOverrides.existingNetwork }
@@ -75,4 +75,4 @@ $path=Join-Path $OutputDirectory "$Workload.$EnvironmentName.$SubscriptionAlias.
 if (Test-Path -LiteralPath $path) { throw 'Target file already exists. Review/edit it rather than overwriting its approved mapping.' }
 Write-ServiceJson $target $path
 Write-Host "Disabled target written: $path"
-Write-Host 'Review parameters, existing RG, network, identity and approvals, then run Update-ServiceCatalog.ps1. No Azure changes were made.'
+Write-Host 'Review parameters, stack-owned RG name (do not precreate), network, identity and approvals, then run Update-ServiceCatalog.ps1. Existing RGs need adoption review. No Azure changes were made.'

@@ -1,0 +1,7 @@
+{
+  "workloadName": "blobcopy",
+  "environment": "dev",
+  "region": "eastus2",
+  "workloadType": "blob-transfer",
+  "capabilities": { "storage": true, "observability": true }
+}

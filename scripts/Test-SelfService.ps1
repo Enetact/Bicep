@@ -16,7 +16,7 @@ function Case([string]$Name,[scriptblock]$Body) {
     $results.Add(@{name=$Name;passed=$true})
 }
 function Clone($Value) { ConvertFrom-Json ($Value | ConvertTo-Json -Depth 100) -AsHashtable }
-$target=@{schemaVersion=1;enabled=$true;workload='blobcopy';environmentName='dev';subscriptionId='11111111-1111-1111-1111-111111111111';resourceGroup='rg-blobcopy-dev';parameterFile='environments/dev.bicepparam';serviceConnection='sc-blobcopy-dev';agentPool='blob-transfer-private';deploymentEnvironment='blobcopy-dev';smokePrefix='smoke/'}
+$target=@{schemaVersion=1;enabled=$true;workload='blobcopy';environmentName='dev';subscriptionId='11111111-1111-1111-1111-111111111111';resourceGroup='rg-blobcopy-dev';parameterFile='workloads/blob-transfer/environments/main.dev.bicepparam';serviceConnection='sc-blobcopy-dev';agentPool='blob-transfer-private';deploymentEnvironment='blobcopy-dev';smokePrefix='smoke/'}
 $values=@{workload='blobcopy';environmentName='dev';owner='platform';costCenter='CC1';destinationSubscriptionId=$target.subscriptionId;destinationResourceGroupName='rg-destination';destinationStorageAccountName='destinationaccount';destinationContainerName='incoming';destinationIsHnsEnabled=$true;vnetAddressPrefix='10.40.0.0/16';integrationSubnetPrefix='10.40.0.0/26';privateEndpointSubnetPrefix='10.40.1.0/26'}
 $params=@{}; foreach ($key in $values.Keys) { $params[$key]=@{value=$values[$key]} }
 Case 'enabled valid target and parameter contract' { Assert-ServiceTarget $target blobcopy dev; Assert-ServiceParameters $target $params }
@@ -115,6 +115,7 @@ foreach ($failure in @('branch','reason','binding','provenance')) {
 $script:commands=[Collections.Generic.List[string]]::new()
 $script:hasApp=$false; $script:drift=$false; $script:smokePass=$true; $script:connectionFails=$false
 $script:packageExists=$false; $script:packageConflict=$false; $script:duplicateRequests=$false
+$script:validationFails=$false
 $outputs=@{}
 $outValues=@{hostStorageAccountName='sthdevtest';uploadStorageAccountName='studevtest';uploadContainer='incoming';ledgerContainer='transfer-ledger';transferQueue='transfer-work';packageContainer='packages';functionAppName='func-blobcopy-dev-test';functionAppResourceId="/subscriptions/$($target.subscriptionId)/resourceGroups/rg-blobcopy-dev/providers/Microsoft.Web/sites/func-blobcopy-dev-test";managedIdentityPrincipalId='runtime-principal';workspaceId='/workspace'}
 foreach ($key in $outValues.Keys) { $outputs[$key]=@{value=$outValues[$key]} }
@@ -128,7 +129,8 @@ function Invoke-Az {
         '^resource show ' { @{id='/destination/container'}; break }
         '^resource list ' { if ($script:hasApp) { ,@(@{name=$outputs.functionAppName.value;id=$outputs.functionAppResourceId.value}) } else { ,@() }; break }
         '^deployment group show ' { @{properties=@{outputs=$outputs}}; break }
-        '^deployment group what-if ' { @{status='Succeeded';changes=@(@{resourceId='/resource';changeType='Modify';after=@{version= $(if ($script:drift) {2} else {1})}})}; break }
+        '^deployment group validate ' { if ($script:validationFails) { throw 'Synthetic policy denied validation' }; @{properties=@{provisioningState='Succeeded'}}; break }
+        '^deployment group what-if ' { @{status='Succeeded';changes=@(@{resourceId='/resource';changeType='Modify';delta=@(@{path='tags.release';propertyChangeType='Modify';before='old';after='new'});after=@{version= $(if ($script:drift) {2} else {1})}})}; break }
         '^deployment group create ' { @{properties=@{provisioningState='Succeeded';outputs=$outputs}}; break }
         '^storage blob exists ' { @{exists=$script:packageExists}; break }
         '^storage blob download ' {
@@ -156,6 +158,13 @@ Case 'approval preview shows frozen checkbox choices and full-release costs' {
     $script:commands.Clear()
 }
 
+Case 'ARM policy failure stops preview before what-if and mutations' {
+    $script:validationFails=$true; $script:commands.Clear()
+    try {
+        Reject { New-ServicePlan $bundle Foundation (Join-Path $testRoot denied-policy) } 'policy denied'
+        Check (!@($script:commands | Where-Object { $_ -match '^deployment group (what-if|create) |^storage blob upload ' }).Count)
+    } finally { $script:validationFails=$false }
+}
 $foundationPlan=Join-Path $testRoot foundation-plan
 $plan=New-ServicePlan $bundle Foundation $foundationPlan
 Case 'new stack foundation is previewed before deployment' { Check (!$plan.skip); Check (!@($script:commands | Where-Object { $_ -match 'deployment group create|storage blob upload' }).Count) }

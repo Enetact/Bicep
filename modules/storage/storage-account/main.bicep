@@ -1,10 +1,22 @@
+targetScope = 'resourceGroup'
+
+metadata name = 'Private storage account'
+metadata description = 'Identity-only StorageV2 account with service children, versioning, retention and diagnostics.'
+
+@description('Globally unique storage account name supplied by the composition.')
 param name string
+@description('Azure region for the storage account.')
 param location string
+@description('Resource ownership and classification tags.')
 param tags object
 @allowed(['Standard_LRS', 'Standard_ZRS'])
+@description('Approved replication SKU; environment files select the required durability.')
 param skuName string
+@description('Private Blob containers to create.')
 param containers array
+@description('Storage work queues to create; empty creates no named work queues.')
 param queueNames array = []
+@description('Log Analytics workspace resource ID receiving Blob and Queue diagnostics.')
 param workspaceId string
 
 resource account 'Microsoft.Storage/storageAccounts@2025-01-01' = {

@@ -8,11 +8,17 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-SelfService.ps1"
 & "$PSScriptRoot/Test-ServiceDiscovery.ps1"
 & "$PSScriptRoot/Test-ServiceCosts.ps1"
+& "$PSScriptRoot/Test-PlatformContracts.ps1"
+& "$PSScriptRoot/Test-DeploymentStacks.ps1"
 & "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {
     $output = Export-Templates -EnvironmentName $environmentName
     Write-Host "Compiled $environmentName -> $output"
 }
+foreach ($item in @(@('platform/policy/guardrails.bicep','policy-guardrails.json'),@('platform/registry/main.bicep','module-registry.json'),@('workloads/blob-transfer/stack.bicep','stack-template.json'))) {
+    Invoke-Bicep -Arguments @('build',(Join-Path $root $item[0]),'--outfile',(Join-Path $results $item[1]))
+}
+& "$PSScriptRoot/Test-PipelineStructure.ps1"
 & dotnet test (Join-Path $root 'tests/BlobTransfer.Tests/BlobTransfer.Tests.csproj') --configuration Release -m:1 -p:RestoreLockedMode=true --logger 'trx;LogFileName=unit.trx' --results-directory $results
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 & dotnet build (Join-Path $root 'src/TransferTool/TransferTool.csproj') -c Release -m:1 -p:RestoreLockedMode=true

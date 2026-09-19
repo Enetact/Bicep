@@ -1,5 +1,8 @@
 targetScope = 'resourceGroup'
 
+metadata name = 'Blob transfer workload'
+metadata description = 'Private blob dispatcher, queue worker, storage, identity and monitoring composition. Shared resources remain externally owned.'
+
 @description('Short lowercase alphanumeric workload code, 3-10 characters.')
 @minLength(3)
 @maxLength(10)
@@ -23,7 +26,7 @@ param destinationContainerName string
 param destinationIsHnsEnabled bool = true
 param createDestinationPrivateEndpoints bool = true
 
-@description('First deploy false, upload a built package, then deploy true. Incremental deployments only.')
+@description('Foundation uses false; Release uses true after package upload. Stack orchestration never returns a released workload to Foundation. Manual deployment uses incremental mode.')
 param deployFunctionApp bool = false
 @description('Immutable release blob name, e.g. releases/<commit>.zip. No SAS or query string.')
 param packageBlobName string = 'releases/initial.zip'
@@ -81,6 +84,8 @@ param storageSku string = 'Standard_ZRS'
 param logRetentionDays int = 90
 @minValue(1)
 param logDailyCapGb int = 5
+@description('Platform-owned Log Analytics workspace ID, optionally in another subscription. Empty creates an isolated workload workspace. Shared workspace settings and RBAC remain platform-owned.')
+param existingLogAnalyticsWorkspaceId string = ''
 @description('Enable the three log alert rules. Production requires alerts; disabling keeps rule resources but stops their evaluation.')
 param enableLogAlerts bool = true
 
@@ -122,6 +127,8 @@ module monitoring './modules/monitoring.bicep' = {
     operatorGroupObjectId: operatorGroupObjectId
     enableRuntimeAlerts: deployFunctionApp
     enableLogAlerts: enableLogAlerts
+    existingWorkspaceResourceId: existingLogAnalyticsWorkspaceId
+    functionAppResourceId: resourceId('Microsoft.Web/sites', 'func-${stem}-${suffix}')
   }
 }
 
@@ -145,7 +152,7 @@ var tableZoneId = networkMode == 'new' ? network!.outputs.tableZoneId : existing
 var dfsZoneId = networkMode == 'new' ? network!.outputs.dfsZoneId : existingNetwork.privateDnsZoneIds.dfs
 var webZoneId = networkMode == 'new' ? network!.outputs.webZoneId : existingNetwork.privateDnsZoneIds.web
 
-module hostStorage './modules/storage.bicep' = {
+module hostStorage '../../modules/storage/storage-account/main.bicep' = {
   name: 'host-storage-${environmentName}'
   params: {
     name: 'sth${environmentName}${suffix}'
@@ -157,7 +164,7 @@ module hostStorage './modules/storage.bicep' = {
   }
 }
 
-module uploadStorage './modules/storage.bicep' = {
+module uploadStorage '../../modules/storage/storage-account/main.bicep' = {
   name: 'upload-storage-${environmentName}'
   params: {
     name: 'stu${environmentName}${suffix}'
@@ -206,42 +213,42 @@ var storageEndpoints = [
   { name: 'upload-queue', account: 'upload', groupId: 'queue' }
 ]
 
-module storagePrivateEndpoints './modules/private-endpoint.bicep' = [for item in storageEndpoints: {
+module storagePrivateEndpoints '../../modules/network/private-endpoint/main.bicep' = [for item in storageEndpoints: {
   name: 'pe-${item.name}-${environmentName}'
   params: {
     name: 'pe-${stem}-${item.name}'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
-    privateLinkResourceId: item.account == 'host' ? hostStorage.outputs.id : uploadStorage.outputs.id
-    groupId: item.groupId
-    privateDnsZoneId: item.groupId == 'blob' ? blobZoneId : (item.groupId == 'queue' ? queueZoneId : tableZoneId)
+    targetResourceId: item.account == 'host' ? hostStorage.outputs.id : uploadStorage.outputs.id
+    groupIds: [item.groupId]
+    privateDnsZoneIds: [item.groupId == 'blob' ? blobZoneId : (item.groupId == 'queue' ? queueZoneId : tableZoneId)]
   }
 }]
 
-module destinationBlobEndpoint './modules/private-endpoint.bicep' = if (createDestinationPrivateEndpoints) {
+module destinationBlobEndpoint '../../modules/network/private-endpoint/main.bicep' = if (createDestinationPrivateEndpoints) {
   name: 'pe-destination-blob-${environmentName}'
   params: {
     name: 'pe-${stem}-destination-blob'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
-    privateLinkResourceId: destination.outputs.accountId
-    groupId: 'blob'
-    privateDnsZoneId: blobZoneId
+    targetResourceId: destination.outputs.accountId
+    groupIds: ['blob']
+    privateDnsZoneIds: [blobZoneId]
   }
 }
 
-module destinationDfsEndpoint './modules/private-endpoint.bicep' = if (createDestinationPrivateEndpoints && destinationIsHnsEnabled) {
+module destinationDfsEndpoint '../../modules/network/private-endpoint/main.bicep' = if (createDestinationPrivateEndpoints && destinationIsHnsEnabled) {
   name: 'pe-destination-dfs-${environmentName}'
   params: {
     name: 'pe-${stem}-destination-dfs'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
-    privateLinkResourceId: destination.outputs.accountId
-    groupId: 'dfs'
-    privateDnsZoneId: dfsZoneId
+    targetResourceId: destination.outputs.accountId
+    groupIds: ['dfs']
+    privateDnsZoneIds: [dfsZoneId]
   }
 }
 
@@ -286,16 +293,16 @@ module app './modules/function-app.bicep' = if (deployFunctionApp) {
   dependsOn: [storageAccess, storagePrivateEndpoints, destinationBlobEndpoint, destinationDfsEndpoint]
 }
 
-module appPrivateEndpoint './modules/private-endpoint.bicep' = if (deployFunctionApp) {
+module appPrivateEndpoint '../../modules/network/private-endpoint/main.bicep' = if (deployFunctionApp) {
   name: 'pe-function-${environmentName}'
   params: {
     name: 'pe-${stem}-function'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
-    privateLinkResourceId: app!.outputs.id
-    groupId: 'sites'
-    privateDnsZoneId: webZoneId
+    targetResourceId: app!.outputs.id
+    groupIds: ['sites']
+    privateDnsZoneIds: [webZoneId]
   }
 }
 
@@ -311,6 +318,13 @@ output managedIdentityClientId string = identity.properties.clientId
 output virtualNetworkId string = networkMode == 'new' ? network!.outputs.vnetId : substring(integrationSubnetId, 0, lastIndexOf(integrationSubnetId, '/subnets/'))
 output resourceNameStem string = stem
 output workspaceId string = monitoring.outputs.workspaceId
+output hostStorageAccountId string = hostStorage.outputs.id
+output uploadStorageAccountId string = uploadStorage.outputs.id
+output managedIdentityResourceId string = identity.id
+output applicationInsightsId string = monitoring.outputs.applicationInsightsId
+output storagePrivateEndpointIds array = [for (item, index) in storageEndpoints: storagePrivateEndpoints[index].outputs.privateEndpointId]
+output destinationPrivateEndpointIds array = concat(createDestinationPrivateEndpoints ? [destinationBlobEndpoint!.outputs.privateEndpointId] : [], createDestinationPrivateEndpoints && destinationIsHnsEnabled ? [destinationDfsEndpoint!.outputs.privateEndpointId] : [])
+output functionPrivateEndpointId string = deployFunctionApp ? appPrivateEndpoint!.outputs.privateEndpointId : ''
 
 
 // Compatibility output: the ledger shares the solution storage account.

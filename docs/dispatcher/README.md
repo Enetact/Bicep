@@ -80,7 +80,7 @@ The Bicep implementation requires a subscription/resource-group target, supporte
 | Monitoring | Workspace/Application Insights, appropriate metrics-publisher grant, configured action groups, and owners for poison/quarantine/missing-heartbeat alerts. |
 | Build/release tooling | Git, PowerShell, .NET SDK, Bicep 0.47.16 (standalone or Azure CLI adapter), and Azure CLI for deployment. CI and the manual self-service release pipeline are implemented. [Platform onboarding and live qualification](../self-service.md) remain required. |
 
-These are the repository's implemented grants, not a claim that every individual handler needs every permission. Source: [function app](../../modules/function-app.bicep), [storage access](../../modules/storage-access.bicep), [destination access](../../modules/destination-access.bicep), [main template](../../main.bicep), and [security/RBAC](../security-and-rbac.md). The binding-specific queue endpoint and identity requirements are confirmed in [Microsoft's connection guide](https://learn.microsoft.com/en-us/azure/azure-functions/manage-connections?tabs=identity).
+These are the repository's implemented grants, not a claim that every individual handler needs every permission. Source: [function app](../../workloads/blob-transfer/modules/function-app.bicep), [storage access](../../workloads/blob-transfer/modules/storage-access.bicep), [destination access](../../workloads/blob-transfer/modules/destination-access.bicep), [main template](../../workloads/blob-transfer/main.bicep), and [security/RBAC](../security-and-rbac.md). The binding-specific queue endpoint and identity requirements are confirmed in [Microsoft's connection guide](https://learn.microsoft.com/en-us/azure/azure-functions/manage-connections?tabs=identity).
 
 ## Exact dispatcher method
 
@@ -233,7 +233,7 @@ Environment keys use `__`; worker configuration reads those as `:`. Binding conf
 
 Local `Host.LocalHttpPort` is 7071 and the launcher explicitly binds `127.0.0.1:7071`. `host.json` sets 30-minute timeout, disabled dynamic concurrency, blob parallelism 2/poison threshold 5, queue batch 2/new-batch threshold 0/max-dequeue 5/visibility one minute/max-poll ten seconds/encoding none. These are configured bounds, not throughput guarantees.
 
-Sources: [Program.cs](../../src/BlobTransfer/Program.cs), [local guard](../../src/BlobTransfer/LocalDevelopment.cs), [host.json](../../src/BlobTransfer/host.json), [local emulator settings](../../src/BlobTransfer/local.settings.azurite.example.json), [Azure-connected developer example](../../src/BlobTransfer/local.settings.example.json), and [Azure app settings](../../modules/function-app.bicep).
+Sources: [Program.cs](../../src/BlobTransfer/Program.cs), [local guard](../../src/BlobTransfer/LocalDevelopment.cs), [host.json](../../src/BlobTransfer/host.json), [local emulator settings](../../src/BlobTransfer/local.settings.azurite.example.json), [Azure-connected developer example](../../src/BlobTransfer/local.settings.example.json), and [Azure app settings](../../workloads/blob-transfer/modules/function-app.bicep).
 
 ## Dependencies and package inventory
 

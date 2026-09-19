@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Approved blob-transfer workload intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workloadName", "environment", "region", "workloadType"],
+  "properties": {
+    "workloadName": { "type": "string", "pattern": "^[a-z0-9]{3,10}$" },
+    "environment": { "enum": ["dev", "qa", "uat", "prod"] },
+    "region": { "type": "string", "pattern": "^[a-z0-9]+$" },
+    "workloadType": { "const": "blob-transfer" },
+    "capabilities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["storage", "observability"],
+      "properties": { "storage": { "const": true }, "observability": { "const": true } }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "workloadType": "blob-transfer",
+  "composition": "workloads/blob-transfer/main.bicep",
+  "defaultRegion": "eastus2",
+  "approvedRegions": ["eastus2"],
+  "requiredCapabilities": { "storage": true, "observability": true },
+  "createDestinationPrivateEndpoints": true,
+  "enableLogAlerts": true,
+  "isolatedNetworkExceptions": []
+}

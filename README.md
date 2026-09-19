@@ -51,7 +51,11 @@ All pipeline entry points disable push and pull-request triggers explicitly. Sta
 
 For now, disabled targets in the Deploy menu run a **setup check only** on Microsoft-hosted `windows-latest`, without referencing the unconfigured private pool or deployment environments. This checks local configuration, not the saved discovery artifact or Azure readiness, and creates no Azure resources. Enabling a target and regenerating the catalog restores its private-agent deployment workflow. See [temporary setup mode](docs/self-service.md#temporary-hosted-setup-check).
 
-Run the [discovery pipeline](azure-pipelines-self-service.yml) first. It saves inventory and a manifest in `subscription-discovery`. Then open the separate [Deploy pipeline](azure-pipelines-self-service-deploy.yml) on `main`: choose **Resources > discovery**, select the successful `main` discovery run, match the workload/environment/subscription/network selections, and choose deployment checkboxes with cost references. ADO supplies the pipeline/run IDs automatically. Deployment verifies the manifest and source run, freezes a release, previews infrastructure, applies approved changes, verifies private access and Function indexing, and runs an upload-to-destination smoke test before reporting Ready. A successful empty inventory can onboard a new-network profile; failed listings remain unknown and cannot authorize provisioning.
+Platform operators run the [discovery pipeline](azure-pipelines-self-service.yml) first. It saves inventory and a manifest in `subscription-discovery`. Developers open the separate [Deploy pipeline](azure-pipelines-self-service-deploy.yml) on `main`, select the approved **workload type, workload name, environment and region**, then choose a matching successful `main` discovery run under **Resources > discovery**. Platform configuration resolves the subscription, network, service connection, endpoint and alert settings; the form retains reference costs. ADO supplies the pipeline/run IDs automatically. For enabled targets, deployment verifies the manifest and source run, freezes a release, validates ARM, gates What-If changes, applies approved changes and runs private readiness/runtime checks before reporting Ready. Enterprise targets reuse central networking/DNS; new-network deployment requires an explicit reviewed exception. Failed listings remain unknown and cannot authorize provisioning.
+
+The [enterprise platform review](docs/enterprise-platform.md) documents the intent contract, ownership boundaries, shared DNS/resolver and monitoring support, Policy and registry templates, and remaining platform work. Only the existing `blob-transfer` pattern is implemented.
+
+The Deploy pipeline now publishes a content-hashed **Template Spec** and creates/updates a **subscription-scoped Deployment Stack** owning the dedicated workload resource group. It extends `pipelines/deploy-entry.yml` for Required Template checks. See the [upgrade and onboarding runbook](docs/deployment-stacks-upgrade.md): do not precreate the workload RG or use the legacy manual deployment path against stack-managed resources. Existing resource groups require a separate adoption review. All Azure behavior remains subject to live acceptance.
 
 The [subscription discovery and naming guide](docs/subscription-discovery.md) explains scoped discovery, existing-subnet selection, generated dropdowns, standard names and templated data permissions. Azure DevOps dropdowns refresh after reviewed catalog changes are merged; they do not query Azure interactively when clicked.
 
@@ -62,12 +66,16 @@ Start with the [developer and platform guide](docs/self-service.md) for exact ac
 ## Files and local validation
 
 ```text
-main.bicep
-environments/{dev,qa,uat,prod}.bicepparam
-modules/                   storage, network, RBAC, Function, monitoring
+workloads/blob-transfer/   main.bicep, stack.bicep, request contract
+  environments/            main.{dev,qa,uat,prod}.bicepparam
+  modules/                 workload-specific Function, monitoring, network and RBAC
+modules/                   reusable network/private-endpoint and storage/storage-account
+platform/                  separately operated Policy and registry templates
+config/                    reviewed topology and stack/publication policy
 src/BlobTransfer/          dispatcher, queue worker, ledger, timers, recovery
 src/TransferTool/          status / reviewed resume CLI
 tests/BlobTransfer.Tests/  policy and Azurite integration tests
+tests/infrastructure/      locked YAML parser and pipeline/Bicep contract checks
 scripts/                   validation, local recovery tests, deployment, smoke, packaging
 docs/                      design, operations, diagrams, evidence
 azure-pipelines.yml        test/package CI; no automatic deployment
@@ -76,6 +84,8 @@ azure-pipelines-self-service-deploy.yml  deployment from a selected discovery ru
 pipelines/                 protected-resource bindings and plan/apply templates
 self-service/targets/      disabled catalog examples for platform onboarding
 ```
+
+See [Bicep repository conventions](docs/repository-structure.md) for Microsoft source references, module placement, environment/stack configuration, and the migration from the old root template paths. Pipeline YAML filenames remain unchanged.
 
 Extract `blob-transfer-project.tar` with `tar -xf blob-transfer-project.tar`, then enter `blob-transfer`. Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward.
 
@@ -91,7 +101,7 @@ az bicep install --version v0.47.16
 
 Ordinary unit-test runs skip emulator integration tests explicitly. `Test-Recovery.ps1` starts its own loopback-only Azurite, runs the integration tests, and stops only that process. It refuses already-occupied emulator ports and retains test data/evidence under `artifacts`. Azure is not required for local tests.
 
-The project check also exercises tooling contracts and writes unit-test/advisory evidence to `artifacts/test-results`. Unavailable advisory data (`NU1900`) fails validation. Packaging checks the exact five Function names/triggers and writes the ZIP, SHA-256, generated metadata, compiled environment templates, and `release.json` to `artifacts/releases/<release-id>`. The receipt records the Git commit and whether local edits were present; it is provenance, not a signature or proof of approval. CI publishes this curated release folder and test results, rather than emulator tooling/data.
+The project check also exercises tooling contracts, parses pipeline YAML and checks template bindings/stage artifacts using the locked test-only YAML parser under `tests/infrastructure`. It requires Node.js 22+ and npm, restores that dependency with install scripts disabled, and writes unit-test/advisory/pipeline evidence to `artifacts/test-results`. Unavailable advisory data (`NU1900`) fails validation. Packaging checks the exact five Function names/triggers and writes the ZIP, SHA-256, generated metadata, compiled environment templates, and `release.json` to `artifacts/releases/<release-id>`. The receipt records the Git commit and whether local edits were present; it is provenance, not a signature or proof of approval. CI publishes this curated release folder and test results, rather than emulator tooling/data.
 
 After intentional source changes, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1` and review the diff. Do not regenerate it automatically in CI. Use the [current self-service guide](docs/self-service.md) for implementation/setup and the [historical assessment](docs/self-service-azure-devops-assessment.md) for original proposals and deferred architecture.
 

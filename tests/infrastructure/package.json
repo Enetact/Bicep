@@ -1,0 +1,9 @@
+{
+  "name": "blob-transfer-infrastructure-checks",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local YAML and compiled Bicep contract checks; never contacts Azure.",
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node verify.mjs" },
+  "devDependencies": { "yaml": "2.9.1" }
+}
