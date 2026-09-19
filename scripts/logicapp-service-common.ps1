@@ -1,15 +1,52 @@
 # Logic App Standard adapter. Loaded by self-service-common.ps1; Azure calls use
 # the same mockable CLI boundary and stack/preview governance as blob-transfer.
-function Assert-LogicParameters($Target,$P) {
-    foreach($key in @('workload','environmentName','location','owner','costCenter','integrationSubnetId','privateEndpointSubnetId','privateDnsZoneIds','existingLogAnalyticsWorkspaceId','deploymentPrincipalObjectId','trustedServiceException','runtimeStorageCredentialException')) {
-        if (!$P.Contains($key) -or $null -eq $P[$key].value) { throw "Missing Logic App parameter: $key" }
+function Get-LogicPlaceholderPaths($Value,[string]$Path) {
+    if($Value -is [Collections.IDictionary]){
+        foreach($key in @($Value.Keys|Sort-Object)){Get-LogicPlaceholderPaths $Value[$key] "$Path.$key"}
+    }elseif($Value -is [array]){
+        for($i=0;$i -lt $Value.Count;$i++){Get-LogicPlaceholderPaths $Value[$i] "$Path[$i]"}
+    }elseif($Value -is [string] -and $Value -match 'REPLACE|00000000-0000-0000-0000-000000000000'){$Path}
+}
+function Get-LogicOnboardingIssues($P) {
+    $requirements=@{
+        owner='Supply the responsible team or owner tag.'
+        costCenter='Supply the approved cost-center tag.'
+        integrationSubnetId='Select the existing Logic App integration subnet resource ID.'
+        privateEndpointSubnetId='Select a different existing private-endpoint subnet in the same VNet.'
+        privateDnsZoneIds='Supply the six existing private DNS zone resource IDs (blob, queue, table, file, sites, topic).'
+        existingLogAnalyticsWorkspaceId='Select the existing Log Analytics workspace resource ID.'
+        deploymentPrincipalObjectId='Supply the service connection identity object ID, not its application/client ID.'
+        trustedServiceException='Platform review required: approve trusted-service Event Grid delivery and provide its HTTPS review reference.'
+        runtimeStorageCredentialException='Platform review required: approve private runtime-storage credentials and provide its HTTPS review reference.'
     }
-    if ((ConvertTo-Canonical $P) -match 'REPLACE|00000000-0000-0000-0000-000000000000') { throw 'Replace Logic App onboarding placeholders.' }
-    if ($P.workload.value -cne $Target.workload -or $P.environmentName.value -cne $Target.environmentName -or $P.location.value -cne 'eastus2') { throw 'Logic App intent mismatch.' }
-    foreach($key in @('trustedServiceException','runtimeStorageCredentialException')) {
+    foreach($key in @('workload','environmentName','location','owner','costCenter','integrationSubnetId','privateEndpointSubnetId','privateDnsZoneIds','existingLogAnalyticsWorkspaceId','deploymentPrincipalObjectId','trustedServiceException','runtimeStorageCredentialException')){
+        if(!$P.Contains($key) -or $P[$key] -isnot [Collections.IDictionary] -or !$P[$key].Contains('value') -or $null -eq $P[$key].value -or ($P[$key].value -is [string] -and [string]::IsNullOrWhiteSpace($P[$key].value))){
+            $message=if($requirements.Contains($key)){$requirements[$key]}else{'Supply the registered workload/environment/region value.'}
+            @{parameter=$key;requirement=$message}
+        }
+    }
+    foreach($key in @($P.Keys|Sort-Object)){
+        if($P[$key] -isnot [Collections.IDictionary] -or !$P[$key].Contains('value')){continue}
+        foreach($path in @(Get-LogicPlaceholderPaths $P[$key].value $key)){
+            $message=if($requirements.Contains($key)){$requirements[$key]}else{'Replace the onboarding placeholder with an approved value.'}
+            @{parameter=$path;requirement=$message}
+        }
+    }
+    foreach($key in @('trustedServiceException','runtimeStorageCredentialException')){
+        if(!$P.Contains($key) -or $P[$key] -isnot [Collections.IDictionary] -or !$P[$key].Contains('value') -or $null -eq $P[$key].value){continue}
         $review=$P[$key].value
-        if ($review -isnot [Collections.IDictionary] -or !$review.Contains('approved') -or $review.approved -isnot [bool] -or !$review.approved -or !$review.Contains('reviewReference') -or $review.reviewReference -cnotmatch '^https://[^\s]+$') { throw "Platform review required: $key" }
+        if($review -isnot [Collections.IDictionary] -or !$review.Contains('approved') -or $review.approved -isnot [bool] -or !$review.approved -or !$review.Contains('reviewReference') -or $review.reviewReference -cnotmatch '^https://[^\s]+$'){
+            @{parameter=$key;requirement=$requirements[$key]}
+        }
     }
+}
+function Assert-LogicParameters($Target,$P) {
+    $issues=@(Get-LogicOnboardingIssues $P)
+    if($issues.Count){
+        $details=@($issues|ForEach-Object {"- $($_.parameter): $($_.requirement)"}) -join "`n"
+        throw "Logic App onboarding is incomplete. Update $($Target.parameterFile):`n$details`nDiscovery records available resources; it does not select shared resources, supply ownership tags or grant platform approvals."
+    }
+    if ($P.workload.value -cne $Target.workload -or $P.environmentName.value -cne $Target.environmentName -or $P.location.value -cne 'eastus2') { throw 'Logic App intent mismatch.' }
     if ([guid]::Parse($P.deploymentPrincipalObjectId.value) -eq [guid]::Empty) { throw 'Invalid deployment principal.' }
     foreach($key in @('integrationSubnetId','privateEndpointSubnetId')) { if ($P[$key].value -cnotmatch '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/virtualNetworks/[^/]+/subnets/[^/]+$') { throw 'Invalid approved subnet ID.' } }
     if ($P.integrationSubnetId.value -ieq $P.privateEndpointSubnetId.value -or ($P.integrationSubnetId.value -replace '/subnets/[^/]+$','') -ine ($P.privateEndpointSubnetId.value -replace '/subnets/[^/]+$','')) { throw 'Logic App requires separate subnets in the same approved VNet.' }

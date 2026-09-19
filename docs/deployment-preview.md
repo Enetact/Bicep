@@ -17,6 +17,14 @@ No custom Azure DevOps extension needs to be installed. The pipeline uses the bu
 
 The run stops before discovery download or Azure What-If. Its README reports the named changed/missing/unlisted files; it is not a resource-change plan. Run `./scripts/Update-Manifest.ps1` locally after reviewing the source changes, commit the updated `MANIFEST.sha256` with those changes, and queue a fresh run from the updated main commit. CI only checks the manifest and never repairs it automatically. Hashes follow Git's LF checkout rule for text, so local CRLF/mixed endings cannot produce a manifest that passes locally but fails solely because Git normalizes that text. Binary content remains hashed exactly.
 
+### If Event flow reports incomplete onboarding
+
+A successful Discover run proves its inventory was collected and verified. It does not fill environment parameters or approve shared-resource choices. Preview reports the missing fields together in **Required environment settings**, identifies the repository parameter file, and retains `onboarding-requirements.json` alongside the compiled declarations. No Azure resource-change result is claimed while these settings are incomplete.
+
+Update the selected `workloads/logic-app-event-grid/environments/main.<environment>.bicepparam`: owner, cost center, the two distinct subnet IDs, existing Log Analytics workspace ID, deployment identity object ID, and all six private DNS zone IDs. The two platform exception objects must also contain actual approvals and their HTTPS review references. Never turn approvals on merely to pass validation. Reviewed target overrides apply before the check.
+
+Select existing IDs from the verified discovery inventory and confirm they are appropriate for this workload. If those shared resources do not exist, they need separate platform provisioning: the current Event flow stack consumes existing shared subnets, DNS and workspace. Discovery does not create them. Keep `enabled: false` while obtaining a preview; enablement is required only for actual Deploy. After filling the real settings, regenerate the manifest, merge, and rerun Preview with matching discovery that remains within its freshness limit.
+
 ## What the report means
 
 The full runtime-enabled Bicep stack is evaluated: `deployFunctionApp=true` for Blob copy and `releaseActivated=true` for Event flow. You can inspect the planned application host and supporting infrastructure before Foundation is deployed. The report lists every resource returned by Azure, action counts, resource IDs, certainty, nested property before/after differences, unchanged resources, management/deny changes and diagnostics. Create, Modify, Delete and Detach results remain visible even when policy rejects the plan.

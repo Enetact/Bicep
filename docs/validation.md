@@ -2,6 +2,14 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Preview run 20 onboarding blocker: 19 September 2026
+
+The supplied log confirms all 206 source-manifest entries passed, discovery run 18 downloaded and passed provenance checks for subscription `f4f2eafe-2512-4c2f-9b5b-c88f6767e778`, and Bicep preparation reached Logic App parameter validation. It stopped on onboarding placeholders before the AzureCLI What-If task. Six files were published as `deployment-preview`; publication does not imply a successful resource-change plan.
+
+The checked-in Event flow profiles still require real environment configuration. Validation now reports missing/placeholder field paths and both pending platform reviews together, with the selected parameter-file path, rather than a generic first error. Preview retains this checklist as `onboarding-requirements.json` and renders it in the README. Values are not invented, shared infrastructure is not automatically provisioned, and deployment enablement/approval guards remain in effect.
+
+Targeted verification passed **50 Logic App contracts** and **22 preview contracts**, including compilation of the checked-in dev parameters and detection of all 14 onboarding blockers, safe diagnostics for absent/blank values, approval validation and blocked-report rendering. No Azure evaluation or deployment was performed locally. Actual environment values, shared resources and platform review decisions remain necessary to unblock Preview.
+
 ## Preview run 17 source-manifest failure: 19 September 2026
 
 The supplied ADO log shows run 17 checked out main commit `3f60541e9bb2402ef4af77f1a6445c7ddd5b07c2`, installed Bicep successfully, then failed the source-manifest check before discovery download and Azure validation. The one-file `deployment-preview` artifact was the initial README; it contained no resource-change result.

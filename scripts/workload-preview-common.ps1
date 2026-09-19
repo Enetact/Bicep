@@ -23,6 +23,9 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
     Set-ServiceProfileParameters $Target $p.parameters
     if($type -eq 'blob-transfer'){$platform=Read-PlatformConfiguration;Set-ServiceDeploymentOptions $Target $p.parameters $platform.createDestinationPrivateEndpoints $platform.enableLogAlerts}
     Write-ServiceJson $p (Join-Path $Directory parameters.json)
+    if($type -eq 'logic-app-event-grid'){
+        Write-ServiceJson @{schemaVersion=1;parameterFile=$Target.parameterFile;issues=@(Get-LogicOnboardingIssues $p.parameters)} (Join-Path $Directory onboarding-requirements.json)
+    }
     # Compile first so a blocked README can still list locally declared resource types.
     Assert-ServiceParameters $Target $p.parameters
     if($type -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $Target $p.parameters $DiscoveryDirectory}
@@ -116,6 +119,15 @@ function Write-WorkloadPreviewReadme([string]$Directory,[string]$Status,[string]
     if($ErrorText){$lines+=@('## Blocker','', (ConvertTo-PreviewCell $ErrorText),'','Do not interpret a failed or incomplete preview as zero changes. Deploy is blocked; correct the reported prerequisites or policy findings and rerun.','')}
     if(Test-Path (Join-Path $Directory target.json)){$t=Get-Content (Join-Path $Directory target.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Workload: $(ConvertTo-PreviewCell (Get-TargetWorkloadType $t)) / $(ConvertTo-PreviewCell $t.workload) / $(ConvertTo-PreviewCell $t.environmentName).","Subscription: $(ConvertTo-PreviewCell $t.subscriptionId). Resource group: $(ConvertTo-PreviewCell $t.resourceGroup).","Deployment enabled: $($t.enabled). Disabled targets can be previewed but cannot deploy.",'')}
     if(Test-Path (Join-Path $Directory cost-estimate.json)){$cost=Get-Content (Join-Path $Directory cost-estimate.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Cost status: $(ConvertTo-PreviewCell $cost.status). Fixed monthly subtotal USD: $(ConvertTo-PreviewCell $cost['fixedMonthlySubtotalUsd']); usage is additional. See cost-estimate.json.",'')}
+    $onboardingPath=Join-Path $Directory onboarding-requirements.json
+    if(Test-Path -LiteralPath $onboardingPath){
+        $onboarding=Get-Content -LiteralPath $onboardingPath -Raw|ConvertFrom-Json -AsHashtable
+        if($onboarding.issues.Count){
+            $lines+=@('## Required environment settings','',"Update repository file: $(ConvertTo-PreviewCell $onboarding.parameterFile)",'','| Parameter | Required action |','|---|---|')
+            foreach($issue in $onboarding.issues){$lines+="| $(ConvertTo-PreviewCell $issue.parameter) | $(ConvertTo-PreviewCell $issue.requirement) |"}
+            $lines+=@('','Discovery lists available resources; it does not choose approved IDs or grant platform approvals. If the shared subnets, DNS zones or workspace are absent, platform provisioning is required first. This Event flow stack references those shared resources. The target can remain disabled for Preview.','')
+        }
+    }
     $rawPath=Join-Path $Directory azure/stack-what-if.json
     if(Test-Path $rawPath){
         $raw=Get-Content $rawPath -Raw|ConvertFrom-Json -AsHashtable
