@@ -1,0 +1,61 @@
+# Temporary hosted setup path for disabled targets; no Azure tasks or deployment jobs.
+parameters:
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: discoveryPipelineId
+    type: string
+  - name: discoveryRunId
+    type: string
+  - name: createDestinationPrivateEndpoints
+    type: boolean
+  - name: enableLogAlerts
+    type: boolean
+stages:
+  - stage: SetupOnly
+    displayName: Hosted setup check - no Azure deployment
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: CheckSetup
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - pwsh: |
+              . ./scripts/self-service-common.ps1
+              $target = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}' -AllowDisabled
+              if ($target.enabled) { throw 'Target was enabled without regenerating catalog routing. Run Update-ServiceCatalog.ps1.' }
+              ./scripts/Update-ServiceCatalog.ps1 -Check
+              $summary = Join-Path $env:AGENT_TEMPDIRECTORY 'setup-only.md'
+              @(
+                '# Setup check only - Azure NOT deployed'
+                ''
+                'This target is disabled. Only its checked-in configuration was checked on a Microsoft-hosted Windows agent.'
+                "Target: $($target.workload) / $($target.environmentName) / $($target.subscriptionAlias) / $($target.networkProfile)."
+                "Destination endpoints selected: $env:CREATE_DESTINATION_ENDPOINTS. Log alerts selected: $env:ENABLE_LOG_ALERTS. Neither option was applied."
+                ''
+                'The selected discovery artifact was not downloaded or validated. No bundle, what-if or readiness receipt was produced.'
+                ''
+                '## Before enabling deployment'
+                "- Configure and authorize private agent pool: $($target.agentPool)."
+                '- Verify private routing/DNS and required agent tools.'
+                "- Configure environment approvals/lock: $($target.deploymentEnvironment)."
+                "- Verify service connection: $($target.serviceConnection), Azure scopes and destination prerequisites."
+                '- Review the target parameters, enable the target, regenerate the catalog and source manifest, then merge.'
+                '- Queue Deploy with a matching successful main discovery run. The private-pool deployment workflow will then be restored.'
+              ) | Set-Content -LiteralPath $summary
+              Write-Host '##vso[task.logissue type=warning]Setup check only: target disabled; no Azure deployment or discovery-artifact validation performed.'
+              Write-Host "##vso[task.uploadsummary]$summary"
+            displayName: Check disabled target and report remaining setup
+            env:
+              CREATE_DESTINATION_ENDPOINTS: ${{ parameters.createDestinationPrivateEndpoints }}
+              ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}

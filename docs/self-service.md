@@ -4,6 +4,14 @@ Status: implemented in the repository and locally contract-tested. Run 8 on `fea
 
 This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 
+### Temporary hosted setup check
+
+While a selected target has `enabled: false`, the Deploy entry point now expands to **Hosted setup check - no Azure deployment**, using `pool: { vmImage: windows-latest }` in the Microsoft-hosted Azure Pipelines pool. It checks the target/catalog and publishes remaining setup requirements. It does not download/validate the discovery artifact, build a release, run what-if or deploy Azure resources. A successful setup check is not deployment readiness; resource checkboxes are displayed but not applied.
+
+The generated route omits private-pool jobs and deployment environments entirely, avoiding the reported missing/unauthorized `blob-transfer-private` lookup for these disabled targets. A skipped job condition alone would not fix queue-time resource validation. The discovery pipeline resource must still exist/be accessible, and executing the check requires hosted agent capacity. There is no built-in image called `windows-default`; the supported image here is `windows-latest`.
+
+After onboarding, set the target's `enabled` flag to `true`, regenerate the catalog and manifest, and merge. Its reviewed private pool, environment checks, discovery validation and original deployment stages are then restored. The Azure deployment scripts continue rejecting disabled targets. See Microsoft's [hosted agent configuration](https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops).
+
 ## What developers select in Run pipeline
 
 `blobcopy` is the registered workload code for the automated blob-transfer package, not an Azure service or pricing tier. The workload code and environment contribute to resource names, for example `asp-blobcopy-dev`. An exact workload/environment/subscription/network combination selects one reviewed target profile. Registering another workload code in this repository gives the same deployment blueprint another identity; it does not select an unrelated application template.
@@ -46,6 +54,7 @@ Developers need project access, pipeline view/queue permissions, and artifact ac
 
 | Stage | Calls | Result and effects |
 |---|---|---|
+| SetupOnly (disabled targets only) | `Read-ServiceTarget -AllowDisabled`; `Update-ServiceCatalog.ps1 -Check` | Hosted Windows configuration check and setup summary. No discovery download/validation, Azure tasks, private pool, release bundle or deployment readiness result. Enabled targets use the stages below instead. |
 | Qualify | `Read-ServiceTarget`; `Test-Project.ps1`; `Test-Recovery.ps1`; `Test-LocalTooling.ps1`; `Run-Local.ps1` → `Test-Local.ps1` → `Stop-Local.ps1`; `Build-Package.ps1`; `New-SelfServiceBundle.ps1` | Rejects disabled targets, validates manifest, compiles four environments, tests and builds. Freezes selected target/template/parameters/package. No Azure deployment. |
 | PlanFoundation | `Invoke-SelfService.ps1 -Action PlanFoundation` → `New-ServicePlan` | Checks destination and existing application; runs ARM what-if unless an app already exists. Publishes preview. |
 | ApplyFoundation | `Invoke-SelfService.ps1 -Action ApplyFoundation` → `Invoke-ServiceApply` | Rechecks approved preview; provisions infrastructure when needed; verifies output contract and private storage access. |
@@ -129,7 +138,7 @@ Update a schemaVersion 2 profile under `self-service/targets/` with the real sub
 ./scripts/Update-Manifest.ps1 -Check
 ```
 
-Review and merge the changes through the protected branch. Queue a dev run and complete live acceptance before enabling higher environments. Disabled targets fail early by design; they are not a runnable Azure demo configuration.
+Review and merge the changes through the protected branch. Queue a dev run and complete live acceptance before enabling higher environments. Disabled targets run only the hosted setup check through the Deploy menu; actual deployment scripts still reject them.
 
 For another workload, add target JSON profiles and parameter files, then regenerate the catalog to populate dropdown values and compile-time protected-resource bindings. Create the corresponding external resources/controls first. Each workload/environment/subscription/network combination must be unique. The current catalog contains only `blobcopy`.
 

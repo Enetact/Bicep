@@ -75,11 +75,16 @@ foreach ($t in $targets) {
     $conditions+=$condition
     $bindings+=('  - ${{ if '+$condition+' }}:')
     foreach ($op in @('discover','deploy')) {
-        $template=if ($op -eq 'discover') {'self-service-discover'} else {'self-service-stages'}
+        # Omit private-pool/environment jobs entirely for disabled targets. A runtime
+        # condition would still let ADO validate their missing resources at queue time.
+        $template=if ($op -eq 'discover') {'self-service-discover'} elseif (!$t.enabled) {'self-service-setup'} else {'self-service-stages'}
         $bindings+=@(('    - ${{ if eq(parameters.operation, '''+$op+''') }}:'),"      - template: templates/$template.yml",'        parameters:',
             "          workload: $($t.workload)","          environment: $($t.environmentName)","          subscription: $($t.subscriptionAlias)","          network: $($t.networkProfile)",
             "          serviceConnection: $($t.serviceConnection)")
-        if ($op -eq 'deploy') { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)",'          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','          discoveryRunId: ${{ parameters.discoveryRunId }}','          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}','          enableLogAlerts: ${{ parameters.enableLogAlerts }}') }
+        if ($op -eq 'deploy') {
+            if ($t.enabled) { $bindings+=@("          agentPool: $($t.agentPool)","          deploymentEnvironment: $($t.deploymentEnvironment)") }
+            $bindings+=@('          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}','          discoveryRunId: ${{ parameters.discoveryRunId }}','          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}','          enableLogAlerts: ${{ parameters.enableLogAlerts }}')
+        }
     }
 }
 $anyMatch=if ($conditions.Count -eq 1) {$conditions[0]} else {'or('+($conditions -join ', ')+')'}

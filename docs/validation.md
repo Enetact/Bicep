@@ -4,6 +4,12 @@ This records the external-uploader design with the ledger co-located in solution
 
 ## Self-service completion audit: 18 September 2026
 
+### Temporary hosted setup for disabled targets
+
+Generated disabled-target routes now use `self-service-setup.yml` on `windows-latest`, omitting private pools, deployment environments and Azure tasks from the expanded Deploy workflow. The check reports configuration/setup only; it does not consume discovery evidence or indicate deployment readiness. Enabled-target generation retains the original private-pool deployment stages. **78 offline cases passed**: `artifacts/discovery-tests/b65919c1652b4eb5b12afac9e04a0e01/results.json`, including disabled/enabled routing and the absence of Azure execution in hosted setup. Live ADO template expansion remains unverified until publication.
+
+All nine YAML files parsed, and structural checks confirmed all four current Deploy routes resolve to the hosted setup template. The actual setup task script executed locally and produced `artifacts/hosted-setup-check/setup-only.md`, explicitly reporting no Azure deployment or discovery-artifact validation. Catalog freshness and source-manifest checks passed. No Azure calls were made.
+
 ### Deployment checkbox cleanup
 
 The two deployment checkboxes now follow the four target selectors, with short action/cost labels. Endpoint prerequisites, production alert requirements and pricing assumptions remain in the reference fields below. Both default to checked. Parsed-YAML comparison against the previous revision confirmed identical resource selection, stage inputs and checkbox defaults. Catalog freshness and PowerShell parsing passed; all **76 discovery/catalog/handoff cases passed** again: `artifacts/discovery-tests/1c598b7d5cc84c12bdffb1e59d40e7f1/results.json`. The updated form has not been inspected live. The reported missing/unauthorized `blob-transfer-private` pool remains a platform setup blocker; this label change does not create or authorize a pool.
