@@ -1,3 +1,7 @@
 {
-  "discoveryPipelineName": "Enetact.Bicep"
+  "discoveryPipelineName": "Enetact.Bicep",
+  "workloadDiscoveryPipelineNames": {
+    "blob-transfer": "Discover - Blob copy",
+    "logic-app-event-grid": "Discover - Event flow"
+  }
 }

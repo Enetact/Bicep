@@ -12,66 +12,51 @@ resources:
 
 parameters:
   - name: workloadType
-    displayName: Approved workload pattern
+    displayName: "1. What do you want to deploy?"
     type: string
-    default: blob-transfer
-    values: [blob-transfer, logic-app-event-grid]
+    default: "Blob copy - Function App + 2 Storage accounts | blob-transfer"
+    values:
+      - "Blob copy - Function App + 2 Storage accounts | blob-transfer"
+      - "Event flow - Logic App + Event Grid + 2 Storage accounts | logic-app-event-grid"
   - name: workloadName
-    displayName: Registered workload
+    displayName: "2. Instance name (Blob copy = blobcopy; Event flow = eventflow)"
     type: string
-    default: blobcopy
-    values: [blobcopy, eventflow]
+    default: "blobcopy"
+    values:
+      - "blobcopy"
+      - "eventflow"
   - name: environment
-    displayName: Environment
+    displayName: "3. Environment"
     type: string
-    default: dev
-    values: [dev, prod, qa, uat]
+    default: "dev"
+    values:
+      - "dev"
+      - "prod"
+      - "qa"
+      - "uat"
   - name: region
-    displayName: Approved region
+    displayName: "4. Approved region"
     type: string
-    default: eastus2
-    values: [eastus2]
+    default: "eastus2"
+    values:
+      - "eastus2"
   - name: runGuidance
-    displayName: "Before running - discovery, approvals and readiness"
+    displayName: "Current behavior - deployment depends on target enablement"
     type: string
-    default: "Use main. Under Resources > discovery, select a successful main run for the same workload/environment. Enabled targets publish the approved template, preview changes for approval, deploy and verify the application. Disabled targets run setup checks only."
+    default: "All checked-in targets are disabled: Deploy currently creates NO Azure resources. Once enabled, it creates the selected workload in its own resource group and Deployment Stack, publishes/reuses a Template Spec, and verifies the application. Use main and choose matching Resources > discovery."
     values:
-      - "Use main. Under Resources > discovery, select a successful main run for the same workload/environment. Enabled targets publish the approved template, preview changes for approval, deploy and verify the application. Disabled targets run setup checks only."
-  - name: packageResources
-    displayName: "Included core resources (required)"
-    type: string
-    default: "blob-transfer: Function App, 2 Storage accounts, queues, ledger, identity, monitoring. logic-app-event-grid: Logic App Standard, Event Grid topic/subscription, 2 Storage accounts, receipt/quarantine/dead-letter storage, 8 private endpoints, identity and monitoring."
-    values:
-      - "blob-transfer: Function App, 2 Storage accounts, queues, ledger, identity, monitoring. logic-app-event-grid: Logic App Standard, Event Grid topic/subscription, 2 Storage accounts, receipt/quarantine/dead-letter storage, 8 private endpoints, identity and monitoring."
-  - name: hostingEstimate
-    displayName: "Hosting reference - USD per instance/month (East US 2; 2026-09-19)"
-    type: string
-    default: "Blob-transfer: B1 $12.41; S1 $69.35; P1v3 $113.15. Logic App WS1 + 8 endpoints: $233.56/month plus usage (USD East US 2, 2026-09-19). Multiply by profile instance count; exact selected subtotal is published during qualification."
-    values:
-      - "Blob-transfer: B1 $12.41; S1 $69.35; P1v3 $113.15. Logic App WS1 + 8 endpoints: $233.56/month plus usage (USD East US 2, 2026-09-19). Multiply by profile instance count; exact selected subtotal is published during qualification."
-  - name: packageNetworking
-    displayName: "Platform-managed private access"
-    type: string
-    default: "Private access, endpoints, DNS and routing follow the approved platform profile. Blob-transfer reference: 6 core endpoints $43.80/month; destination adds up to $14.60/month. Logic App has 8 endpoints already included in its hosting reference above. Shared networking remains separately billable."
-    values:
-      - "Private access, endpoints, DNS and routing follow the approved platform profile. Blob-transfer reference: 6 core endpoints $43.80/month; destination adds up to $14.60/month. Logic App has 8 endpoints already included in its hosting reference above. Shared networking remains separately billable."
+      - "All checked-in targets are disabled: Deploy currently creates NO Azure resources. Once enabled, it creates the selected workload in its own resource group and Deployment Stack, publishes/reuses a Template Spec, and verifies the application. Use main and choose matching Resources > discovery."
   - name: usageEstimate
-    displayName: "Additional usage charges - not included in fixed amounts"
+    displayName: "Cost assumptions - USD East US 2 retail as of 2026-09-19"
     type: string
-    default: "Storage capacity/transactions, endpoint data, egress, notifications and agent costs vary. Logs: $2.76/GB at paid tier; DNS queries: $0.40/million. Allowances depend on subscription usage."
+    default: "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu."
     values:
-      - "Storage capacity/transactions, endpoint data, egress, notifications and agent costs vary. Logs: $2.76/GB at paid tier; DNS queries: $0.40/million. Allowances depend on subscription usage."
-  - name: packageRequirements
-    displayName: "Requirements / USD retail as of 2026-09-19"
-    type: string
-    default: "Platform owns connection, destination, agent, network and alert settings. Blob-transfer: 3 log alert rules ~4.5/month plus usage. Logic App: 5 alert rules; alert costs are additional. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a spending cap. Disabled targets run setup only."
-    values:
-      - "Platform owns connection, destination, agent, network and alert settings. Blob-transfer: 3 log alert rules ~4.5/month plus usage. Logic App: 5 alert rules; alert costs are additional. Prices: East US 2, 730 hours/month, excluding tax/discounts/credits. Not a spending cap. Disabled targets run setup only."
+      - "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu."
 
 extends:
   template: pipelines/deploy-entry.yml
   parameters:
-    workloadType: ${{ parameters.workloadType }}
+    workloadType: ${{ split(parameters.workloadType, ' | ')[1] }}
     workloadName: ${{ parameters.workloadName }}
     environment: ${{ parameters.environment }}
     region: ${{ parameters.region }}

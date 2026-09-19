@@ -49,12 +49,12 @@ Compiled local modules are embedded in the **`logic-app-event-grid` Template Spe
 
 ## Exact pipeline flow
 
-1. Use **`/azure-pipelines-self-service.yml`** for Discover. Select `logic-app-event-grid`, `eventflow`, `dev`, `azure-subscription-a`, `central-private`.
+1. Use **Discover - Event flow** (`/azure-pipelines-eventflow-discover.yml`) for Discover. The workload is fixed to Event flow. Select `eventflow`, `dev`, `azure-subscription-a`, `central-private`.
 2. Run on protected `main`. Discovery reads network/DNS inventory, five workload providers and an ARM catalog of resource IDs/names/types/locations. Failed required listings mean **Partial/unknown**, not zero. It publishes `subscription-discovery` with a typed version-2 manifest.
-3. Use **`/azure-pipelines-self-service-deploy.yml`** for Deploy. Select `logic-app-event-grid`, `eventflow`, `dev`, `eastus2`; under **Resources > discovery**, choose the matching successful main run, no older than seven days.
+3. Use **Deploy - Event flow** (`/azure-pipelines-eventflow-deploy.yml`) for Deploy. The workload is fixed to Event flow. Select `eventflow`, `dev`, `eastus2`; under **Resources > discovery**, choose the matching successful main run, no older than seven days.
 4. Disabled profiles run hosted **SetupOnly**, reporting onboarding requirements without validating discovery or deploying. Enabled profiles use the stages below.
 
-Dropdowns are generated from the reviewed catalog. Inventory does not open a new form during an executing run. Invalid pattern/name combinations fail validation. All triggers remain disabled.
+Dropdowns are generated from the reviewed catalog and restricted to this workload. Only Event flow resource/cost summaries appear. Register the matching Discover definition before Deploy; see the [exact ADO registration steps](../../docs/self-service.md#register-the-new-definitions-in-ado). All triggers remain disabled.
 
 | Stage | Logic App behavior |
 |---|---|

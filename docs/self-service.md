@@ -14,17 +14,34 @@ The generated route omits private-pool jobs and deployment environments entirely
 
 After onboarding, configure existing enterprise networking or an explicit isolated-network exception in `config/platform.json`, set the target's `enabled` flag to `true`, regenerate the catalog and manifest, and merge. Its reviewed private pool, environment checks, discovery validation and original deployment stages are then restored. The Azure deployment scripts continue rejecting disabled targets. See Microsoft's [hosted agent configuration](https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops).
 
-## What developers select in Run pipeline
+## Choose the workload pipeline first
 
-The developer contract is now **workload type**, **registered workload name**, **environment**, and **approved region**. Patterns are `blob-transfer` with name `blobcopy`, and `logic-app-event-grid` with name `eventflow`; both use approved region `eastus2`. Each has four disabled environment profiles. Resource and cost references remain visible below those choices.
+Use a separate ADO definition for each workload and operation. Each native Run pipeline form contains only that workload's summaries, dependencies and cost reference. There is no workload-type dropdown in these forms; the generated wrapper passes a literal workload ID into the existing shared templates.
 
-The **Before running - discovery, approvals and readiness** information field explains the main-branch discovery selection, publication/preview/approval/deployment flow, and setup-only behavior for disabled targets. It is guidance, not an additional deployment option. To display an updated menu, publish the generated YAML and its supporting files to the branch selected in ADO, then reopen Run pipeline.
+| ADO definition name | YAML path |
+|---|---|
+| **Discover - Blob copy** | `/azure-pipelines-blobcopy-discover.yml` |
+| **Deploy - Blob copy** | `/azure-pipelines-blobcopy-deploy.yml` |
+| **Discover - Event flow** | `/azure-pipelines-eventflow-discover.yml` |
+| **Deploy - Event flow** | `/azure-pipelines-eventflow-deploy.yml` |
 
-The platform resolves subscription, network/subnet/DNS, service connection, agent pool, deployment environment, destination endpoints and alert settings. Endpoint and alert checkboxes were removed from the developer menu because these are implementation/security decisions. Their underlying Bicep options remain platform-controlled in `config/platform.json`; storage and observability are mandatory capabilities. Unknown patterns, capabilities and ambiguous target mappings fail validation.
+In Discover, select instance, environment, subscription and network. The only blueprint shown is the selected pipeline's workload; discovery itself creates nothing. In Deploy, select instance (`blobcopy` or `eventflow`, already restricted by pipeline), environment and region. Read that workload's resources, dependencies, costs and enabled/disabled status. Choose the matching successful main-branch discovery run under **Resources > discovery**. Summary fields are informational and never flow into resource settings.
 
-Discover remains a platform/operator menu with workload pattern, instance and subscription/network selectors. Deploy uses **Resources > discovery** to select the saved successful main run; ADO supplies its IDs automatically. Saved inventory is validated for enabled deployments and never dynamically rewrites the form. See [enterprise ownership and configuration](enterprise-platform.md) for the exact request contract, centralized DNS/resolver model, monitoring reuse and known gaps.
+The two Deploy menus use the same `pipelines/deploy-entry.yml` and six-stage implementation. The two Discover menus use the same catalog routing and inventory script. Literal service connections, pools, approvals, manifests and instance validation remain unchanged. Separate menus do not enable a target or authorize deployment.
 
-Cost estimates remain dated USD retail references, not a spending cap. The selected frozen estimate and resource changes appear in previews. [Cost assumptions](self-service-costs.md) document usage exclusions. Platform changes that omit previously created endpoints do not delete those endpoints or eliminate their charges.
+### Register the new definitions in ADO
+
+1. Merge/push the generated YAML and supporting files to GitHub.
+2. In Azure DevOps **Pipelines > New pipeline**, select the connected GitHub repository and **Existing Azure Pipelines YAML file** on `main`.
+3. Create the two **Discover** definitions first, using the paths and exact names above. Authorize their existing discovery service connection when ADO requests it.
+4. Create the two **Deploy** definitions from the corresponding YAML files. Their pipeline-resource sources are `Discover - Blob copy` and `Discover - Event flow`. Authorize access to that discovery pipeline/artifact for each Deploy definition, and configure protected-resource permissions/checks as required by onboarding.
+5. Run the chosen Discover definition successfully on `main`. Reopen its matching Deploy definition's Run pipeline menu and select that run under **Resources > discovery**. All checked-in targets currently run setup only.
+
+These definitions have not been created remotely by the repository change. YAML file names do not set ADO definition names automatically: rename each definition to match this table. If names or ADO folders differ, set the exact discovery definition paths in `self-service/pipeline-settings.json` under `workloadDiscoveryPipelineNames`, regenerate with `Update-ServiceCatalog.ps1`, update the source manifest and merge. This prevents a Deploy menu from accidentally selecting another workload's discovery pipeline. Existing runs from the generic discovery definition do not appear in the new dedicated resource pickers; run each new Discover definition once.
+
+The existing generic roots (`azure-pipelines-self-service.yml`, `azure-pipelines-self-service-deploy.yml`) remain compatible with their existing definitions and generic discovery source `Enetact.Bicep`. They no longer show both workload resource panels. Use the dedicated definitions above for the requested workload-only summaries. Do not repoint the generic discovery definition to one workload while its legacy generic Deploy still serves both.
+
+ADO parameter declarations have static labels/allowed values and no visibility rule; conditional execution affects the expanded pipeline, not a reactive form. See the [parameter schema](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/parameters-parameter?view=azure-pipelines) and [runtime parameter processing](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/runtime-parameters?view=azure-devops). Selecting an ADO definition before opening Run pipeline provides the workload-specific native experience. No extension or custom portal is required.
 
 ## Developer access and exact workflow
 
@@ -32,7 +49,7 @@ After platform onboarding:
 
 1. Open the team's Azure DevOps project and select **Pipelines**.
 2. Run Discover (`Enetact.Bicep`, `/azure-pipelines-self-service.yml`) on `main` with the approved target selections. Wait for success and inspect its discovery summary.
-3. Open the pipeline registered from `/azure-pipelines-self-service-deploy.yml`, choose **Run pipeline** on `main`, then **Resources > discovery** and select that successful main-branch run. Select pattern `blob-transfer`, registered workload `blobcopy`, the matching environment and approved region. Platform configuration resolves the infrastructure bindings and options. Only enabled targets deploy. Naming and network configuration come from the reviewed profile. See [the handoff and new-network guide](subscription-discovery.md).
+3. Open **Deploy - Blob copy**, registered from `/azure-pipelines-blobcopy-deploy.yml`, choose **Run pipeline** on `main`, then **Resources > discovery** and select that successful main-branch run. Select instance `blobcopy`, the matching environment and approved region. Platform configuration resolves the infrastructure bindings and options. Only enabled targets deploy. Naming and network configuration come from the reviewed profile. See [the handoff and new-network guide](subscription-discovery.md).
 4. The deployment run downloads and verifies the exact manifest and originating run, then qualifies and freezes the application, infrastructure, parameters, target and discovery evidence into one artifact. Missing, stale, partial or mismatched evidence stops before deployment. The protected PublishTemplate stage publishes or verifies the content-addressed Template Spec; review its publication receipt.
 5. Inspect the Foundation preview summary and `plan-Foundation` artifact. The platform approver authorizes the protected environment stage. Stacks that already reached Release skip Foundation changes but still check prerequisites.
 6. Inspect the Release preview and `plan-Release` artifact. After approval, the pipeline rechecks the plan, publishes the package, deploys the Function App, synchronizes triggers, and uploads synthetic blobs through the real dispatcher.
