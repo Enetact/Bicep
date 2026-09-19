@@ -2,6 +2,16 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Preview run 17 source-manifest failure: 19 September 2026
+
+The supplied ADO log shows run 17 checked out main commit `3f60541e9bb2402ef4af77f1a6445c7ddd5b07c2`, installed Bicep successfully, then failed the source-manifest check before discovery download and Azure validation. The one-file `deployment-preview` artifact was the initial README; it contained no resource-change result.
+
+The local source commit `cd86ecd` reproduced a manifest-versus-Git-blob mismatch for `self-service/pricing/usd-eastus2.json`: the manifest matched mixed local line endings while the committed JSON used LF. The run's merge commit was not available locally, so additional differences in that exact commit were not assessed. The pricing data was preserved; local line endings were normalized and the manifest regenerated.
+
+Manifest generation/checking now follows Git's effective `eol=lf` rule for text, preserving all other bytes and exact binary hashes. Failures list changed, missing or unlisted paths without regenerating anything in CI. Preview records tooling/manifest failures in its published Markdown. **9 manifest contracts** passed, including a fresh Git clone, mixed endings, non-ASCII text, explicit CRLF, binary integrity, changed/missing/new files and malformed records. **21 preview contracts** and **46 pipeline/infrastructure checks** also passed, including an executed tooling-failure README fixture. Evidence is under `artifacts/tooling-tests/manifest-*`, `artifacts/preview-tests/` and `artifacts/test-results/pipeline-structure.json`.
+
+No Azure calls or ADO rerun were performed for this fix. Merge the corrected source and manifest, then queue a fresh Preview-only run. Other environment/discovery/permission prerequisites still apply.
+
 ## Two-stage workload Preview and Deploy: 19 September 2026
 
 Dedicated Blob copy/Event flow Deploy menus now default to **Preview only**, consume their selected Discover artifact and publish a resource/property-change README in Summary / Extensions and `deployment-preview`. **Preview and deploy** adds the protected second stage with application qualification, exact input matching, Template Spec publication, full-preview drift recheck and existing Foundation/Release apply/readiness operations. Targets remain disabled; configured disabled targets can preview. Original generic menu behavior is preserved.
