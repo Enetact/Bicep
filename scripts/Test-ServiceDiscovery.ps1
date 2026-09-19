@@ -27,7 +27,7 @@ foreach ($key in @('blob','queue','table','dfs','web')) {
     $zone=if ($key -eq 'web') {'privatelink.azurewebsites.net'} else {"privatelink.$key.core.windows.net"}
     $network.privateDnsZoneIds[$key]="/subscriptions/$sub/resourceGroups/dns/providers/Microsoft.Network/privateDnsZones/$zone"
 }
-$target=@{schemaVersion=2;enabled=$false;workload='blobcopy';environmentName='dev';subscriptionId=$sub;subscriptionAlias='sandbox';networkProfile='shared';parameterFile='environments/dev.bicepparam';resourceGroup='rg-blobcopy-dev-acme-eus2-001';serviceConnection='sc-blobcopy-dev-acme-eus2-001';agentPool='private';deploymentEnvironment='blobcopy-dev-acme-eus2-001';smokePrefix='smoke/';parameterOverrides=@{networkMode='existing';existingNetwork=$network;location='eastus2';namingSuffix='acme-eus2-001';deploymentPrincipalObjectId='22222222-2222-2222-2222-222222222222'}}
+$target=@{schemaVersion=2;enabled=$false;workload='blobcopy';environmentName='dev';subscriptionId=$sub;subscriptionAlias='sandbox';networkProfile='shared';parameterFile='workloads/blob-transfer/environments/main.dev.bicepparam';resourceGroup='rg-blobcopy-dev-acme-eus2-001';serviceConnection='sc-blobcopy-dev-acme-eus2-001';agentPool='private';deploymentEnvironment='blobcopy-dev-acme-eus2-001';smokePrefix='smoke/';parameterOverrides=@{networkMode='existing';existingNetwork=$network;location='eastus2';namingSuffix='acme-eus2-001';deploymentPrincipalObjectId='22222222-2222-2222-2222-222222222222'}}
 $p=@{}; $values=@{workload='blobcopy';environmentName='dev';owner='team';costCenter='CC1';destinationSubscriptionId=$sub;destinationResourceGroupName='lake';destinationStorageAccountName='lakeaccount';destinationContainerName='incoming';destinationIsHnsEnabled=$true}
 foreach ($key in $values.Keys) { $p[$key]=@{value=$values[$key]} }
 Set-ServiceProfileParameters $target $p
@@ -60,6 +60,8 @@ Case 'enabled catalog restores exact private deployment bindings' {
     $routing=Get-Content (Join-Path $enabledOutput pipelines/catalog-bindings.yml) -Raw
     Check ($routing.Contains('template: templates/self-service-stages.yml') -and !$routing.Contains('template: templates/self-service-setup.yml'))
     foreach ($key in @('serviceConnection','agentPool','deploymentEnvironment')) { Check ($routing.Contains("${key}: $($target[$key])")) }
+    $publication=(Read-StackConfiguration).templateSpec
+    foreach ($key in @('publisherServiceConnection','publisherAgentPool','publisherEnvironment')) { Check ($routing.Contains("${key}: $($publication[$key])")) }
 }
 Case 'hosted setup has no Azure deployment or protected execution resources' {
     $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-setup.yml) -Raw
@@ -129,7 +131,7 @@ $global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$false
 try {
     $fixture=Join-Path $testRoot connection-context
     New-Item -ItemType Directory -Path (Join-Path $fixture scripts) -Force | Out-Null
-    foreach ($file in @('common.ps1','self-service-common.ps1','Export-DeploymentInventory.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $fixture scripts) }
+    foreach ($file in @('common.ps1','self-service-common.ps1','what-if-governance.ps1','stack-service-common.ps1','Export-DeploymentInventory.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $fixture scripts) }
     $placeholder=Clone $target; $placeholder.subscriptionId=[guid]::Empty.ToString(); $placeholder.subscriptionAlias='unconfigured'; $placeholder.serviceConnection='SC-AZ-A-Bicep'
     $profilePath=Join-Path $fixture self-service/targets/placeholder.json
     Write-ServiceJson $placeholder $profilePath
@@ -407,7 +409,8 @@ try {
     }
     Case 'deployment entry point fixes deploy and requires the chosen discovery artifact' {
         $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service-deploy.yml) -Raw
-        Check ($yaml.Contains('operation: deploy') -and !$yaml.Contains('name: operation') -and !$yaml.Contains('name: discoveryRunId'))
+        $entry=Get-Content (Join-Path $generated pipelines/deploy-entry.yml) -Raw
+        Check ($yaml.Contains('extends:') -and $entry.Contains('operation: deploy') -and !$yaml.Contains('name: operation') -and !$yaml.Contains('name: discoveryRunId'))
         Check ($yaml.Contains('pipeline: discovery') -and $yaml.Contains('branch: refs/heads/main') -and $yaml.Contains('discoveryRunId: $(resources.pipeline.discovery.runID)') -and $yaml.Contains('discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)'))
         $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-stages.yml) -Raw
         Check ($template.Contains('buildVersionToDownload: specific') -and $template.Contains('Test-DiscoveryHandoff.ps1') -and $template.Contains('-DiscoveryDirectory'))

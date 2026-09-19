@@ -1,6 +1,6 @@
 # Repository completion audit
 
-Audit date: 18 September 2026. Scope: the blob-transfer repository, its local runtime, Azure infrastructure, developer self-service release workflow and documentation. A working local stack and implemented deployment scripts do not establish a deployed Azure service.
+Audit date: 19 September 2026. Scope: the blob-transfer repository, its local runtime, Azure infrastructure, developer self-service release workflow and documentation. A working local stack and implemented deployment scripts do not establish a deployed Azure service.
 
 ## Current completion
 
@@ -11,13 +11,17 @@ Audit date: 18 September 2026. Scope: the blob-transfer repository, its local ru
 | Unit and storage integration tests | Implemented | Historical full emulator suite: 33 passed, zero skipped. Ordinary project verification excludes 15 opt-in integration cases. Evidence is dated, not presented as continuous monitoring. |
 | Infrastructure and manual deployment | Implemented | Four Bicep environments compile. Private identity, networking, policies, quota and actual Azure deployment remain unverified. |
 | Self-service workload/environment selection | Implemented | Separate menus with four disabled target profiles; only `blobcopy` is registered. Disabled Deploy targets now run a configuration-only check on hosted `windows-latest`, with no private-pool or deployment-environment jobs. Enabled targets restore private deployment routing. |
-| Frozen release, previews, guarded apply and readiness | Implemented | 41 offline contract/orchestration cases pass, including discovery/cost evidence hashing, selected options in previews, drift, immutable package conflicts and smoke gating. Azure commands are mocked. A real qualified bundle/run and Azure DevOps template expansion remain unverified. |
-| Run-menu costs and resource checkboxes | Implemented; live UI verification outstanding | Dated East US 2 USD retail references; actual destination-endpoint and log-alert options; frozen cost report and approval summaries. 15 cost/option cases pass and all four environments compile. Required resources stay included; production requires alerts. Usage is additional. See [cost guide](self-service-costs.md). |
+| Frozen release, previews, guarded apply and readiness | Implemented | 42 offline contract/orchestration cases pass, including ARM-validation failure, evidence hashing, drift, immutable package conflicts and smoke gating. Azure commands are mocked. A real qualified bundle/run and Azure DevOps template expansion remain unverified. |
+| Run-menu costs and platform options | Implemented; live UI verification outstanding | Dated East US 2 USD retail references, frozen cost report and approval summaries. Endpoint/alert settings are platform-owned; developers select workload type/name, environment and region. 15 cost/option cases pass. Usage and shared-platform costs are additional. See [cost guide](self-service-costs.md). |
+| Enterprise intent and topology governance | Implemented for blob-transfer | 37 offline cases pass for strict requests, central-network requirements, resolver references and sensitive What-If changes. Unsupported patterns are rejected. Eleven YAML files parse; all four intent routes preserve protected bindings and hosted setup for disabled targets. See [architecture review](enterprise-platform.md). |
+| Bicep source layout and ongoing pipeline verification | Implemented | Workload composition/environment values colocated; reusable storage/endpoint modules separated from internal helpers. 16 pipeline/infrastructure checks are part of `Test-Project.ps1`. Six compiled before/after comparisons passed, excluding authoring metadata. See [repository conventions](repository-structure.md). |
 | Platform service connections, agent network and approvals | External setup required | No organization, subscription, destination owner, service connection, private agent or approvals were configured by this work. Enable profiles only after [onboarding](self-service.md). |
 | Azure acceptance and production operations | Incomplete | Real trigger/runtime behavior, source versions, RBAC, all network paths, alerts, poison/restart/load tests and recovery drills remain required. |
-| Cross-environment artifact promotion | Not implemented | Each selected target run builds its own release. Same-run stage artifacts are frozen; no previously approved build selector exists. |
+| Cross-environment artifact promotion | Infrastructure version reuse implemented; application promotion not implemented | Identical compiled infrastructure reuses the content-hashed Template Spec version. Each selected target run still builds its own application release; no previously approved application build selector exists. |
 | Subscription/network discovery and manifest handoff | Implemented; updated UI/handoff verification outstanding | 78 offline cases pass, including hosted setup routing for disabled targets and private deployment routing for enabled targets. Enabled deployments use the Resources run picker and verified discovery manifest; hosted setup does not validate that artifact. The new hosted route, resource-picker handoff and Azure deployment remain unverified in ADO. |
-| Existing monitoring workspace reuse | Not implemented | Template creates a workload workspace. |
+| Existing monitoring workspace and hub resolver reuse | Implemented; Azure acceptance outstanding | Explicit cross-subscription workspace/resolver/DNS IDs; shared workspace is referenced without updating its settings/RBAC. Alert queries filter by workload. Resolver support checks direct spoke DNS settings and hub zone links; it does not provision routing/peering. |
+| Deployment Stacks and Template Specs | Implemented locally; Azure acceptance pending | 34 offline cases pass for content-hashed publication/reuse, native stack previews, guarded apply, subscription RG ownership, phase safety and lifecycle receipts. Implicit adoption/destructive teardown are rejected. See [upgrade runbook](deployment-stacks-upgrade.md). |
+| Policy, private module registry and AVM | Partial platform foundation | Separate Policy-definition and private ACR templates compile. No assignments, ACR module publication or AVM migration performed. |
 | Automated rollback, teardown and historical data migration | Not implemented | Failure retains resources and evidence. Migration/cleanup requires an explicit operator workflow. |
 | Claims platform and AI agents | Outside this repository's implemented scope | No claims UI/API/database, Semantic Kernel agents, model calls or COBOL integration. This stack can transport files for such a platform. |
 
@@ -48,6 +52,7 @@ No completion percentage is assigned: code implementation, local verification, p
 | Exact local actions and method sequence | [Local workflow](local-workflow.md) |
 | Dispatcher requirements, contracts and dependencies | [Dispatcher README](dispatcher/README.md) |
 | Developer deployment and platform setup | [Self-service guide](self-service.md) |
+| Enterprise ownership, strict intent and architecture gaps | [Enterprise platform review](enterprise-platform.md) |
 | Subscription discovery, subnet selection and standard names | [Discovery guide](subscription-discovery.md) |
 | Azure components and topology | [Architecture](architecture.md), [diagram guide](diagram-guide.md) |
 | Permission boundaries and operations | [Security/RBAC](security-and-rbac.md), [operations](operations.md) |

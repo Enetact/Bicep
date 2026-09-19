@@ -1,0 +1,44 @@
+parameters:
+  - name: serviceConnection
+    type: string
+  - name: deploymentEnvironment
+    type: string
+  - name: agentPool
+    type: string
+stages:
+  - stage: PublishTemplate
+    dependsOn: Qualify
+    displayName: Publish or verify approved Template Spec version
+    lockBehavior: sequential
+    jobs:
+      - deployment: PublishTemplateSpec
+        environment: ${{ parameters.deploymentEnvironment }}
+        pool:
+          name: ${{ parameters.agentPool }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  clean: true
+                  persistCredentials: false
+                - download: none
+                - download: current
+                  artifact: self-service-bundle
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: ${{ parameters.serviceConnection }}
+                    scriptType: pscore
+                    scriptLocation: scriptPath
+                    scriptPath: scripts/Publish-WorkloadTemplate.ps1
+                    arguments: >-
+                      -BundleDirectory "$(Pipeline.Workspace)/self-service-bundle"
+                      -EvidenceDirectory "$(Build.ArtifactStagingDirectory)/publication"
+                      -BoundServiceConnection "${{ parameters.serviceConnection }}"
+                      -BoundEnvironment "${{ parameters.deploymentEnvironment }}"
+                      -BoundAgentPool "${{ parameters.agentPool }}"
+                    workingDirectory: $(Build.SourcesDirectory)
+                    visibleAzLogin: false
+                - publish: $(Build.ArtifactStagingDirectory)/publication
+                  artifact: template-publication
+                  condition: succeededOrFailed()

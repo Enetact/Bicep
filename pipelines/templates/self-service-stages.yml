@@ -13,6 +13,12 @@ parameters:
     type: string
   - name: deploymentEnvironment
     type: string
+  - name: publisherServiceConnection
+    type: string
+  - name: publisherEnvironment
+    type: string
+  - name: publisherAgentPool
+    type: string
   - name: discoveryPipelineId
     type: string
   - name: discoveryRunId
@@ -120,10 +126,15 @@ stages:
               targetPath: $(Build.ArtifactStagingDirectory)/qualification
               artifact: self-service-tests
 
+  - template: self-service-publish.yml
+    parameters:
+      serviceConnection: ${{ parameters.publisherServiceConnection }}
+      deploymentEnvironment: ${{ parameters.publisherEnvironment }}
+      agentPool: ${{ parameters.publisherAgentPool }}
   - template: self-service-plan.yml
     parameters:
       phase: Foundation
-      dependsOn: Qualify
+      dependsOn: PublishTemplate
       serviceConnection: ${{ parameters.serviceConnection }}
       agentPool: ${{ parameters.agentPool }}
       deploymentEnvironment: ${{ parameters.deploymentEnvironment }}

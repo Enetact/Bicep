@@ -1,5 +1,7 @@
 # Security and RBAC
 
+For the stack-based self-service pipeline, use the [publishing and deployment permissions runbook](deployment-stacks-upgrade.md#platform-setup-and-exact-local-checks). Template Spec publication, version reads, subscription stack/preview operations, RG creation and deny-setting management are additional to the workload permissions below. Restrict publishing writers and stack administrators; application developers only queue the protected workflow. External destination grants remain outside the stack's subscription deny boundary when they belong to another subscription.
+
 ## Discovery and selected-target permissions
 
 Read-only discovery scopes resource enumeration to the chosen subscription; it does not assign roles, change networks or deploy. An Azure DevOps endpoint read requires project authorization separately from Azure RBAC. Contributor/Owner access does not refresh the already displayed Run Pipeline form. See [subscription discovery](subscription-discovery.md) for the catalog review and refresh flow.

@@ -1,5 +1,7 @@
 # Operations and recovery
 
+New self-service deployments are managed by a Deployment Stack and a pinned Template Spec. Follow the [stack acceptance and recovery boundaries](deployment-stacks-upgrade.md#acceptance-and-recovery-boundaries) before changing infrastructure. Do not use the legacy manual incremental deployment path on a stack-owned workload. Failed stacks, adoption, destructive teardown and data migration require a separately reviewed platform operation; the developer pipeline has no recovery bypass.
+
 ## Validate locally
 
 ```powershell

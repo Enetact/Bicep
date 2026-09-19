@@ -8,8 +8,19 @@ param alertActionGroupIds array
 param operatorGroupObjectId string
 param enableRuntimeAlerts bool = false
 param enableLogAlerts bool = true
+param existingWorkspaceResourceId string = ''
+param functionAppResourceId string
 
-resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+var useSharedWorkspace = !empty(existingWorkspaceResourceId)
+var workspaceParts = split(existingWorkspaceResourceId, '/')
+resource sharedWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
+  name: useSharedWorkspace ? last(workspaceParts) : 'unused'
+  scope: resourceGroup(useSharedWorkspace ? workspaceParts[2] : subscription().subscriptionId, useSharedWorkspace ? workspaceParts[4] : resourceGroup().name)
+}
+var selectedWorkspaceId = useSharedWorkspace ? sharedWorkspace.id : workspace!.id
+var workloadLogs = 'FunctionAppLogs | where _ResourceId =~ "${functionAppResourceId}"'
+
+resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (!useSharedWorkspace) {
   name: 'log-${name}'
   location: location
   tags: tags
@@ -29,7 +40,7 @@ resource insights 'Microsoft.Insights/components@2020-02-02' = {
   kind: 'web'
   properties: {
     Application_Type: 'web'
-    WorkspaceResourceId: workspace.id
+    WorkspaceResourceId: selectedWorkspaceId
     DisableLocalAuth: true
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
@@ -55,10 +66,10 @@ resource failures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
     enabled: enableLogAlerts
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [workspace.id]
+    scopes: [selectedWorkspaceId]
     skipQueryValidation: true // FunctionAppLogs may not yet exist during bootstrap.
     criteria: { allOf: [{
-      query: 'FunctionAppLogs | where Level in ("Error", "Critical")'
+      query: '${workloadLogs} | where Level in ("Error", "Critical")'
       timeAggregation: 'Count'
       operator: 'GreaterThan'
       threshold: 0
@@ -68,10 +79,11 @@ resource failures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
     autoMitigate: true
   }
 }
-output workspaceId string = workspace.id
-resource logReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(operatorGroupObjectId)) {
-  name: guid(workspace.id, operatorGroupObjectId, '73c42c96-874c-492b-b04d-ab87d138a893')
-  scope: workspace
+output workspaceId string = selectedWorkspaceId
+output applicationInsightsId string = insights.id
+resource logReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!useSharedWorkspace && !empty(operatorGroupObjectId)) {
+  name: guid(workspace!.id, operatorGroupObjectId, '73c42c96-874c-492b-b04d-ab87d138a893')
+  scope: workspace!
   properties: {
     principalId: operatorGroupObjectId
     principalType: 'Group'
@@ -92,10 +104,10 @@ resource recoveryFailures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = 
     enabled: enableLogAlerts && enableRuntimeAlerts
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [workspace.id]
+    scopes: [selectedWorkspaceId]
     skipQueryValidation: true
     criteria: { allOf: [{
-      query: 'FunctionAppLogs | where Message has_any ("PoisonBacklog", "TransferNeedsReview", "TransferQuarantined", "SourceMissing")'
+      query: '${workloadLogs} | where Message has_any ("PoisonBacklog", "TransferNeedsReview", "TransferQuarantined", "SourceMissing")'
       timeAggregation: 'Count'
       operator: 'GreaterThan'
       threshold: 0
@@ -116,10 +128,10 @@ resource recoveryHeartbeat 'Microsoft.Insights/scheduledQueryRules@2023-12-01' =
     enabled: enableLogAlerts && enableRuntimeAlerts
     evaluationFrequency: 'PT5M'
     windowSize: 'PT30M'
-    scopes: [workspace.id]
+    scopes: [selectedWorkspaceId]
     skipQueryValidation: true
     criteria: { allOf: [{
-      query: 'FunctionAppLogs | where Message has "ReconcileHeartbeat" | summarize Heartbeats=count() | where Heartbeats == 0'
+      query: '${workloadLogs} | where Message has "ReconcileHeartbeat" | summarize Heartbeats=count() | where Heartbeats == 0'
       timeAggregation: 'Count'
       operator: 'GreaterThan'
       threshold: 0

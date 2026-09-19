@@ -24,6 +24,18 @@ parameters:
     type: string
     default: new-private
     values: [new-private]
+  - name: discoveryScope
+    displayName: "What this run checks - read only"
+    type: string
+    default: "Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Empty results and failed reads are reported separately. No Azure resources or permissions are changed."
+    values:
+      - "Lists networks, subnets and private DNS zones in the selected subscription, plus accessible matching ADO service connections. Empty results and failed reads are reported separately. No Azure resources or permissions are changed."
+  - name: deploymentHandoff
+    displayName: "Next step - use the saved discovery in Deploy"
+    type: string
+    default: "For deployment, run discovery on main for the matching workload/environment. After success, open Deploy on main and select this run under Resources > discovery within seven days. Feature runs are diagnostic only. Discovery does not enable a target or prove deployment readiness."
+    values:
+      - "For deployment, run discovery on main for the matching workload/environment. After success, open Deploy on main and select this run under Resources > discovery within seven days. Feature runs are diagnostic only. Discovery does not enable a target or prove deployment readiness."
 
 stages:
   - template: pipelines/catalog-bindings.yml

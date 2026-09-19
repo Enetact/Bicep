@@ -1,0 +1,72 @@
+# Generated platform-owned entry template. Protect this file and its generator.
+parameters:
+  - name: workloadType
+    type: string
+  - name: workloadName
+    type: string
+  - name: environment
+    type: string
+  - name: region
+    type: string
+  - name: discoveryPipelineId
+    type: string
+  - name: discoveryRunId
+    type: string
+stages:
+  - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workload: blobcopy
+        environment: dev
+        subscription: azure-subscription-a
+        network: new-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workload: blobcopy
+        environment: prod
+        subscription: azure-subscription-a
+        network: new-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workload: blobcopy
+        environment: qa
+        subscription: azure-subscription-a
+        network: new-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')) }}:
+    - template: catalog-bindings.yml
+      parameters:
+        workload: blobcopy
+        environment: uat
+        subscription: azure-subscription-a
+        network: new-private
+        operation: deploy
+        discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+        discoveryRunId: ${{ parameters.discoveryRunId }}
+        createDestinationPrivateEndpoints: true
+        enableLogAlerts: true
+  - ${{ if not(or(and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')))) }}:
+    - stage: InvalidIntent
+      jobs:
+        - job: RejectIntent
+          pool:
+            vmImage: windows-latest
+          steps:
+            - checkout: none
+            - pwsh: throw 'Unregistered workload request. Contact the platform team.'

@@ -99,9 +99,9 @@ function Export-Templates {
     )
     $root = Get-ProjectRoot
     $output = if ($OutputPath) { $OutputPath } else { Join-Path $root "artifacts/$EnvironmentName" }
-    if (!$ParameterPath) { $ParameterPath = Join-Path $root "environments/$EnvironmentName.bicepparam" }
+    if (!$ParameterPath) { $ParameterPath = Join-Path $root "workloads/blob-transfer/environments/main.$EnvironmentName.bicepparam" }
     New-Item -ItemType Directory -Path $output -Force | Out-Null
-    Invoke-Bicep -Arguments @('build', (Join-Path $root 'main.bicep'), '--outfile', (Join-Path $output 'main.json'))
+    Invoke-Bicep -Arguments @('build', (Join-Path $root 'workloads/blob-transfer/main.bicep'), '--outfile', (Join-Path $output 'main.json'))
     Invoke-Bicep -Arguments @('build-params', $ParameterPath, '--outfile', (Join-Path $output 'parameters.json'))
     return $output
 }

@@ -2,6 +2,73 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Microsoft-aligned repository layout: 19 September 2026
+
+The [repository conventions](repository-structure.md) record the Microsoft Learn/AVM sources, chosen workload/resource-module layout, environment/stack configuration and path migration. Twelve Bicep/parameter sources moved; all root ADO entry filenames remain stable. Root lint now also rejects unused variables and secret-bearing outputs. The build pipeline installs Node before the new locked YAML validation step.
+
+The final `Test-Project.ps1` run passed **225 existing offline contracts**, **16 new pipeline/infrastructure contracts**, and **18 application tests**, with **15 opt-in emulator tests skipped**. All four environments, the stack wrapper, Policy and registry templates compiled successfully. The operator build had zero warnings/errors. The Function dependency advisory check reported no vulnerabilities; it is not an npm tool audit.
+
+| Suite | Current evidence |
+|---|---|
+| Tooling: 19 | `artifacts/tooling-tests/98cac48e335b4b68959b10f64df0e003/results.json` |
+| Self-service: 42 | `artifacts/self-service-tests/180d4a4048cd4f85a510ef02f18a381c/results.json` |
+| Discovery/catalog: 78 | `artifacts/discovery-tests/49af7c29bd8c49f2bf9064ca785abbb7/results.json` |
+| Costs: 15 | `artifacts/cost-tests/80a2e142dd674cb0bf3b2b48e91a5087/results.json` |
+| Platform contracts: 37 | `artifacts/platform-tests/32a90fe384e34cfe92fe45cbf5517147/results.json` |
+| Stacks: 34 | `artifacts/stack-tests/6c9f66fc6317476dbeebd455759e892c/results.json` |
+| Pipeline structure: 16 | `artifacts/test-results/pipeline-structure.json` |
+| Compiled migration parity: 6 | `artifacts/test-results/repository-layout-comparison.json` |
+
+The migration comparison uses pre-refactor compiled resource-group/stack templates and all four parameter files. After removing only ARM-template and parameter/output authoring metadata, the before/after structures are equal. Resource names, types, scopes, dependencies, properties, outputs and environment values were compared. Full template hashes can change because descriptions/metadata changed. This local equivalence check is not Azure What-If.
+
+The checked-in pipeline validator parses 11 YAML files and checks paths, required template arguments, four discovery routes, target-enabled routing, enabled-stage bindings, the six-stage dependency/artifact chain and complete stack-wrapper forwarding. Its deliberately limited expression evaluator does not implement the ADO service. No server expansion, authorization, publication or deployment is claimed. Azure tests remain mocked, the 15 emulator cases were not rerun, and all deployment targets remain disabled. Older entries below retain their original evidence and file paths.
+
+## Discovery menu and handoff review: 19 September 2026
+
+Checked the Discover entry point, literal service-connection routing, hosted agent, inventory export and Deploy manifest checks. Added menu guidance for inventory scope and successful-main-run selection; replaced obsolete deployment-checkbox instructions in the published summary with the current four-field developer contract. Discovery remains read-only and does not validate publishing/stack ownership or enable targets. All **78 discovery/catalog/handoff cases passed** using mocked Azure calls: `artifacts/discovery-tests/3c0f3f3c8e89415c949632eb684403ae/results.json`. All 11 YAML files parse and local template wiring checks pass. Updated live ADO menu rendering and an actual discovery run were not exercised.
+
+## Deployment Stacks upgrade: 19 September 2026
+
+This supersedes the incremental-only decision and nine-file pipeline layout in the earlier enterprise review below. The [upgrade runbook](deployment-stacks-upgrade.md) records the implementation plan, delivered behavior and outstanding Azure acceptance. All four target profiles remain disabled.
+
+The final `Test-Project.ps1` run completed successfully: **225 offline contract cases**, **18 application tests passed**, **15 opt-in Azurite integration tests skipped**, zero failures. All four environment templates, the subscription stack wrapper, Policy definitions and private registry template compiled. The operator build reported zero warnings/errors; the Function dependency advisory query reported no vulnerable direct/transitive packages.
+
+| Suite | Passed | Evidence |
+|---|---:|---|
+| Tooling | 19 | `artifacts/tooling-tests/60ff5a32769d4256995b317dfbbafee1/results.json` |
+| Self-service orchestration | 42 | `artifacts/self-service-tests/eb84355793584683ba52ee069fe7a019/results.json` |
+| Discovery/catalog/handoff | 78 | `artifacts/discovery-tests/057cfa84077e4a749cba82a1be5a910d/results.json` |
+| Cost/options | 15 | `artifacts/cost-tests/ccebc0c26b364ad5bdd9190035ccae04/results.json` |
+| Platform intent/governance | 37 | `artifacts/platform-tests/f5b13734c0fd4f029681798ed4eddcd2/results.json` |
+| Stacks/Template Specs | 34 | `artifacts/stack-tests/a9c912b40a11466d8de23dbdac22f80c/results.json` |
+
+Stack cases cover publication/reuse/tamper rejection, CLI capability checks, Foundation/Release sequencing, native preview parsing and cleanup, incomplete/potential changes, drift, failed/unhealthy stacks, shared-resource boundaries, deny weakening and removal rejection. Every Azure call in these cases is mocked. The final tooling checks also used the locally installed CLI 2.89.1 help; no Azure connection was made.
+
+Eleven YAML files parse. Local structural verification checked all four intent/disabled routes, the `extends` entry, six-stage ordering, template parameter declarations/forwarding, exact enabled-target publisher bindings, and full wrapper parameter/output forwarding. The embedded RG composition equals the compiled original template. Evidence: `artifacts/test-results/platform-structure.json`. This is not ADO server-side expansion or an executed deployment.
+
+Application test evidence remains `artifacts/test-results/unit.trx`; the earlier actual Functions-host/Azurite run is dated 17 September. No new emulator/host execution, Template Spec publication, Azure stack creation or live deny-assignment/What-If acceptance is claimed.
+
+## Enterprise platform review: 19 September 2026
+
+Current developer inputs are workload type/name, environment and region. Subscription, network, endpoint and alert choices are platform-owned. The older menu/checkbox entries below are historical evidence, superseded by this intent contract. Only blob-transfer is implemented; all four targets remain disabled and route to the hosted setup check.
+
+`Test-Project.ps1` completed successfully with PowerShell 7.6.2, .NET 10.0.300 and Bicep 0.47.16. No new application packages were required.
+
+| Verification | Result / evidence |
+|---|---|
+| Tooling contracts | 19 passed: `artifacts/tooling-tests/012ae6128239484ca03af845e0122155/results.json` |
+| Self-service orchestration | 42 passed: `artifacts/self-service-tests/33bbace888694dd48b677c8f15d4c286/results.json` |
+| Discovery/catalog/handoff | 78 passed: `artifacts/discovery-tests/14adbe2f3bea4541b3b017e2744ad60b/results.json` |
+| Cost/options | 15 passed: `artifacts/cost-tests/4d9ecb8adf564245835ac56f205c3584/results.json` |
+| Platform request/governance | 37 passed, including the final resolver ownership test: `artifacts/platform-tests/7fecb51ecfb540149a90e451dba674a8/results.json`; copied to `artifacts/test-results/platform-contracts.json` for existing pipeline publication |
+| Bicep | dev, qa, uat, prod plus separate Policy and registry templates compile without reported errors/warnings |
+| Application tests/build | 18 passed, 15 opt-in Azurite cases skipped, zero failed: `artifacts/test-results/unit.trx`; operator Release build has zero warnings/errors |
+| Function dependency advisory query | No reported vulnerable direct/transitive packages: `artifacts/test-results/vulnerabilities.json`; not an npm-tool audit |
+| YAML / compiled structure | Nine YAML files parse; four literal intent mappings and disabled hosted routes checked; generic endpoint arrays/outputs, shared-workspace conditions, alert query filters, workload IDs, definitions-only Policy and private ACR verified in compiled JSON: `artifacts/test-results/platform-structure.json` |
+| Local JSON request | Example resolves the registered disabled dev target without Azure: `artifacts/platform-request-review-20260919.json` |
+
+The new contract cases use mocked Azure reads and plans. No Azure deployment, central-network connection, Policy assignment, registry publication, ADO server expansion or live form inspection was performed for this revision. Actual Functions-host/Azurite execution remains the separately dated 17 September evidence below; it was not rerun for infrastructure/menu changes. ARM Provider validation, Policy effects, cross-subscription permissions, private DNS/routes, idempotency and approvals require the live acceptance sequence in [enterprise-platform.md](enterprise-platform.md).
+
 ## Self-service completion audit: 18 September 2026
 
 ### Temporary hosted setup for disabled targets
