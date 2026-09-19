@@ -422,7 +422,7 @@ try {
         try { $expected=([DateTimeOffset]::Parse($document.RootElement.GetProperty('retrievedUtc').GetString())).UtcDateTime.ToString('yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture) }
         finally { $document.Dispose() }
         $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service-deploy.yml) -Raw
-        Check ($yaml.Contains("USD retail as of $expected") -and $yaml.Contains("East US 2; $expected"))
+        Check ($yaml.Contains("USD East US 2 retail as of $expected") -and $yaml.Contains("name: usageEstimate"))
     }
     Case 'discovery menu cannot select deployment or expose deployment-only choices' {
         $yaml=Get-Content (Join-Path $generated azure-pipelines-self-service.yml) -Raw

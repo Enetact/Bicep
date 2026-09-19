@@ -16,6 +16,20 @@ After onboarding, configure existing enterprise networking or an explicit isolat
 
 ## What developers select in Run pipeline
 
+
+The first dropdown now spells out the main resources instead of showing only internal pattern IDs:
+
+| Menu choice | Instance to select | Workload |
+|---|---|---|
+| `Blob copy - Function App + 2 Storage accounts \| blob-transfer` | `blobcopy` | Copy uploaded files to an existing data lake, with work queues, ledger, identity, private access and monitoring. |
+| `Event flow - Logic App + Event Grid + 2 Storage accounts \| logic-app-event-grid` | `eventflow` | Receive document events through the queue bridge, with durable receipts, quarantine, dead letters and eight private endpoints. |
+
+Each pattern has separate **creates** and **existing dependencies and cost** reference fields. Both summaries remain visible; they are informational, do not select resources, and are never forwarded to Bicep. The existing profile determines environment-specific networking, monitoring and SKU values; the frozen qualification estimate and approval preview provide exact selected evidence. Discover shows future deployment blueprints and explicitly creates no Azure resources. Deploy reports the catalog's enabled/disabled state.
+
+Root YAML normalizes the selected display string to its canonical workload ID before calling protected templates. Manual callers/API clients setting root `workloadType` must supply the full allowed menu string; reusable templates and request JSON continue using canonical IDs. After merging the generated YAML into GitHub, select that branch in ADO and reopen **Run pipeline** to load its menu. Existing queued runs keep their original parameters.
+
+The native form uses static labels/allowed values, not a dependent resource-preview panel; see [Microsoft's parameter schema](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/parameters-parameter?view=azure-pipelines). Local checks verify label-to-ID routing, resource summaries and all eight routes; live ADO menu rendering still needs verification after publication.
+
 The developer contract is now **workload type**, **registered workload name**, **environment**, and **approved region**. Patterns are `blob-transfer` with name `blobcopy`, and `logic-app-event-grid` with name `eventflow`; both use approved region `eastus2`. Each has four disabled environment profiles. Resource and cost references remain visible below those choices.
 
 The **Before running - discovery, approvals and readiness** information field explains the main-branch discovery selection, publication/preview/approval/deployment flow, and setup-only behavior for disabled targets. It is guidance, not an additional deployment option. To display an updated menu, publish the generated YAML and its supporting files to the branch selected in ADO, then reopen Run pipeline.

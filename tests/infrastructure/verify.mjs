@@ -26,6 +26,8 @@ const yamlFiles=[...fs.readdirSync(root).filter(x=>/\.ya?ml$/.test(x)),...files(
 
 // Deliberately bounded ADO expression subset. Unknown expressions fail rather than being evaluated as JavaScript.
 function expression(source, parameters){
+  const displayId=source.trim().match(/^split\(parameters\.([A-Za-z0-9_]+), ' \| '\)\[1\]$/);
+  if(displayId){assert(Object.hasOwn(parameters,displayId[1]));return parameters[displayId[1]].split(' | ')[1];}
   let remaining=source.trim();
   function parse(){
     remaining=remaining.trimStart();let match;
@@ -93,6 +95,8 @@ check('YAML paths, required parameters and script entry points resolve',()=>{
   });}
 });
 const deploy=document('azure-pipelines-self-service-deploy.yml');
+function menuType(file,id){const parameter=document(file).parameters.find(p=>p.name==='workloadType');const value=parameter.values.find(v=>v.endsWith(' | '+id));assert(value,'Missing workload menu choice '+id);return value;}
+
 check('Manual roots, developer fields and discovery run picker remain intact',()=>{
   for(const file of ['azure-pipelines.yml','azure-pipelines-self-service.yml','azure-pipelines-self-service-deploy.yml']){const doc=document(file);assert.equal(doc.trigger,'none');assert.equal(doc.pr,'none');}
   assert.deepEqual(deploy.parameters.slice(0,4).map(p=>p.name),['workloadType','workloadName','environment','region']);
@@ -101,6 +105,19 @@ check('Manual roots, developer fields and discovery run picker remain intact',()
   assert.equal(deploy.extends.parameters.discoveryRunId,'$(resources.pipeline.discovery.runID)');
   assert.equal(deploy.extends.parameters.discoveryPipelineId,'$(resources.pipeline.discovery.pipelineID)');
   assert.equal(deploy.resources.pipelines[0].source,json('self-service/pipeline-settings.json').discoveryPipelineName);assert.equal(deploy.resources.pipelines[0].trigger,'none');
+});
+check('Workload menus explain separate blueprints and normalize IDs before routing',()=>{
+  for(const file of ['azure-pipelines-self-service.yml','azure-pipelines-self-service-deploy.yml']){
+    const doc=document(file);const choices=doc.parameters.find(p=>p.name==='workloadType').values;
+    assert(choices.some(v=>v.includes('Function App + 2 Storage accounts')));assert(choices.some(v=>v.includes('Logic App + Event Grid + 2 Storage accounts')));
+    const values=bind(doc,{});const supplied=substitute((doc.extends||doc.stages[0]).parameters,values);assert.equal(supplied.workloadType,'blob-transfer');
+    assert(!Object.keys(supplied).some(k=>/Creates|Requirements|Blueprint|Estimate/.test(k)),'Help fields must never become resource options');
+  }
+  const fields=Object.fromEntries(deploy.parameters.map(p=>[p.name,p.default]));
+  assert(fields.blobTransferCreates.includes('transfer ledger'));assert(fields.eventFlowCreates.includes('8 private endpoints'));
+  assert(fields.blobTransferRequirements.includes('existing destination'));assert(fields.eventFlowRequirements.includes('6 linked private DNS zones'));
+  assert(fields.eventFlowRequirements.includes('fixed subtotal'));assert(fields.usageEstimate.includes('Both blueprint summaries stay visible'));
+  assert(fields.runGuidance.includes('creates NO Azure resources'));
 });
 const platform=json('config/platform.json');const publication=json('config/deployment-stack.json').templateSpec;
 const sharedQualification=expand('pipelines/templates/steps/qualify-application.yml',{},[],'steps');
@@ -149,13 +166,13 @@ for(const target of targets){
   const workloadType=target.workloadType||'blob-transfer';
   const common={workloadType,workload:target.workload,environment:target.environmentName,subscription:target.subscriptionAlias,network:target.networkProfile};
   check(target.environmentName+' discovery remains hosted, scoped and artifact-producing',()=>{
-    const stages=expand('azure-pipelines-self-service.yml',common);assert.deepEqual(stages.map(s=>s.stage),['Discover']);const job=stages[0].jobs[0];assert.equal(job.pool.vmImage,'windows-latest');
+    const stages=expand('azure-pipelines-self-service.yml',{...common,workloadType:menuType('azure-pipelines-self-service.yml',workloadType)});assert.deepEqual(stages.map(s=>s.stage),['Discover']);const job=stages[0].jobs[0];assert.equal(job.pool.vmImage,'windows-latest');
     const azure=job.steps.find(x=>x.task==='AzureCLI@2');assert.equal(azure.inputs.azureSubscription,target.serviceConnection);assert.equal(azure.inputs.scriptPath,'scripts/Export-DeploymentInventory.ps1');assert(azure.inputs.arguments.includes('-UseServiceConnectionSubscription'));
     assert(job.steps.some(x=>x.publish&&x.artifact==='subscription-discovery'&&x.condition==='succeededOrFailed()'));
   });
   const intent={workloadType,workloadName:target.workload,environment:target.environmentName,region:target.parameterOverrides.location||platform.defaultRegion};
   check(target.environmentName+' checked-in Deploy route matches its enabled flag',()=>{
-    const stages=expand('azure-pipelines-self-service-deploy.yml',intent);
+    const stages=expand('azure-pipelines-self-service-deploy.yml',{...intent,workloadType:menuType('azure-pipelines-self-service-deploy.yml',workloadType)});
     if(!target.enabled){assert.deepEqual(stages.map(s=>s.stage),['SetupOnly']);walk(stages,n=>{assert(!n.deployment&&!n.environment&&!n.task?.startsWith('AzureCLI'));if(n.pool)assert.equal(n.pool.vmImage,'windows-latest');});assert(stages[0].jobs[0].steps.some(x=>x.artifact==='setup-guidance'));}
     else assert.equal(stages.length,6);
   });
