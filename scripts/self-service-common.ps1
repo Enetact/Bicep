@@ -87,6 +87,11 @@ function Get-ServiceStem($Parameters) {
     $suffix=Get-ServiceParameter $Parameters namingSuffix ''
     return "$($Parameters.workload.value)-$($Parameters.environmentName.value)" + $(if ($suffix) { "-$suffix" } else { '' })
 }
+function Set-ServiceDeploymentOptions($Target, $Parameters, [bool]$CreateDestinationPrivateEndpoints, [bool]$EnableLogAlerts) {
+    if ($Target.environmentName -eq 'prod' -and !$EnableLogAlerts) { throw 'Production requires log alerts. Keep Enable log alerts checked.' }
+    $Parameters.createDestinationPrivateEndpoints=@{value=$CreateDestinationPrivateEndpoints}
+    $Parameters.enableLogAlerts=@{value=$EnableLogAlerts}
+}
 function Get-ServiceParameter($Parameters, [string]$Name, $Default = $null) {
     if ($Parameters.Contains($Name)) { return $Parameters[$Name].value }
     return $Default
@@ -107,6 +112,10 @@ function Assert-ServiceParameters($Target, $Parameters) {
     if ((Get-ServiceParameter $Parameters transferQueueName transfer-work).Length -gt 56) { throw 'Queue name leaves insufficient space for -poison.' }
     if (!(Get-ServiceParameter $Parameters recoveryIncludeSourceVersions $true)) { throw 'Azure acceptance requires retained source-version reconciliation.' }
     if ($Target.environmentName -eq 'prod' -and @((Get-ServiceParameter $Parameters alertActionGroupIds @())).Count -eq 0) { throw 'Production needs action groups.' }
+    foreach ($key in @('createDestinationPrivateEndpoints','enableLogAlerts')) {
+        if ($Parameters.Contains($key) -and $Parameters[$key].value -isnot [bool]) { throw "Expected boolean deployment option: $key" }
+    }
+    if ($Target.environmentName -eq 'prod' -and !(Get-ServiceParameter $Parameters enableLogAlerts $true)) { throw 'Production requires log alerts.' }
     $map = Get-ServiceParameter $Parameters sourceScopePrefixes @{ ''='default' }
     foreach ($scope in $map.Values) { if ($scope -cnotmatch '^[a-z0-9][a-z0-9-]{0,62}$') { throw 'Invalid scope map.' } }
     $null = Resolve-SourceScope ($Target.smokePrefix + 'probe/report.txt') $map
@@ -191,6 +200,7 @@ function Read-ServiceBundle([string]$Directory) {
     if ($receipt.schemaVersion -ne 1 -or $receipt.releaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$') { throw 'Invalid bundle receipt.' }
     $expected = @('main.json','parameters.json','target.json','application.zip','functions.metadata')
     if ($receipt.Contains('discoverySource')) { $expected+=@('discovery/manifest.json','discovery/inventory.json') }
+    if ($receipt.Contains('costEstimateIncluded') -and $receipt.costEstimateIncluded) { $expected+=@('cost-estimate.json') }
     if (@($receipt.files.Keys).Count -ne $expected.Count) { throw 'Unexpected bundle file set.' }
     foreach ($name in $expected) {
         if (!$receipt.files.Contains($name) -or (Get-ServiceHash (Resolve-ServicePath $Directory $name)) -cne $receipt.files[$name]) { throw "Bundle integrity failure: $name" }
@@ -283,6 +293,16 @@ function New-ServicePlan($Bundle, [ValidateSet('Foundation','Release')][string]$
     $plan.fingerprint = Get-ValueHash @{bundleHash=$plan.bundleHash; parametersHash=$plan.parametersHash; state=$state; outputs=$outputs; changes=$changes; phase=$Phase; skip=$skip}
     Write-ServiceJson $plan (Join-Path $Directory 'plan.json')
     $summary = @("# $Phase preview",'',"Target: $($Bundle.target.workload) / $($Bundle.target.environmentName)","Release: $($Bundle.receipt.releaseId)","Package SHA-256: $($Bundle.receipt.files['application.zip'])","Bundle SHA-256: $($Bundle.hash)","Skip existing foundation: $skip",'', 'Review what-if.json and plan.json before approving. Plans expire after 24 hours.','')
+    $summary+=@("Create destination private endpoints: $(Get-ServiceParameter $parameters.parameters createDestinationPrivateEndpoints $true)",
+        "Enable log alerts: $(Get-ServiceParameter $parameters.parameters enableLogAlerts $true)",
+        'Unchecked destination endpoints require existing private connectivity. Incremental deployment does not delete previously created endpoints. Disabled alerts keep their rule resources; log collection remains enabled.','')
+    if ($Bundle.receipt.Contains('costEstimateIncluded') -and $Bundle.receipt.costEstimateIncluded) {
+        $cost=Get-Content (Join-Path $Bundle.directory cost-estimate.json) -Raw | ConvertFrom-Json -AsHashtable
+        if ($cost.status -eq 'Estimated') {
+            $amount=([double]$cost.fixedMonthlySubtotalUsd).ToString('F2',[Globalization.CultureInfo]::InvariantCulture)
+            $summary+="Full-release fixed estimate: USD $amount/month plus usage; retail snapshot $($cost.pricingAsOf). See the bundle's cost-estimate.json for quantities and exclusions. This is not a spending cap."
+        } else { $summary+="Cost estimate unavailable: $($cost.reason)" }
+    }
     if ((Get-ServiceParameter $parameters.parameters networkMode new) -eq 'new') {
         $summary+=@("Network: Bicep-managed vnet-$(Get-ServiceStem $parameters.parameters) in $($Bundle.target.resourceGroup).",
             'Missing template resources are created on approved apply. Existing resources at the same IDs are reconciled to the template; review every Modify change. DNS zones use the fixed Azure service names.', '')

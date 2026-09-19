@@ -81,6 +81,8 @@ param storageSku string = 'Standard_ZRS'
 param logRetentionDays int = 90
 @minValue(1)
 param logDailyCapGb int = 5
+@description('Enable the three log alert rules. Production requires alerts; disabling keeps rule resources but stops their evaluation.')
+param enableLogAlerts bool = true
 
 @description('Optional existing Entra security group object IDs; groups are governed outside this deployment.')
 param uploaderGroupObjectId string = ''
@@ -119,6 +121,7 @@ module monitoring './modules/monitoring.bicep' = {
     alertActionGroupIds: alertActionGroupIds
     operatorGroupObjectId: operatorGroupObjectId
     enableRuntimeAlerts: deployFunctionApp
+    enableLogAlerts: enableLogAlerts
   }
 }
 
