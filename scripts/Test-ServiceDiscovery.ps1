@@ -414,7 +414,7 @@ try {
         Check ($yaml.Contains('pipeline: discovery') -and $yaml.Contains('branch: refs/heads/main') -and $yaml.Contains('discoveryRunId: $(resources.pipeline.discovery.runID)') -and $yaml.Contains('discoveryPipelineId: $(resources.pipeline.discovery.pipelineID)'))
         $template=Get-Content (Join-Path (Get-ProjectRoot) pipelines/templates/self-service-stages.yml) -Raw
         Check ($template.Contains('buildVersionToDownload: specific') -and $template.Contains('Test-DiscoveryHandoff.ps1') -and $template.Contains('-DiscoveryDirectory'))
-        Check ($template.IndexOf('Test-DiscoveryHandoff.ps1') -lt $template.IndexOf('Build-Package.ps1'))
+        Check ($template.IndexOf('Test-DiscoveryHandoff.ps1') -lt $template.IndexOf('template: steps/qualify-application.yml'))
     }
     Case 'generated price date uses UTC regardless of the local timezone' {
         $snapshot=Get-Content (Join-Path (Get-ProjectRoot) self-service/pricing/usd-eastus2.json) -Raw

@@ -35,6 +35,8 @@ stages:
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
     jobs:
       - job: BuildBundle
+        timeoutInMinutes: 120
+        cancelTimeoutInMinutes: 5
         pool:
           vmImage: windows-latest
         steps:
@@ -68,63 +70,19 @@ stages:
               SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
-          - task: UseDotNet@2
-            inputs:
-              packageType: sdk
-              useGlobalJson: true
-          - task: NodeTool@0
-            inputs:
-              versionSpec: 22.x
+          - template: steps/qualify-application.yml
           - pwsh: |
-              az bicep install --version v0.47.16
-              if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
-              ./scripts/Update-Manifest.ps1 -Check
-              ./scripts/Test-Project.ps1
-              ./scripts/Test-Recovery.ps1
-              ./scripts/Test-LocalTooling.ps1
-              try {
-                ./scripts/Run-Local.ps1
-                ./scripts/Test-Local.ps1
-              } finally {
-                ./scripts/Stop-Local.ps1
-              }
-              ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
               ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -CreateDestinationPrivateEndpoints ([bool]::Parse($env:CREATE_DESTINATION_ENDPOINTS)) -EnableLogAlerts ([bool]::Parse($env:ENABLE_LOG_ALERTS))
-            displayName: Qualify application and freeze target/template/package
+            displayName: Freeze verified discovery, target, template and package
             env:
               CREATE_DESTINATION_ENDPOINTS: ${{ parameters.createDestinationPrivateEndpoints }}
               ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}
           - publish: artifacts/self-service/bundle
             artifact: self-service-bundle
             displayName: Publish immutable inputs for this run
-          - task: PublishTestResults@2
-            condition: succeededOrFailed()
-            inputs:
-              testResultsFormat: VSTest
-              testResultsFiles: artifacts/**/*.trx
-              failTaskOnFailedTests: true
-          - pwsh: |
-              $destination = '$(Build.ArtifactStagingDirectory)/qualification'
-              New-Item -ItemType Directory -Path $destination -Force | Out-Null
-              foreach ($entry in @(
-                @{ path='artifacts/test-results'; name='project' },
-                @{ path='artifacts/self-service-tests'; name='self-service' },
-                @{ path='artifacts/discovery-tests'; name='discovery' },
-                @{ path='artifacts/cost-tests'; name='costs' },
-                @{ path='.local/logs'; name='local-host' }
-              )) {
-                if (Test-Path -LiteralPath $entry.path) {
-                  Copy-Item -LiteralPath $entry.path -Destination (Join-Path $destination $entry.name) -Recurse
-                }
-              }
-              'Qualification evidence; absent folders mean that step did not run.' | Set-Content (Join-Path $destination README.txt)
-            condition: succeededOrFailed()
-            displayName: Retain contract results and local host logs
-          - task: PublishPipelineArtifact@1
-            condition: succeededOrFailed()
-            inputs:
-              targetPath: $(Build.ArtifactStagingDirectory)/qualification
-              artifact: self-service-tests
+          - template: steps/publish-qualification.yml
+            parameters:
+              artifactName: self-service-tests
 
   - template: self-service-publish.yml
     parameters:

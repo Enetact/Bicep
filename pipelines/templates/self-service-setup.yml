@@ -35,7 +35,10 @@ stages:
               $target = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}' -AllowDisabled
               if ($target.enabled) { throw 'Target was enabled without regenerating catalog routing. Run Update-ServiceCatalog.ps1.' }
               ./scripts/Update-ServiceCatalog.ps1 -Check
-              $summary = Join-Path $env:AGENT_TEMPDIRECTORY 'setup-only.md'
+              $publication = (Get-Content './config/deployment-stack.json' -Raw | ConvertFrom-Json).templateSpec
+              $evidence = '$(Build.ArtifactStagingDirectory)/setup'
+              New-Item -ItemType Directory -Path $evidence -Force | Out-Null
+              $summary = Join-Path $evidence 'setup-only.md'
               @(
                 '# Setup check only - Azure NOT deployed'
                 ''
@@ -50,12 +53,20 @@ stages:
                 '- Verify private routing/DNS and required agent tools.'
                 "- Configure environment approvals/lock: $($target.deploymentEnvironment)."
                 "- Verify service connection: $($target.serviceConnection), Azure scopes and destination prerequisites."
+                "- Prepare Template Spec catalog: $($publication.resourceGroup) / $($publication.name); authorize publisher connection $($publication.publisherServiceConnection), pool $($publication.publisherAgentPool) and protected environment $($publication.publisherEnvironment)."
+                '- Configure external Required Template and main-branch checks, approvals and exclusive locks in ADO.'
+                '- Use a fresh dedicated workload resource group owned by the Deployment Stack; review existing groups separately.'
+                '- Local Bicep modules are embedded during qualification. No module registry is required.'
                 '- Review the target parameters, enable the target, regenerate the catalog and source manifest, then merge.'
                 '- Queue Deploy with a matching successful main discovery run. The private-pool deployment workflow will then be restored.'
               ) | Set-Content -LiteralPath $summary
               Write-Host '##vso[task.logissue type=warning]Setup check only: target disabled; no Azure deployment or discovery-artifact validation performed.'
               Write-Host "##vso[task.uploadsummary]$summary"
+              Write-Host '##vso[task.setvariable variable=setupEvidencePrepared]true'
             displayName: Check disabled target and report remaining setup
             env:
               CREATE_DESTINATION_ENDPOINTS: ${{ parameters.createDestinationPrivateEndpoints }}
               ENABLE_LOG_ALERTS: ${{ parameters.enableLogAlerts }}
+          - publish: $(Build.ArtifactStagingDirectory)/setup
+            artifact: setup-guidance
+            condition: and(always(), eq(variables['setupEvidencePrepared'], 'true'))

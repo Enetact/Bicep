@@ -1,0 +1,31 @@
+# Cloud-free qualification shared by Build and the enabled Deploy route.
+# Keep artifact publication in the caller so bundle failures retain evidence too.
+steps:
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      useGlobalJson: true
+  - task: NodeTool@0
+    inputs:
+      versionSpec: 22.x
+  - pwsh: |
+      az bicep install --version v0.47.16
+      if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+    displayName: Install pinned Bicep compiler
+  - pwsh: |
+      ./scripts/Update-Manifest.ps1 -Check
+      ./scripts/Test-Project.ps1
+    displayName: Validate source, pipeline contracts, templates and application
+  - pwsh: ./scripts/Test-Recovery.ps1
+    displayName: Exercise duplicates and recovery using local Azurite
+  - pwsh: ./scripts/Test-LocalTooling.ps1
+    displayName: Verify local lifecycle tooling
+  - pwsh: |
+      ./scripts/Run-Local.ps1
+      ./scripts/Test-Local.ps1
+    displayName: Verify actual local Function triggers and timers
+  - pwsh: ./scripts/Stop-Local.ps1
+    condition: always()
+    displayName: Stop owned local services and retain logs
+  - pwsh: ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
+    displayName: Build immutable Function package

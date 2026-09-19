@@ -128,7 +128,7 @@
       "liveQueryEvidence": "User-supplied pipeline log reached private DNS listing and failed; no successful complete inventory.",
       "offlineCasesPassed": 78,
       "offlineCasesFailed": 0,
-      "evidence": "artifacts/discovery-tests/49af7c29bd8c49f2bf9064ca785abbb7/results.json",
+      "evidence": "artifacts/discovery-tests/99d3484dd11e4f8a9c97f109726c30d4/results.json",
       "separateNativeMenusImplemented": true,
       "discoveryPipelineResourceSource": "Enetact.Bicep",
       "manualSourceIdFieldsRemoved": true,
@@ -170,8 +170,8 @@
       "platform/registry/main.bicep",
       "workloads/blob-transfer/stack.bicep"
     ],
-    "offlineContractCasesPassed": 241,
-    "toolingEvidence": "artifacts/tooling-tests/98cac48e335b4b68959b10f64df0e003/results.json"
+    "offlineContractCasesPassed": 245,
+    "toolingEvidence": "artifacts/tooling-tests/15a8da28223c4680a02ebeb400dd8bbd/results.json"
   },
   "azureDevOpsPipelineExecuted": true,
   "azureDevOpsLastObservedRun": {
@@ -205,7 +205,7 @@
     ],
     "genericPrivateEndpointModule": true,
     "modulesPublished": false,
-    "evidence": "artifacts/platform-tests/32a90fe384e34cfe92fe45cbf5517147/results.json",
+    "evidence": "artifacts/platform-tests/fb52225baf29492dbce01b1570987aeb/results.json",
     "registryDeployed": false,
     "policyDefinitionsCompiled": 2,
     "currentRevisionLiveMenuVerified": false,
@@ -241,7 +241,7 @@
     "actionOnUnmanage": "detachAll",
     "infrastructureVersionReuse": true,
     "liveAzureAcceptance": "Pending",
-    "evidence": "artifacts/stack-tests/6c9f66fc6317476dbeebd455759e892c/results.json"
+    "evidence": "artifacts/stack-tests/62978b7fbc4f4da98ee89fd3c492eef0/results.json"
   },
   "repositoryStructure": {
     "pipelineEntryPathsChanged": false,
@@ -259,5 +259,22 @@
     "adoServerExpansion": false,
     "reviewedUtc": "2026-09-19",
     "pipelineEvidence": "artifacts/test-results/pipeline-structure.json"
+  },
+  "pipelineRefactor": {
+    "date": "2026-09-19",
+    "entryPathsChanged": false,
+    "moduleRegistryRequired": false,
+    "sharedQualification": true,
+    "dedicatedAlwaysCleanup": true,
+    "evidenceBeforeAzureAuthentication": true,
+    "disabledSetupArtifact": "setup-guidance",
+    "yamlFilesParsed": 14,
+    "pipelineCasesPassed": 20,
+    "evidence": "artifacts/test-results/pipeline-structure.json",
+    "fixtureEvidence": "artifacts/pipeline-tests/",
+    "azureCalls": false,
+    "adoServerExpansion": false,
+    "actualLocalHostRerun": false,
+    "targetsRemainDisabled": true
   }
 }

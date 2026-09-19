@@ -1,0 +1,42 @@
+parameters:
+  - name: artifactName
+    type: string
+steps:
+  - task: PublishTestResults@2
+    condition: always()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: artifacts/**/*.trx
+      failTaskOnFailedTests: true
+      # A failed selection/tool setup can legitimately precede all tests.
+      failTaskOnMissingResultsFile: false
+    displayName: Publish available application and recovery test results
+  - pwsh: |
+      $destination = '$(Build.ArtifactStagingDirectory)/qualification'
+      New-Item -ItemType Directory -Path $destination -Force | Out-Null
+      foreach ($entry in @(
+        @{ path='artifacts/test-results'; name='project' },
+        @{ path='artifacts/tooling-tests'; name='tooling' },
+        @{ path='artifacts/self-service-tests'; name='self-service' },
+        @{ path='artifacts/discovery-tests'; name='discovery' },
+        @{ path='artifacts/cost-tests'; name='costs' },
+        @{ path='artifacts/platform-tests'; name='platform' },
+        @{ path='artifacts/stack-tests'; name='stacks' },
+        @{ path='artifacts/pipeline-tests'; name='pipelines' },
+        @{ path='artifacts/recovery-tests'; name='recovery' },
+        @{ path='.local/logs'; name='local-host' }
+      )) {
+        if (Test-Path -LiteralPath $entry.path) {
+          Copy-Item -LiteralPath $entry.path -Destination (Join-Path $destination $entry.name) -Recurse -Force
+        }
+      }
+      'Qualification evidence only. Absent folders mean the corresponding step did not produce evidence. This artifact is not a deployment readiness receipt.' | Set-Content (Join-Path $destination README.txt)
+      Write-Host '##vso[task.setvariable variable=qualificationEvidencePrepared]true'
+    condition: always()
+    displayName: Collect all available contract results and local host logs
+  - task: PublishPipelineArtifact@1
+    condition: and(always(), eq(variables['qualificationEvidencePrepared'], 'true'))
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/qualification
+      artifact: ${{ parameters.artifactName }}
+    displayName: Retain qualification evidence, including failures

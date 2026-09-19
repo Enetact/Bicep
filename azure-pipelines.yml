@@ -1,61 +1,37 @@
-# Explicitly disable push and pull-request triggers; queue runs manually in ADO.
+# Manual cloud-free qualification. Discover and Deploy have separate entry files.
 trigger: none
 pr: none
 
-pool:
-  vmImage: windows-latest
-
-steps:
-  - task: UseDotNet@2
-    inputs:
-      packageType: sdk
-      useGlobalJson: true
-  - task: NodeTool@0
-    inputs:
-      versionSpec: 22.x
-  - pwsh: |
-      az bicep install --version v0.47.16
-      if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
-      ./scripts/Update-Manifest.ps1 -Check
-      ./scripts/Test-Project.ps1
-    displayName: Compile all environments and test transfer contracts
-  - pwsh: ./scripts/Test-Recovery.ps1
-    displayName: Exercise duplicates and recovery using local Azurite
-  - pwsh: |
-      ./scripts/Test-LocalTooling.ps1
-      try {
-        ./scripts/Run-Local.ps1
-        ./scripts/Test-Local.ps1
-      } finally {
-        ./scripts/Stop-Local.ps1
-      }
-    displayName: Verify actual local Function triggers and timers
-  - task: PublishPipelineArtifact@1
-    condition: succeededOrFailed()
-    inputs:
-      targetPath: .local/logs
-      artifact: local-host-evidence
-    displayName: Publish local host logs and smoke evidence
-  - pwsh: ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
-    displayName: Build immutable Function package
-  - task: PublishPipelineArtifact@1
-    inputs:
-      targetPath: artifacts/releases/$(Build.BuildId)
-      artifact: blob-transfer
-    displayName: Publish compiled templates and package
-  - task: PublishTestResults@2
-    condition: succeededOrFailed()
-    inputs:
-      testResultsFormat: VSTest
-      testResultsFiles: 'artifacts/**/*.trx'
-      failTaskOnFailedTests: true
-      failTaskOnMissingResultsFile: true
-    displayName: Publish unit and recovery test results
-  - task: PublishPipelineArtifact@1
-    condition: succeededOrFailed()
-    inputs:
-      targetPath: artifacts/test-results
-      artifact: validation-evidence
-    displayName: Publish validation evidence
-# No automatic deployment. Add protected environment approvals and a private-network
-# self-hosted deployment agent with workload identity federation for release stages.
+jobs:
+  - job: QualifyApplication
+    displayName: Test, exercise locally and package
+    timeoutInMinutes: 120
+    cancelTimeoutInMinutes: 5
+    pool:
+      vmImage: windows-latest
+    steps:
+      - checkout: self
+        clean: true
+        persistCredentials: false
+      - template: pipelines/templates/steps/qualify-application.yml
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: artifacts/releases/$(Build.BuildId)
+          artifact: blob-transfer
+        displayName: Publish compiled templates and package
+      - template: pipelines/templates/steps/publish-qualification.yml
+        parameters:
+          artifactName: validation-evidence
+      # Preserve the standalone local-host artifact for existing users.
+      - pwsh: |
+          if (Test-Path -LiteralPath '.local/logs') {
+            Write-Host '##vso[task.setvariable variable=localHostEvidenceAvailable]true'
+          }
+        condition: always()
+        displayName: Locate available local host evidence
+      - task: PublishPipelineArtifact@1
+        condition: and(always(), eq(variables['localHostEvidenceAvailable'], 'true'))
+        inputs:
+          targetPath: .local/logs
+          artifact: local-host-evidence
+        displayName: Publish available local host logs

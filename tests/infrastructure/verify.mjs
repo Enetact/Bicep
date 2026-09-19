@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import YAML from 'yaml';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
@@ -54,17 +55,23 @@ function bind(doc, supplied){
   for(const p of declared){assert(Object.hasOwn(supplied,p.name)||Object.hasOwn(p,'default'),'Missing template parameter '+p.name);const value=Object.hasOwn(supplied,p.name)?supplied[p.name]:p.default;assert.equal(typeof value,p.type==='boolean'?'boolean':'string',p.name);if(p.values)assert(p.values.includes(value),'Disallowed value '+p.name);result[p.name]=value;}
   return result;
 }
-function expand(name, supplied={}, ancestry=[]){
+function expand(name, supplied={}, ancestry=[], section='stages'){
   assert(!ancestry.includes(name),'Template cycle: '+name);const doc=document(name);const parameters=bind(doc,supplied);
-  const referenced=item=>expand(inside(path.resolve(root,path.dirname(name),item.template)),substitute(item.parameters||{},parameters),[...ancestry,name]);
-  if(doc.extends)return referenced(doc.extends);
-  function stages(items){return items.flatMap(item=>{
+  const referenced=(item,kind)=>expand(inside(path.resolve(root,path.dirname(name),item.template)),substitute(item.parameters||{},parameters),[...ancestry,name],kind);
+  if(doc.extends)return referenced(doc.extends,section);
+  function content(value){
+    if(Array.isArray(value))return value.map(content);
+    if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,key==='steps'?items(item,'steps'):content(item)]));
+    return substitute(value,parameters);
+  }
+  function items(values,kind){return values.flatMap(item=>{
     const keys=Object.keys(item);if(keys.length===1&&keys[0].startsWith('${{')){
-      const condition=keys[0].match(/^\$\{\{\s*if\s+(.*?)\s*\}\}$/);assert(condition,'Unsupported stage directive');return expression(condition[1],parameters)?stages(item[keys[0]]):[];
+      const condition=keys[0].match(/^\$\{\{\s*if\s+(.*?)\s*\}\}$/);assert(condition,'Unsupported template directive');return expression(condition[1],parameters)?items(item[keys[0]],kind):[];
     }
-    return item.template?referenced(item):[substitute(item,parameters)];
+    return item.template?referenced(item,kind):[content(item)];
   });}
-  return stages(doc.stages||[]);
+  assert(Array.isArray(doc[section]),name+': missing '+section);
+  return items(doc[section],section);
 }
 function artifacts(stages){
   const available=new Set();
@@ -73,6 +80,7 @@ function artifacts(stages){
     walk(stage,node=>{
       if(node.download==='current')assert(available.has(node.artifact),'Artifact not published by prior stage: '+node.artifact);
       if(node.publish)emitted.push(node.artifact);
+      if(node.task==='PublishPipelineArtifact@1')emitted.push(node.inputs.artifact);
     });
     emitted.forEach(x=>available.add(x));
   }
@@ -95,6 +103,47 @@ check('Manual roots, developer fields and discovery run picker remain intact',()
   assert.equal(deploy.resources.pipelines[0].source,json('self-service/pipeline-settings.json').discoveryPipelineName);assert.equal(deploy.resources.pipelines[0].trigger,'none');
 });
 const platform=json('config/platform.json');const publication=json('config/deployment-stack.json').templateSpec;
+const sharedQualification=expand('pipelines/templates/steps/qualify-application.yml',{},[],'steps');
+check('Build and Deploy share ordered qualification, cleanup and packaging',()=>{
+  const [build]=expand('azure-pipelines.yml',{},[],'jobs');
+  assert.deepEqual(build.steps.slice(1,1+sharedQualification.length),sharedQualification);
+  assert.equal(build.pool.vmImage,'windows-latest');assert.equal(build.cancelTimeoutInMinutes,5);
+  const index=script=>sharedQualification.findIndex(x=>x.pwsh?.includes(script));
+  const sequence=['Test-Project.ps1','Test-Recovery.ps1','Test-LocalTooling.ps1','Run-Local.ps1','Stop-Local.ps1','Build-Package.ps1'].map(index);
+  assert(sequence.every((value,i)=>value>=0&&(i===0||value>sequence[i-1])));
+  assert.equal(sharedQualification[index('Stop-Local.ps1')].condition,'always()');
+  assert(!sharedQualification[index('Build-Package.ps1')].condition,'Packaging must retain the default success condition');
+  walk(build,n=>{assert(!n.task?.startsWith('AzureCLI'));assert(!n.continueOnError);});
+});
+check('Qualification retains every suite and avoids misleading missing-file publication failures',()=>{
+  const steps=expand('pipelines/templates/steps/publish-qualification.yml',{artifactName:'test-evidence'},[],'steps');
+  assert.equal(steps[0].condition,'always()');assert.equal(steps[0].inputs.failTaskOnFailedTests,true);assert.equal(steps[0].inputs.failTaskOnMissingResultsFile,false);
+  for(const name of ['test-results','tooling-tests','self-service-tests','discovery-tests','cost-tests','platform-tests','stack-tests','pipeline-tests','recovery-tests','.local/logs'])assert(steps[1].pwsh.includes(name));
+  assert.equal(steps[1].condition,'always()');assert.equal(steps[2].inputs.artifact,'test-evidence');assert.equal(steps[2].condition,"and(always(), eq(variables['qualificationEvidencePrepared'], 'true'))");
+});
+// Execute the small inline evidence scripts in isolated fixture directories. No
+// application lifecycle, deployment scripts, Azure calls or ADO commands run.
+function runEvidence(script,directory,env={}){
+  const result=spawnSync('pwsh',['-NoLogo','-NoProfile','-NonInteractive','-Command',"$ErrorActionPreference='Stop';\n"+script],{cwd:directory,env:{...process.env,...env},encoding:'utf8'});
+  assert.equal(result.status,0,result.error?.message||result.stderr||result.stdout);return result.stdout;
+}
+check('Early Azure task failure retains context without manufacturing a readiness receipt',()=>{
+  const parent=path.join(root,'artifacts/pipeline-tests');fs.mkdirSync(parent,{recursive:true});const fixture=fs.mkdtempSync(path.join(parent,'stage-'));
+  const [step]=expand('pipelines/templates/steps/prepare-stage-evidence.yml',{directory:fixture},[],'steps');
+  const output=runEvidence(step.pwsh,fixture,{EVIDENCE_DIRECTORY:fixture,BUILD_BUILDID:'42',SYSTEM_STAGENAME:'ApplyRelease',SYSTEM_STAGEATTEMPT:'1',SYSTEM_JOBATTEMPT:'1',BUILD_SOURCEVERSION:'fixture-commit'});
+  const context=JSON.parse(fs.readFileSync(path.join(fixture,'pipeline-context.json'),'utf8'));
+  assert.equal(context.runId,'42');assert.equal(context.stage,'ApplyRelease');assert.equal(context.evidenceKind,'StageEntered');assert(!Object.hasOwn(context,'ready'));
+  assert(!fs.existsSync(path.join(fixture,'receipt.json')));assert(output.includes('variable=stageEvidencePrepared]true'));
+});
+check('Qualification evidence works before tests start and retains later partial results',()=>{
+  const parent=path.join(root,'artifacts/pipeline-tests');fs.mkdirSync(parent,{recursive:true});const fixture=fs.mkdtempSync(path.join(parent,'qualification-'));
+  const destination=path.join(fixture,'staging');const steps=expand('pipelines/templates/steps/publish-qualification.yml',{artifactName:'test-evidence'},[],'steps');
+  const script=steps[1].pwsh.replaceAll('$(Build.ArtifactStagingDirectory)',destination.replaceAll('\\','/').replaceAll("'","''"));
+  runEvidence(script,fixture);assert(fs.existsSync(path.join(destination,'qualification/README.txt')));
+  for(const suite of ['platform-tests','stack-tests','recovery-tests']){fs.mkdirSync(path.join(fixture,'artifacts',suite),{recursive:true});fs.writeFileSync(path.join(fixture,'artifacts',suite,'partial.json'),'{}');}
+  runEvidence(script,fixture);
+  for(const suite of ['platform','stacks','recovery'])assert(fs.existsSync(path.join(destination,'qualification',suite,'partial.json')));
+});
 const targets=files('self-service/targets').filter(x=>x.endsWith('.json')).map(json);
 for(const target of targets){
   const common={workload:target.workload,environment:target.environmentName,subscription:target.subscriptionAlias,network:target.networkProfile};
@@ -106,7 +155,7 @@ for(const target of targets){
   const intent={workloadType:platform.workloadType,workloadName:target.workload,environment:target.environmentName,region:target.parameterOverrides.location||platform.defaultRegion};
   check(target.environmentName+' checked-in Deploy route matches its enabled flag',()=>{
     const stages=expand('azure-pipelines-self-service-deploy.yml',intent);
-    if(!target.enabled){assert.deepEqual(stages.map(s=>s.stage),['SetupOnly']);walk(stages,n=>{assert(!n.deployment&&!n.environment&&!n.task?.startsWith('AzureCLI'));if(n.pool)assert.equal(n.pool.vmImage,'windows-latest');});}
+    if(!target.enabled){assert.deepEqual(stages.map(s=>s.stage),['SetupOnly']);walk(stages,n=>{assert(!n.deployment&&!n.environment&&!n.task?.startsWith('AzureCLI'));if(n.pool)assert.equal(n.pool.vmImage,'windows-latest');});assert(stages[0].jobs[0].steps.some(x=>x.artifact==='setup-guidance'));}
     else assert.equal(stages.length,6);
   });
   check(target.environmentName+' enabled-stage contract, protected bindings and artifact chain',()=>{
@@ -116,6 +165,17 @@ for(const target of targets){
     for(let i=1;i<stages.length;i++)assert.equal(stages[i].dependsOn,stages[i-1].stage);
     for(const stage of stages.slice(1)){const publishing=stage.stage==='PublishTemplate';for(const job of stage.jobs){assert.equal(job.pool.name,publishing?publication.publisherAgentPool:target.agentPool);if(job.deployment){assert.equal(job.environment,publishing?publication.publisherEnvironment:target.deploymentEnvironment);assert.equal(stage.lockBehavior,'sequential');}walk(job,n=>{if(n.task==='AzureCLI@2')assert.equal(n.inputs.azureSubscription,publishing?publication.publisherServiceConnection:target.serviceConnection);});}}
     const download=stages[0].jobs[0].steps.find(x=>x.task==='DownloadPipelineArtifact@2');assert.equal(download.inputs.pipelineId,'42');assert.equal(download.inputs.definition,'1');assert.equal(download.inputs.artifactName,'subscription-discovery');artifacts(stages);
+    const qualify=stages[0].jobs[0].steps;const handoff=qualify.findIndex(x=>x.pwsh?.includes('Test-DiscoveryHandoff.ps1'));
+    assert.deepEqual(qualify.slice(handoff+1,handoff+1+sharedQualification.length),sharedQualification);
+    assert(qualify.findIndex(x=>x.pwsh?.includes('New-SelfServiceBundle.ps1'))>handoff+sharedQualification.length);
+    for(const stage of stages.slice(1)){
+      const job=stage.jobs[0];const steps=job.steps||job.strategy.runOnce.deploy.steps;
+      assert.equal(job.workspace.clean,'all');assert.equal(job.cancelTimeoutInMinutes,5);
+      const prepare=steps.findIndex(x=>x.pwsh?.includes('pipeline-context.json'));
+      assert(prepare>=0&&prepare<steps.findIndex(x=>x.download==='current'));
+      assert(prepare<steps.findIndex(x=>x.task==='AzureCLI@2'));
+      assert.equal(steps.at(-1).condition,"and(always(), eq(variables['stageEvidencePrepared'], 'true'))");
+    }
     assert(fs.existsSync(path.join(root,target.parameterFile)),target.parameterFile);
     assert.equal(json('artifacts/'+target.environmentName+'/parameters.json').parameters.environmentName.value,target.environmentName);
   });

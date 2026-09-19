@@ -52,6 +52,7 @@ pipelines/
   deploy-entry.yml                       generated Required Template entry
   catalog-bindings.yml                   generated literal protected-resource mapping
   templates/                             discovery, setup, qualify, publish, plan/apply
+    steps/                               shared qualification, cleanup and evidence
 scripts/                                 setup, qualification and lifecycle commands
 tests/infrastructure/                    locked YAML parser + pipeline/Bicep contracts
 tests/BlobTransfer.Tests/                 application and opt-in emulator tests

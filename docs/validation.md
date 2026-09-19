@@ -2,6 +2,27 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Shared qualification and pipeline evidence refactor: 19 September 2026
+
+The [full flow guide](pipeline-flow.md) records the three stable manual entry points, six enabled deployment stages and local-module/Template Spec/Deployment Stack boundaries. Build and Deploy now share qualification, cancellation cleanup and complete evidence collection. Azure stages prepare context before download/sign-in, and disabled setup publishes current onboarding guidance. Module registry setup/publication is deferred.
+
+`Test-Project.ps1` passed **225 existing offline contracts**, **20 pipeline/infrastructure contracts** and **18 application tests**; **15 opt-in emulator tests were skipped**. All four environments, stack wrapper and the two optional platform templates compiled. The operator build reported zero warnings/errors, and the Function dependency advisory query reported no vulnerabilities. All **14 YAML files** parse. No new actual local-host/emulator run, ADO server expansion, Azure publication or deployment was performed.
+
+The pipeline checks expand nested steps and verify Build/Deploy qualification parity, handoff-before-build, success-gated packaging, unconditional cleanup, all-suite evidence retention, evidence-before-sign-in and the protected six-stage artifact chain. Isolated PowerShell fixtures verify that early failures retain context without a readiness receipt and that evidence collection works before tests start or with partial results.
+
+| Suite | Evidence from this run |
+|---|---|
+| Tooling: 19 | `artifacts/tooling-tests/15a8da28223c4680a02ebeb400dd8bbd/results.json` |
+| Self-service: 42 | `artifacts/self-service-tests/6e9579c27f544f79847bfc25bd4fc5db/results.json` |
+| Discovery: 78 | `artifacts/discovery-tests/99d3484dd11e4f8a9c97f109726c30d4/results.json` |
+| Costs: 15 | `artifacts/cost-tests/e82c0ca72c9749b9ae39a9d8514a54ac/results.json` |
+| Platform: 37 | `artifacts/platform-tests/fb52225baf29492dbce01b1570987aeb/results.json` |
+| Stacks: 34 | `artifacts/stack-tests/62978b7fbc4f4da98ee89fd3c492eef0/results.json` |
+| Pipelines: 20 | `artifacts/test-results/pipeline-structure.json`; isolated fixtures under `artifacts/pipeline-tests/` |
+| Application: 18 passed / 15 skipped | `artifacts/test-results/unit.trx` |
+
+All targets remain disabled. Cleanup/evidence steps have a five-minute cancellation allowance but cannot guarantee completion if a job never starts or its agent is lost. Live ADO expansion/authorization and Azure acceptance remain required. Older entries below preserve their historical counts and evidence.
+
 ## Microsoft-aligned repository layout: 19 September 2026
 
 The [repository conventions](repository-structure.md) record the Microsoft Learn/AVM sources, chosen workload/resource-module layout, environment/stack configuration and path migration. Twelve Bicep/parameter sources moved; all root ADO entry filenames remain stable. Root lint now also rejects unused variables and secret-bearing outputs. The build pipeline installs Node before the new locked YAML validation step.
