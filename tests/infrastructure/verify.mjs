@@ -266,6 +266,19 @@ for(const [type,slug,title] of [['blob-transfer','blobcopy','Blob copy'],['logic
     });
   }
 }
+check('Preview tooling failure is retained in the published README',()=>{
+  const parent=path.join(root,'artifacts/pipeline-tests');fs.mkdirSync(parent,{recursive:true});
+  const fixture=fs.mkdtempSync(path.join(parent,'manifest-failure-'));fs.mkdirSync(path.join(fixture,'scripts'));
+  fs.writeFileSync(path.join(fixture,'scripts/Update-Manifest.ps1'),"throw 'Changed content: self-service/pricing/usd-eastus2.json'\n");
+  const [preview]=expand('azure-pipelines-blobcopy-deploy.yml');
+  const step=preview.jobs[0].steps.find(x=>x.displayName==='Install pinned Bicep and verify source manifest');
+  const quote=value=>value.replaceAll('\\','/').replaceAll("'","''");
+  const script=step.pwsh.replaceAll('$(Build.ArtifactStagingDirectory)',quote(fixture)).replace('. ./scripts/workload-preview-common.ps1',". '"+quote(path.join(root,'scripts/workload-preview-common.ps1'))+"'");
+  runEvidence("function az { $global:LASTEXITCODE=0 }; $caught=$false; try {\n"+script+"\n} catch { $caught=$true; if (!$_.Exception.Message.Contains('Changed content:')) { throw } }; if (!$caught) { throw 'Expected manifest failure' }",fixture);
+  const report=fs.readFileSync(path.join(fixture,'preview/README.md'),'utf8');
+  assert(report.includes('Blocked before Azure validation'));assert(report.includes('self-service/pricing/usd-eastus2.json'));
+  assert(report.includes('Azure changes unavailable'));assert(!fs.existsSync(path.join(fixture,'preview/azure/preview-plan.json')));
+});
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');
 console.log(`PASS: ${cases.length} pipeline/infrastructure contracts; ${yamlFiles.length} YAML files. No Azure calls or ADO server expansion.`);

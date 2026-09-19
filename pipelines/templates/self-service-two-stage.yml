@@ -61,9 +61,16 @@ stages:
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
           - pwsh: |
-              az bicep install --version v0.47.16
-              if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
-              ./scripts/Update-Manifest.ps1 -Check
+              try {
+                  az bicep install --version v0.47.16
+                  if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+                  ./scripts/Update-Manifest.ps1 -Check
+              } catch {
+                  $failure = $_.Exception.Message
+                  . ./scripts/workload-preview-common.ps1
+                  Write-WorkloadPreviewReadme '$(Build.ArtifactStagingDirectory)/preview' 'Blocked before Azure validation' $failure
+                  throw
+              }
             displayName: Install pinned Bicep and verify source manifest
           - task: DownloadPipelineArtifact@2
             displayName: Consume selected Discover artifact

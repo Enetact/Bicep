@@ -13,6 +13,10 @@ Use the workload-specific **Deploy - Blob copy** (`/azure-pipelines-blobcopy-dep
 
 No custom Azure DevOps extension needs to be installed. The pipeline uses the built-in [UploadSummary logging command](https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops#uploadsummary-add-some-markdown-content-to-the-build-summary). The exact tab placement can vary with ADO's run UI; the artifact is the fallback.
 
+### If source-manifest validation fails
+
+The run stops before discovery download or Azure What-If. Its README reports the named changed/missing/unlisted files; it is not a resource-change plan. Run `./scripts/Update-Manifest.ps1` locally after reviewing the source changes, commit the updated `MANIFEST.sha256` with those changes, and queue a fresh run from the updated main commit. CI only checks the manifest and never repairs it automatically. Hashes follow Git's LF checkout rule for text, so local CRLF/mixed endings cannot produce a manifest that passes locally but fails solely because Git normalizes that text. Binary content remains hashed exactly.
+
 ## What the report means
 
 The full runtime-enabled Bicep stack is evaluated: `deployFunctionApp=true` for Blob copy and `releaseActivated=true` for Event flow. You can inspect the planned application host and supporting infrastructure before Foundation is deployed. The report lists every resource returned by Azure, action counts, resource IDs, certainty, nested property before/after differences, unchanged resources, management/deny changes and diagnostics. Create, Modify, Delete and Detach results remain visible even when policy rejects the plan.
