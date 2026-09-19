@@ -10,6 +10,7 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-ServiceCosts.ps1"
 & "$PSScriptRoot/Test-PlatformContracts.ps1"
 & "$PSScriptRoot/Test-DeploymentStacks.ps1"
+& "$PSScriptRoot/Test-LogicWorkload.ps1"
 & "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {
     $output = Export-Templates -EnvironmentName $environmentName
@@ -18,6 +19,13 @@ foreach ($environmentName in @('dev','qa','uat','prod')) {
 foreach ($item in @(@('platform/policy/guardrails.bicep','policy-guardrails.json'),@('platform/registry/main.bicep','module-registry.json'),@('workloads/blob-transfer/stack.bicep','stack-template.json'))) {
     Invoke-Bicep -Arguments @('build',(Join-Path $root $item[0]),'--outfile',(Join-Path $results $item[1]))
 }
+foreach($environmentName in @('dev','qa','uat','prod')) {
+    $directory=Join-Path $root "artifacts/logic-app-event-grid/$environmentName"
+    New-Item -ItemType Directory -Path $directory -Force|Out-Null
+    Invoke-Bicep -Arguments @('build',(Join-Path $root 'workloads/logic-app-event-grid/main.bicep'),'--outfile',(Join-Path $directory main.json))
+    Invoke-Bicep -Arguments @('build-params',(Join-Path $root "workloads/logic-app-event-grid/environments/main.$environmentName.bicepparam"),'--outfile',(Join-Path $directory parameters.json))
+}
+Invoke-Bicep -Arguments @('build',(Join-Path $root 'workloads/logic-app-event-grid/stack.bicep'),'--outfile',(Join-Path $results logic-stack-template.json))
 & "$PSScriptRoot/Test-PipelineStructure.ps1"
 & dotnet test (Join-Path $root 'tests/BlobTransfer.Tests/BlobTransfer.Tests.csproj') --configuration Release -m:1 -p:RestoreLockedMode=true --logger 'trx;LogFileName=unit.trx' --results-directory $results
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }

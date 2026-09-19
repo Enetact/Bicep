@@ -1,8 +1,8 @@
 # Developer self-service deployment
 
-Status: implemented in the repository and locally contract-tested. Run 8 on `feature/selfservice` completed discovery using the DNS inventory fallback and published its artifact; successful Azure deployment remains unverified. Deployment requires a verified manifest from a separate successful main-branch discovery run. All four checked-in targets remain disabled for deployment until platform onboarding is complete. See [completion status](completion-status.md).
+Status: implemented in the repository and locally contract-tested. Run 8 on `feature/selfservice` completed discovery using the DNS inventory fallback and published its artifact; successful Azure deployment remains unverified. Deployment requires a verified manifest from a separate successful main-branch discovery run. All eight checked-in targets remain disabled for deployment until platform onboarding is complete. See [completion status](completion-status.md).
 
-This repository deploys the blob-transfer stack. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
+This repository implements `blob-transfer` / `blobcopy` and `logic-app-event-grid` / `eventflow`. The [Event Flow runbook](../workloads/logic-app-event-grid/README.md) specifies its resource inventory, private queue bridge, two approval exceptions, methods and Azure acceptance. The detailed blob transfer sections below remain specific to that pattern. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 
 See the [full pipeline flow](pipeline-flow.md) for the entrypoint/stage diagram, script calls, artifact handoffs, shared qualification steps, failure evidence and remaining platform setup. Module registry setup is excluded; local modules are compiled into the published Template Spec.
 
@@ -16,13 +16,13 @@ After onboarding, configure existing enterprise networking or an explicit isolat
 
 ## What developers select in Run pipeline
 
-The developer contract is now **workload type**, **registered workload name**, **environment**, and **approved region**. The current pattern is `blob-transfer`, with registered name `blobcopy` and approved region `eastus2`. Resource and cost references remain visible below those choices.
+The developer contract is now **workload type**, **registered workload name**, **environment**, and **approved region**. Patterns are `blob-transfer` with name `blobcopy`, and `logic-app-event-grid` with name `eventflow`; both use approved region `eastus2`. Each has four disabled environment profiles. Resource and cost references remain visible below those choices.
 
 The **Before running - discovery, approvals and readiness** information field explains the main-branch discovery selection, publication/preview/approval/deployment flow, and setup-only behavior for disabled targets. It is guidance, not an additional deployment option. To display an updated menu, publish the generated YAML and its supporting files to the branch selected in ADO, then reopen Run pipeline.
 
 The platform resolves subscription, network/subnet/DNS, service connection, agent pool, deployment environment, destination endpoints and alert settings. Endpoint and alert checkboxes were removed from the developer menu because these are implementation/security decisions. Their underlying Bicep options remain platform-controlled in `config/platform.json`; storage and observability are mandatory capabilities. Unknown patterns, capabilities and ambiguous target mappings fail validation.
 
-Discover remains a platform/operator menu with subscription/network selectors. Deploy uses **Resources > discovery** to select the saved successful main run; ADO supplies its IDs automatically. Saved inventory is validated for enabled deployments and never dynamically rewrites the form. See [enterprise ownership and configuration](enterprise-platform.md) for the exact request contract, centralized DNS/resolver model, monitoring reuse and known gaps.
+Discover remains a platform/operator menu with workload pattern, instance and subscription/network selectors. Deploy uses **Resources > discovery** to select the saved successful main run; ADO supplies its IDs automatically. Saved inventory is validated for enabled deployments and never dynamically rewrites the form. See [enterprise ownership and configuration](enterprise-platform.md) for the exact request contract, centralized DNS/resolver model, monitoring reuse and known gaps.
 
 Cost estimates remain dated USD retail references, not a spending cap. The selected frozen estimate and resource changes appear in previews. [Cost assumptions](self-service-costs.md) document usage exclusions. Platform changes that omit previously created endpoints do not delete those endpoints or eliminate their charges.
 
@@ -132,7 +132,7 @@ Update a schemaVersion 2 profile under `self-service/targets/` with the real sub
 
 Review and merge the changes through the protected branch. Queue a dev run and complete live acceptance before enabling higher environments. Disabled targets run only the hosted setup check through the Deploy menu; actual deployment scripts still reject them.
 
-For another registered instance of the blob-transfer pattern, add target JSON profiles and parameter files, then regenerate the catalog. Create the corresponding external resources/controls first. Each workload/environment/region intent must resolve to exactly one target; ambiguous subscription/network choices fail generation. The current catalog contains only `blobcopy`. A different workload pattern requires its own real composition, contract and qualification tests before registration.
+For another registered instance of the blob-transfer pattern, add target JSON profiles and parameter files, then regenerate the catalog. Create the corresponding external resources/controls first. Each workload/environment/region intent must resolve to exactly one target; ambiguous subscription/network choices fail generation. The catalog contains `blobcopy` and `eventflow`, each mapped to its own implemented pattern. Additional patterns require a real composition, package adapter, contract and qualification tests before registration.
 
 ## Evidence, failures and reruns
 

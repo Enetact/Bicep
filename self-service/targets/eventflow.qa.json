@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "logic-app-event-grid",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "eventflow",
+  "environmentName": "qa",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-eventflow-qa",
+  "parameterFile": "workloads/logic-app-event-grid/environments/main.qa.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "eventflow-qa",
+  "smokePrefix": "smoke/"
+}

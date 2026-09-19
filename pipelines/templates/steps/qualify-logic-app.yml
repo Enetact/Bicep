@@ -1,0 +1,16 @@
+steps:
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      useGlobalJson: true
+  - task: NodeTool@0
+    inputs:
+      versionSpec: 22.x
+  - pwsh: |
+      az bicep install --version v0.47.16
+      if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+      ./scripts/Update-Manifest.ps1 -Check
+      ./scripts/Test-Project.ps1
+    displayName: Validate repository and Logic App contracts
+  - pwsh: ./scripts/Build-LogicPackage.ps1 -ReleaseId '$(Build.BuildId)'
+    displayName: Package approved Logic App workflows

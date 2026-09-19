@@ -1,6 +1,8 @@
-# External blob arrival to queue-triggered copy
+# Azure workload self-service: Blob Transfer and Event Flow
 
-Production-minded Azure Bicep for Dev, QA, UAT and Prod, with .NET 10 Functions, deduplication and recovery. **The uploading system is outside our control. It only needs to place a file in the solution storage container. No custom metadata, request ID, filename convention or queue message is required from it.**
+Two independently owned workload patterns share Discover, Deploy, local modules, versioned Template Specs and Deployment Stack governance. See the [Event Flow requirements and method guide](workloads/logic-app-event-grid/README.md) for Logic App Standard + Event Grid. All eight profiles remain disabled pending platform onboarding and Azure acceptance.
+
+The blob-transfer workload below provides production-minded Azure Bicep for Dev, QA, UAT and Prod, with .NET 10 Functions, deduplication and recovery. **The uploading system is outside our control. It only needs to place a file in the solution storage container. No custom metadata, request ID, filename convention or queue message is required from it.**
 
 ```mermaid
 flowchart LR
@@ -14,7 +16,7 @@ flowchart LR
     T --> Q
 ```
 
-The Function App contains both the lightweight BlobTrigger dispatcher and the QueueTrigger copy worker. **No Event Grid and no MCP.** Blob Storage itself does not automatically populate a custom queue: our dispatcher does that after detecting a blob. Azure Storage Actions is not a queue-message publisher. The work queue is in the solution/upload account, while Functions runtime receipts and packages use the dedicated host account.
+The Function App contains both the lightweight BlobTrigger dispatcher and the QueueTrigger copy worker. **The blob-transfer workload uses no Event Grid or MCP.** Blob Storage itself does not automatically populate a custom queue: our dispatcher does that after detecting a blob. Azure Storage Actions is not a queue-message publisher. The work queue is in the solution/upload account, while Functions runtime receipts and packages use the dedicated host account.
 
 ## Included behavior
 
@@ -50,6 +52,8 @@ The launcher checks prerequisites and installs missing tools into ignored projec
 All pipeline entry points disable push and pull-request triggers explicitly. Start build/test or self-service runs manually with **Run pipeline** in Azure DevOps.
 
 The [full pipeline flow](docs/pipeline-flow.md) maps the three entry files, six enabled deployment stages, local-module compilation, Template Spec publication, stack ownership, artifacts and platform gates. Build and Deploy share qualification and failure-evidence steps; no module registry is required.
+
+The second pattern `logic-app-event-grid` / `eventflow` is implemented in the generated menus. Read its [requirements, resource inventory, methods and onboarding](workloads/logic-app-event-grid/README.md). Its queue bridge requires two explicit platform exceptions and has fixed hosting/private-endpoint costs. The [implementation plan](docs/plans/logic-app-event-grid-workload.md) records the delivered scope and remaining Azure acceptance.
 
 For now, disabled targets in the Deploy menu run a **setup check only** on Microsoft-hosted `windows-latest`, without referencing the unconfigured private pool or deployment environments. This checks local configuration, not the saved discovery artifact or Azure readiness, and creates no Azure resources. Enabling a target and regenerating the catalog restores its private-agent deployment workflow. See [temporary setup mode](docs/self-service.md#temporary-hosted-setup-check).
 

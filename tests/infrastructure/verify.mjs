@@ -146,13 +146,14 @@ check('Qualification evidence works before tests start and retains later partial
 });
 const targets=files('self-service/targets').filter(x=>x.endsWith('.json')).map(json);
 for(const target of targets){
-  const common={workload:target.workload,environment:target.environmentName,subscription:target.subscriptionAlias,network:target.networkProfile};
+  const workloadType=target.workloadType||'blob-transfer';
+  const common={workloadType,workload:target.workload,environment:target.environmentName,subscription:target.subscriptionAlias,network:target.networkProfile};
   check(target.environmentName+' discovery remains hosted, scoped and artifact-producing',()=>{
     const stages=expand('azure-pipelines-self-service.yml',common);assert.deepEqual(stages.map(s=>s.stage),['Discover']);const job=stages[0].jobs[0];assert.equal(job.pool.vmImage,'windows-latest');
     const azure=job.steps.find(x=>x.task==='AzureCLI@2');assert.equal(azure.inputs.azureSubscription,target.serviceConnection);assert.equal(azure.inputs.scriptPath,'scripts/Export-DeploymentInventory.ps1');assert(azure.inputs.arguments.includes('-UseServiceConnectionSubscription'));
     assert(job.steps.some(x=>x.publish&&x.artifact==='subscription-discovery'&&x.condition==='succeededOrFailed()'));
   });
-  const intent={workloadType:platform.workloadType,workloadName:target.workload,environment:target.environmentName,region:target.parameterOverrides.location||platform.defaultRegion};
+  const intent={workloadType,workloadName:target.workload,environment:target.environmentName,region:target.parameterOverrides.location||platform.defaultRegion};
   check(target.environmentName+' checked-in Deploy route matches its enabled flag',()=>{
     const stages=expand('azure-pipelines-self-service-deploy.yml',intent);
     if(!target.enabled){assert.deepEqual(stages.map(s=>s.stage),['SetupOnly']);walk(stages,n=>{assert(!n.deployment&&!n.environment&&!n.task?.startsWith('AzureCLI'));if(n.pool)assert.equal(n.pool.vmImage,'windows-latest');});assert(stages[0].jobs[0].steps.some(x=>x.artifact==='setup-guidance'));}
@@ -166,8 +167,10 @@ for(const target of targets){
     for(const stage of stages.slice(1)){const publishing=stage.stage==='PublishTemplate';for(const job of stage.jobs){assert.equal(job.pool.name,publishing?publication.publisherAgentPool:target.agentPool);if(job.deployment){assert.equal(job.environment,publishing?publication.publisherEnvironment:target.deploymentEnvironment);assert.equal(stage.lockBehavior,'sequential');}walk(job,n=>{if(n.task==='AzureCLI@2')assert.equal(n.inputs.azureSubscription,publishing?publication.publisherServiceConnection:target.serviceConnection);});}}
     const download=stages[0].jobs[0].steps.find(x=>x.task==='DownloadPipelineArtifact@2');assert.equal(download.inputs.pipelineId,'42');assert.equal(download.inputs.definition,'1');assert.equal(download.inputs.artifactName,'subscription-discovery');artifacts(stages);
     const qualify=stages[0].jobs[0].steps;const handoff=qualify.findIndex(x=>x.pwsh?.includes('Test-DiscoveryHandoff.ps1'));
-    assert.deepEqual(qualify.slice(handoff+1,handoff+1+sharedQualification.length),sharedQualification);
-    assert(qualify.findIndex(x=>x.pwsh?.includes('New-SelfServiceBundle.ps1'))>handoff+sharedQualification.length);
+    const selected=workloadType==='blob-transfer'?sharedQualification:expand('pipelines/templates/steps/qualify-logic-app.yml',{},[],'steps');
+    assert.deepEqual(qualify.slice(handoff+1,handoff+1+selected.length),selected);
+    assert(qualify.findIndex(x=>x.pwsh?.includes('New-SelfServiceBundle.ps1'))>handoff+selected.length);
+    if(workloadType!=='blob-transfer')assert(!selected.some(x=>x.pwsh?.includes('Run-Local.ps1')));
     for(const stage of stages.slice(1)){
       const job=stage.jobs[0];const steps=job.steps||job.strategy.runOnce.deploy.steps;
       assert.equal(job.workspace.clean,'all');assert.equal(job.cancelTimeoutInMinutes,5);
@@ -177,7 +180,7 @@ for(const target of targets){
       assert.equal(steps.at(-1).condition,"and(always(), eq(variables['stageEvidencePrepared'], 'true'))");
     }
     assert(fs.existsSync(path.join(root,target.parameterFile)),target.parameterFile);
-    assert.equal(json('artifacts/'+target.environmentName+'/parameters.json').parameters.environmentName.value,target.environmentName);
+    assert.equal(json('artifacts/'+(workloadType==='blob-transfer'?'':'logic-app-event-grid/')+target.environmentName+'/parameters.json').parameters.environmentName.value,target.environmentName);
   });
 }
 check('Unregistered developer intent is rejected by the platform entry',()=>{
@@ -190,6 +193,17 @@ check('Subscription wrapper forwards the complete original resource-group compos
   assert.deepEqual(Object.keys(composition.properties.parameters).sort(),Object.keys(main.parameters).sort());
   for(const [name,value] of Object.entries(composition.properties.parameters))assert.equal(value.value,"[parameters('"+name+"')]");
   assert.deepEqual(composition.properties.template,main);assert.deepEqual(Object.keys(wrapper.outputs).sort(),Object.keys(main.outputs).sort());
+});
+check('Logic App wrapper embeds and forwards its complete composition',()=>{
+  const main=json('artifacts/logic-app-event-grid/dev/main.json');const wrapper=json('artifacts/test-results/logic-stack-template.json');const resources=Object.values(wrapper.resources);const composition=resources.find(x=>x.type==='Microsoft.Resources/deployments');
+  assert.equal(resources.length,2);assert.deepEqual(Object.keys(wrapper.parameters).sort(),[...Object.keys(main.parameters),'workloadResourceGroupName'].sort());
+  for(const [name,value] of Object.entries(composition.properties.parameters))assert.equal(value.value,"[parameters('"+name+"')]");
+  assert.deepEqual(Object.keys(composition.properties.parameters).sort(),Object.keys(main.parameters).sort());assert.deepEqual(composition.properties.template,main);assert.deepEqual(Object.keys(wrapper.outputs).sort(),Object.keys(main.outputs).sort());
+});
+check('Default menus select valid routes and cross-workload intent fails',()=>{
+  assert.deepEqual(expand('azure-pipelines-self-service.yml',{}).map(x=>x.stage),['Discover']);
+  assert.deepEqual(expand('azure-pipelines-self-service-deploy.yml',{}).map(x=>x.stage),['SetupOnly']);
+  assert.deepEqual(expand('pipelines/deploy-entry.yml',{workloadType:'logic-app-event-grid',workloadName:'blobcopy',environment:'dev',region:'eastus2',discoveryPipelineId:'1',discoveryRunId:'42'}).map(x=>x.stage),['InvalidIntent']);
 });
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');

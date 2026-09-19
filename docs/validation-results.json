@@ -276,5 +276,24 @@
     "adoServerExpansion": false,
     "actualLocalHostRerun": false,
     "targetsRemainDisabled": true
+  },
+  "logicAppEventGridImplementation": {
+    "date": "2026-09-19",
+    "status": "ImplementedLocallyAzureAcceptancePending",
+    "existingContractsPassed": 225,
+    "logicContractsPassed": 46,
+    "pipelineContractsPassed": 34,
+    "applicationPassed": 18,
+    "applicationSkipped": 15,
+    "failed": 0,
+    "yamlFilesParsed": 15,
+    "environmentParameterSetsCompiled": 8,
+    "stackWrappersCompiled": 2,
+    "allTargetsDisabled": true,
+    "azureDeploymentPerformed": false,
+    "adoServerExpansionPerformed": false,
+    "logicAppsRuntimeExecuted": false,
+    "evidence": "artifacts/logic-tests/1f8c6c84566d443dacd15ad156ef4d05/results.json",
+    "runbook": "workloads/logic-app-event-grid/README.md"
   }
 }

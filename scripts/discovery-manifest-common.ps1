@@ -4,14 +4,24 @@
 function Read-DiscoveryManifest([string]$Directory, $Target, [string]$BoundServiceConnection) {
     $manifest=Get-Content (Resolve-ServicePath $Directory manifest.json) -Raw | ConvertFrom-Json -AsHashtable
     $inventoryPath=Resolve-ServicePath $Directory inventory.json
-    if ($manifest.schemaVersion -ne 1 -or $manifest.kind -ne 'blob-transfer-discovery' -or $manifest.discoveryStatus -ne 'Complete') { throw 'A complete discovery manifest is required.' }
+    $logic=(Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid'
+    $schema=if($logic){2}else{1}; $kind=if($logic){'workload-discovery'}else{'blob-transfer-discovery'}
+    if ($manifest.schemaVersion -ne $schema -or $manifest.kind -ne $kind -or $manifest.discoveryStatus -ne 'Complete') { throw 'A complete discovery manifest is required.' }
     if ((Get-ServiceHash $inventoryPath) -cne $manifest.inventorySha256) { throw 'Discovery inventory hash does not match its manifest.' }
     $age=[DateTimeOffset]::UtcNow-[DateTimeOffset]::Parse($manifest.generatedUtc)
     if ($age.TotalDays -gt 7 -or $age.TotalMinutes -lt -5) { throw 'Discovery is stale or has a future timestamp; rerun discovery.' }
     if ($manifest.subscriptionId -ine $Target.subscriptionId -or $manifest.serviceConnection -cne $BoundServiceConnection -or $Target.serviceConnection -cne $BoundServiceConnection) { throw 'Discovery subscription/service connection does not match the selected target.' }
     if ($manifest.selection.workload -cne $Target.workload -or $manifest.selection.environment -cne $Target.environmentName) { throw 'Discovery workload/environment does not match the selected target.' }
+    $region=if($Target.Contains('parameterOverrides') -and $Target.parameterOverrides.Contains('location')){$Target.parameterOverrides.location}else{'eastus2'}
+    if ($logic -and ($manifest.workloadType -cne 'logic-app-event-grid' -or $manifest.selection.region -cne $region -or $manifest.selection.network -cne $Target.networkProfile -or $manifest.selection.subscription -cne $Target.subscriptionAlias)) { throw 'Logic App discovery intent mismatch.' }
     $inventory=Get-Content $inventoryPath -Raw | ConvertFrom-Json -AsHashtable
     if ($inventory.schemaVersion -ne 1 -or $inventory.readOnly -isnot [bool] -or !$inventory.readOnly -or $inventory.discoveryStatus -ne 'Complete' -or $inventory.subscription.id -ine $manifest.subscriptionId -or $inventory.generatedUtc -cne $manifest.generatedUtc) { throw 'Discovery inventory is incomplete or inconsistent with its manifest.' }
+    if ($logic) {
+        if (!$inventory.Contains('workloadType') -or $inventory.workloadType -cne 'logic-app-event-grid' -or !$inventory.Contains('providers') -or $inventory.providers.Count -ne 5 -or !$inventory.Contains('resources')) { throw 'Logic App inventory lacks workload prerequisites.' }
+        $expectedProviders=@('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')
+        if (@(Compare-Object ($expectedProviders|Sort-Object) (@($inventory.providers|ForEach-Object {$_.namespace})|Sort-Object)).Count) { throw 'Logic App provider inventory is inconsistent.' }
+        return $manifest
+    }
     # A placeholder alias may be onboarded under a real alias after discovery.
     # Subscription and connection stay exact; shared resource IDs must be in evidence.
     if ($Target.schemaVersion -eq 2 -and $Target.parameterOverrides.Contains('networkMode') -and $Target.parameterOverrides.networkMode -eq 'existing') {

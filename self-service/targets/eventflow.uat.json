@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "logic-app-event-grid",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "eventflow",
+  "environmentName": "uat",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-eventflow-uat",
+  "parameterFile": "workloads/logic-app-event-grid/environments/main.uat.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "eventflow-uat",
+  "smokePrefix": "smoke/"
+}

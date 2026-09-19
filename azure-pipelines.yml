@@ -19,6 +19,10 @@ jobs:
           targetPath: artifacts/releases/$(Build.BuildId)
           artifact: blob-transfer
         displayName: Publish compiled templates and package
+      - pwsh: ./scripts/Build-LogicPackage.ps1 -ReleaseId '$(Build.BuildId)'
+        displayName: Package Logic App workload
+      - publish: artifacts/logic-releases/$(Build.BuildId)
+        artifact: logic-app-event-grid
       - template: pipelines/templates/steps/publish-qualification.yml
         parameters:
           artifactName: validation-evidence

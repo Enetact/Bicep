@@ -1,0 +1,6 @@
+{
+  "workloadType": "logic-app-event-grid",
+  "workloadName": "eventflow",
+  "environment": "dev",
+  "region": "eastus2"
+}

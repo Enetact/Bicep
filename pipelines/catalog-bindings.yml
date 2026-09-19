@@ -22,8 +22,11 @@ parameters:
   - name: enableLogAlerts
     type: boolean
     default: true
+  - name: workloadType
+    type: string
+    default: 'blob-transfer'
 stages:
-  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+  - ${{ if and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
         parameters:
@@ -44,7 +47,7 @@ stages:
           discoveryRunId: ${{ parameters.discoveryRunId }}
           createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
           enableLogAlerts: ${{ parameters.enableLogAlerts }}
-  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+  - ${{ if and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
         parameters:
@@ -65,7 +68,7 @@ stages:
           discoveryRunId: ${{ parameters.discoveryRunId }}
           createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
           enableLogAlerts: ${{ parameters.enableLogAlerts }}
-  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+  - ${{ if and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
         parameters:
@@ -86,7 +89,7 @@ stages:
           discoveryRunId: ${{ parameters.discoveryRunId }}
           createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
           enableLogAlerts: ${{ parameters.enableLogAlerts }}
-  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+  - ${{ if and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
         parameters:
@@ -107,14 +110,100 @@ stages:
           discoveryRunId: ${{ parameters.discoveryRunId }}
           createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
           enableLogAlerts: ${{ parameters.enableLogAlerts }}
-  - ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')))) }}:
-    - stage: InvalidSelection
-      jobs:
-        - job: RejectSelection
-          pool:
-            vmImage: windows-latest
-          steps:
-            - checkout: none
-            - pwsh: |
-                throw 'This workload/environment/subscription/network combination is not registered.'
-              displayName: Reject unregistered target before Azure access
+  - ${{ if and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: eventflow
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: eventflow
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: eventflow
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: eventflow
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: eventflow
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: eventflow
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: eventflow
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: eventflow
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if not(or(and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')))) }}:
+    - ${{ if not(or(and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+      - ${{ if not(or(and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+        - stage: InvalidSelection
+          jobs:
+            - job: RejectSelection
+              pool:
+                vmImage: windows-latest
+              steps:
+                - checkout: none
+                - pwsh: |
+                    throw 'This workload/environment/subscription/network combination is not registered.'
+                  displayName: Reject unregistered target before Azure access

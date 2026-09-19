@@ -35,7 +35,7 @@ stages:
               $target = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}' -AllowDisabled
               if ($target.enabled) { throw 'Target was enabled without regenerating catalog routing. Run Update-ServiceCatalog.ps1.' }
               ./scripts/Update-ServiceCatalog.ps1 -Check
-              $publication = (Get-Content './config/deployment-stack.json' -Raw | ConvertFrom-Json).templateSpec
+              $publication = (Read-StackConfiguration (Get-TargetWorkloadType $target)).templateSpec
               $evidence = '$(Build.ArtifactStagingDirectory)/setup'
               New-Item -ItemType Directory -Path $evidence -Force | Out-Null
               $summary = Join-Path $evidence 'setup-only.md'
@@ -44,7 +44,7 @@ stages:
                 ''
                 'This target is disabled. Only its checked-in configuration was checked on a Microsoft-hosted Windows agent.'
                 "Target: $($target.workload) / $($target.environmentName) / $($target.subscriptionAlias) / $($target.networkProfile)."
-                "Destination endpoints selected: $env:CREATE_DESTINATION_ENDPOINTS. Log alerts selected: $env:ENABLE_LOG_ALERTS. Neither option was applied."
+                "Workload pattern: $(Get-TargetWorkloadType $target). Network, monitoring and resource options come from the reviewed platform profile."
                 ''
                 'The selected discovery artifact was not downloaded or validated. No bundle, what-if or readiness receipt was produced.'
                 ''
@@ -57,6 +57,7 @@ stages:
                 '- Configure external Required Template and main-branch checks, approvals and exclusive locks in ADO.'
                 '- Use a fresh dedicated workload resource group owned by the Deployment Stack; review existing groups separately.'
                 '- Local Bicep modules are embedded during qualification. No module registry is required.'
+                '- For logic-app-event-grid: supply two dedicated subnets, six linked DNS zones, workspace and principal IDs; approve the trusted-service delivery and runtime-storage credential exceptions. See workloads/logic-app-event-grid/README.md.'
                 '- Review the target parameters, enable the target, regenerate the catalog and source manifest, then merge.'
                 '- Queue Deploy with a matching successful main discovery run. The private-pool deployment workflow will then be restored.'
               ) | Set-Content -LiteralPath $summary

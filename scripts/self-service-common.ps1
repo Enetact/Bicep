@@ -2,6 +2,8 @@
 . "$PSScriptRoot/common.ps1"
 . "$PSScriptRoot/what-if-governance.ps1"
 . "$PSScriptRoot/stack-service-common.ps1"
+. "$PSScriptRoot/workload-common.ps1"
+. "$PSScriptRoot/logicapp-service-common.ps1"
 
 function Resolve-ServiceOrganizationUrl([string]$OrganizationUrl) {
     $value=$OrganizationUrl.Trim()
@@ -50,7 +52,7 @@ function Read-ServiceTarget([string]$Workload, [string]$EnvironmentName, [string
         if ($SubscriptionAlias -cnotmatch '^[a-z0-9][a-z0-9-]{0,39}$' -or $NetworkProfile -cnotmatch '^[a-z0-9][a-z0-9-]{0,39}$') { throw 'Invalid catalog selection.' }
         $matches=@(Get-ChildItem (Join-Path (Get-ProjectRoot) 'self-service/targets') -Filter *.json | ForEach-Object {
             $candidate=Get-Content $_.FullName -Raw | ConvertFrom-Json -AsHashtable
-            if ($candidate.schemaVersion -eq 2 -and $candidate.workload -ceq $Workload -and $candidate.environmentName -ceq $EnvironmentName -and $candidate.subscriptionAlias -ceq $SubscriptionAlias -and $candidate.networkProfile -ceq $NetworkProfile) { $candidate }
+            if ($candidate.schemaVersion -in @(2,3) -and $candidate.workload -ceq $Workload -and $candidate.environmentName -ceq $EnvironmentName -and $candidate.subscriptionAlias -ceq $SubscriptionAlias -and $candidate.networkProfile -ceq $NetworkProfile) { $candidate }
         })
         if ($matches.Count -ne 1) { throw 'Selection must match exactly one registered subscription/network target.' }
         $target=$matches[0]
@@ -61,27 +63,31 @@ function Read-ServiceTarget([string]$Workload, [string]$EnvironmentName, [string
 function Assert-ServiceTarget($Target, [string]$Workload, [string]$EnvironmentName, [switch]$AllowDisabled, [switch]$AllowDiscoveryPlaceholder) {
     if ($Workload -cnotmatch '^[a-z0-9]{3,10}$' -or $EnvironmentName -cnotin @('dev','qa','uat','prod')) { throw 'Invalid workload/environment selection.' }
     $required = @('schemaVersion','enabled','workload','environmentName','subscriptionId','resourceGroup','parameterFile','serviceConnection','agentPool','deploymentEnvironment','smokePrefix')
-    if ($Target.schemaVersion -eq 2) { $required+=@('subscriptionAlias','networkProfile','parameterOverrides') }
+    if ($Target.schemaVersion -in @(2,3)) { $required+=@('subscriptionAlias','networkProfile','parameterOverrides') }
+    if ($Target.schemaVersion -eq 3) { $required+=@('workloadType'); $null=Get-WorkloadDefinition (Get-TargetWorkloadType $Target) }
     if (@($Target.Keys | Where-Object { $_ -notin $required }).Count -or @($required | Where-Object { !$Target.Contains($_) }).Count) { throw 'Target fields do not match its schemaVersion.' }
-    if ($Target.schemaVersion -notin @(1,2) -or $Target.enabled -isnot [bool] -or (!$Target.enabled -and !$AllowDisabled)) { throw 'Target is disabled. Platform onboarding must be completed first.' }
+    if ($Target.schemaVersion -notin @(1,2,3) -or $Target.enabled -isnot [bool] -or (!$Target.enabled -and !$AllowDisabled)) { throw 'Target is disabled. Platform onboarding must be completed first.' }
     if ($Target.workload -cne $Workload -or $Target.environmentName -cne $EnvironmentName) { throw 'Target selection mismatch.' }
-    $discoveryPlaceholder=$AllowDiscoveryPlaceholder -and $AllowDisabled -and !$Target.enabled -and $Target.schemaVersion -eq 2 -and $Target.subscriptionAlias -ceq 'unconfigured'
+    $discoveryPlaceholder=$AllowDiscoveryPlaceholder -and $AllowDisabled -and !$Target.enabled -and $Target.schemaVersion -in @(2,3) -and $Target.subscriptionAlias -ceq 'unconfigured'
     if ($Target.subscriptionId -notmatch '^[0-9a-fA-F-]{36}$' -or ($Target.subscriptionId -eq [guid]::Empty.ToString() -and !$discoveryPlaceholder)) { throw 'A real subscription GUID is required.' }
     $null = [guid]::Parse($Target.subscriptionId)
     foreach ($key in @('resourceGroup','serviceConnection','agentPool','deploymentEnvironment')) {
         if ($Target[$key] -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$' -or $Target[$key] -match 'REPLACE') { throw "Invalid target field: $key" }
     }
-    if ($Target.parameterFile -cnotmatch '^(workloads/blob-transfer/environments|self-service/parameters)/[a-zA-Z0-9/._-]+\.bicepparam$') { throw 'Parameter file must be in an approved source directory.' }
+    if ($Target.parameterFile -cnotmatch '^(workloads/(blob-transfer|logic-app-event-grid)/environments|self-service/parameters)/[a-zA-Z0-9/._-]+\.bicepparam$') { throw 'Parameter file must be in an approved source directory.' }
+    if ((Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid' -and !$Target.parameterFile.StartsWith('workloads/logic-app-event-grid/environments/')) { throw 'Logic App parameter path mismatch.' }
+    if ((Get-TargetWorkloadType $Target) -eq 'blob-transfer' -and $Target.parameterFile.StartsWith('workloads/logic-app-event-grid/')) { throw 'Blob parameter path mismatch.' }
     $null = Resolve-ServicePath (Get-ProjectRoot) $Target.parameterFile
     if ($Target.smokePrefix -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9/_-]{0,199}/$') { throw 'Invalid synthetic smoke prefix.' }
-    if ($Target.schemaVersion -eq 2) {
+    if ($Target.schemaVersion -in @(2,3)) {
         foreach ($key in @('subscriptionAlias','networkProfile')) { if ($Target[$key] -cnotmatch '^[a-z0-9][a-z0-9-]{0,39}$') { throw "Invalid catalog key: $key" } }
         $allowed=@('namingSuffix','networkMode','existingNetwork','location','deploymentPrincipalObjectId','vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix','existingLogAnalyticsWorkspaceId')
+        if ((Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid') { $allowed=@('location','integrationSubnetId','privateEndpointSubnetId','privateDnsZoneIds','existingLogAnalyticsWorkspaceId','deploymentPrincipalObjectId','trustedServiceException','runtimeStorageCredentialException') }
         if ($Target.parameterOverrides -isnot [Collections.IDictionary] -or @($Target.parameterOverrides.Keys | Where-Object { $_ -notin $allowed }).Count) { throw 'Unapproved profile parameter override.' }
     }
 }
 function Set-ServiceProfileParameters($Target,$Parameters) {
-    if ($Target.schemaVersion -eq 2) {
+    if ($Target.schemaVersion -in @(2,3)) {
         foreach ($key in $Target.parameterOverrides.Keys) { $Parameters[$key]=@{value=$Target.parameterOverrides[$key]} }
     }
 }
@@ -99,6 +105,7 @@ function Get-ServiceParameter($Parameters, [string]$Name, $Default = $null) {
     return $Default
 }
 function Assert-ServiceParameters($Target, $Parameters) {
+    if ((Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid') { Assert-LogicParameters $Target $Parameters; return }
     foreach ($key in @('workload','environmentName','owner','costCenter','destinationSubscriptionId','destinationResourceGroupName','destinationStorageAccountName','destinationContainerName','destinationIsHnsEnabled')) {
         if (!$Parameters.Contains($key) -or $null -eq $Parameters[$key].value -or [string]$Parameters[$key].value -eq '') { throw "Missing explicit workload parameter: $key" }
     }
@@ -217,6 +224,7 @@ function Test-ServiceNetwork($Bundle) {
 }
 function Read-ServiceBundle([string]$Directory) {
     $receipt = Get-Content (Join-Path $Directory 'bundle.json') -Raw | ConvertFrom-Json -AsHashtable
+    if ($receipt.schemaVersion -eq 2) { return Read-LogicBundle $Directory $receipt }
     if ($receipt.schemaVersion -ne 1 -or $receipt.releaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$') { throw 'Invalid bundle receipt.' }
     $expected = @('main.json','parameters.json','target.json','application.zip','functions.metadata')
     if ($receipt.Contains('discoverySource')) { $expected+=@('discovery/manifest.json','discovery/inventory.json') }
@@ -233,7 +241,7 @@ function Read-ServiceBundle([string]$Directory) {
     Assert-ServiceTarget $target $target.workload $target.environmentName
     $parameters = Get-Content (Join-Path $Directory parameters.json) -Raw | ConvertFrom-Json -AsHashtable
     Assert-ServiceParameters $target $parameters.parameters
-    if ($target.schemaVersion -eq 2) {
+    if ($target.schemaVersion -in @(2,3)) {
         foreach ($key in $target.parameterOverrides.Keys) {
             if (!$parameters.parameters.Contains($key) -or (Get-ValueHash $parameters.parameters[$key].value) -cne (Get-ValueHash $target.parameterOverrides[$key])) { throw 'Frozen parameters differ from selected profile.' }
         }
@@ -294,16 +302,17 @@ function Get-ServiceOutputs($Bundle) {
     }
     return $outputs
 }
-function Get-ServiceChanges($Report) {
+function Get-ServiceChanges($Report, $Bundle=$null) {
     if (!$Report.Contains('status') -or $Report.status -ne 'Succeeded' -or !$Report.Contains('changes') -or ($Report.Contains('error') -and $Report.error)) { throw 'Azure what-if did not return successful analyzed changes.' }
     $changes = @($Report.changes | Sort-Object resourceId)
     foreach ($change in $changes) {
         if ($change.changeType -notin @('Create','Modify','NoChange','NoEffect')) { throw "Unapproved or unanalyzed what-if change: $($change.changeType). Review outside self-service." }
-        Assert-ServiceChange $change
+        if ($Bundle -and (Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { Assert-LogicChange $change $Bundle } else { Assert-ServiceChange $change }
     }
     return ,$changes
 }
 function New-ServicePlan($Bundle, [ValidateSet('Foundation','Release')][string]$Phase, [string]$Directory) {
+    if ((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { return New-LogicPlan $Bundle $Phase $Directory }
     New-Item -ItemType Directory -Path $Directory -Force | Out-Null
     Test-ServiceDestination $Bundle
     $state = Get-ServiceState $Bundle
@@ -436,6 +445,7 @@ function Invoke-ServiceSmoke($Bundle, $Outputs, [string]$EvidenceDirectory) {
     return Get-Content $smokeArgs.EvidencePath -Raw | ConvertFrom-Json -AsHashtable
 }
 function Invoke-ServiceApply($Bundle, [string]$Phase, [string]$PlanDirectory, [string]$EvidenceDirectory) {
+    if ((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { return Invoke-LogicApply $Bundle $Phase $PlanDirectory $EvidenceDirectory }
     $approved=Get-Content (Join-Path $PlanDirectory plan.json) -Raw | ConvertFrom-Json -AsHashtable
     $current=New-ServicePlan $Bundle $Phase (Join-Path $EvidenceDirectory recheck)
     Assert-ServicePlan $Bundle $approved $current $Phase
