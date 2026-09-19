@@ -71,6 +71,7 @@ function az {
     $sub=$global:BlobTransferDiscoveryTestState.subscription; $network=$global:BlobTransferDiscoveryTestState.network; $vnetId=$global:BlobTransferDiscoveryTestState.vnetId
     $arguments=@($args); $cmd=$arguments -join ' '; $global:BlobTransferDiscoveryTestState.calls.Add($cmd); $global:LASTEXITCODE=0
     if (($global:BlobTransferDiscoveryTestState.dnsFailure -and $cmd -match '^network private-dns zone list ') -or
+        (!$global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds -and $cmd -match '^resource list ') -or
         ($global:BlobTransferDiscoveryTestState.diagnosticFailure -and $cmd -match '^provider show |^rest .*subscriptions/[^/]+\?') -or
         ($global:BlobTransferDiscoveryTestState.networkFailure -and $cmd -match '^network vnet list ') -or
         ($global:BlobTransferDiscoveryTestState.subnetFailure -and $cmd -match '^network vnet subnet list ') -or
@@ -84,6 +85,10 @@ function az {
         '^network vnet list ' { if ($global:BlobTransferDiscoveryTestState.emptyNetwork) { ,@() } else { ,@(@{id=$vnetId;name='shared';resourceGroup='network';location='eastus2'}) }; break }
         '^network vnet subnet list ' { if ($global:BlobTransferDiscoveryTestState.emptySubnets) { ,@() } else { ,@(@{id=$network.integrationSubnetId;name='functions';addressPrefix='10.2.0.0/26';delegations=@(@{serviceName='Microsoft.Web/serverFarms'});privateEndpointNetworkPolicies='Enabled'},@{id=$network.privateEndpointSubnetId;name='endpoints';addressPrefix='10.2.1.0/26';delegations=@();privateEndpointNetworkPolicies='Disabled'}) }; break }
         '^network private-dns zone list ' { if ($global:BlobTransferDiscoveryTestState.emptyDns) { ,@() } else { ,@($network.privateDnsZoneIds.Keys | ForEach-Object { @{id=$network.privateDnsZoneIds[$_];name=($network.privateDnsZoneIds[$_] -split '/')[-1];resourceGroup='dns'} }) }; break }
+        '^resource list ' {
+            Check ($cmd -eq "resource list --subscription $sub --resource-type Microsoft.Network/privateDnsZones --output json --only-show-errors")
+            if ($global:BlobTransferDiscoveryTestState.emptyDns) { ,@() } else { ,@($network.privateDnsZoneIds.Keys | ForEach-Object { @{id=$network.privateDnsZoneIds[$_];name=($network.privateDnsZoneIds[$_] -split '/')[-1];resourceGroup='dns'} }) }; break
+        }
         '^rest .*subscriptions/[^/]+\?' { @{subscriptionId=$sub;displayName='Sandbox';state='Enabled'}; break }
         '^provider show ' { Check ($cmd.Contains("--subscription $sub") -and $cmd.Contains('--namespace Microsoft.Network') -and $cmd.Contains('--query')); @{namespace='Microsoft.Network';registrationState='Registered';privateDnsResourceTypes=@(@{resourceType='privateDnsZones';apiVersions=@('2024-06-01');locations=@('global')})}; break }
         '^rest .*Microsoft.Authorization/permissions' { @{value=@(@{actions=@('*/read');notActions=@()})}; break }
@@ -105,6 +110,7 @@ function az {
     }
     ConvertTo-Json -InputObject $answer -Depth 100 -Compress
 }
+$global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$false
 try {
     $fixture=Join-Path $testRoot connection-context
     New-Item -ItemType Directory -Path (Join-Path $fixture scripts) -Force | Out-Null
@@ -211,13 +217,14 @@ try {
     }
     $bundle=@{target=$target;parameters=@{parameters=$p}}
     $register=@{InventoryPath=(Join-Path $testRoot with-devops/inventory.json);Workload='blobcopy';EnvironmentName='dev';SubscriptionAlias='sandbox';NetworkProfile='shared';IntegrationSubnetId=$network.integrationSubnetId;PrivateEndpointSubnetId=$network.privateEndpointSubnetId;ServiceConnectionId='44444444-4444-4444-4444-444444444444';OrganizationCode='acme';RegionCode='eus2';OutputDirectory=(Join-Path $testRoot registered)}
-    Case 'DNS native failure preserves other inventory and diagnostics before failing' {
+    Case 'both DNS inventory failures preserve other inventory and diagnostics before failing' {
         $global:BlobTransferDiscoveryTestState.dnsFailure=$true
         $global:BlobTransferDiscoveryTestState.calls.Clear()
         try {
             Reject { & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OrganizationUrl https://dev.azure.com/example -Project Example -OutputDirectory (Join-Path $testRoot dns-failed) }
             $r=Get-Content (Join-Path $testRoot dns-failed/inventory.json) -Raw | ConvertFrom-Json
             Check ($r.discoveryStatus -eq 'Partial' -and $r.privateDnsQuery.status -eq 'Failed' -and $r.privateDnsZones.Count -eq 0)
+            Check ($r.privateDnsQuery.primaryStatus -eq 'Failed' -and $r.privateDnsQuery.fallback.status -eq 'Failed' -and $r.privateDnsQuery.fallback.error)
             Check ($r.networks.Count -eq 1 -and $r.serviceConnections.Count -eq 1 -and $r.permissionEvidence.Count -eq 1)
             Check ($r.diagnostics.subscriptionArm.subscriptionId -eq $sub -and $r.diagnostics.networkProvider.details.registrationState -eq 'Registered')
             Check ((Get-Content (Join-Path $testRoot dns-failed/summary.md) -Raw).Contains('Status: Partial'))
@@ -243,8 +250,57 @@ try {
             & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory (Join-Path $testRoot empty-dns)
             $r=Get-Content (Join-Path $testRoot empty-dns/inventory.json) -Raw | ConvertFrom-Json
             Check ($r.discoveryStatus -eq 'Complete' -and $r.privateDnsQuery.status -eq 'Succeeded' -and $r.privateDnsZones.Count -eq 0)
-            Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^provider show |^rest .*subscriptions/[^/]+\?' }).Count)
+            Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^resource list |^provider show |^rest .*subscriptions/[^/]+\?' }).Count)
         } finally { $global:BlobTransferDiscoveryTestState.emptyDns=$false }
+    }
+    foreach ($empty in @($true,$false)) {
+        Case "DNS API failure recovers complete ARM inventory (empty=$empty)" {
+            $global:BlobTransferDiscoveryTestState.dnsFailure=$true
+            $global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$true
+            $global:BlobTransferDiscoveryTestState.emptyDns=$empty
+            $global:BlobTransferDiscoveryTestState.calls.Clear()
+            $path=Join-Path $testRoot "dns-recovered-$empty"
+            try {
+                & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory $path
+                Check ($global:LASTEXITCODE -eq 0)
+                $r=Get-Content (Join-Path $path inventory.json) -Raw | ConvertFrom-Json
+                $m=Get-Content (Join-Path $path manifest.json) -Raw | ConvertFrom-Json
+                $count=if ($empty) {0} else {5}
+                Check ($r.discoveryStatus -eq 'Complete' -and $r.privateDnsQuery.status -eq 'Succeeded' -and $r.privateDnsZones.Count -eq $count)
+                Check ($r.privateDnsQuery.primaryStatus -eq 'Failed' -and $r.privateDnsQuery.primaryError -and $r.privateDnsQuery.source -eq 'arm-resource-inventory')
+                Check ($r.privateDnsQuery.fallback.status -eq 'Succeeded' -and $r.privateDnsQuery.count -eq $count -and $r.privateDnsQuery.fallback.count -eq $count)
+                Check ($m.discoveryStatus -eq 'Complete' -and $m.inventorySha256 -eq (Get-ServiceHash (Join-Path $path inventory.json)))
+                Check ($r.diagnostics.subscriptionArm.status -eq 'Succeeded' -and $r.diagnostics.networkProvider.status -eq 'Succeeded')
+                $summary=Get-Content (Join-Path $path summary.md) -Raw
+                Check ($summary.Contains('fallback succeeded'))
+                if ($empty) { Check ($summary.Contains('Private DNS zones: None found.')) }
+                else { Check (!@(Compare-Object @($network.privateDnsZoneIds.Values) @($r.privateDnsZones.id)).Count) }
+                Check (@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^resource list ' }).Count -eq 1)
+                Check (!@($global:BlobTransferDiscoveryTestState.calls | Where-Object { $_ -match '^provider register |^account set |^role assignment create ' }).Count)
+            } finally {
+                $global:BlobTransferDiscoveryTestState.dnsFailure=$false
+                $global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$false
+                $global:BlobTransferDiscoveryTestState.emptyDns=$false
+            }
+        }
+    }
+    foreach ($failure in @('networkFailure','subnetFailure')) {
+        Case "DNS fallback cannot erase $failure partial status" {
+            $global:BlobTransferDiscoveryTestState.dnsFailure=$true
+            $global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$true
+            $global:BlobTransferDiscoveryTestState[$failure]=$true
+            try {
+                $path=Join-Path $testRoot "dns-recovered-$failure"
+                Reject { & "$PSScriptRoot/Export-DeploymentInventory.ps1" -SubscriptionId $sub -OutputDirectory $path }
+                $r=Get-Content (Join-Path $path inventory.json) -Raw | ConvertFrom-Json
+                Check ($r.discoveryStatus -eq 'Partial' -and $r.privateDnsQuery.status -eq 'Succeeded' -and $r.privateDnsZones.Count -eq 5)
+                Check ((Get-Content (Join-Path $path manifest.json) -Raw | ConvertFrom-Json).discoveryStatus -eq 'Partial')
+            } finally {
+                $global:BlobTransferDiscoveryTestState.dnsFailure=$false
+                $global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$false
+                $global:BlobTransferDiscoveryTestState[$failure]=$false
+            }
+        }
     }
     Case 'empty network and DNS lists succeed with explicit none-found summary' {
         $global:BlobTransferDiscoveryTestState.emptyDns=$true; $global:BlobTransferDiscoveryTestState.emptyNetwork=$true
