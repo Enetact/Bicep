@@ -32,7 +32,7 @@ The native form uses static labels/allowed values, not a dependent resource-prev
 
 The developer contract is now **workload type**, **registered workload name**, **environment**, and **approved region**. Patterns are `blob-transfer` with name `blobcopy`, and `logic-app-event-grid` with name `eventflow`; both use approved region `eastus2`. Each has four disabled environment profiles. Resource and cost references remain visible below those choices.
 
-The **Before running - discovery, approvals and readiness** information field explains the main-branch discovery selection, publication/preview/approval/deployment flow, and setup-only behavior for disabled targets. It is guidance, not an additional deployment option. To display an updated menu, publish the generated YAML and its supporting files to the branch selected in ADO, then reopen Run pipeline.
+The **Current behavior - deployment depends on target enablement** information field explains the main-branch discovery selection, publication/preview/approval/deployment flow, and setup-only behavior for disabled targets. It is guidance, not an additional deployment option. To display an updated menu, publish the generated YAML and its supporting files to the branch selected in ADO, then reopen Run pipeline.
 
 The platform resolves subscription, network/subnet/DNS, service connection, agent pool, deployment environment, destination endpoints and alert settings. Endpoint and alert checkboxes were removed from the developer menu because these are implementation/security decisions. Their underlying Bicep options remain platform-controlled in `config/platform.json`; storage and observability are mandatory capabilities. Unknown patterns, capabilities and ambiguous target mappings fail validation.
 
