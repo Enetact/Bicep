@@ -2,6 +2,71 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Self-service completion audit: 18 September 2026
+
+### DNS inventory fallback
+
+Build 7 published its discovery artifact but reported partial inventory because the private DNS list failed. Its browser summary showed successful ARM subscription/provider diagnostic calls; those statuses alone do not establish the provider registration state or explain the DNS error. The user reports that no DNS zones have been created.
+
+Discovery now falls back to the subscription-scoped ARM resource list for `Microsoft.Network/privateDnsZones`. Successful empty and populated responses produce complete DNS inventory with explicit fallback provenance. Both reads failing still save partial evidence and stop. Recovery does not clear failed VNet/subnet status. Bicep's existing new-network module defines all five private DNS zones and links; no Azure resources were created during this change.
+
+- **74 discovery/catalog/handoff cases passed**, zero failures: `artifacts/discovery-tests/2bfe280f86da481bb18d7a2a712a6c1d/results.json`.
+- New cases exercise empty and populated fallback results, exact subscription/type scope, manifest hashes, summary text, native exit-code recovery and preservation of VNet/subnet failures. Existing cases cover failure of both DNS paths and rejection of partial inventory.
+- Azure calls were mocked. Successful live fallback, deployment handoff and provisioning remain unverified; rerun discovery from the updated source.
+
+### Historical legacy Azure DevOps URL and evidence-retention fix
+
+The latest supplied run signed in using workload identity federation, selected its subscription, received the private DNS `BadRequest`, and then stopped at organization/project validation before writing discovery evidence. The supplied project URL is `https://enetactgames.visualstudio.com/Enetact`: organization `https://enetactgames.visualstudio.com/`, project `Enetact`. The previous validator only accepted the modern `dev.azure.com` form.
+
+Discovery and handoff now share validation for both supported URL forms (including legacy `DefaultCollection`). Optional organization/project validation failures are caught and included in the report, so they cannot discard completed Azure reads or DNS diagnostics. Required network failures still save partial evidence and fail; they are never interpreted as empty resource lists.
+
+- **70 discovery/catalog/handoff cases passed**: `artifacts/discovery-tests/af9d24c98f8e48eaa522b7617996aae3/results.json`, including the exact supplied organization/project, rejected unsafe URL forms, missing project/organization, and combined DNS plus optional-configuration failures.
+- **38 deployment cases passed**: `artifacts/self-service-tests/2b57dd0a7b3d427b8d50e107f5f377e6/results.json`.
+- Catalog freshness and PowerShell parsing passed. Azure calls were mocked; the organization was not contacted. The underlying DNS error and live acceptance remain unresolved.
+
+### Empty inventory, DNS diagnostics and two-run deployment handoff
+
+The latest user-supplied AzureCLI excerpt selected subscription `f4f2eafe-2512-4c2f-9b5b-c88f6767e778` and reached `network private-dns zone list`, which returned `BadRequest: The specified subscription ... does not exist`. This shows progress beyond the earlier empty connection-input failure. It does not establish the cause of the DNS service error or prove zero DNS resources exist. No successful full inventory or Azure deployment is claimed.
+
+Discovery now distinguishes successful empty lists (`None found`) from failed reads (`Unknown`). Required network-read failures save a partial inventory/manifest before failing; private DNS failures also collect independent read-only ARM subscription/provider diagnostics. Optional endpoint failures remain warnings without leaking their native exit code into a successful required-inventory run.
+
+New-network target registration accepts complete empty inventory plus explicit naming/location/CIDRs. The separate deployment entry point consumes the selected discovery artifact and verifies its hashes, completeness, freshness, target scope and actual Azure DevOps source run before qualification. Discovery evidence is retained in the frozen deployment bundle. Shared-network reuse and deployment checks remain separate from resource creation.
+
+- **65 discovery/catalog/handoff cases passed**, zero failures: `artifacts/discovery-tests/ce8ca60d315c464f817d354777528bd3/results.json`.
+- **38 self-service/bundle/orchestration cases passed**, zero failures: `artifacts/self-service-tests/05b15cf9dbec477b8fd1818a88825ce8/results.json`.
+- **19 tooling cases passed**: `artifacts/tooling-tests/a997c2733db24ea6aced3f99c4a369c7/results.json`.
+- Eight YAML files and all PowerShell scripts parsed; generated catalogs match their source profiles. All four Bicep environments compiled successfully. All pipeline entry points explicitly disable automatic triggers.
+- These tests mock Azure calls and source-run records. They do not prove successful Azure DevOps artifact download, server-side template expansion, the DNS service fix, or live provisioning. The application runtime was not restarted or retested for these deployment-tooling changes.
+
+### Historical live discovery log diagnosis: logs_4.zip
+
+The supplied `logs_4.zip` records a manual `discover` run on `feature/selfservice`. Inventory reached the Azure CLI task (2.279.1, Azure CLI 2.90.0 with azure-devops 1.0.8 installed), but failed with `Input required: connectedServiceNameARM`. The expanded YAML contained top-level `serviceConnection: SC-AZ-A-Bicep` while both the Azure CLI `azureSubscription` input and script `BoundServiceConnection` argument were empty. Authentication and inventory never started. Artifact publication then failed because its directory had not been created. This is pipeline wiring evidence, not an Azure RBAC failure or a deployment attempt.
+
+The generator now emits a stage router with literal protected-resource values passed through explicit template parameters for both discovery and deployment. Nested deployment template paths are relative to their containing template. Discovery prepares its artifact directory and an explanatory README before Azure login.
+
+Validation at that revision: **34 discovery/catalog cases passed**, evidence `artifacts/discovery-tests/09ea87474ec7431b9de8fd4a68c026cf/results.json`; **37 deployment cases passed**, evidence `artifacts/self-service-tests/45fe741212a64388baf0a69db8731b65/results.json`. A local YAML/template-subset expansion check evaluated all eight environment/operation combinations and verified nonempty matching connection inputs, script bindings, pools and environments; an invalid combination produced the rejection stage. This local check is not Azure DevOps server validation. The newer supplied log above reached the private DNS query.
+
+### Subscription discovery follow-up
+
+The subsequent service-connection bootstrap update passed **31 discovery cases** and **37 deployment cases**. Evidence: `artifacts/discovery-tests/f7a7ab3c850c498fbc89cc9e992d6ff4/results.json` and `artifacts/self-service-tests/30b5ef2aea0141478ffa3cf4c403c81d/results.json`. New cases prove that the disabled placeholder can discover the active service-connection subscription without enumerating alternatives or modifying the profile, while missing/wrong bindings, mismatched registered subscriptions, and disabled accounts fail. These are mocked Azure results, not live subscription evidence. Read-only discovery now uses a hosted agent; deployment retains the private pool.
+
+- Added read-only `discover` versus `deploy` routing, subscription/network dropdown generation, identity-mapped disabled profile generation, existing-network Bicep support, naming suffixes and optional container/queue-scoped pipeline roles.
+- **24 discovery/catalog/network tests passed**, zero failures, with strict mocked Azure calls. Evidence: `artifacts/discovery-tests/15a4245289a642c0a8092e7796ade9e3/results.json`. Coverage includes selected-subscription scoping, duplicate subscription names, filtered Azure DevOps endpoints, principal object-ID mapping, standard names, overwrite rejection, ambiguous catalog entries and existing network/DNS failures.
+- The existing **37 self-service cases passed again**: `artifacts/self-service-tests/942c6fe7d4d641fe9e49ebe1b1b04ea0/results.json`.
+- All four environments compiled after the Bicep changes; the normal .NET run still passed 18 cases with 15 opt-in integration cases skipped, and dependency advisories remained clear. YAML parser checks cover the generated catalog and all four stage templates, not Azure DevOps server-side expansion.
+- No live discovery, role assignment, shared-network deployment or Azure DevOps run was performed. Dropdowns contain the disabled `unconfigured` example until an actual subscription/service connection is registered. See [discovery setup and limits](subscription-discovery.md).
+
+### Original completion-audit run
+
+`Test-Project.ps1` passed on the updated source: all four Bicep environments compiled, **18 .NET cases passed and 15 opt-in emulator cases were explicitly skipped**, the operator tool built with zero warnings/errors, and the current Function dependency query (including transitives) reported no vulnerabilities. No emulator/host rerun was needed for these deployment-script/documentation changes; earlier runtime evidence remains dated below.
+
+- **37 offline self-service cases passed**, zero failures. Evidence: `artifacts/self-service-tests/e4714aba510c4e8eb6e8e7d3d8e62a2d/results.json`. These exercise the actual PowerShell orchestration with fake Azure responses: target validation, file integrity, canonical fingerprints, what-if rejection, existing-app Foundation skip, drift/expiry guards, failed entrypoint receipts, connectivity failure, package reuse/conflict, failed or duplicate smoke evidence, and successful ordered release. No live Azure behavior is proven by these mocks.
+- **19 tooling contract cases passed.** Evidence: `artifacts/tooling-tests/0e127c271fe440a68524d5fd9f98909b`.
+- Unit and advisory evidence: `artifacts/test-results/unit.trx` and `artifacts/test-results/vulnerabilities.json`.
+- Both pipeline YAML files and three self-service YAML templates parsed successfully with YAML 2.9.1. This is syntax validation, not Azure DevOps server-side template expansion or execution.
+- The self-service guide, completion audit and dispatcher build/deployment requirements now reflect the implemented workflow. Target examples remain disabled pending platform onboarding.
+- No Azure deployment, organization configuration or real self-service bundle qualification/run was performed. Missing private agent routes, service connections, approvals and live acceptance remain explicit requirements in [self-service](self-service.md).
+
 ## Local run mode: 17 September 2026
 
 The current source adds a separate emulator configuration and guarded local SDK clients while preserving the Azure identity path. No Azure deployment was performed.

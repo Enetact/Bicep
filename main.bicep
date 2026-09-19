@@ -57,9 +57,18 @@ param poisonMonitorSchedule string = '0 */5 * * * *'
 param maxCopyBytes int = 1073741824
 @description('Existing trusted recovery operators; grants ledger mutation plus work-queue send. Does not grant destination writes.')
 param recoveryOperatorGroupObjectId string = ''
-param vnetAddressPrefix string
-param integrationSubnetPrefix string
-param privateEndpointSubnetPrefix string
+@description('Optional organization-region-instance suffix; leave empty to preserve existing resource names.')
+@maxLength(14)
+param namingSuffix string = ''
+@allowed(['new', 'existing'])
+param networkMode string = 'new'
+@description('Existing delegated integration subnet, separate private endpoint subnet, and blob/queue/table/dfs/web private DNS zone IDs. Platform-managed; never modified here.')
+param existingNetwork object = {}
+param vnetAddressPrefix string = ''
+param integrationSubnetPrefix string = ''
+param privateEndpointSubnetPrefix string = ''
+@description('Existing pipeline service principal object ID; optional scoped smoke/data-plane roles. Does not grant deployment or role-assignment authority.')
+param deploymentPrincipalObjectId string = ''
 @allowed(['B1', 'S1', 'P1v3'])
 param planSku string = 'P1v3'
 @minValue(1)
@@ -81,8 +90,8 @@ param packagePublisherObjectId string = ''
 @description('Existing Azure Monitor action group resource IDs. Configure approved notification receivers separately.')
 param alertActionGroupIds array = []
 
-var suffix = uniqueString(subscription().subscriptionId, resourceGroup().id, workload, environmentName)
-var stem = '${workload}-${environmentName}'
+var suffix = empty(namingSuffix) ? uniqueString(subscription().subscriptionId, resourceGroup().id, workload, environmentName) : uniqueString(subscription().subscriptionId, resourceGroup().id, workload, environmentName, namingSuffix)
+var stem = '${workload}-${environmentName}${empty(namingSuffix) ? '' : '-${namingSuffix}'}'
 var tags = {
   workload: workload
   environment: environmentName
@@ -113,7 +122,7 @@ module monitoring './modules/monitoring.bicep' = {
   }
 }
 
-module network './modules/network.bicep' = {
+module network './modules/network.bicep' = if (networkMode == 'new') {
   name: 'network-${environmentName}'
   params: {
     name: stem
@@ -124,6 +133,14 @@ module network './modules/network.bicep' = {
     privateEndpointSubnetPrefix: privateEndpointSubnetPrefix
   }
 }
+
+var integrationSubnetId = networkMode == 'new' ? network!.outputs.integrationSubnetId : existingNetwork.integrationSubnetId
+var privateEndpointSubnetId = networkMode == 'new' ? network!.outputs.privateEndpointSubnetId : existingNetwork.privateEndpointSubnetId
+var blobZoneId = networkMode == 'new' ? network!.outputs.blobZoneId : existingNetwork.privateDnsZoneIds.blob
+var queueZoneId = networkMode == 'new' ? network!.outputs.queueZoneId : existingNetwork.privateDnsZoneIds.queue
+var tableZoneId = networkMode == 'new' ? network!.outputs.tableZoneId : existingNetwork.privateDnsZoneIds.table
+var dfsZoneId = networkMode == 'new' ? network!.outputs.dfsZoneId : existingNetwork.privateDnsZoneIds.dfs
+var webZoneId = networkMode == 'new' ? network!.outputs.webZoneId : existingNetwork.privateDnsZoneIds.web
 
 module hostStorage './modules/storage.bicep' = {
   name: 'host-storage-${environmentName}'
@@ -163,6 +180,7 @@ module storageAccess './modules/storage-access.bicep' = {
     principalId: identity.properties.principalId
     uploaderGroupObjectId: uploaderGroupObjectId
     packagePublisherObjectId: packagePublisherObjectId
+    deploymentPrincipalObjectId: deploymentPrincipalObjectId
   }
 }
 
@@ -173,6 +191,7 @@ module destination './modules/destination-access.bicep' = {
     accountName: destinationStorageAccountName
     containerName: destinationContainerName
     principalId: identity.properties.principalId
+    deploymentPrincipalObjectId: deploymentPrincipalObjectId
   }
 }
 
@@ -190,10 +209,10 @@ module storagePrivateEndpoints './modules/private-endpoint.bicep' = [for item in
     name: 'pe-${stem}-${item.name}'
     location: location
     tags: tags
-    subnetId: network.outputs.privateEndpointSubnetId
+    subnetId: privateEndpointSubnetId
     privateLinkResourceId: item.account == 'host' ? hostStorage.outputs.id : uploadStorage.outputs.id
     groupId: item.groupId
-    privateDnsZoneId: item.groupId == 'blob' ? network.outputs.blobZoneId : (item.groupId == 'queue' ? network.outputs.queueZoneId : network.outputs.tableZoneId)
+    privateDnsZoneId: item.groupId == 'blob' ? blobZoneId : (item.groupId == 'queue' ? queueZoneId : tableZoneId)
   }
 }]
 
@@ -203,10 +222,10 @@ module destinationBlobEndpoint './modules/private-endpoint.bicep' = if (createDe
     name: 'pe-${stem}-destination-blob'
     location: location
     tags: tags
-    subnetId: network.outputs.privateEndpointSubnetId
+    subnetId: privateEndpointSubnetId
     privateLinkResourceId: destination.outputs.accountId
     groupId: 'blob'
-    privateDnsZoneId: network.outputs.blobZoneId
+    privateDnsZoneId: blobZoneId
   }
 }
 
@@ -216,10 +235,10 @@ module destinationDfsEndpoint './modules/private-endpoint.bicep' = if (createDes
     name: 'pe-${stem}-destination-dfs'
     location: location
     tags: tags
-    subnetId: network.outputs.privateEndpointSubnetId
+    subnetId: privateEndpointSubnetId
     privateLinkResourceId: destination.outputs.accountId
     groupId: 'dfs'
-    privateDnsZoneId: network.outputs.dfsZoneId
+    privateDnsZoneId: dfsZoneId
   }
 }
 
@@ -235,7 +254,7 @@ module app './modules/function-app.bicep' = if (deployFunctionApp) {
     zoneRedundant: zoneRedundant
     identityId: identity.id
     identityClientId: identity.properties.clientId
-    integrationSubnetId: network.outputs.integrationSubnetId
+    integrationSubnetId: integrationSubnetId
     hostBlobEndpoint: hostStorage.outputs.blobEndpoint
     hostQueueEndpoint: hostStorage.outputs.queueEndpoint
     hostTableEndpoint: hostStorage.outputs.tableEndpoint
@@ -270,10 +289,10 @@ module appPrivateEndpoint './modules/private-endpoint.bicep' = if (deployFunctio
     name: 'pe-${stem}-function'
     location: location
     tags: tags
-    subnetId: network.outputs.privateEndpointSubnetId
+    subnetId: privateEndpointSubnetId
     privateLinkResourceId: app!.outputs.id
     groupId: 'sites'
-    privateDnsZoneId: network.outputs.webZoneId
+    privateDnsZoneId: webZoneId
   }
 }
 
@@ -286,7 +305,8 @@ output functionAppName string = 'func-${stem}-${suffix}'
 output functionAppResourceId string = resourceId('Microsoft.Web/sites', 'func-${stem}-${suffix}')
 output managedIdentityPrincipalId string = identity.properties.principalId
 output managedIdentityClientId string = identity.properties.clientId
-output virtualNetworkId string = network.outputs.vnetId
+output virtualNetworkId string = networkMode == 'new' ? network!.outputs.vnetId : substring(integrationSubnetId, 0, lastIndexOf(integrationSubnetId, '/subnets/'))
+output resourceNameStem string = stem
 output workspaceId string = monitoring.outputs.workspaceId
 
 

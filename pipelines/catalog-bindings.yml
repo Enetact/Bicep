@@ -1,0 +1,114 @@
+# Generated stage routing with literal protected-resource parameters.
+parameters:
+  - name: operation
+    type: string
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+  - name: discoveryPipelineId
+    type: string
+    default: '0'
+  - name: discoveryRunId
+    type: string
+    default: '0'
+stages:
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: dev
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: dev
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-dev
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: prod
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: prod
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-prod
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: qa
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: qa
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-qa
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+  - ${{ if and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: blobcopy
+          environment: uat
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-stages.yml
+        parameters:
+          workload: blobcopy
+          environment: uat
+          subscription: azure-subscription-a
+          network: new-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: blob-transfer-private
+          deploymentEnvironment: blobcopy-uat
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+  - ${{ if not(or(and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')))) }}:
+    - stage: InvalidSelection
+      jobs:
+        - job: RejectSelection
+          pool:
+            vmImage: windows-latest
+          steps:
+            - checkout: none
+            - pwsh: |
+                throw 'This workload/environment/subscription/network combination is not registered.'
+              displayName: Reject unregistered target before Azure access

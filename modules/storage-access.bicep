@@ -8,6 +8,7 @@ param transferQueueName string
 param recoveryOperatorGroupObjectId string
 param uploaderGroupObjectId string
 param packagePublisherObjectId string
+param deploymentPrincipalObjectId string = ''
 
 resource host 'Microsoft.Storage/storageAccounts@2025-01-01' existing = { name: hostAccountName }
 
@@ -86,12 +87,51 @@ resource uploaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!e
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   }
 }
-resource publisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(packagePublisherObjectId)) {
+resource publisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(packagePublisherObjectId) && packagePublisherObjectId != deploymentPrincipalObjectId) {
   name: guid(packages.id, packagePublisherObjectId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   scope: packages
   properties: {
     principalId: packagePublisherObjectId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  }
+}
+
+// Pipeline acceptance roles follow the same selected target and identity. ARM
+// deployment/role-assignment privileges are deliberately not granted here.
+resource pipelinePackages 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deploymentPrincipalObjectId)) {
+  name: guid(packages.id, deploymentPrincipalObjectId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  scope: packages
+  properties: {
+    principalId: deploymentPrincipalObjectId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  }
+}
+resource pipelineSource 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deploymentPrincipalObjectId)) {
+  name: guid(sourceContainer.id, deploymentPrincipalObjectId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  scope: sourceContainer
+  properties: {
+    principalId: deploymentPrincipalObjectId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  }
+}
+resource pipelineLedger 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deploymentPrincipalObjectId)) {
+  name: guid(ledgerContainer.id, deploymentPrincipalObjectId, '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
+  scope: ledgerContainer
+  properties: {
+    principalId: deploymentPrincipalObjectId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
+  }
+}
+resource pipelineQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deploymentPrincipalObjectId)) {
+  name: guid(runtimeQueues[0].id, deploymentPrincipalObjectId, '19e7f393-937e-4f77-808e-94535e297925')
+  scope: runtimeQueues[0]
+  properties: {
+    principalId: deploymentPrincipalObjectId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '19e7f393-937e-4f77-808e-94535e297925')
   }
 }

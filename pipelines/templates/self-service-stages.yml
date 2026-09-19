@@ -1,0 +1,136 @@
+parameters:
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: agentPool
+    type: string
+  - name: deploymentEnvironment
+    type: string
+  - name: discoveryPipelineId
+    type: string
+  - name: discoveryRunId
+    type: string
+stages:
+  - stage: Qualify
+    displayName: Validate selection, test, and freeze release
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: BuildBundle
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - pwsh: |
+              . ./scripts/self-service-common.ps1
+              $null = Read-ServiceTarget '${{ parameters.workload }}' '${{ parameters.environment }}' '${{ parameters.subscription }}' '${{ parameters.network }}'
+              if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Run discovery first, then enter its pipeline ID and run ID from the saved summary.' }
+            displayName: Reject disabled or invalid target before building
+            env:
+              DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+              DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+          - task: DownloadPipelineArtifact@2
+            displayName: Download the selected discovery manifest
+            inputs:
+              buildType: specific
+              project: $(System.TeamProject)
+              definition: ${{ parameters.discoveryPipelineId }}
+              buildVersionToDownload: specific
+              pipelineId: ${{ parameters.discoveryRunId }}
+              artifactName: subscription-discovery
+              targetPath: $(Pipeline.Workspace)/discovery-input
+          - pwsh: |
+              ./scripts/Test-DiscoveryHandoff.ps1 -Directory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -BoundServiceConnection '${{ parameters.serviceConnection }}' -DiscoveryPipelineId $env:DISCOVERY_PIPELINE_ID -DiscoveryRunId $env:DISCOVERY_RUN_ID
+            displayName: Verify complete discovery and source run before qualification
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
+              DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              useGlobalJson: true
+          - task: NodeTool@0
+            inputs:
+              versionSpec: 22.x
+          - pwsh: |
+              az bicep install --version v0.47.16
+              if ($LASTEXITCODE -ne 0) { throw 'Bicep install failed.' }
+              ./scripts/Update-Manifest.ps1 -Check
+              ./scripts/Test-Project.ps1
+              ./scripts/Test-Recovery.ps1
+              ./scripts/Test-LocalTooling.ps1
+              try {
+                ./scripts/Run-Local.ps1
+                ./scripts/Test-Local.ps1
+              } finally {
+                ./scripts/Stop-Local.ps1
+              }
+              ./scripts/Build-Package.ps1 -ReleaseId '$(Build.BuildId)'
+              ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory 'artifacts/releases/$(Build.BuildId)' -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input'
+            displayName: Qualify application and freeze target/template/package
+          - publish: artifacts/self-service/bundle
+            artifact: self-service-bundle
+            displayName: Publish immutable inputs for this run
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: artifacts/**/*.trx
+              failTaskOnFailedTests: true
+          - pwsh: |
+              $destination = '$(Build.ArtifactStagingDirectory)/qualification'
+              New-Item -ItemType Directory -Path $destination -Force | Out-Null
+              foreach ($entry in @(
+                @{ path='artifacts/test-results'; name='project' },
+                @{ path='artifacts/self-service-tests'; name='self-service' },
+                @{ path='artifacts/discovery-tests'; name='discovery' },
+                @{ path='.local/logs'; name='local-host' }
+              )) {
+                if (Test-Path -LiteralPath $entry.path) {
+                  Copy-Item -LiteralPath $entry.path -Destination (Join-Path $destination $entry.name) -Recurse
+                }
+              }
+              'Qualification evidence; absent folders mean that step did not run.' | Set-Content (Join-Path $destination README.txt)
+            condition: succeededOrFailed()
+            displayName: Retain contract results and local host logs
+          - task: PublishPipelineArtifact@1
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/qualification
+              artifact: self-service-tests
+
+  - template: self-service-plan.yml
+    parameters:
+      phase: Foundation
+      dependsOn: Qualify
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}
+  - template: self-service-apply.yml
+    parameters:
+      phase: Foundation
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}
+  - template: self-service-plan.yml
+    parameters:
+      phase: Release
+      dependsOn: ApplyFoundation
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}
+  - template: self-service-apply.yml
+    parameters:
+      phase: Release
+      serviceConnection: ${{ parameters.serviceConnection }}
+      agentPool: ${{ parameters.agentPool }}
+      deploymentEnvironment: ${{ parameters.deploymentEnvironment }}

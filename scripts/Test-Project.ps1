@@ -6,6 +6,8 @@ $results = Join-Path $root 'artifacts/test-results'
 New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-Tooling.ps1"
 & "$PSScriptRoot/Test-SelfService.ps1"
+& "$PSScriptRoot/Test-ServiceDiscovery.ps1"
+& "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {
     $output = Export-Templates -EnvironmentName $environmentName
     Write-Host "Compiled $environmentName -> $output"

@@ -1,16 +1,16 @@
 # Self-service Azure DevOps and Bicep assessment
 
-Assessed 17 September 2026. This is an implementation design and local assessment, not a deployed pipeline. Existing application, Bicep, and pipeline files were not changed.
+Originally assessed 17 September 2026. This historical design records the state at that assessment, when application, Bicep and pipeline files were not changed. Use the [current self-service guide](self-service.md) and [completion audit](completion-status.md) for the implemented solution and outstanding work.
 
-**Follow-up:** The repository was subsequently moved into `Bicep` and initialized with GitHub remote `Enetact/Bicep`. The baseline findings below are retained as the original assessment. Follow-up changes remove the legacy Function, fix the CLI adapter, add metadata/tooling tests, support custom parameter files and smoke prefixes, guard existing apps against Bootstrap, publish curated release evidence, and check the source manifest. See `validation.md` for current verification. The proposed network modes, split foundation/access/application entry points, frozen deployment approvals, and full self-service release pipeline remain future work.
+**Follow-up, 18 September:** The repository is now in `Bicep` with GitHub remote `Enetact/Bicep`. Baseline fixes removed the duplicate legacy Function, repaired the CLI adapter, added metadata/tooling tests and guarded Bootstrap. The self-service pipeline implements catalog selection, frozen inputs, guarded plan/apply stages and smoke-gated readiness. [Scoped discovery and existing-network reuse](subscription-discovery.md) are also implemented with generated dropdowns and naming/permission profiles. Platform setup and live Azure execution remain outstanding. Split Bicep entry points and cross-environment artifact promotion remain deferred; the implementation reuses the two-phase template. See [validation](validation.md).
 
 ## Recommendation
 
-**Local runtime follow-up:** [Local development](local-development.md) now provides automatic prerequisite setup, a real Functions host with Azurite, lifecycle scripts, and an upload-to-destination smoke test without Azure. This local workflow is verified; the Azure self-service release design below remains future work.
+**Local runtime follow-up:** [Local development](local-development.md) provides automatic prerequisite setup, a real Functions host with Azurite, lifecycle scripts and a verified local upload-to-destination smoke. The remainder below preserves the original findings and proposals; it is not the current completion checklist.
 
 Offer this as a versioned **private blob-transfer service blueprint** maintained by a platform team. Developers register a small workload configuration and deploy approved releases through a protected Azure DevOps template. Keep the existing .NET Functions, Bicep modules, queue, ledger, and recovery design.
 
-The current project is a useful starting point, but it is not yet self-service or release-ready. Two failures were reproduced locally: duplicate Function names prevent compilation, and the Bicep wrapper fails when using its Azure CLI fallback. Resolve these before extending deployment automation.
+At the original assessment, two failures were reproduced: duplicate Function names prevented compilation, and the Bicep wrapper failed using its Azure CLI fallback. Both were subsequently fixed and locally verified. Live Azure release readiness remains unproven.
 
 The actual stack is storage transfer, not the broader claims/AI platform described in the workspace instructions. It contains no web UI, SQL database, Semantic Kernel, or LLM. Developers needing those capabilities would need separate blueprints.
 

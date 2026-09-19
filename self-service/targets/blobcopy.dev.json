@@ -1,12 +1,15 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "new-private",
+  "parameterOverrides": {},
   "enabled": false,
   "workload": "blobcopy",
   "environmentName": "dev",
-  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
   "resourceGroup": "rg-blobcopy-dev",
   "parameterFile": "environments/dev.bicepparam",
-  "serviceConnection": "sc-blobcopy-dev",
+  "serviceConnection": "SC-AZ-A-Bicep",
   "agentPool": "blob-transfer-private",
   "deploymentEnvironment": "blobcopy-dev",
   "smokePrefix": "smoke/"

@@ -10,6 +10,7 @@ $receipt=@{schemaVersion=1; action=$Action;ready=$false;status='Failed';startedU
 try {
     if ($env:BUILD_SOURCEBRANCH -cne 'refs/heads/main' -or $env:BUILD_REASON -cne 'Manual') { throw 'Self-service Azure actions require a manually queued protected main-branch run.' }
     $bundle=Read-ServiceBundle $BundleDirectory
+    if (!$bundle.receipt.Contains('discoverySource')) { throw 'Pipeline deployment requires a verified discovery handoff in the qualified bundle.' }
     $target=$bundle.target
     if ($target.serviceConnection -cne $BoundServiceConnection -or $target.deploymentEnvironment -cne $BoundEnvironment -or $target.agentPool -cne $BoundAgentPool) { throw 'Target does not match the YAML-bound protected resources.' }
     if ($bundle.receipt.sourceCommit -cne $env:BUILD_SOURCEVERSION) { throw 'Artifact provenance does not match this run.' }

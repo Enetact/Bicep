@@ -1,5 +1,9 @@
 # Architecture and recovery contract
 
+## Deployment selection and network ownership
+
+The generated self-service pipeline maps an approved subscription alias and network profile to exact resource IDs and protected Azure DevOps resources. Its default discovery operation only reads inventory. Deployment supports either a new dedicated VNet or existing platform-managed integration/private-endpoint subnets and private DNS zones. Existing mode validates those resources before planning and leaves their definitions/delegation under platform ownership. Optional naming and pipeline data-role parameters follow the selected profile; empty naming suffix preserves the original resource names. See [subscription discovery and naming](subscription-discovery.md) and the [self-service release workflow](self-service.md).
+
 ## File arrival without uploader changes
 
 An external system writes an ordinary block blob into the configured solution container. The Function App's `DispatchUploadedBlob` uses a polling BlobTrigger (`LogsAndContainerScan`) to detect it. It reads metadata supplied by Storage (ETag and version ID), then sends a work pointer to `transfer-work` in the solution account.

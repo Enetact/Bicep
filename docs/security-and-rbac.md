@@ -1,5 +1,13 @@
 # Security and RBAC
 
+## Discovery and selected-target permissions
+
+Read-only discovery scopes resource enumeration to the chosen subscription; it does not assign roles, change networks or deploy. An Azure DevOps endpoint read requires project authorization separately from Azure RBAC. Contributor/Owner access does not refresh the already displayed Run Pipeline form. See [subscription discovery](subscription-discovery.md) for the catalog review and refresh flow.
+
+The optional `deploymentPrincipalObjectId` adds pipeline acceptance roles at the selected package/source containers (Blob Data Contributor), ledger/destination containers (Blob Data Reader), and work queue (Storage Queue Data Reader). No subscription Owner/Contributor or role-assignment administrator grant is created by the template. The deploying identity must already be authorized to grant these scoped roles; Contributor alone is insufficient. Destination and shared-network/DNS owners must separately authorize their resource scopes.
+
+Existing-network mode references approved subnet and private DNS IDs without redeploying the shared VNet, delegation or zones. New private endpoints and their DNS records still require subnet join and DNS permissions. Standardized names aid operations; exact resource IDs and protected catalog bindings determine authority.
+
 ## Runtime identity
 
 One user-assigned identity per environment supports preauthorization and stable identity across Function recreation. Both managed identity types can be secure; roles, scopes and application boundaries determine access.

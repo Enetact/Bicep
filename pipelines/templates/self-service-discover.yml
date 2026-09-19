@@ -1,0 +1,54 @@
+parameters:
+  - name: workload
+    type: string
+  - name: environment
+    type: string
+  - name: subscription
+    type: string
+  - name: network
+    type: string
+  - name: serviceConnection
+    type: string
+stages:
+  - stage: Discover
+    displayName: Read-only discovery in the selected subscription
+    # Permit explicitly queued discovery from feature branches as well as main.
+    # Deployment retains its separate protected-main guards.
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/'), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: Inventory
+        pool:
+          # ARM inventory reads do not need private storage/network connectivity.
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - pwsh: |
+              $folder = '$(Build.ArtifactStagingDirectory)/discovery'
+              New-Item -ItemType Directory -Path $folder -Force | Out-Null
+              'Discovery was queued. If inventory.json is absent, inspect the Azure CLI task log; discovery did not complete.' | Set-Content (Join-Path $folder README.txt)
+            displayName: Prepare evidence before Azure authentication
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: scriptPath
+              scriptPath: scripts/Export-DeploymentInventory.ps1
+              arguments: >-
+                -Workload '${{ parameters.workload }}'
+                -EnvironmentName '${{ parameters.environment }}'
+                -SubscriptionAlias '${{ parameters.subscription }}'
+                -NetworkProfile '${{ parameters.network }}'
+                -UseServiceConnectionSubscription
+                -BoundServiceConnection '${{ parameters.serviceConnection }}'
+                -OrganizationUrl '$(System.CollectionUri)'
+                -Project '$(System.TeamProject)'
+                -OutputDirectory '$(Build.ArtifactStagingDirectory)/discovery'
+              visibleAzLogin: false
+            env:
+              AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
+              AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no'
+          - publish: $(Build.ArtifactStagingDirectory)/discovery
+            artifact: subscription-discovery
+            condition: succeededOrFailed()
