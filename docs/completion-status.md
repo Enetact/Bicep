@@ -1,5 +1,7 @@
 # Repository completion audit
 
+Current deployment menu update: the dedicated Blob copy/Event flow files expose **Preview** and **Deploy**, defaulting to Preview only. Preview consumes saved discovery and publishes its resource-change README to Summary / Extensions; it permits configured disabled targets, while actual Deploy still requires enablement. See [the run guide and method map](deployment-preview.md) and [current validation evidence](validation.md). The generic compatibility menu keeps its older setup/six-stage route. Azure preview and deployment acceptance remain unverified.
+
 Audit date: 19 September 2026. Scope: the blob-transfer repository, its local runtime, Azure infrastructure, developer self-service release workflow and documentation. A working local stack and implemented deployment scripts do not establish a deployed Azure service.
 
 ## Second workload implementation

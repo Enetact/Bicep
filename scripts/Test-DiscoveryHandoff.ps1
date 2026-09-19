@@ -8,10 +8,11 @@ param(
     [Parameter(Mandatory)][string]$NetworkProfile,
     [Parameter(Mandatory)][string]$BoundServiceConnection,
     [Parameter(Mandatory)][ValidatePattern('^[1-9][0-9]*$')][string]$DiscoveryPipelineId,
-    [Parameter(Mandatory)][ValidatePattern('^[1-9][0-9]*$')][string]$DiscoveryRunId
+    [Parameter(Mandatory)][ValidatePattern('^[1-9][0-9]*$')][string]$DiscoveryRunId,
+    [switch]$AllowDisabled
 )
 . "$PSScriptRoot/discovery-manifest-common.ps1"
-$target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile
+$target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile -AllowDisabled:$AllowDisabled
 $manifest=Read-DiscoveryManifest $Directory $target $BoundServiceConnection
 if (!$env:SYSTEM_ACCESSTOKEN -or !$env:SYSTEM_COLLECTIONURI -or !$env:SYSTEM_TEAMPROJECTID -or !$env:BUILD_REPOSITORY_ID) { throw 'Azure DevOps build-read context is required to verify discovery provenance.' }
 $collectionUrl=Resolve-ServiceOrganizationUrl $env:SYSTEM_COLLECTIONURI

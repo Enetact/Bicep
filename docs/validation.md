@@ -2,6 +2,16 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Two-stage workload Preview and Deploy: 19 September 2026
+
+Dedicated Blob copy/Event flow Deploy menus now default to **Preview only**, consume their selected Discover artifact and publish a resource/property-change README in Summary / Extensions and `deployment-preview`. **Preview and deploy** adds the protected second stage with application qualification, exact input matching, Template Spec publication, full-preview drift recheck and existing Foundation/Release apply/readiness operations. Targets remain disabled; configured disabled targets can preview. Original generic menu behavior is preserved.
+
+`Test-Project.ps1` passed **227 existing contracts**, **46 Logic App contracts**, **20 initial preview contracts**, **45 pipeline/infrastructure checks across 20 YAML files**, and **18 application unit tests**, with **15 opt-in emulator cases skipped**. Both workload environment sets, stack wrappers and platform templates compiled; operator build had zero warnings/errors; the dependency advisory query reported no vulnerabilities. A subsequent targeted run passed **21 preview contracts**, adding failed-rerun cleanup coverage, and repeated pipeline checks after the final Preview tooling/source-check step.
+
+New mocked contracts cover full-release parameters for both adapters, local-template What-If without publication/apply, discovery/input integrity, source/release mismatch, 24-hour expiry, other-run rejection, disabled-target separation, failed/deletion/uncertain report retention, nested property changes/redaction, missing Azure results, successful/failing apply sequencing, drift before workload writes and stale-success cleanup. Evidence: `artifacts/test-results/workload-preview.json`, `pipeline-structure.json`, `deployment-stacks.json`, `unit.trx`, and per-suite folders under `artifacts`. The pipeline checker is a bounded local template-expression validator, not ADO server compilation.
+
+No ADO pipeline was queued, Azure account authenticated, real What-If run, Template Spec published or workload deployed during this change. Native run UI rendering, permissions and actual Azure acceptance remain outstanding. Real environment values and preview permissions are required before an Azure report can be generated; placeholder configurations are expected to block.
+
 ## Separate native workload menus: 19 September 2026
 
 Added four generated manual roots: Blob copy Discover/Deploy and Event flow Discover/Deploy. Each fixes its workload type and restricts instance/options/help to that pattern. Deploy resources bind to distinct configured Discover definitions. Original generic roots remain compatible but omit both resource-summary panels. The shared protected deployment/catalog templates and target enabled flags are unchanged.

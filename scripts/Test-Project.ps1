@@ -10,6 +10,7 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-ServiceCosts.ps1"
 & "$PSScriptRoot/Test-PlatformContracts.ps1"
 & "$PSScriptRoot/Test-DeploymentStacks.ps1"
+& "$PSScriptRoot/Test-WorkloadPreview.ps1"
 & "$PSScriptRoot/Test-LogicWorkload.ps1"
 & "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {

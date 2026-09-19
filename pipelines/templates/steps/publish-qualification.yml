@@ -22,6 +22,7 @@ steps:
         @{ path='artifacts/cost-tests'; name='costs' },
         @{ path='artifacts/platform-tests'; name='platform' },
         @{ path='artifacts/stack-tests'; name='stacks' },
+        @{ path='artifacts/preview-tests'; name='preview' },
         @{ path='artifacts/logic-tests'; name='logic-app' },
         @{ path='artifacts/pipeline-tests'; name='pipelines' },
         @{ path='artifacts/recovery-tests'; name='recovery' },

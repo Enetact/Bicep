@@ -164,17 +164,19 @@ function Convert-StackPreview($Report,$Bundle,$State) {
     $null=Get-ServiceChanges @{status='Succeeded';changes=$changes} $Bundle
     return @{status='Succeeded';changes=@($changes | Sort-Object resourceId)}
 }
-function Get-StackDeploymentArguments($Bundle,[string]$ParametersPath) {
-    return @('--subscription',$Bundle.target.subscriptionId,'--name',$Bundle.stack.stackName,'--location',$Bundle.parameters.parameters.location.value,'--template-spec',$Bundle.stack.templateSpecId,'--parameters',"@$ParametersPath",'--action-on-unmanage',$Bundle.stack.actionOnUnmanage,'--deny-settings-mode',$Bundle.stack.denySettingsMode,'--validation-level','Provider')
+function Get-StackDeploymentArguments($Bundle,[string]$ParametersPath,[switch]$UseLocalTemplate) {
+    $templateArgs=if($UseLocalTemplate){@('--template-file',(Join-Path $Bundle.directory stack-template.json))}else{@('--template-spec',$Bundle.stack.templateSpecId)}
+    return @('--subscription',$Bundle.target.subscriptionId,'--name',$Bundle.stack.stackName,'--location',$Bundle.parameters.parameters.location.value)+$templateArgs+@('--parameters',"@$ParametersPath",'--action-on-unmanage',$Bundle.stack.actionOnUnmanage,'--deny-settings-mode',$Bundle.stack.denySettingsMode,'--validation-level','Provider')
 }
-function New-StackPreview($Bundle,$State,[string]$ParametersPath,[string]$Directory) {
-    $null=Get-PublishedStackTemplate $Bundle
-    $deploymentArguments=Get-StackDeploymentArguments $Bundle $ParametersPath
+function New-StackPreview($Bundle,$State,[string]$ParametersPath,[string]$Directory,[switch]$UseLocalTemplate) {
+    if(!$UseLocalTemplate){$null=Get-PublishedStackTemplate $Bundle}
+    $templateArgs=if($UseLocalTemplate){@('--template-file',(Join-Path $Bundle.directory stack-template.json))}else{@('--template-spec',$Bundle.stack.templateSpecId)}
+    $deploymentArguments=Get-StackDeploymentArguments $Bundle $ParametersPath -UseLocalTemplate:$UseLocalTemplate
     $validation=Invoke-ServiceJson (@('stack','sub','validate')+$deploymentArguments)
     if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){$validation=Protect-LogicEvidence $validation}
     Write-ServiceJson $validation (Join-Path $Directory arm-validation.json)
     $name='preview-'+[guid]::NewGuid().ToString('N')
-    $previewArgs=@('--subscription',$Bundle.target.subscriptionId,'--name',$name,'--location',$Bundle.parameters.parameters.location.value,'--stack-id',$Bundle.stack.stackId,'--template-spec',$Bundle.stack.templateSpecId,'--parameters',"@$ParametersPath",'--action-on-unmanage',$Bundle.stack.actionOnUnmanage,'--deny-settings-mode',$Bundle.stack.denySettingsMode,'--validation-level','Provider','--retention-interval','P1D','--no-pretty-print')
+    $previewArgs=@('--subscription',$Bundle.target.subscriptionId,'--name',$name,'--location',$Bundle.parameters.parameters.location.value,'--stack-id',$Bundle.stack.stackId)+$templateArgs+@('--parameters',"@$ParametersPath",'--action-on-unmanage',$Bundle.stack.actionOnUnmanage,'--deny-settings-mode',$Bundle.stack.denySettingsMode,'--validation-level','Provider','--retention-interval','P1D','--no-pretty-print')
     try {
         $raw=Invoke-ServiceJson (@('stack-whatif','sub','create')+$previewArgs)
         if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){$raw=Protect-LogicEvidence $raw}
