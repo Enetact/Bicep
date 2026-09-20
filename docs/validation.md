@@ -1,5 +1,13 @@
 # Validation evidence
 
+## Event flow dev onboarding authorization: 19 September 2026
+
+The operator supplied service-principal object ID `2b7a2791-e7d6-4181-9db3-1bee486236d0` and application ID `4749bb42-f74e-48fd-aa30-82bcec17a483`, requested generated missing dev settings, and authorized configuring both named exceptions. Dev now uses generated tags `enetact-dev` / `dev-poc`, the object ID for role assignments, and HTTPS references to the checked-in [dev review record](reviews/eventflow-dev-exceptions.md). Those GitHub links become available when the record is merged to main. No external approval ticket, finance-system code or verified Entra identity relationship is claimed.
+
+Targeted verification passed **26 prerequisite contracts**, **50 Logic App contracts** and **22 preview contracts**. The real dev parameter file compiles and, with a saved successful-empty discovery plan, has zero onboarding findings and passes `Assert-LogicParameters`. Negative cases still reject missing ownership/identity/approval values; the unchanged QA file still reports all 14 onboarding blockers. Tests also compile the stack template and exercise existing security gates. Evidence: `artifacts/prerequisite-tests/d3dfc838f2f74649bff26b596739e7b1/results.json`, `artifacts/logic-tests/1947eaddc8944800bf9aadeb73c04496/results.json`, `artifacts/preview-tests/ebe7bf4d8a2646f8a63db0ca02ef65bf/results.json`.
+
+This was local configuration and mocked validation only. No Azure sign-in, permission grant, native What-If, deployment or ADO run was performed. Merge the configuration, review document and updated source manifest together, then rerun Event flow Preview with matching complete discovery. Target enablement and actual private-agent/platform readiness remain separate requirements. Earlier validation entries below describe their dated source state.
+
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
 ## Event flow discover-or-create prerequisites: 19 September 2026

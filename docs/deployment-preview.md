@@ -19,6 +19,8 @@ The run stops before discovery download or Azure What-If. Its README reports the
 
 ### If Event flow reports incomplete onboarding
 
+The dev profile now contains operator-authorized generated tags, the supplied service-principal object ID and two scoped exception decisions. See the [dev review record](reviews/eventflow-dev-exceptions.md). Merge that record with the parameters so their GitHub review links resolve. QA, UAT and prod still require independent onboarding. Dev still needs a matching complete discovery artifact to resolve resource-ID placeholders.
+
 A successful Discover run proves its inventory was collected and verified. For Event flow, new discovery artifacts also resolve approved standard resources into Reuse / Create / Manage decisions; they do not grant platform approvals. Preview reports the missing fields together in **Required environment settings**, identifies the repository parameter file, and retains `onboarding-requirements.json` alongside the compiled declarations. No Azure resource-change result is claimed while these settings are incomplete.
 
 Update the selected `workloads/logic-app-event-grid/environments/main.<environment>.bicepparam`: owner, cost center and deployment identity object ID. A fresh prerequisite plan supplies the two subnet IDs, workspace ID and six DNS zone IDs from reviewed discovery policy; select shared resources through target `parameterOverrides`. The two platform exception objects must also contain actual approvals and their HTTPS review references. Never turn approvals on merely to pass validation. Reviewed target overrides apply before the check.

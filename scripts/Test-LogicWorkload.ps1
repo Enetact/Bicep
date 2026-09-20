@@ -13,15 +13,18 @@ $sub=$target.subscriptionId;$rg="/subscriptions/$sub/resourceGroups/platform"
 $zones=@{};foreach($pair in @(@('blob','blob.core.windows.net'),@('queue','queue.core.windows.net'),@('table','table.core.windows.net'),@('file','file.core.windows.net'),@('sites','azurewebsites.net'),@('topic','eventgrid.azure.net'))){$zones[$pair[0]]="$rg/providers/Microsoft.Network/privateDnsZones/privatelink.$($pair[1])"}
 $p=@{workload=@{value='eventflow'};environmentName=@{value='dev'};location=@{value='eastus2'};owner=@{value='platform'};costCenter=@{value='engineering'};integrationSubnetId=@{value="$rg/providers/Microsoft.Network/virtualNetworks/hub/subnets/integration"};privateEndpointSubnetId=@{value="$rg/providers/Microsoft.Network/virtualNetworks/hub/subnets/endpoints"};privateDnsZoneIds=@{value=$zones};existingLogAnalyticsWorkspaceId=@{value="$rg/providers/Microsoft.OperationalInsights/workspaces/shared"};deploymentPrincipalObjectId=@{value='11111111-1111-1111-1111-111111111111'};trustedServiceException=@{value=@{approved=$true;reviewReference='https://example.test/review/network'}};runtimeStorageCredentialException=@{value=@{approved=$true;reviewReference='https://example.test/review/runtime'}}}
 Case 'valid onboarding has no missing-setting findings' {Check (@(Get-LogicOnboardingIssues $p).Count -eq 0)}
-Case 'checked-in dev parameters report all fourteen onboarding blockers together' {
+Case 'unconfigured QA parameters still report all fourteen onboarding blockers together' {
+    $unconfigured=Clone $target
+    $unconfigured.environmentName='qa'
+    $unconfigured.parameterFile='workloads/logic-app-event-grid/environments/main.qa.bicepparam'
     $parametersFile=Join-Path $testRoot onboarding.parameters.json
-    Invoke-Bicep -Arguments @('build-params',(Join-Path $root $target.parameterFile),'--outfile',$parametersFile)
+    Invoke-Bicep -Arguments @('build-params',(Join-Path $root $unconfigured.parameterFile),'--outfile',$parametersFile)
     $example=Get-Content $parametersFile -Raw|ConvertFrom-Json -AsHashtable
     $issues=@(Get-LogicOnboardingIssues $example.parameters)
     Check ($issues.Count -eq 14)
     foreach($name in @('owner','costCenter','integrationSubnetId','privateEndpointSubnetId','existingLogAnalyticsWorkspaceId','deploymentPrincipalObjectId','privateDnsZoneIds.blob','privateDnsZoneIds.queue','privateDnsZoneIds.table','privateDnsZoneIds.file','privateDnsZoneIds.sites','privateDnsZoneIds.topic','trustedServiceException','runtimeStorageCredentialException')){Check ($name -in $issues.parameter)}
-    $errorText='';try{Assert-LogicParameters $target $example.parameters}catch{$errorText=$_.Exception.Message}
-    Check ($errorText.Contains($target.parameterFile) -and $errorText.Contains('runtimeStorageCredentialException') -and !$errorText.Contains('REPLACE_OWNER'))
+    $errorText='';try{Assert-LogicParameters $unconfigured $example.parameters}catch{$errorText=$_.Exception.Message}
+    Check ($errorText.Contains($unconfigured.parameterFile) -and $errorText.Contains('runtimeStorageCredentialException') -and !$errorText.Contains('REPLACE_OWNER'))
 }
 Case 'missing and blank required settings are actionable without echoing values' {
     $bad=Clone $p;$bad.Remove('owner');$bad.costCenter.value=' ';$bad.deploymentPrincipalObjectId.value='REPLACE_PRIVATE_VALUE'
