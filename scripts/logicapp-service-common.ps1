@@ -68,7 +68,7 @@ function Get-LogicCostEstimate($P) {
         if(([DateTimeOffset]::UtcNow-[DateTimeOffset]::Parse($dnsPrices.retrievedUtc)).TotalDays -gt 30){return @{status='Unavailable';reason='Refresh reviewed DNS prices.';fixedMonthlySubtotalUsd=$null}}
         $lines+=@{resource='Owned private DNS zones';quantity=@($prerequisites.createDnsZoneNames).Count;monthlyUnitUsd=$dnsPrices.rates.privateDnsZone.retailPrice}
     }
-    return @{status='Estimated';currency='USD';region=$snapshot.region;pricingAsOf=$snapshot.retrievedUtc;lines=$lines;fixedMonthlySubtotalUsd=($lines|ForEach-Object {$_.quantity*$_.monthlyUnitUsd}|Measure-Object -Sum).Sum;exclusions=@('Storage, Event Grid operations, logs, alerts, DNS, network transfer and pipeline agents are usage or additional charges.','Retail estimate; not a spending cap.');workflowPackageSeparateFromTemplateSpec=$true}
+    return @{status='Estimated';currency='USD';region=$snapshot.region;pricingAsOf=$snapshot.retrievedUtc;lines=$lines;fixedMonthlySubtotalUsd=($lines|ForEach-Object {$_.quantity*$_.monthlyUnitUsd}|Measure-Object -Sum).Sum;exclusions=@('Storage, Event Grid operations, logs, alerts, DNS queries, network transfer and pipeline agents are usage or additional charges.','Retail estimate; not a spending cap.');workflowPackageSeparateFromTemplateSpec=$true}
 }
 function Test-LogicPackage([string]$ZipPath) {
     $expected=@('connections.json','host.json','parameters.json','process-event/workflow.json')

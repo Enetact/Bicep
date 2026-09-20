@@ -30,7 +30,7 @@ Event Grid Basic cannot push through our private endpoint to a private workflow.
 | Scoped role assignments | Workflow queue processor and receipt/quarantine contributor; topic queue sender and dead-letter contributor; deployment identity topic sender and receipt reader. |
 | Insights, diagnostics and five alerts | Workflow error traces, delivery failures, dead letters, queue count above 100, quarantine writes. |
 
-Storage names use the workload/environment and a resource-group-derived suffix, truncated at 24 characters. Shared VNet, subnets, six DNS zones, workspace, action groups and Template Spec catalog RG are referenced, not stack-owned. No Function application, namespace, Service Bus, module registry or business connector is required.
+Storage names use the workload/environment and a resource-group-derived suffix, truncated at 24 characters. The [prerequisite plan](../../docs/prerequisite-resolution.md) creates missing standard VNet/subnets, integration NSG, six DNS zones/links and workspace inside this stack, or references selected compatible existing resources. Action groups and the Template Spec catalog RG remain external. Existing stack-owned prerequisites retain their declarations on later runs. No Function application, namespace, Service Bus, module registry or business connector is required.
 
 ## Code and deployment contracts
 
@@ -39,6 +39,7 @@ Storage names use the workload/environment and a resource-group-derived suffix, 
 | `main.bicep` | Resource-group composition of local reusable and workload-specific modules. |
 | `stack.bicep` | Subscription wrapper creates the dedicated RG and forwards every composition parameter/output. |
 | `environments/main.<env>.bicepparam` | Platform values; placeholders intentionally block deployment. |
+| `modules/prerequisites.bicep` | Conditional composition of the reusable network, DNS and workspace modules from the saved plan. |
 | `modules/storage.bicep`, `modules/access.bicep` | Workload-specific storage separation and scoped RBAC. |
 | `../../modules/event-grid/`, `../../modules/logic-app/standard/` | Shared resource implementations; no registry dependency. |
 | `../../src/LogicAppEventFlow/` | Workflow content, packaged separately from Bicep. |
@@ -50,7 +51,7 @@ Compiled local modules are embedded in the **`logic-app-event-grid` Template Spe
 ## Exact pipeline flow
 
 1. Use **Discover - Event flow** (`/azure-pipelines-eventflow-discover.yml`) for Discover. The workload is fixed to Event flow. Select `eventflow`, `dev`, `azure-subscription-a`, `central-private`.
-2. Run on protected `main`. Discovery reads network/DNS inventory, five workload providers and an ARM catalog of resource IDs/names/types/locations. Failed required listings mean **Partial/unknown**, not zero. It publishes `subscription-discovery` with a typed version-2 manifest.
+2. Run on protected `main`. Discovery reads network/DNS inventory, five workload providers and an ARM catalog of resource IDs/names/types/locations. Failed required listings mean **Partial/unknown**, not zero. It also reads stack ownership and saves Reuse / Create / Manage decisions. It publishes `subscription-discovery` with a typed version-2 manifest and `prerequisite-plan.json`.
 3. Use **Deploy - Event flow** (`/azure-pipelines-eventflow-deploy.yml`) for Deploy. The workload is fixed to Event flow. Select `eventflow`, `dev`, `eastus2`; under **Resources > discovery**, choose the matching successful main run, no older than seven days.
 4. Leave **Run stages = Preview only**. Stage Preview consumes the typed discovery manifest and analyzes the full stack with `releaseActivated=true`; inspect **Summary / Extensions** or `deployment-preview/README.md`. Disabled profiles can preview configured values; placeholders remain blockers. Choose **Preview and deploy** in a fresh run to execute stage Deploy after onboarding/enablement. See the [preview guide](../../docs/deployment-preview.md).
 
@@ -60,7 +61,7 @@ The dedicated menu has two stages: Preview, then Deploy. The following operation
 
 | Operation | Logic App behavior |
 |---|---|
-| Qualify | Verify discovery provenance; compile/test; build deterministic ZIP; check selected shared IDs in inventory; freeze typed bundle. No hosted Logic Apps runtime execution is claimed. |
+| Qualify | Verify discovery provenance; compile/test; build deterministic ZIP; resolve and verify the saved prerequisite plan and selected shared IDs; freeze typed bundle. No hosted Logic Apps runtime execution is claimed. |
 | PublishTemplate | Publish or verify the content-hashed spec through the protected publisher connection. |
 | PlanFoundation | Verify providers/network/DNS/workspace/ownership and stack preview; new Foundation uses `releaseActivated=false`. |
 | ApplyFoundation | Recheck approved fingerprint, apply stack and check outputs/private DNS. Return `FoundationReady`, never `Ready`. Previously released stacks skip Foundation mutation. |
@@ -76,10 +77,10 @@ Fill all environment values independently; enable only dev after acceptance. Do 
 | Dependency | Requirement |
 |---|---|
 | Ownership | Real `owner`, `costCenter`, deployment principal **object ID** (not application ID). |
-| Integration subnet | East US 2 VNet, dedicated subnet delegated to `Microsoft.Web/serverFarms`, enough capacity for scale. |
-| Endpoint subnet | Different nondelegated subnet in the same VNet, space for eight endpoints. |
-| DNS | Six `privateDnsZoneIds` keys: `blob`, `queue`, `table`, `file`, `sites`, `topic`; correct service zones linked to this VNet. V1 requires Azure-provided DNS. Custom hub/resolver topology is not supported by this adapter yet. |
-| Workspace | Existing Log Analytics ID. Same-subscription shared IDs must appear in inventory; explicit cross-subscription DNS/workspace IDs require live access checks. |
+| Integration subnet | Create from reviewed policy, or select an existing same-region VNet/subnet delegated to `Microsoft.Web/serverFarms` with enough capacity for scale. |
+| Endpoint subnet | Create from reviewed policy, or select a different nondelegated subnet in the same VNet with space for eight endpoints. |
+| DNS | Create missing workload-owned zones/links or select compatible existing zones. Six `privateDnsZoneIds` keys: `blob`, `queue`, `table`, `file`, `sites`, `topic`; correct service zones linked to this VNet. V1 requires Azure-provided DNS. Custom hub/resolver topology is not supported by this adapter yet. |
+| Workspace | Create a missing standard workspace, or select a discovered same-region workspace. Cross-subscription existing-only configuration is outside automatic resolution. |
 | Alerts | Existing action group IDs; prod requires at least one. Empty dev action groups create signals without notifications. |
 | Delivery review | `trustedServiceException: { approved: true, reviewReference: 'https://...' }` after approval of the trusted-service firewall policy. |
 | Runtime review | `runtimeStorageCredentialException` with the same shape, approving private runtime storage keys in app settings. Runtime shared-key access is enabled; event-storage shared keys remain disabled. |
@@ -88,7 +89,7 @@ Fill all environment values independently; enable only dev after acceptance. Do 
 | ADO | Authorize private pool, publisher/deployer connections and protected environments; set main/Required Template checks, approvals, exclusive locks, build/artifact-read rights. |
 | Private agent | Reach SCM, topic and storage privately; retain required ARM/Entra/tooling egress. Verify routing, DNS, NSGs, Azure Files access and capacity. |
 
-Default connection: `SC-AZ-A-Bicep`; subscription: `f4f2eafe-2512-4c2f-9b5b-c88f6767e778`. Configuration is not proof of access. Missing shared network/DNS/workspace resources require platform provisioning first; this stack creates its owned resources only.
+Default connection: `SC-AZ-A-Bicep`; subscription: `f4f2eafe-2512-4c2f-9b5b-c88f6767e778`. Configuration is not proof of access. Fresh discovery plans missing standard network/DNS/workspace resources for creation in this stack. Explicit missing shared IDs, unknown listings, routing and ADO infrastructure still require platform action; see [prerequisite resolution](../../docs/prerequisite-resolution.md).
 
 After reviewing the dev target, set its `enabled` flag and run:
 
@@ -137,7 +138,7 @@ Tooling: PowerShell 7.4+, Git, Azure CLI with native stack/stack-WhatIf support,
 
 ## Costs and local tests
 
-Not free. The reviewed 19 September 2026 East US 2 USD snapshot estimates WS1 **$175.16/month** plus eight endpoints **$58.40/month**, approximately **$233.56 fixed subtotal** at 730 hours. Storage, Event Grid, logs, alerts, DNS, transfer and agents/shared-platform costs are additional. The [pricing snapshot](../../self-service/pricing/logic-app-eastus2.json) records retail meter evidence. Frozen bundle estimates become unavailable when their source is over 30 days old; menu text is static generated guidance, not a spending cap. See [Logic Apps pricing](https://learn.microsoft.com/en-us/azure/logic-apps/logic-apps-pricing).
+Not free. The reviewed 19 September 2026 East US 2 USD snapshot estimates WS1 **$175.16/month** plus eight endpoints **$58.40/month**, approximately **$233.56 fixed subtotal** at 730 hours. The frozen estimate adds fixed charges for newly owned DNS zones. Storage, Event Grid, logs, alerts, DNS queries, transfer and agents/shared-platform costs are additional. The [pricing snapshot](../../self-service/pricing/logic-app-eastus2.json) records retail meter evidence. Frozen bundle estimates become unavailable when their source is over 30 days old; menu text is static generated guidance, not a spending cap. See [Logic Apps pricing](https://learn.microsoft.com/en-us/azure/logic-apps/logic-apps-pricing).
 
 From repository root:
 

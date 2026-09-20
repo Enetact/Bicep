@@ -96,6 +96,11 @@ Case 'tampered policy decisions or effective flags cannot bypass saved inventory
     $bad=Clone $resolved;$bad.prerequisitePlan.value.createNetwork=$false;Reject {Assert-LogicResolvedPrerequisites $t $bad $empty}
     $bad=Clone $empty;$bad.prerequisitePlan.bicep.createWorkspace=$false;Reject {Assert-LogicResolvedPrerequisites $t $resolved $bad}
 }
+Case 'explicit environment IDs cannot be overwritten by automatic resolution' {
+    $bad=@{existingLogAnalyticsWorkspaceId=@{value=$new.parameters.existingLogAnalyticsWorkspaceId.Replace('/rg-eventflow-dev/','/shared/')}}
+    Reject {Set-LogicDiscoveredPrerequisites $t $bad $directory}
+    Check ($bad.existingLogAnalyticsWorkspaceId.value.Contains('/shared/'))
+}
 Case 'source policy changes require fresh discovery' {
     $bad=Clone $t;$bad.parameterOverrides.existingLogAnalyticsWorkspaceId=$new.parameters.existingLogAnalyticsWorkspaceId
     Reject {Set-LogicDiscoveredPrerequisites $bad @{} $directory}
@@ -138,6 +143,35 @@ Case 'fresh foundation checks providers while allowing approved future prerequis
     $script:calls.Clear();$null=Test-LogicPrerequisites $bundle -AllowPlannedCreates
     Check ($script:calls.Count -eq 5 -and @($script:calls|Where-Object {$_ -notlike 'provider show *'}).Count -eq 0)
     Reject {Test-LogicPrerequisites $bundle}
+}
+# Execute the actual discovery entry point with a mocked CLI transport.
+$global:LogicPrerequisiteDiscoveryCalls=[Collections.Generic.List[string]]::new()
+$global:LogicPrerequisiteDiscoverySubscription=$t.subscriptionId
+function az {
+    $command=$args -join ' ';$global:LogicPrerequisiteDiscoveryCalls.Add($command);$global:LASTEXITCODE=0
+    $result=switch -Regex ($command){
+        '^account show' {@{id=$global:LogicPrerequisiteDiscoverySubscription;state='Enabled';name='Fixture';tenantId='11111111-1111-1111-1111-111111111111'};break}
+        '^network vnet list|^network private-dns zone list|^resource list|^stack sub list' {,@();break}
+        '^provider show' {$index=[Array]::IndexOf([object[]]$args,'--namespace');@{namespace=$args[$index+1];registrationState='Registered'};break}
+        '^rest .*Microsoft.Authorization/permissions' {@{value=@()};break}
+        default {throw "Unexpected discovery mutation or read: $command"}
+    }
+    ConvertTo-Json -InputObject $result -Depth 20 -Compress
+}
+try{
+Case 'real Discover entry exports hashed read-only inventory and Create manifest' {
+    $output=Join-Path $testRoot export
+    & "$PSScriptRoot/Export-DeploymentInventory.ps1" -Workload $t.workload -EnvironmentName $t.environmentName -SubscriptionAlias $t.subscriptionAlias -NetworkProfile $t.networkProfile -BoundServiceConnection $t.serviceConnection -OutputDirectory $output
+    $inventory=Get-Content (Join-Path $output inventory.json) -Raw|ConvertFrom-Json -AsHashtable
+    $manifest=Read-DiscoveryManifest $output $t $t.serviceConnection
+    Check ($inventory.readOnly -and $inventory.prerequisitePlan.status -eq 'Ready' -and $inventory.prerequisitePlan.resources.Count -eq 17)
+    Check ($manifest.inventorySha256 -ceq (Get-ServiceHash (Join-Path $output inventory.json)))
+    Check (Test-Path (Join-Path $output prerequisite-plan.json))
+    Check ((Get-Content (Join-Path $output summary.md) -Raw).Contains('Prerequisite decisions'))
+    Check (@($global:LogicPrerequisiteDiscoveryCalls|Where-Object {$_ -match '\b(create|update|delete|register|set)\b'}).Count -eq 0)
+}
+}finally{
+    Remove-Variable LogicPrerequisiteDiscoveryCalls,LogicPrerequisiteDiscoverySubscription -Scope Global
 }
 Write-ServiceJson @{passed=$cases.Count;failed=0;cases=$cases;azureCalls='mocked'} (Join-Path $testRoot results.json)
 Write-Host "PASS: $($cases.Count) prerequisite contracts. Evidence: $testRoot"

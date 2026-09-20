@@ -180,7 +180,7 @@ if ($report.privateDnsQuery.primaryStatus -eq 'Failed') {
 if($report.Contains('workloadType')) {
     $lines+=@('',"Workload pattern: $($report.workloadType). Resource catalog: $($report.resources.Count) ARM resources (ID/name/type/location only).")
     foreach($provider in $report.providers){$lines+="Provider $($provider.namespace): $($provider.registrationState)."}
-    $lines+='This does not enumerate data, secrets, workflow content or every child resource. Missing shared prerequisites require platform onboarding; deployment creates only resources owned by this workload.'
+    $lines+='This does not enumerate data, secrets, workflow content or every child resource. Review the saved prerequisite plan for Reuse/Create/Manage decisions. Deployment creates only resources owned by this workload; shared-resource selection and platform approvals remain explicit.'
 }
 $lines+=@($report.warnings | ForEach-Object { "- $_" })
 if ($env:TF_BUILD -eq 'True') {

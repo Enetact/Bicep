@@ -48,15 +48,15 @@ parameters:
   - name: workloadSummary
     displayName: "Event flow - resources created when enabled"
     type: string
-    default: "Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts."
+    default: "Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts. Saved discovery resolves approved existing prerequisites or plans missing workload-owned VNet/subnets, DNS zones/links and Log Analytics."
     values:
-      - "Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts."
+      - "Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts. Saved discovery resolves approved existing prerequisites or plans missing workload-owned VNet/subnets, DNS zones/links and Log Analytics."
   - name: requirements
     displayName: "Existing dependencies and cost"
     type: string
-    default: "Requires 2 existing subnets, 6 linked private DNS zones, a Log Analytics workspace, private agent and 2 platform exception approvals. Creates NO shared VNet/DNS/workspace or destination data lake. WS1 + 8 endpoints: $233.56/month fixed subtotal; usage and 5 alerts extra."
+    default: "Discovery plans Reuse/Create/Manage for 2 subnets, 6 DNS zones and Log Analytics. Missing prerequisites use standard names in the workload resource group; reviewed shared IDs remain externally owned. Private agents, connectivity and 2 platform approvals still require setup. WS1 + 8 endpoints: $233.56/month fixed subtotal; newly owned DNS zones, usage and 5 alerts extra."
     values:
-      - "Requires 2 existing subnets, 6 linked private DNS zones, a Log Analytics workspace, private agent and 2 platform exception approvals. Creates NO shared VNet/DNS/workspace or destination data lake. WS1 + 8 endpoints: $233.56/month fixed subtotal; usage and 5 alerts extra."
+      - "Discovery plans Reuse/Create/Manage for 2 subnets, 6 DNS zones and Log Analytics. Missing prerequisites use standard names in the workload resource group; reviewed shared IDs remain externally owned. Private agents, connectivity and 2 platform approvals still require setup. WS1 + 8 endpoints: $233.56/month fixed subtotal; newly owned DNS zones, usage and 5 alerts extra."
   - name: lifecycle
     displayName: "Deployment and discovery handoff"
     type: string

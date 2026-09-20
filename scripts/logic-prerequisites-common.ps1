@@ -103,6 +103,9 @@ function Set-LogicDiscoveredPrerequisites($Target,$P,[string]$Directory,[string]
     if((Get-ValueHash $plan) -cne (Get-ValueHash $inventory.prerequisitePlan)){throw 'Prerequisite policy/selection changed since discovery; rerun Discover.'}
     if($OutputDirectory){Write-ServiceJson $plan (Join-Path $OutputDirectory prerequisite-plan.json)}
     if($plan.status -cne 'Ready'){throw ('Prerequisite resolution blocked: '+($plan.blockers -join '; '))}
+    foreach($key in $plan.parameters.Keys){
+        if($P.Contains($key) -and $P[$key].Contains('value') -and $null -ne $P[$key].value -and (ConvertTo-Canonical $P[$key].value) -notmatch 'REPLACE|00000000-0000-0000-0000-000000000000' -and (Get-ValueHash $P[$key].value) -cne (Get-ValueHash $plan.parameters[$key])){throw "Explicit parameter $key differs from discovery selection. Put approved shared IDs in target parameterOverrides and rerun Discover; no selection was overwritten."}
+    }
     foreach($key in $plan.parameters.Keys){$P[$key]=@{value=$plan.parameters[$key]}}
     $P.prerequisitePlan=@{value=$plan.bicep}
 }
@@ -130,5 +133,9 @@ function Get-LogicPrerequisiteSummary($Plan) {
     @('## Prerequisite decisions','','Discovery is read-only. Create/Manage declarations will be included in the workload stack; Reuse resources remain externally owned. Other subscription resources are candidates only; use reviewed target overrides to select them.','',"Resolution status: $($Plan.status)",'','| Action | Kind | Resource ID |','|---|---|---|')
     foreach($r in $Plan.resources){'| '+$r.action+' | '+$r.kind+' | '+[Net.WebUtility]::HtmlEncode($r.id).Replace('|','&#124;')+' |'}
     foreach($blocker in $Plan.blockers){'Blocked: '+[Net.WebUtility]::HtmlEncode($blocker)}
+    @('','### Existing resources available for reviewed selection','','These are candidates, not automatic substitutions. Select resource IDs in the target parameterOverrides, then rerun Discover.','', '| Kind | Candidate ID |','|---|---|')
+    foreach($kind in @('networks','privateDnsZones','workspaces')){
+        foreach($candidate in $Plan.candidates[$kind]){'| '+$kind+' | '+[Net.WebUtility]::HtmlEncode($candidate.id).Replace('|','&#124;')+' |'}
+    }
     ''
 }
