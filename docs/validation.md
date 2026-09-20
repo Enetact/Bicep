@@ -2,6 +2,24 @@
 
 This records the external-uploader design with the ledger co-located in solution storage. No Azure login, ARM deployment, Azure upload, role assignment, or live Azure test was performed while producing this bundle.
 
+## Event flow discover-or-create prerequisites: 19 September 2026
+
+Complete scoped discovery now saves an integrity-protected prerequisite plan. An empty successful inventory plans a VNet, two subnets, integration NSG, six private DNS zones/links and a workspace in the workload RG. Compatible selected shared resources are Reuse; existing stack-owned resources remain Manage. Failed reads, ambiguous/missing explicit selections, address conflicts, tampered plans and unowned resources appearing after discovery block the flow. Preview reports decisions before onboarding checks; actual resource creation remains in the protected workload stack apply. See [the runbook](prerequisite-resolution.md).
+
+The final `Test-Project.ps1` run passed **333 PowerShell contracts** (including **25 new prerequisite cases**, **50 Logic App cases** and **22 preview cases**), **46 pipeline/infrastructure checks across 20 YAML files**, and **18 application tests**. **15 opt-in emulator cases were skipped**. Both workload wrappers, all eight environment configurations and platform templates compiled. The operator build had zero warnings/errors; the Function dependency advisory query reported no vulnerabilities. An initial full run exposed a test mock leaking into later compilation; scoping the mock to its test script fixed this, and the complete suite then passed.
+
+New cases exercise successful-empty and failed discovery, shared reuse, partial existence, stable stack ownership, overlap rejection, selection drift, explicit parameter protection, live resource collisions, planned Foundation absences and the actual discovery entrypoint with a mocked Azure CLI. Compiling the checked-in dev values and applying the empty-inventory plan resolves nine resource-ID onboarding blockers; five real-value/review blockers remain: owner, cost center, deployment principal object ID and both exception approvals.
+
+Evidence: `artifacts/prerequisite-tests/a6f698102d09449ead45e24d491e6264/results.json`, `artifacts/logic-tests/d056e4c8f88f486dacbcb92377e79b5c/results.json`, `artifacts/preview-tests/16cd8209fca441dcb3aa10ae13259a25/results.json`, and `artifacts/test-results/pipeline-structure.json`, `unit.trx`, `vulnerabilities.json`. These are local and mocked contract results, not live deployment evidence. No Azure sign-in, native Azure What-If, publication, deployment or ADO run was performed. Private-agent routing/DNS, platform approvals, provider/permission/quota readiness and live Azure acceptance remain outstanding. Rerun Discover after checking in the changes; older artifacts cannot activate automatic creation.
+
+## Preview run 20 onboarding blocker: 19 September 2026
+
+The supplied log confirms all 206 source-manifest entries passed, discovery run 18 downloaded and passed provenance checks for subscription `f4f2eafe-2512-4c2f-9b5b-c88f6767e778`, and Bicep preparation reached Logic App parameter validation. It stopped on onboarding placeholders before the AzureCLI What-If task. Six files were published as `deployment-preview`; publication does not imply a successful resource-change plan.
+
+The checked-in Event flow profiles still require real environment configuration. Validation now reports missing/placeholder field paths and both pending platform reviews together, with the selected parameter-file path, rather than a generic first error. Preview retains this checklist as `onboarding-requirements.json` and renders it in the README. Values are not invented, shared infrastructure is not automatically provisioned, and deployment enablement/approval guards remain in effect.
+
+Targeted verification passed **50 Logic App contracts** and **22 preview contracts**, including compilation of the checked-in dev parameters and detection of all 14 onboarding blockers, safe diagnostics for absent/blank values, approval validation and blocked-report rendering. No Azure evaluation or deployment was performed locally. Actual environment values, shared resources and platform review decisions remain necessary to unblock Preview.
+
 ## Preview run 17 source-manifest failure: 19 September 2026
 
 The supplied ADO log shows run 17 checked out main commit `3f60541e9bb2402ef4af77f1a6445c7ddd5b07c2`, installed Bicep successfully, then failed the source-manifest check before discovery download and Azure validation. The one-file `deployment-preview` artifact was the initial README; it contained no resource-change result.

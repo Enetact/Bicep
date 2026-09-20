@@ -59,7 +59,7 @@ $menuLabels=@{
 }
 $blueprints=@{
     'blob-transfer'='Copies uploaded files to an existing data lake: 1 Function App + hosting plan, 2 Storage accounts, work/poison queues, transfer ledger, managed identity, Application Insights and alerts. Private endpoints and DNS follow the approved environment profile.'
-    'logic-app-event-grid'='Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts.'
+    'logic-app-event-grid'='Processes document events: 1 Logic App Standard + hosting plan, 1 Event Grid topic + subscription, 2 Storage accounts, events queue, receipt/quarantine/dead-letter containers, 8 private endpoints, managed identities, Application Insights and 5 alerts. Saved discovery resolves approved existing prerequisites or plans missing workload-owned VNet/subnets, DNS zones/links and Log Analytics.'
 }
 $defaultTarget=$targets[0]
 $choices=@('  - name: workloadType','    displayName: "1. What do you want to prepare? (Discover creates no Azure resources)"','    type: string',('    default: '+(ConvertTo-Json -InputObject $menuLabels[(Get-TargetWorkloadType $defaultTarget)] -Compress)),'    values:')
@@ -98,7 +98,7 @@ $deployInfo=@(
     @('blobTransferCreates','BLOB COPY / blobcopy - creates (reference only)',$blueprints['blob-transfer']),
     @('blobTransferRequirements','BLOB COPY / blobcopy - existing dependencies and cost',"Requires an existing destination data lake/container and approved network/monitoring profile. Network/DNS/workspace may be reused or created only as permitted by that profile. Hosting: $hosting per instance/month; 6 core endpoints $(Format-ServiceUsd ($endpointMonthly*6))/month, up to 2 destination endpoints extra. 3 log alerts ~$alertsMonthly/month. Usage extra."),
     @('eventFlowCreates','EVENT FLOW / eventflow - creates (reference only)',$blueprints['logic-app-event-grid']),
-    @('eventFlowRequirements','EVENT FLOW / eventflow - existing dependencies and cost',"Requires 2 existing subnets, 6 linked private DNS zones, a Log Analytics workspace, private agent and 2 platform exception approvals. Creates NO shared VNet/DNS/workspace or destination data lake. WS1 + 8 endpoints: $logicMonthly/month fixed subtotal; usage and 5 alerts extra."),
+    @('eventFlowRequirements','EVENT FLOW / eventflow - existing dependencies and cost',"Discovery plans Reuse/Create/Manage for 2 subnets, 6 DNS zones and Log Analytics. Missing prerequisites use standard names in the workload resource group; reviewed shared IDs remain externally owned. Private agents, connectivity and 2 platform approvals still require setup. WS1 + 8 endpoints: $logicMonthly/month fixed subtotal; newly owned DNS zones, usage and 5 alerts extra."),
     @('usageEstimate',"Cost assumptions - USD East US 2 retail as of $priceDate",'References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu.')
 )
 foreach ($info in @($deployInfo|Where-Object {$_[0] -in @('runGuidance','usageEstimate')})) {
@@ -178,7 +178,7 @@ foreach($type in @($targets|ForEach-Object {Get-TargetWorkloadType $_}|Sort-Obje
         $discover+=New-MenuField $pair[0] $pair[2] $profiles[0][$pair[1]] $choices
     }
     $scope='Read-only networks, subnets, private DNS and accessible matching service connections. Creates no Azure resources.'
-    if($type -eq 'logic-app-event-grid'){$scope+=' Also checks provider registration and resource IDs/types.'}
+    if($type -eq 'logic-app-event-grid'){$scope+=' Also checks providers, resource IDs/types and stack ownership; saves Reuse/Create/Manage/Blocked prerequisite decisions without creating resources.'}
     foreach($info in @(@('workloadSummary',"$title - what a later deployment creates",$blueprints[$type]),@('discoveryScope','This run - discovery only',$scope),@('deploymentHandoff','Next step',"After successful main discovery, open Deploy - $title. Under Resources > discovery select this run. Use the same instance/environment; the artifact must be at most seven days old."))){
         $discover+=New-MenuField $info[0] $info[1] $info[2] @($info[2])
     }

@@ -4,6 +4,8 @@ Status: implemented in the repository and locally contract-tested. Run 8 on `fea
 
 This repository implements `blob-transfer` / `blobcopy` and `logic-app-event-grid` / `eventflow`. The [Event Flow runbook](../workloads/logic-app-event-grid/README.md) specifies its resource inventory, private queue bridge, two approval exceptions, methods and Azure acceptance. The detailed blob transfer sections below remain specific to that pattern. It does not contain a claims UI, claims database, Semantic Kernel agents, or a COBOL gateway. Uploading files is its integration contract; downstream business workflows are separate solutions.
 
+Event flow discovery now saves a [prerequisite resource plan](prerequisite-resolution.md): reuse compatible selected resources, create absent standard resources within the workload stack, and block when inventory is unknown. Rerun Discover before using this behavior.
+
 See the [full pipeline flow](pipeline-flow.md) for the entrypoint/stage diagram, script calls, artifact handoffs, shared qualification steps, failure evidence and remaining platform setup. Module registry setup is excluded; local modules are compiled into the published Template Spec.
 
 ## Preview first, deploy second

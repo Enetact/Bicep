@@ -24,6 +24,7 @@ steps:
         @{ path='artifacts/stack-tests'; name='stacks' },
         @{ path='artifacts/preview-tests'; name='preview' },
         @{ path='artifacts/logic-tests'; name='logic-app' },
+        @{ path='artifacts/prerequisite-tests'; name='prerequisites' },
         @{ path='artifacts/pipeline-tests'; name='pipelines' },
         @{ path='artifacts/recovery-tests'; name='recovery' },
         @{ path='.local/logs'; name='local-host' }

@@ -13,6 +13,7 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-DeploymentStacks.ps1"
 & "$PSScriptRoot/Test-WorkloadPreview.ps1"
 & "$PSScriptRoot/Test-LogicWorkload.ps1"
+& "$PSScriptRoot/Test-LogicPrerequisites.ps1"
 & "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {
     $output = Export-Templates -EnvironmentName $environmentName

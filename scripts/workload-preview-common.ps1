@@ -21,8 +21,12 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
     Invoke-Bicep -Arguments @('build-params',(Resolve-ServicePath $root $Target.parameterFile),'--outfile',(Join-Path $Directory parameters.json))
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
     Set-ServiceProfileParameters $Target $p.parameters
+    if($type -eq 'logic-app-event-grid'){Set-LogicDiscoveredPrerequisites $Target $p.parameters $DiscoveryDirectory $Directory}
     if($type -eq 'blob-transfer'){$platform=Read-PlatformConfiguration;Set-ServiceDeploymentOptions $Target $p.parameters $platform.createDestinationPrivateEndpoints $platform.enableLogAlerts}
     Write-ServiceJson $p (Join-Path $Directory parameters.json)
+    if($type -eq 'logic-app-event-grid'){
+        Write-ServiceJson @{schemaVersion=1;parameterFile=$Target.parameterFile;issues=@(Get-LogicOnboardingIssues $p.parameters)} (Join-Path $Directory onboarding-requirements.json)
+    }
     # Compile first so a blocked README can still list locally declared resource types.
     Assert-ServiceParameters $Target $p.parameters
     if($type -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $Target $p.parameters $DiscoveryDirectory}
@@ -48,6 +52,7 @@ function Read-WorkloadPreviewInputs([string]$Directory) {
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
     Assert-ServiceParameters $target $p.parameters
     $manifest=Read-DiscoveryManifest (Join-Path $Directory discovery) $target $target.serviceConnection
+    if((Get-TargetWorkloadType $target) -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $target $p.parameters (Join-Path $Directory discovery)}
     if((Get-ValueHash $manifest.source) -cne (Get-ValueHash $r.discoverySource)){throw 'Preview discovery provenance mismatch.'}
     $stack=Get-Content (Join-Path $Directory stack.json) -Raw|ConvertFrom-Json -AsHashtable
     $template=Get-Content (Join-Path $Directory stack-template.json) -Raw|ConvertFrom-Json -AsHashtable
@@ -65,6 +70,7 @@ function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory) {
     }
     Assert-StackTooling
     $state=Get-WorkloadStackState $Bundle
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){Assert-LogicPrerequisiteLiveState $Bundle $state}
     $path=Join-Path $Bundle.directory effective.parameters.json
     $report=New-StackPreview $Bundle $state $path $Directory -UseLocalTemplate
     $plan=@{schemaVersion=1;kind='full-release-preview';inputHash=$Bundle.hash;sourceCommit=$Bundle.receipt.sourceCommit;runId=$Bundle.receipt.runId;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');state=$state;changes=$report.changes;deployable=$true;workloadDeployed=$false}
@@ -116,6 +122,17 @@ function Write-WorkloadPreviewReadme([string]$Directory,[string]$Status,[string]
     if($ErrorText){$lines+=@('## Blocker','', (ConvertTo-PreviewCell $ErrorText),'','Do not interpret a failed or incomplete preview as zero changes. Deploy is blocked; correct the reported prerequisites or policy findings and rerun.','')}
     if(Test-Path (Join-Path $Directory target.json)){$t=Get-Content (Join-Path $Directory target.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Workload: $(ConvertTo-PreviewCell (Get-TargetWorkloadType $t)) / $(ConvertTo-PreviewCell $t.workload) / $(ConvertTo-PreviewCell $t.environmentName).","Subscription: $(ConvertTo-PreviewCell $t.subscriptionId). Resource group: $(ConvertTo-PreviewCell $t.resourceGroup).","Deployment enabled: $($t.enabled). Disabled targets can be previewed but cannot deploy.",'')}
     if(Test-Path (Join-Path $Directory cost-estimate.json)){$cost=Get-Content (Join-Path $Directory cost-estimate.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Cost status: $(ConvertTo-PreviewCell $cost.status). Fixed monthly subtotal USD: $(ConvertTo-PreviewCell $cost['fixedMonthlySubtotalUsd']); usage is additional. See cost-estimate.json.",'')}
+    $onboardingPath=Join-Path $Directory onboarding-requirements.json
+    if(Test-Path -LiteralPath $onboardingPath){
+        $onboarding=Get-Content -LiteralPath $onboardingPath -Raw|ConvertFrom-Json -AsHashtable
+        if($onboarding.issues.Count){
+            $lines+=@('## Required environment settings','',"Update repository file: $(ConvertTo-PreviewCell $onboarding.parameterFile)",'','| Parameter | Required action |','|---|---|')
+            foreach($issue in $onboarding.issues){$lines+="| $(ConvertTo-PreviewCell $issue.parameter) | $(ConvertTo-PreviewCell $issue.requirement) |"}
+            $lines+=@('','Discovery lists available resources; it does not choose approved IDs or grant platform approvals. Review the prerequisite plan for Reuse/Create/Manage decisions. Owner, cost-center, identity and platform approvals still require real values. The target can remain disabled for Preview.','')
+        }
+    }
+    $prerequisitePath=Join-Path $Directory prerequisite-plan.json
+    if(Test-Path -LiteralPath $prerequisitePath){$lines+=@(Get-LogicPrerequisiteSummary (Get-Content -LiteralPath $prerequisitePath -Raw|ConvertFrom-Json -AsHashtable))}
     $rawPath=Join-Path $Directory azure/stack-what-if.json
     if(Test-Path $rawPath){
         $raw=Get-Content $rawPath -Raw|ConvertFrom-Json -AsHashtable

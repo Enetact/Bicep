@@ -65,6 +65,8 @@ The [enterprise platform review](docs/enterprise-platform.md) documents the inte
 
 The Deploy pipeline now publishes a content-hashed **Template Spec** and creates/updates a **subscription-scoped Deployment Stack** owning the dedicated workload resource group. It extends `pipelines/deploy-entry.yml` for Required Template checks. See the [upgrade and onboarding runbook](docs/deployment-stacks-upgrade.md): do not precreate the workload RG or use the legacy manual deployment path against stack-managed resources. Existing resource groups require a separate adoption review. All Azure behavior remains subject to live acceptance.
 
+Event flow discovery now saves a [prerequisite resource plan](docs/prerequisite-resolution.md): reuse compatible selected resources, create absent standard resources within the workload stack, and block when inventory is unknown. Rerun Discover before using this behavior.
+
 The [subscription discovery and naming guide](docs/subscription-discovery.md) explains scoped discovery, existing-subnet selection, generated dropdowns, standard names and templated data permissions. Azure DevOps dropdowns refresh after reviewed catalog changes are merged; they do not query Azure interactively when clicked.
 
 **The pipeline is implemented and locally contract-tested; Azure onboarding and a live pipeline run are still required.** All checked-in targets are disabled examples. Platform owners must configure real target parameters, federated service connections, private agents/networking, approvals and exclusive locks before enabling them.

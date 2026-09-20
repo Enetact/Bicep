@@ -167,6 +167,13 @@ Case 'property report includes nested differences unchanged deleted and redacted
     foreach($word in @('/example/create','/example/delete','/example/noChange','properties.name','old','new','[redacted]','&lt;script&gt;&#124;payload')){Check ($text.Contains($word))}
     Check (!$text.Contains('never-print'))
 }
+Case 'blocked onboarding README lists exact fields and repository file' {
+    $folder=Join-Path $root onboarding-report
+    Write-ServiceJson @{parameterFile='workloads/logic-app-event-grid/environments/main.dev.bicepparam';issues=@(@{parameter='privateDnsZoneIds.topic';requirement='Select the existing topic DNS zone.'},@{parameter='owner';requirement='Supply the responsible team.'})} (Join-Path $folder onboarding-requirements.json)
+    Write-WorkloadPreviewReadme $folder 'Blocked' 'Incomplete environment settings'
+    $text=Get-Content (Join-Path $folder README.md) -Raw
+    foreach($phrase in @('Required environment settings','privateDnsZoneIds.topic','main.dev.bicepparam','Owner, cost-center, identity and platform approvals','Azure changes unavailable')){Check ($text.Contains($phrase))}
+}
 Case 'missing Azure output produces an honest incomplete report' {
     $folder=Join-Path $root no-azure
     Write-ServiceJson @{resources=@(@{type='Microsoft.Web/sites';apiVersion='2024-01-01'})} (Join-Path $folder stack-template.json)

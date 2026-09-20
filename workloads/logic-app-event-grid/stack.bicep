@@ -6,6 +6,7 @@ param environmentName string
 param location string
 param owner string
 param costCenter string
+param prerequisitePlan object = {}
 param integrationSubnetId string
 param privateEndpointSubnetId string
 param privateDnsZoneIds object
@@ -22,6 +23,7 @@ module composition './main.bicep' = {
  name: 'workload'
  scope: group
  params: {
+  prerequisitePlan: prerequisitePlan
   workload: workload
   environmentName: environmentName
   location: location
