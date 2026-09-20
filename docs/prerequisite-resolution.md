@@ -47,6 +47,8 @@ The current automatic resolver is scoped to one subscription. Cross-subscription
 
 ## Run the two stages
 
+Dev's owner/cost-center labels, deployment principal and exception decisions are now recorded in the [dev review document](reviews/eventflow-dev-exceptions.md). The following onboarding steps still apply to other environments and to any subsequent change in dev's authorization or identity.
+
 1. Review names/CIDRs and any explicit shared selections. Keep the target disabled while configuring it.
 2. Regenerate `MANIFEST.sha256`, commit the reviewed source and manifest, and run **Discover - Event flow** on the deployment branch using `/azure-pipelines-eventflow-discover.yml`.
 3. Open its summary or artifact and review Reuse / Create / Manage / Blocked and the candidate list.

@@ -72,6 +72,8 @@ Uncertain previews, removal, ownership conflicts and sensitive security changes 
 
 ## Platform onboarding
 
+Dev's generated tags, supplied service-principal object ID and operator-authorized exception decisions are configured in `environments/main.dev.bicepparam`; see the [dev review record](../../docs/reviews/eventflow-dev-exceptions.md). Its resource IDs still come from matching discovery. QA, UAT and prod require independent configuration and authorization. Deployment remains subject to target enablement and live validation.
+
 Fill all environment values independently; enable only dev after acceptance. Do not precreate the workload RG.
 
 | Dependency | Requirement |

@@ -110,15 +110,25 @@ Case 'legacy inventory remains existing-only and does not infer absent resources
     Write-ServiceJson $legacy (Join-Path $folder inventory.json);$p=@{}
     Set-LogicDiscoveredPrerequisites $t $p $folder;Check ($p.Count -eq 0)
 }
-Case 'resolution removes resource ID placeholders but preserves ownership and approval blockers' {
+Case 'authorized dev settings plus saved prerequisite plan pass onboarding' {
     $path=Join-Path $testRoot parameters.json
     Invoke-Bicep -Arguments @('build-params',(Join-Path (Get-ProjectRoot) $t.parameterFile),'--outfile',$path)
     $p=Get-Content $path -Raw|ConvertFrom-Json -AsHashtable
     Set-LogicDiscoveredPrerequisites $t $p.parameters $directory
     $issues=@(Get-LogicOnboardingIssues $p.parameters)
+    Check ($issues.Count -eq 0)
+    Assert-LogicParameters $t $p.parameters
+    $cost=Get-LogicCostEstimate $p.parameters;Check (@($cost.lines|Where-Object {$_.resource -eq 'Owned private DNS zones'})[0].quantity -eq 6)
+}
+Case 'resource resolution does not generate ownership identity or approval values' {
+    $p=Get-Content (Join-Path $testRoot parameters.json) -Raw|ConvertFrom-Json -AsHashtable
+    foreach($key in @('owner','costCenter','deploymentPrincipalObjectId')){$p.parameters[$key].value='REPLACE_TEST_VALUE'}
+    foreach($key in @('trustedServiceException','runtimeStorageCredentialException')){$p.parameters[$key].value=@{approved=$false;reviewReference=''}}
+    Set-LogicDiscoveredPrerequisites $t $p.parameters $directory
+    $issues=@(Get-LogicOnboardingIssues $p.parameters)
     Check ($issues.Count -eq 5)
     foreach($key in @('owner','costCenter','deploymentPrincipalObjectId','trustedServiceException','runtimeStorageCredentialException')){Check ($key -in $issues.parameter)}
-    $cost=Get-LogicCostEstimate $p.parameters;Check (@($cost.lines|Where-Object {$_.resource -eq 'Owned private DNS zones'})[0].quantity -eq 6)
+    Reject {Assert-LogicParameters $t $p.parameters}
 }
 Case 'README shows prerequisite Create decisions even while onboarding is blocked' {
     Write-WorkloadPreviewReadme $testRoot 'Blocked' 'Provide ownership and approval values.'
