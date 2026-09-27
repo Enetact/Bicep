@@ -24,9 +24,12 @@ builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("S
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
+builder.Services.AddTransient<NetworkPipeline>();
 builder.Services.AddHttpClient<AdoGateway>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddHttpClient<AzureDiscovery>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddHttpClient<NetworkDiscovery>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 var app = builder.Build();
 app.UseWebSockets();
@@ -85,6 +88,15 @@ app.MapGet("/api/runs/{product}/{id:int}", async (HttpContext c, string product,
 app.MapGet("/api/preview/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Preview(Session(c), product, id, c.RequestAborted));
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
+app.MapGet("/api/network/scopes", async (NetworkDiscovery network, HttpContext c) => await network.Scopes(Session(c), c.RequestAborted));
+app.MapGet("/api/network/allocation", (NetworkPipeline network) => network.Status());
+app.MapPost("/api/network/review", async (NetworkAllocationRequest request, NetworkPipeline network, HttpContext c) => await network.Review(Session(c), request));
+app.MapPost("/api/network/queue/{ticket}", async (string ticket, NetworkPipeline network, HttpContext c) => await network.Queue(Session(c), ticket));
+app.MapPost("/api/network/discover", async (NetworkScopeRequest request, NetworkDiscovery network, HttpContext c) =>
+{
+    var s = Session(c); if (!await s.NetworkGate.WaitAsync(0)) throw new PortalException("A network scan is already active in this browser.", 409);
+    try { return await network.Discover(s, request, c.RequestAborted); } finally { s.NetworkGate.Release(); }
+});
 app.MapGet("/api/agent/status", async (HttpContext c, AgentWorkflows agents) => await agents.Status(Session(c), c.RequestAborted));
 app.MapGet("/api/agent/ahp", async (HttpContext c, AgentWorkflows agents) => await AgentHostChannel.Handle(c, Session(c), agents, options));
 app.MapPost("/api/agent/connect", async (HttpContext c, AgentWorkflows agents) => await agents.Connect(Session(c), c.RequestAborted));

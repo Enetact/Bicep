@@ -1,6 +1,8 @@
 # Connected discovery, workload and Preview diagrams
 
-Implemented locally on 27 September 2026. The connected diagram views render deterministic diagrams from evidence and reviewed component definitions. Separately, [Agent workflows](agent-workflows.md) can invoke Codex with the pinned Microsoft visualizer and a scoped MCP evidence snapshot; its Markdown/Mermaid is displayed as advisory source text. The deterministic views do not call a model. Neither path enables deployment targets or authorizes resource creation.
+**Agent diagram update, 27 September 2026:** generated Mermaid is now parsed as a restricted flowchart grammar and matched against frozen resource/relationship evidence before image-only SVG rendering. Agent interpretation remains separate from observed configuration, proposal and Azure Preview. Rejected output stays text-only; source and receipt downloads remain available. See [diagram validation and manual tests](network-discovery-and-diagrams.md).
+
+Implemented locally on 27 September 2026. The connected diagram views render deterministic diagrams from evidence and reviewed component definitions. Separately, [Agent workflows](agent-workflows.md) can invoke Codex with the pinned Microsoft visualizer and a scoped MCP evidence snapshot; its validated Mermaid graph is rendered as Agent interpretation, with advisory source retained. Rejected output remains text-only. The deterministic views do not call a model. Neither diagram path enables deployment targets or authorizes resource creation.
 
 ## Use the connected views
 

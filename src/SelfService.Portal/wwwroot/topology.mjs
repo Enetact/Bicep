@@ -28,11 +28,23 @@ export function observedTopology(report) {
     }
     for (const p of r.peerings || []) ref(r.id, p.remoteVnetId, 'configured peering; reachability unknown');
     ref(r.id, r.subnetId, 'configured subnet');
+    ref(r.id, r.virtualNetworkId, 'configured DNS link');
     for (const p of r.connections || []) ref(r.id, p.configured?.privateLinkServiceId, `configured private link (${p.state || 'unknown state'})`);
   }
-  return { title: 'Existing resources', subtitle: `${report.status} · ${report.generatedUtc || ''}`, nodes: [...nodes.values()], edges: [...edges.values()],
+  return { title: 'Observed configuration', subtitle: `${report.status} · ${report.generatedUtc || ''}`, nodes: [...nodes.values()], edges: [...edges.values()],
     note: `${report.coverage || ''} Configured relationships only; effective connectivity and DNS resolution are unverified. Failed or partial collections are unknown, never empty.`,
     coverage: (report.collections || []).map(c => `${c.name}: ${c.status} (${c.resources?.length || 0} records)${c.issue ? ' · ' + c.issue : ''}`) };
+}
+export function networkTopology(report) {
+  const nodes = new Map(), edges = new Map();
+  for (const item of report.reports || []) {
+    const graph = observedTopology(item);
+    for (const n of graph.nodes) if (!nodes.has(n.id) || nodes.get(n.id).status === 'Referenced only') nodes.set(n.id, n);
+    for (const e of graph.edges) edges.set(`${e.from}|${e.to}|${e.label}`, e);
+  }
+  return {title: 'Observed network configuration', subtitle: `${report.status} · ${report.generatedUtc}`, nodes: [...nodes.values()], edges: [...edges.values()],
+    note: report.membershipCoverage + ' Configured relationships are not proof of reachability or allocation rights.',
+    coverage: [...(report.issues || []), ...(report.reports || []).map(r => `${r.subscriptionId}: ${r.status}`)]};
 }
 export function proposedTopology(product, target, region, definition) {
   const root = `proposal:${product.id}:${target.environment}:${region}`;
@@ -57,7 +69,7 @@ export function previewTopology(report) {
 }
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&apos;' }[c]));
-const colors = { Create:'#137547', Modify:'#975400', Delete:'#b42318', Detach:'#b42318', NoChange:'#526270', Observed:'#006cbe', Proposed:'#7050ad', 'Referenced only':'#796538' };
+const colors = { Create:'#137547', Modify:'#975400', Delete:'#b42318', Detach:'#b42318', NoChange:'#526270', Observed:'#006cbe', 'Observed configuration':'#006cbe', Proposed:'#7050ad', 'Referenced only':'#796538' };
 export function graphSvg(nodes, edges, title, evidence = '') {
   const width = 16 + (Math.max(1, ...nodes.map(n => Math.min(n.level || 0, 3))) + 1) * 278, positions = new Map();
   // Bounded pages keep large subscriptions navigable and SVG size predictable.
@@ -95,7 +107,7 @@ export function renderTopology(host, graph) {
     img.onload = img.onerror = () => URL.revokeObjectURL(img.src); visual.replaceChildren(img);
     list.replaceChildren(); if (!slice.length) list.append(make('p', 'No matching nodes. Check collection coverage before interpreting absence.'));
     const ids = new Set(slice.map(n => n.id)); const labels = new Map(graph.nodes.map(n => [n.id, n.label]));
-    for (const n of slice) list.append(make('p', `${n.status} · ${n.label} · ${n.type}\n${n.id}\n${n.detail || ''}`));
+    for (const n of slice) list.append(make('p', `${n.status} · ${n.label} · ${n.type}\n${n.resourceId || n.id}\n${n.detail || ''}`));
     for (const e of graph.edges.filter(e => ids.has(e.from) || ids.has(e.to))) list.append(make('p', `${labels.get(e.from) || e.from} → ${labels.get(e.to) || e.to}: ${e.label}`, 'muted'));
   };
   filter.addEventListener('input', () => { page = 0; draw(); }); previous.addEventListener('click', () => { page--; draw(); }); next.addEventListener('click', () => { page++; draw(); });

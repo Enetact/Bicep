@@ -21,6 +21,14 @@ await test('Diagram module and connected panels are served', async () => {
   const html = await fetch(base + '/').then(r => r.text()); for (const id of ['observed-diagram','workload-diagram','preview-diagram','load-preview']) assert.ok(html.includes(`id="${id}"`));
 });
 await test('Unauthenticated Preview artifact read fails closed', async () => assert.equal((await fetch(base + '/api/preview/storage/44', { headers })).status, 401));
+await test('Network workspace and validated-agent diagram controls are real app assets', async () => {
+  const html=await fetch(base+'/').then(r=>r.text()); for(const id of ['network-mode','network-run','network-agent','agent-diagram','agent-mermaid','agent-receipt-download']) assert.ok(html.includes(`id="${id}"`));
+  assert.equal((await fetch(base+'/network.mjs')).status,200);
+});
+await test('Expanded discovery cannot run without configured identity', async () => {
+  assert.equal((await post('network/discover',{mode:'tenant'})).status,409);
+  assert.equal((await post('network/discover',{mode:'registered',subscriptionIds:[bootstrap.discoveryScopes[0].id]})).status,401);
+});
 await test('Agent readiness is explicit and no workflow starts on authentication checks', async () => {
   const s = await fetch(base + '/api/agent/status', { headers }).then(r => r.json());
   assert.equal(s.provider.ready, false); assert.equal(s.provider.model, 'gpt-6-astra'); assert.equal(s.provider.effort, 'high'); assert.equal(s.provider.speed, 'Standard');

@@ -19,6 +19,10 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public CancellationTokenSource? Login { get; set; }
     public Dictionary<string, PendingRequest> Pending { get; } = new();
     public AgentSession Agent { get; } = new();
+    public SemaphoreSlim NetworkGate { get; } = new(1, 1);
+    public ConcurrentDictionary<string, System.Text.Json.JsonElement> NetworkReports { get; } = new();
+    public long NetworkEpoch;
+    public ConcurrentDictionary<string, PendingNetworkAllocation> NetworkPending { get; } = new();
     public void Dispose() { Login?.Cancel(); _ = Agent.DisposeAsync(); /* MSAL cache becomes unreachable when session expires. */ }
 }
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
@@ -89,7 +93,7 @@ public sealed class BrowserIdentity : ITokenProvider
         try
         {
             if (s.Client is not null) foreach (var account in await s.Client.GetAccountsAsync()) await s.Client.RemoveAsync(account);
-            s.Account = null; s.Connected.Clear(); lock (s.Pending) s.Pending.Clear(); s.State = "Not connected"; s.Error = null;
+            s.Account = null; s.Connected.Clear(); Interlocked.Increment(ref s.NetworkEpoch); s.NetworkReports.Clear(); s.NetworkPending.Clear(); lock (s.Pending) s.Pending.Clear(); s.State = "Not connected"; s.Error = null;
         }
         finally { s.Gate.Release(); }
     }

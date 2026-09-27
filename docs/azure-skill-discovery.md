@@ -1,5 +1,7 @@
 # Bundled Azure Skills and browser-authenticated discovery
 
+**Scope update, 27 September 2026:** the individual skill-card inventory route described below remains subscription-scoped. The separate **Network discovery** workspace now adds selected subscriptions, management-group descendants and accessible-tenant scans, with optional scoped visualizer review. See [network contracts and manual tests](network-discovery-and-diagrams.md). The read-only collectors use ARM, not a general Azure MCP server.
+
 **Scope verification, 27 September 2026:** current discovery is restricted to one registered subscription and calls ARM directly. Tenant/management-group discovery and MCP execution are not wired into this route. The [verified capability assessment and proposed scope menu](plans/tenant-network-discovery.md) describe Resource Graph, optional MCP Insights, permission coverage and implementation gates.
 
 **Separate agent increment:** [Agent workflows](agent-workflows.md) now connects Codex Astra/High/Standard to a platform-owned MCP evidence bridge. Four bounded reviews can consume selected metadata, including the visualizer with an explicit resource-group selection. This does not turn every library discovery button into an agent or launch Microsoft's `azmcp` server. Live login/model acceptance remains pending.

@@ -1,5 +1,7 @@
 # Private networking self-service: analyzer, allocation and AI assistance
 
+**Delivered increment, 27 September 2026:** see [network delivery](../network-discovery-and-diagrams.md) for implemented scope collection, deterministic configuration checks, evidence-bound agent diagrams and a separately approved AVNM static-reservation/create-only spoke flow. This document retains the broader target architecture: effective probes, qualified connectivity profiles, automatic workload admission/binding, release and crash-repair orchestration are not claimed complete.
+
 **Cross-subscription discovery review, 27 September 2026:** the [tenant/management-group discovery design](tenant-network-discovery.md) verifies the current single-subscription boundary and defines the next read-only scope expansion. Broader collection and optional MCP integration remain unimplemented; an accessible-subscription scan is not proof of complete tenant visibility.
 
 **27 September implementation follow-up:** the portal now has a [browser-authenticated networking inventory adapter](../azure-skill-discovery.md) backed by fixed read-only ARM queries and explicit partial/unknown coverage. It collects visible configuration without developer-entered CIDRs. Enterprise coverage, subnet recommendation, IPAM reservation/allocation, effective connectivity and AI-assisted execution described below remain proposed.

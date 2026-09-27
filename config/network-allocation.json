@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "avnm-private-web": {
+      "enabled": false,
+      "poolId": "",
+      "tenantId": "",
+      "subscriptionId": "",
+      "routingDomain": "",
+      "owner": "",
+      "costCenter": "",
+      "location": "eastus2",
+      "addressCount": 256,
+      "integrationPrefixLength": 26,
+      "endpointPrefixLength": 27,
+      "exclusiveLockReviewed": false,
+      "externalPrefixesReconciled": false,
+      "reviewReference": ""
+    }
+  }
+}

@@ -281,6 +281,19 @@ check('Preview tooling failure is retained in the published README',()=>{
   assert(report.includes('Blocked before Azure validation'));assert(report.includes('self-service/pricing/usd-eastus2.json'));
   assert(report.includes('Azure changes unavailable'));assert(!fs.existsSync(path.join(fixture,'preview/azure/preview-plan.json')));
 });
+check('AVNM allocation is manual and defaults to read-only Plan without protected write stages',()=>{
+  const pipeline=document('azure-pipelines-network.yml'); assert.equal(pipeline.trigger,'none'); assert.equal(pipeline.pr,'none');
+  assert.equal(pipeline.parameters.find(p=>p.name==='operation').default,'Plan only');
+  const stages=expand('azure-pipelines-network.yml'); assert.deepEqual(stages.map(s=>s.stage),['Plan']);
+  assert.equal(json('config/network-allocation.json').profiles['avnm-private-web'].enabled,false);
+});
+check('AVNM exact-prefix creation follows reservation and a separate protected approval',()=>{
+  const stages=expand('azure-pipelines-network.yml',{operation:'Reserve and create network'});
+  assert.deepEqual(stages.map(s=>s.stage),['Plan','Reserve','PreviewNetwork','ApplyNetwork']);
+  for(const name of ['Reserve','ApplyNetwork']) {const s=stages.find(s=>s.stage===name); assert.match(s.condition,/refs\/heads\/main/); assert.equal(s.jobs[0].environment,'platform-network-allocation');}
+  assert.equal(document('azure-pipelines-network.yml').lockBehavior,'sequential');
+  assert.match(read('scripts/Invoke-ReservedNetwork.ps1'),/whatIfHash/); assert.match(read('scripts/Invoke-ReservedNetwork.ps1'),/No implicit adoption|no implicit adoption/);
+});
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');
 console.log(`PASS: ${cases.length} pipeline/infrastructure contracts; ${yamlFiles.length} YAML files. No Azure calls or ADO server expansion.`);

@@ -1,3 +1,4 @@
+import { renderTopology } from './topology.mjs';
 // AHP coordinates a browser-owned session. Typed HTTP requests execute bounded workflows.
 export async function connectAgentHost(csrf) {
   const socket = new WebSocket(`ws://${location.host}/api/agent/ahp`, ['platform-studio', csrf]);
@@ -21,12 +22,13 @@ export async function connectAgentHost(csrf) {
 
 export function setupAgents({ api, data, notice }) {
   const $ = id => document.getElementById(id);
-  let status, host, busy = false, timer;
+  let status, host, busy = false, timer, lastResult, networkReportId;
   const selected = () => status?.workflows.find(w => w.id === $('agent-workflow').value);
   const opts = (id, values) => { $(id).replaceChildren(...values.map(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.name; return o; })); };
   function fields() {
     const w = selected(); if (!w) return;
-    $('agent-network-fields').hidden = w.scope !== 'resource-group'; $('agent-workload-fields').hidden = w.scope === 'resource-group';
+    $('agent-network-fields').hidden = w.scope !== 'resource-group' || !!networkReportId; $('agent-workload-fields').hidden = w.scope === 'resource-group';
+    $('agent-network-snapshot').hidden = !networkReportId || w.scope !== 'resource-group'; $('agent-clear-snapshot').hidden = $('agent-network-snapshot').hidden;
     $('agent-preview-field').hidden = w.scope !== 'preview'; $('agent-limits').textContent = w.limits;
     $('agent-run').disabled = busy || !w.ready;
     $('agent-connect').disabled = busy || !status.installed || status.provider.ready || String(status.provider.state).includes('Waiting');
@@ -78,13 +80,23 @@ export function setupAgents({ api, data, notice }) {
     try {
       const result = await api('agent/run', { workflow: $('agent-workflow').value, subscriptionId: $('agent-subscription').value,
         resourceGroup: $('agent-group').value, product: $('agent-product').value, environment: $('agent-environment').value,
-        region: $('agent-region').value, previewRunId: Number($('agent-preview').value) || null });
+        region: $('agent-region').value, previewRunId: Number($('agent-preview').value) || null,
+        networkReportId: selected()?.scope === 'resource-group' ? networkReportId : null });
       $('agent-review').textContent = result.review; $('agent-receipt').textContent = JSON.stringify(result.receipt, null, 2);
+      lastResult = result; $('agent-diagram').replaceChildren();
+      $('agent-diagram-status').textContent = result.diagram ? `${result.diagram.status}: ${result.diagram.issue}` : 'This advisory workflow does not produce an observed-resource diagram.';
+      if (result.diagram?.status === 'Validated') renderTopology($('agent-diagram'), result.diagram);
+      $('agent-mermaid').disabled = !result.diagram?.source;
       $('agent-saved').textContent = `Saved: ${result.path}. Advisory output; no deployment approval.`; $('agent-result').hidden = false;
     } finally { busy = false; $('agent-cancel').hidden = true; await refresh(); }
   });
   action('agent-cancel', () => api('agent/cancel', {}));
   action('agent-download', () => { const url = URL.createObjectURL(new Blob([$('agent-review').textContent], { type: 'text/markdown' })); const a = document.createElement('a'); a.href = url; a.download = 'agent-review.md'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); });
+  const save = (value, name, type) => { const url = URL.createObjectURL(new Blob([value], {type})); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+  $('agent-mermaid').addEventListener('click', () => { if (lastResult?.diagram?.source) save(lastResult.diagram.source, 'agent-diagram.mmd', 'text/plain'); });
+  $('agent-receipt-download').addEventListener('click', () => { if (lastResult) save(JSON.stringify(lastResult.receipt, null, 2), 'agent-receipt.json', 'application/json'); });
+  window.addEventListener('platform-network-report', event => { networkReportId = event.detail.id; $('agent-network-snapshot').textContent = 'Using your latest network discovery snapshot. Review sends this projected evidence to Codex; it does not scan again or authorize changes.'; $('agent-workflow').value = 'visualize'; fields(); });
+  $('agent-clear-snapshot').addEventListener('click', () => {networkReportId = null; fields();});
   window.addEventListener('pagehide', () => { clearInterval(timer); host?.close(); });
   return refresh;
 }

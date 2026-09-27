@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+**Network capability update, 27 September 2026:** Network discovery is a separate portal workspace with registered/selected/management-group/accessible-tenant scopes and an AVNM allocation request menu. Agent Mermaid can now render after evidence/grammar validation. The separate `azure-pipelines-network.yml` does not add a workload product or enable any of the 28 targets. See [contracts and tests](network-discovery-and-diagrams.md).
+
 **27 September 2026 expansion:** seven registered types and 28 disabled profiles now include Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. Their complete source/menus and shared product adapter are described in [workload onboarding](workload-onboarding.md). The two original adapter descriptions below retain their workload-specific behavior. New ADO definitions and Azure acceptance have not been established locally.
 
 Source review: **27 September 2026**. Seven workload types and 28 environment targets are registered; all targets have `enabled: false`. Local tests and supplied ADO discovery/blocked-preview logs establish partial verification. No successful Azure workload deployment is established by the evidence reviewed. See [current status](completion-status.md).
