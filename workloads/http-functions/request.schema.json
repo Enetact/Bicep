@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workloadName",
+    "environment",
+    "region",
+    "workloadType"
+  ],
+  "properties": {
+    "workloadName": {
+      "const": "httpapi"
+    },
+    "environment": {
+      "enum": [
+        "dev",
+        "qa",
+        "uat",
+        "prod"
+      ]
+    },
+    "region": {
+      "enum": [
+        "eastus2"
+      ]
+    },
+    "workloadType": {
+      "const": "http-functions"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "key-vault",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "keyvault",
+  "environmentName": "dev",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-keyvault-dev",
+  "parameterFile": "workloads/key-vault/environments/main.dev.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "keyvault-dev",
+  "smokePrefix": "smoke/"
+}

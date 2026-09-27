@@ -13,7 +13,8 @@ function Read-StackConfiguration {
     if ([guid]::Parse($s.subscriptionId) -eq [guid]::Empty) { throw 'Template Spec subscription is required.' }
     foreach($key in @('resourceGroup','name','publisherServiceConnection','publisherEnvironment','publisherAgentPool')) { if ($s[$key] -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$') { throw "Invalid Template Spec binding: $key" } }
     if ($s.location -cnotmatch '^[a-z0-9]+$') { throw 'Invalid publication region.' }
-    if ($WorkloadType -eq 'logic-app-event-grid') { $c.templateSpec.name='logic-app-event-grid' } elseif ($WorkloadType -ne 'blob-transfer') { throw 'Unsupported stack workload.' }
+    $definition=Get-WorkloadDefinition $WorkloadType
+    if($WorkloadType -ne 'blob-transfer'){$c.templateSpec.name=$definition.templateSpecName}
     return $c
 }
 function Assert-StackTemplate($Template) {
@@ -92,7 +93,7 @@ function Get-WorkloadStack($Bundle) {
 function Assert-StackManagedId($Bundle,[string]$Id) {
     $rg="/subscriptions/$($Bundle.target.subscriptionId)/resourceGroups/$($Bundle.target.resourceGroup)"
     if ($Id -ieq $rg -or $Id.StartsWith($rg+'/providers/',[StringComparison]::OrdinalIgnoreCase)) { return }
-    if ((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { throw 'Logic App stack cannot own resources outside its dedicated resource group.' }
+    if ((Get-TargetWorkloadType $Bundle.target) -ne 'blob-transfer') { throw 'Workload stack cannot own resources outside its dedicated resource group.' }
     # Only workload-created grants (not destination storage itself) cross this lifecycle boundary.
     $p=$Bundle.parameters.parameters
     $destination="/subscriptions/$($p.destinationSubscriptionId.value)/resourceGroups/$($p.destinationResourceGroupName.value)"

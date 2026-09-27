@@ -14,7 +14,7 @@ try {
         $p.Refresh();if($p.HasExited){throw 'Package exited before becoming ready. Read package-test-error.log.'}
         try {$ready=Invoke-RestMethod "http://localhost:$Port/api/bootstrap" -TimeoutSec 1;break}catch{Start-Sleep -Milliseconds 250}
     }
-    if(!$ready -or $ready.architecture -ne $ExpectedArchitecture -or $ready.products.Count -ne 2 -or !$ready.packagedCatalog){throw 'Package architecture/bundled catalog readiness failed.'}
+    if(!$ready -or $ready.architecture -ne $ExpectedArchitecture -or $ready.products.Count -ne 7 -or !$ready.packagedCatalog){throw 'Package architecture/bundled catalog readiness failed.'}
     $page=Invoke-WebRequest "http://localhost:$Port/" -TimeoutSec 3
     if($page.StatusCode -ne 200 -or $page.Content -notmatch 'Platform Studio'){throw 'Packaged UI missing.'}
     $old=$env:PORTAL_TEST_URL

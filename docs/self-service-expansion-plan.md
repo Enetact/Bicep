@@ -1,6 +1,8 @@
 # Self-service expansion and enhancement plan
 
-**Status: initial offline reporting delivered; remaining roadmap proposed.** Reviewed 26 September 2026. Phased implementation is authorized by the repository operator; resource creation, deletion, new permissions, spending and live acceptance still follow their explicit target/profile gates. Priorities below are not delivery dates or claims of completed future work.
+**27 September 2026 product delivery:** Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker now have source compositions, typed adapters, dedicated Discover/Deploy menus, portal registration and disabled environment profiles. See [onboarding and remaining acceptance](workload-onboarding.md). This completes their initial source implementation, not price qualification, platform setup or Azure acceptance. Automatic networking allocation and the remaining candidate products stay proposed.
+
+**Status: offline reporting, portal discovery and five additional workload implementations delivered; remaining roadmap proposed.** Reviewed 27 September 2026. Phased implementation is authorized by the repository operator; resource creation, deletion, new permissions, spending and live acceptance still follow their explicit target/profile gates. Priorities below are not delivery dates or claims of completed future work.
 
 **Implementation readiness:** the [final design review and validation plan](plans/enhanced-self-service-validation.md) is the controlling implementation sequence. Offline contracts/reporting are ready to build; automatic allocation and live promotion require the listed ADO, IPAM and Azure acceptance gates. The review corrects approval-stage timing and consolidates evidence, compatibility and recovery requirements.
 
@@ -8,13 +10,13 @@
 
 **27 September 2026 increment:** the local portal now includes all 42 pinned Microsoft skill definitions with **No pipeline associated yet** labels and browser-authenticated, read-only Azure resource inventory. The networking profile collects configured topology without requiring address inputs; occupancy, effective connectivity, IPAM authority and allocation remain unknown or proposed. This advances the discovery experience, not the number of registered deployment products. See the [implemented discovery contract](azure-skill-discovery.md).
 
-**Implementation follow-up:** initial saved-evidence analysis/reporting and four local review skills are delivered; see [progress and boundaries](plans/implementation-progress.md). The broader product, networking allocation and operational offerings below remain proposed. User authorization to proceed with phased implementation does not establish completion of their technical/live acceptance gates.
+**Implementation follow-up:** initial saved-evidence analysis/reporting and four local review skills are delivered; see [progress and boundaries](plans/implementation-progress.md). The five new product implementations are documented above; broader product, networking allocation and operational offerings remain proposed. User authorization to proceed with phased implementation does not establish completion of their technical/live acceptance gates.
 
 Build a catalog where developers choose a supported product, understand its resources and costs, select an approved environment and review a plan before deployment. Each product must define ownership, dependencies, identity, application delivery, evidence, support and retirement.
 
 Preserve GitHub source, ADO native menus, separate Discover runs, Preview/Deploy, input hashes, local Bicep modules, Template Specs, Deployment Stacks, conservative change gates and runtime-specific readiness. Keep module registry work out of the critical path. The [catalog](self-service-catalog.md) and [status matrix](completion-status.md) describe the shipped baseline.
 
-The first limitation is architectural: `Get-WorkloadDefinition`, intent validation, menu generation, qualification and lifecycle dispatch contain explicit branches for two types. A new `config/workloads.json` entry is insufficient. Refactor under regression coverage before multiplying products.
+The original two adapters are retained. Five new offerings use a shared, code-allowlisted product adapter, typed release bundles and explicit infrastructure-only versus Functions package lifecycles. A new `config/workloads.json` entry alone remains insufficient: composition, contracts, menus, tests, pricing and acceptance must be added together as described in the [onboarding guide](workload-onboarding.md).
 
 ## Analysis capabilities using Microsoft Azure skills
 
@@ -26,7 +28,7 @@ The [platform-specific skills and MCP contracts](plans/platform-mcp-skills.md) d
 
 ## Candidate products
 
-Every row is a proposed offering, not an existing menu. Start with a small pilot set based on developer demand. Cost drivers below are inputs to future estimates, not price quotes.
+The Storage, secrets/Key Vault, Observability, HTTP Functions and Service Bus rows now have an initial implementation; their remaining acceptance criteria remain open. Other rows are proposed offerings. Cost drivers below are inputs to reviewed estimates, not price quotes.
 
 | Priority / product | Proposed resources | Dependencies and boundaries | Acceptance / cost drivers |
 |---|---|---|---|

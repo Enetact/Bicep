@@ -1,0 +1,6 @@
+{
+  "workloadName": "httpapi",
+  "environment": "dev",
+  "region": "eastus2",
+  "workloadType": "http-functions"
+}

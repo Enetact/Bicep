@@ -2,6 +2,11 @@
   "discoveryPipelineName": "Enetact.Bicep",
   "workloadDiscoveryPipelineNames": {
     "blob-transfer": "Discover - Blob copy",
-    "logic-app-event-grid": "Discover - Event flow"
+    "logic-app-event-grid": "Discover - Event flow",
+    "private-storage": "Discover - Private Storage Workspace",
+    "key-vault": "Discover - Key Vault",
+    "observability": "Discover - Observability",
+    "http-functions": "Discover - HTTP Functions API",
+    "service-bus-worker": "Discover - Service Bus worker"
   }
 }

@@ -4,6 +4,13 @@ import { createHash } from 'node:crypto';
 export const RULE_VERSION = '1.0.0';
 export const MAX_RESOURCES = 5000;
 const kinds = new Map([[1, ['blob-transfer-discovery', 'blob-transfer']], [2, ['workload-discovery', 'logic-app-event-grid']]]);
+const productProviders = {
+  'private-storage': ['Microsoft.Storage','Microsoft.Network','Microsoft.Insights'],
+  'key-vault': ['Microsoft.KeyVault','Microsoft.Network','Microsoft.Insights'],
+  'observability': ['Microsoft.Insights','Microsoft.OperationalInsights'],
+  'http-functions': ['Microsoft.Web','Microsoft.Storage','Microsoft.ManagedIdentity','Microsoft.Insights','Microsoft.Network'],
+  'service-bus-worker': ['Microsoft.Web','Microsoft.Storage','Microsoft.ManagedIdentity','Microsoft.Insights','Microsoft.Network','Microsoft.ServiceBus']
+};
 const guid = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const own = (v, k) => Object.hasOwn(v ?? {}, k);
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -30,9 +37,9 @@ function resourceType(id) { const p = id.split('/'); return p.length === 5 ? 'mi
 export function analyzeDiscovery({ manifest, inventory, inventoryBytes, manifestBytes, workload, environment, evaluatedUtc }) {
   requireValue(object(manifest) && object(inventory), 'Expected manifest and inventory objects.');
   const kind = kinds.get(manifest.schemaVersion);
-  requireValue(kind && manifest.kind === kind[0] && (manifest.schemaVersion !== 2 || manifest.workloadType === kind[1]), 'Unsupported discovery schema or workload.');
-  const type = kind[1];
-  requireValue(inventory.schemaVersion === 1 && inventory.readOnly === true && (!own(inventory, 'workloadType') || inventory.workloadType === type) && (type !== 'logic-app-event-grid' || inventory.workloadType === type), 'Unsupported inventory contract.');
+  requireValue(kind && manifest.kind === kind[0] && (manifest.schemaVersion !== 2 || manifest.workloadType === kind[1] || own(productProviders, manifest.workloadType)), 'Unsupported discovery schema or workload.');
+  const type = manifest.schemaVersion === 2 ? manifest.workloadType : kind[1];
+  requireValue(inventory.schemaVersion === 1 && inventory.readOnly === true && (!own(inventory, 'workloadType') || inventory.workloadType === type) && (type === 'blob-transfer' || inventory.workloadType === type), 'Unsupported inventory contract.');
   requireValue(typeof manifest.inventorySha256 === 'string' && manifest.inventorySha256 === digest(inventoryBytes), 'Inventory bytes do not match the manifest.');
   requireValue(guid.test(manifest.subscriptionId) && manifest.subscriptionId.toLowerCase() === inventory.subscription?.id?.toLowerCase(), 'Discovery subscription mismatch.');
   const instance = identifier(manifest.selection?.workload, 'workload selection');
@@ -98,7 +105,7 @@ export function analyzeDiscovery({ manifest, inventory, inventoryBytes, manifest
   complete = query('privateDnsZones', inventory.privateDnsQuery, zones.length, 'inventory.json#/privateDnsQuery') && complete;
   const seenZones = new Set();
   zones.forEach((z, i) => { const id = resource(z.id); requireValue(!seenZones.has(id), 'Duplicate DNS resource.'); seenZones.add(id); addNode(id, 'Observed', `inventory.json#/privateDnsZones/${i}`); });
-  if (type === 'logic-app-event-grid') {
+  if (type !== 'blob-transfer') {
     const resources = array(inventory.resources, 'resource collection');
     complete = query('resources', inventory.resourceQuery, resources.length, 'inventory.json#/resourceQuery') && complete;
     // A subscription catalog contains unrelated workloads. Only selected prerequisites
@@ -107,7 +114,7 @@ export function analyzeDiscovery({ manifest, inventory, inventoryBytes, manifest
     const seen = new Set();
     resources.forEach((r, i) => { const id = resource(r.id); requireValue(!seen.has(id), 'Duplicate resource catalog entry.'); seen.add(id); if (referenced.has(id) || nodes.has(id)) addNode(id, 'Observed', `inventory.json#/resources/${i}`); });
     const providers = array(inventory.providers, 'provider collection');
-    const required = ['Microsoft.Web', 'Microsoft.Storage', 'Microsoft.EventGrid', 'Microsoft.Insights', 'Microsoft.OperationalInsights'];
+    const required = productProviders[type] ?? ['Microsoft.Web', 'Microsoft.Storage', 'Microsoft.EventGrid', 'Microsoft.Insights', 'Microsoft.OperationalInsights'];
     for (const ns of required) {
       const matches = providers.filter(p => p.namespace === ns);
       addFinding(`provider.${ns}`, matches.length === 1 && matches[0].registrationState === 'Registered' ? 'pass' : 'unknown', 'Saved provider registration is required but does not establish permissions or capacity.', ['inventory.json#/providers']);

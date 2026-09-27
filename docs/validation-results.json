@@ -1,44 +1,67 @@
 {
   "currentDocumentationReview": {
-    "date": "2026-09-26",
-    "kind": "source-and-documentation-review",
-    "implementationSourceCommit": "9da5af5b4c3260c2d1061f97895001770917a107",
-    "scope": "Two workloads; previous fields below are dated historical snapshots, primarily Blob copy unless named otherwise.",
+    "date": "2026-09-27",
+    "kind": "five-product-source-implementation-and-local-qualification",
+    "scope": "Seven workload types. Local source/test evidence; no live Azure acceptance.",
     "workloadTypes": [
       "blob-transfer",
-      "logic-app-event-grid"
+      "logic-app-event-grid",
+      "private-storage",
+      "key-vault",
+      "observability",
+      "http-functions",
+      "service-bus-worker"
     ],
-    "registeredTargets": 8,
+    "registeredTargets": 28,
     "enabledTargets": 0,
-    "dedicatedMenuFiles": 4,
+    "dedicatedMenuFiles": 14,
     "dedicatedDeployStages": [
       "Preview",
       "Deploy"
     ],
     "defaultMode": "Preview only",
-    "genericCompatibilityDisabledBehavior": "SetupOnly",
-    "devEventFlowOnboarding": "Configured; 19 September local validation passed with resolved discovery; Azure acceptance unverified.",
-    "latestSuppliedAdoEvidence": {
-      "previewRunId": 23,
-      "discoveryRunId": 21,
-      "result": "Discovery verified; five onboarding fields blocked before Azure What-If. Later local configuration resolved those fields."
-    },
-    "successfulAzureWorkloadDeploymentEstablished": false,
+    "genericAdditionalProductAdapterImplemented": true,
     "applicationPromotionImplemented": false,
-    "genericAdditionalProductAdapterImplemented": false,
+    "successfulAzureWorkloadDeploymentEstablished": false,
     "newVerification": {
-      "catalogTargetsValidated": 8,
-      "pipelineContractsPassed": 46,
-      "yamlFilesParsed": 20,
+      "productContractsPassed": 91,
+      "productRuntimeTestsPassed": 10,
+      "portalTestsPassed": 46,
+      "pipelineContractsPassed": 131,
+      "yamlFilesParsed": 31,
+      "discoveryContractsPassed": 80,
       "adoServerExpansionPerformed": false,
-      "applicationTestsRerun": false,
-      "runtimeTestsRerun": false,
-      "azureCallsPerformed": false
+      "azureCallsPerformed": false,
+      "packages": {
+        "path": "artifacts/portal-packages/20260927-105645",
+        "arm64": "14 local HTTP checks; native ARM64",
+        "x64": "14 local HTTP checks; ARM emulation",
+        "nativeX64HardwareTested": false
+      },
+      "productEvidence": "artifacts/product-tests/aa0f6427cf2642a4afd1de182a7452ed/results.json",
+      "fullProjectSuitePassed": true,
+      "fullProjectLog": "artifacts/product-full-verification.log",
+      "allSevenWorkloadsCompiled": true,
+      "blobRuntimeTestsPassed": 18,
+      "blobEmulatorTestsSkipped": 15,
+      "reportedVulnerableFunctionDependencies": 0,
+      "reportedVulnerableProductDependencies": 0,
+      "localHttpChecks": 14,
+      "requestExamplesValidated": 5
     },
     "currentStatus": "docs/completion-status.md",
-    "catalogGuide": "docs/self-service-catalog.md",
+    "onboardingGuide": "docs/workload-onboarding.md",
     "expansionPlan": "docs/self-service-expansion-plan.md",
-    "expansionPlanStatus": "Initial offline analysis/reporting implemented; later product/network/allocation work remains proposed."
+    "remaining": [
+      "Platform onboarding",
+      "Reviewed cost snapshots",
+      "ADO definitions and protected resources",
+      "Live Entra and Azure acceptance",
+      "Product operational drills",
+      "Network allocation and immutable app promotion"
+    ],
+    "sourceBaseCommit": "6e36a5822d0d3f7c26433ff3c58fa8a2dc15b3ed",
+    "sourceState": "Uncommitted working-tree implementation"
   },
   "design": "external-upload-polling-dispatcher-storage-queue-worker",
   "eventGrid": false,
@@ -431,5 +454,48 @@
     "deploymentTargetsEnabled": 0,
     "fullProjectSuiteRerun": false,
     "guide": "docs/local-portal.md"
-  }
+  },
+  "documentationReviewHistory": [
+    {
+      "date": "2026-09-26",
+      "kind": "source-and-documentation-review",
+      "implementationSourceCommit": "9da5af5b4c3260c2d1061f97895001770917a107",
+      "scope": "Two workloads; previous fields below are dated historical snapshots, primarily Blob copy unless named otherwise.",
+      "workloadTypes": [
+        "blob-transfer",
+        "logic-app-event-grid"
+      ],
+      "registeredTargets": 8,
+      "enabledTargets": 0,
+      "dedicatedMenuFiles": 4,
+      "dedicatedDeployStages": [
+        "Preview",
+        "Deploy"
+      ],
+      "defaultMode": "Preview only",
+      "genericCompatibilityDisabledBehavior": "SetupOnly",
+      "devEventFlowOnboarding": "Configured; 19 September local validation passed with resolved discovery; Azure acceptance unverified.",
+      "latestSuppliedAdoEvidence": {
+        "previewRunId": 23,
+        "discoveryRunId": 21,
+        "result": "Discovery verified; five onboarding fields blocked before Azure What-If. Later local configuration resolved those fields."
+      },
+      "successfulAzureWorkloadDeploymentEstablished": false,
+      "applicationPromotionImplemented": false,
+      "genericAdditionalProductAdapterImplemented": false,
+      "newVerification": {
+        "catalogTargetsValidated": 8,
+        "pipelineContractsPassed": 46,
+        "yamlFilesParsed": 20,
+        "adoServerExpansionPerformed": false,
+        "applicationTestsRerun": false,
+        "runtimeTestsRerun": false,
+        "azureCallsPerformed": false
+      },
+      "currentStatus": "docs/completion-status.md",
+      "catalogGuide": "docs/self-service-catalog.md",
+      "expansionPlan": "docs/self-service-expansion-plan.md",
+      "expansionPlanStatus": "Initial offline analysis/reporting implemented; later product/network/allocation work remains proposed."
+    }
+  ]
 }

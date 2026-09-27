@@ -5,6 +5,7 @@
 . "$PSScriptRoot/workload-common.ps1"
 . "$PSScriptRoot/logicapp-service-common.ps1"
 . "$PSScriptRoot/logic-prerequisites-common.ps1"
+. "$PSScriptRoot/product-service-common.ps1"
 
 function Resolve-ServiceOrganizationUrl([string]$OrganizationUrl) {
     $value=$OrganizationUrl.Trim()
@@ -75,15 +76,16 @@ function Assert-ServiceTarget($Target, [string]$Workload, [string]$EnvironmentNa
     foreach ($key in @('resourceGroup','serviceConnection','agentPool','deploymentEnvironment')) {
         if ($Target[$key] -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$' -or $Target[$key] -match 'REPLACE') { throw "Invalid target field: $key" }
     }
-    if ($Target.parameterFile -cnotmatch '^(workloads/(blob-transfer|logic-app-event-grid)/environments|self-service/parameters)/[a-zA-Z0-9/._-]+\.bicepparam$') { throw 'Parameter file must be in an approved source directory.' }
-    if ((Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid' -and !$Target.parameterFile.StartsWith('workloads/logic-app-event-grid/environments/')) { throw 'Logic App parameter path mismatch.' }
-    if ((Get-TargetWorkloadType $Target) -eq 'blob-transfer' -and $Target.parameterFile.StartsWith('workloads/logic-app-event-grid/')) { throw 'Blob parameter path mismatch.' }
+    $type=Get-TargetWorkloadType $Target;$null=Get-WorkloadDefinition $type
+    $pattern='^workloads/'+[regex]::Escape($type)+'/environments/[a-zA-Z0-9/._-]+\.bicepparam$'
+    if($Target.parameterFile -cnotmatch $pattern -and !($type -eq 'blob-transfer' -and $Target.parameterFile -cmatch '^self-service/parameters/[a-zA-Z0-9/._-]+\.bicepparam$')){throw 'Parameter file must belong to the selected workload.'}
     $null = Resolve-ServicePath (Get-ProjectRoot) $Target.parameterFile
     if ($Target.smokePrefix -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9/_-]{0,199}/$') { throw 'Invalid synthetic smoke prefix.' }
     if ($Target.schemaVersion -in @(2,3)) {
         foreach ($key in @('subscriptionAlias','networkProfile')) { if ($Target[$key] -cnotmatch '^[a-z0-9][a-z0-9-]{0,39}$') { throw "Invalid catalog key: $key" } }
         $allowed=@('namingSuffix','networkMode','existingNetwork','location','deploymentPrincipalObjectId','vnetAddressPrefix','integrationSubnetPrefix','privateEndpointSubnetPrefix','existingLogAnalyticsWorkspaceId')
         if ((Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid') { $allowed=@('location','integrationSubnetId','privateEndpointSubnetId','privateDnsZoneIds','existingLogAnalyticsWorkspaceId','deploymentPrincipalObjectId','trustedServiceException','runtimeStorageCredentialException') }
+        if(Test-ProductWorkload (Get-TargetWorkloadType $Target)){$allowed=@(Get-ProductRequiredParameters (Get-TargetWorkloadType $Target)|Where-Object {$_ -notin @('workload','environmentName')})}
         if ($Target.parameterOverrides -isnot [Collections.IDictionary] -or @($Target.parameterOverrides.Keys | Where-Object { $_ -notin $allowed }).Count) { throw 'Unapproved profile parameter override.' }
     }
 }
@@ -106,6 +108,7 @@ function Get-ServiceParameter($Parameters, [string]$Name, $Default = $null) {
     return $Default
 }
 function Assert-ServiceParameters($Target, $Parameters) {
+    if(Test-ProductWorkload (Get-TargetWorkloadType $Target)){Assert-ProductParameters $Target $Parameters;return}
     if ((Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid') { Assert-LogicParameters $Target $Parameters; return }
     foreach ($key in @('workload','environmentName','owner','costCenter','destinationSubscriptionId','destinationResourceGroupName','destinationStorageAccountName','destinationContainerName','destinationIsHnsEnabled')) {
         if (!$Parameters.Contains($key) -or $null -eq $Parameters[$key].value -or [string]$Parameters[$key].value -eq '') { throw "Missing explicit workload parameter: $key" }
@@ -225,6 +228,7 @@ function Test-ServiceNetwork($Bundle) {
 }
 function Read-ServiceBundle([string]$Directory) {
     $receipt = Get-Content (Join-Path $Directory 'bundle.json') -Raw | ConvertFrom-Json -AsHashtable
+    if ($receipt.schemaVersion -eq 3) { return Read-ProductBundle $Directory $receipt }
     if ($receipt.schemaVersion -eq 2) { return Read-LogicBundle $Directory $receipt }
     if ($receipt.schemaVersion -ne 1 -or $receipt.releaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$') { throw 'Invalid bundle receipt.' }
     $expected = @('main.json','parameters.json','target.json','application.zip','functions.metadata')
@@ -313,6 +317,7 @@ function Get-ServiceChanges($Report, $Bundle=$null) {
     return ,$changes
 }
 function New-ServicePlan($Bundle, [ValidateSet('Foundation','Release')][string]$Phase, [string]$Directory) {
+    if(Test-ProductWorkload (Get-TargetWorkloadType $Bundle.target)){return New-ProductPlan $Bundle $Phase $Directory}
     if ((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { return New-LogicPlan $Bundle $Phase $Directory }
     New-Item -ItemType Directory -Path $Directory -Force | Out-Null
     Test-ServiceDestination $Bundle
@@ -446,6 +451,7 @@ function Invoke-ServiceSmoke($Bundle, $Outputs, [string]$EvidenceDirectory) {
     return Get-Content $smokeArgs.EvidencePath -Raw | ConvertFrom-Json -AsHashtable
 }
 function Invoke-ServiceApply($Bundle, [string]$Phase, [string]$PlanDirectory, [string]$EvidenceDirectory) {
+    if(Test-ProductWorkload (Get-TargetWorkloadType $Bundle.target)){return Invoke-ProductApply $Bundle $Phase $PlanDirectory $EvidenceDirectory}
     if ((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid') { return Invoke-LogicApply $Bundle $Phase $PlanDirectory $EvidenceDirectory }
     $approved=Get-Content (Join-Path $PlanDirectory plan.json) -Raw | ConvertFrom-Json -AsHashtable
     $current=New-ServicePlan $Bundle $Phase (Join-Path $EvidenceDirectory recheck)

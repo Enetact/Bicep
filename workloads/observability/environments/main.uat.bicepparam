@@ -1,0 +1,9 @@
+using '../main.bicep'
+param workload = 'observe'
+param environmentName = 'uat'
+param location = 'eastus2'
+param owner = 'REPLACE_OWNER'
+param costCenter = 'REPLACE_COST_CENTER'
+param existingLogAnalyticsWorkspaceId = ''
+param deploymentPrincipalObjectId = ''
+param alertActionGroupIds = []

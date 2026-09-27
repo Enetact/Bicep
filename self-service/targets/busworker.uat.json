@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "service-bus-worker",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "busworker",
+  "environmentName": "uat",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-busworker-uat",
+  "parameterFile": "workloads/service-bus-worker/environments/main.uat.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "busworker-uat",
+  "smokePrefix": "smoke/"
+}

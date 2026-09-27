@@ -1,5 +1,7 @@
 # Subscription discovery, dropdowns and standard names
 
+**New product discovery:** the five [additional offerings](workload-onboarding.md) use discovery manifest v2 with a registered workload type, required-provider status and resource inventory. Their saved artifacts feed only the matching product. A successful missing owned resource can appear as Create during Preview; absent or unreadable shared subnets, DNS or monitoring cannot be silently created or adopted.
+
 The shared Discover pipeline now adds a [saved-evidence analysis report](self-service-analysis.md) under `subscription-discovery/analysis/`. It shows coverage, reported prerequisite actions and resource containment diagrams; it is not authenticated handoff approval or private-connectivity evidence. Local generation is verified; live ADO rendering remains pending.
 
 Current guide reviewed 26 September 2026. There are two operations, Discover and Deploy, with a dedicated definition for each workload. See the [catalog](self-service-catalog.md) for the four YAML files and [current verification status](completion-status.md). The generic pair remains a compatibility route.

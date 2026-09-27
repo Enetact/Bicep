@@ -1,6 +1,8 @@
 # Reusable resource modules
 
-These modules compose the two [registered products](../docs/self-service-catalog.md). They are not independently selectable catalog items; new products require adapter, configuration, test and readiness work described in the [expansion plan](../docs/self-service-expansion-plan.md).
+The five-product expansion also adds [Key Vault](security/key-vault/README.md), [Service Bus](messaging/service-bus/README.md), [Observability](monitoring/observability/README.md) and [private Functions hosting](compute/private-functions/README.md). Together with the existing modules these compose seven registered offerings. Shared networking/DNS/workspaces remain externally owned; [onboarding](../docs/workload-onboarding.md) documents limits and acceptance.
+
+These modules compose the [registered products](../docs/self-service-catalog.md). They are not independently selectable catalog items; new products require adapter, configuration, test and readiness work described in the [expansion plan](../docs/self-service-expansion-plan.md).
 
 These are locally maintained, private-by-default modules, not Azure Verified Modules or published registry packages. They receive explicit inputs and contain no environment files or target catalog lookups.
 

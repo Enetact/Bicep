@@ -122,7 +122,16 @@ action('analyze', async () => {
 try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
-  $('products').replaceChildren(...data.products.map((p, i) => { const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top'); top.append(make('div', i ? '⌁' : '⇄', 'card-icon'), make('span', i ? 'EVENT DRIVEN' : 'FILE TRANSFER', 'tag')); card.append(top, make('h2', p.name), make('p', p.summary, 'summary')); const details = make('details'); details.append(make('summary', 'Dependencies & estimated costs'), make('p', p.requirements), make('p', p.costs)); const button = make('button', 'Configure workload →', 'primary'); button.addEventListener('click', () => showProduct(p)); card.append(details, button); return card; }));
+  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'] };
+  $('products').replaceChildren(...data.products.map(p => {
+    const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top');
+    const [icon, label] = productLabels[p.id] ?? ['◈', 'WORKLOAD'];
+    top.append(make('div', icon, 'card-icon'), make('span', label, 'tag'));
+    card.append(top, make('h2', p.name), make('p', p.summary, 'summary'));
+    const details = make('details'); details.append(make('summary', 'Dependencies & estimated costs'), make('p', p.requirements), make('p', p.costs));
+    const button = make('button', 'Configure workload →', 'primary'); button.addEventListener('click', () => showProduct(p));
+    card.append(details, button); return card;
+  }));
   drawSkills();
   await refreshAuth(); if (auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => notice(e.message, true)), 2000);
 } catch (e) { notice(e.message, true); }

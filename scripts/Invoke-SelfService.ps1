@@ -17,7 +17,8 @@ try {
     if ($bundle.receipt.sourceCommit -cne $env:BUILD_SOURCEVERSION) { throw 'Artifact provenance does not match this run.' }
     Assert-StackTooling
     $receipt.target=$target; $receipt.releaseId=$bundle.receipt.releaseId; $receipt.bundleHash=$bundle.hash
-    $receipt.packageSha256=$bundle.receipt.files['application.zip']; $receipt.sourceCommit=$bundle.receipt.sourceCommit
+    if($bundle.receipt.files.Contains('application.zip')){$receipt.packageSha256=$bundle.receipt.files['application.zip']}
+    $receipt.sourceCommit=$bundle.receipt.sourceCommit
     $receipt.stackId=$bundle.stack.stackId; $receipt.templateSpecId=$bundle.stack.templateSpecId; $receipt.templateHash=$bundle.stack.templateHash
     $phase=if ($Action.EndsWith('Foundation')) {'Foundation'} else {'Release'}
     if ($Action.StartsWith('Plan')) {
@@ -29,6 +30,7 @@ try {
         $result=Invoke-ServiceApply $bundle $phase $PlanDirectory $EvidenceDirectory
         $receipt.status=$result.status; $receipt.ready=$result.ready; $receipt.outputs=$result.outputs
         if ($result.Contains('smoke')) { $receipt.smoke=$result.smoke }
+        if ($result.Contains('acceptance')) { $receipt.acceptance=$result.acceptance }
     }
 } catch {
     $receipt.status='Failed'; $receipt.ready=$false; $receipt.error=$_.Exception.Message

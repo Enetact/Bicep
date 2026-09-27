@@ -17,14 +17,24 @@ parameters:
     default: "Blob copy - Function App + 2 Storage accounts | blob-transfer"
     values:
       - "Blob copy - Function App + 2 Storage accounts | blob-transfer"
+      - "HTTP Functions API | http-functions"
+      - "Key Vault | key-vault"
       - "Event flow - Logic App + Event Grid + 2 Storage accounts | logic-app-event-grid"
+      - "Observability | observability"
+      - "Private Storage Workspace | private-storage"
+      - "Service Bus worker | service-bus-worker"
   - name: workloadName
-    displayName: "2. Instance name (Blob copy = blobcopy; Event flow = eventflow)"
+    displayName: "2. Registered instance name"
     type: string
     default: "blobcopy"
     values:
       - "blobcopy"
+      - "busworker"
       - "eventflow"
+      - "httpapi"
+      - "keyvault"
+      - "observe"
+      - "storage"
   - name: environment
     displayName: "3. Environment"
     type: string
@@ -49,9 +59,9 @@ parameters:
   - name: usageEstimate
     displayName: "Cost assumptions - USD East US 2 retail as of 2026-09-19"
     type: string
-    default: "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu."
+    default: "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated workload pipeline menu."
     values:
-      - "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated Blob copy or Event flow pipeline menu."
+      - "References assume 730 hours/month, excluding tax/discounts/credits. Storage, Event Grid operations, logs, DNS, data transfer and agents cost extra. Exact selected estimate is frozen during qualification. Estimates are not spending caps. For workload-specific resource and dependency summaries, use the dedicated workload pipeline menu."
 
 extends:
   template: pipelines/deploy-entry.yml

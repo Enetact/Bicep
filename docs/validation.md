@@ -1,5 +1,15 @@
 # Validation evidence
 
+## Five-workload expansion: 27 September 2026
+
+Added Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. The source catalog now has seven types, 28 disabled profiles and fourteen dedicated Discover/Deploy roots. This is local implementation and qualification, not Azure acceptance. The working tree extends base commit `6e36a5822d0d3f7c26433ff3c58fa8a2dc15b3ed`; changes were not committed or pushed by this task.
+
+The final complete `scripts/Test-Project.ps1` run passed (log: `artifacts/product-full-verification.log`), including **91 product contracts**, **10 ProductFunctions tests**, **46 portal tests**, **80 discovery cases**, the existing cost/platform/stack/Preview/Event flow/prerequisite checks, and **131 pipeline/infrastructure contracts across 31 YAML files**. The original Blob transfer tests passed 18 cases with 15 opt-in emulator cases skipped. All seven workloads' Bicep compositions/wrappers and environment files compiled. The operator tool built with zero warnings/errors. Advisory queries reported no vulnerable BlobTransfer or ProductFunctions dependencies. Azure calls in adapter tests were mocked; no Azure deployment or ADO server-side expansion was performed. Infrastructure-only bundle roundtrips, tamper rejection, cross-product scope, missing/failed prerequisites, network drift, flat What-If change serialization and strict runtime message handling are covered.
+
+Actual Functions ZIP creation and an infrastructure-only release receipt were verified under `artifacts/product-releases/*/local-validation-20260927`. These receipts correctly mark the local working tree dirty and cannot be used as qualified deployment artifacts. Final portable packages at `artifacts/portal-packages/20260927-105645` each passed **14 real localhost HTTP checks**; ARM64 ran natively and x64 under ARM emulation. Native x64 hardware remains untested. Browser review confirmed seven distinct cards, scoped summaries/cost caveats, saved-discovery Preview selection and disabled Deploy. Screenshot: `artifacts/seven-workload-portal.png`. Live Entra consent and ADO execution remain unverified.
+
+Onboarding values, reviewed prices, private connectivity, registered ADO definitions and each product's live positive/negative/recovery/alert or DLQ acceptance remain required. See [workload onboarding](workload-onboarding.md). No targets, permissions or Azure resources were changed. Older records below retain their original scope and counts.
+
 ## Bundled Azure Skills and browser discovery: 27 September 2026
 
 The portal catalog now includes 42 pinned Microsoft definitions and five project skills. `scripts/Test-Portal.ps1` passed **41 backend tests, zero failures/skips**, including fixed ARM discovery, scope rejection, safe pagination, filtered metadata, successful empty results and partial/failed reads. `tests/portal/verify-skills.mjs` verified all 42 index entries and **944 source-file hashes**. Azure responses in backend tests were mocked; no subscription was queried.

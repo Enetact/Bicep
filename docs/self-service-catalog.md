@@ -1,16 +1,18 @@
 # Self-service catalog and how it works
 
-Source review: **26 September 2026**. Two workload types and eight environment targets are registered; all targets have `enabled: false`. Local tests and supplied ADO discovery/blocked-preview logs establish partial verification. No successful Azure workload deployment is established by the evidence reviewed. See [current status](completion-status.md).
+**27 September 2026 expansion:** seven registered types and 28 disabled profiles now include Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. Their complete source/menus and shared product adapter are described in [workload onboarding](workload-onboarding.md). The two original adapter descriptions below retain their workload-specific behavior. New ADO definitions and Azure acceptance have not been established locally.
+
+Source review: **27 September 2026**. Seven workload types and 28 environment targets are registered; all targets have `enabled: false`. Local tests and supplied ADO discovery/blocked-preview logs establish partial verification. No successful Azure workload deployment is established by the evidence reviewed. See [current status](completion-status.md).
 
 ## What a developer can request
 
-The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The two workload routes and their ADO manifest contracts are unchanged.
+The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The original two workload routes retain their ADO manifest contracts; five additional products use typed discovery v2.
 
-The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. It adds no Azure products or target enablement. Entra registration and live authentication/ADO acceptance remain required.
+The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Entra registration and live authentication/ADO acceptance remain required.
 
 Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.
 
-A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for two instances are eight targets, not eight different products.
+A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for seven instances are 28 targets, representing seven products.
 
 | Item | Blob copy | Event flow |
 |---|---|---|
@@ -24,7 +26,7 @@ A **workload type** is a supported implementation, such as `blob-transfer`. An *
 | Local runtime | Functions + Azurite tested historically; local lifecycle scripts included. | Package/contract/infrastructure tests; no equivalent end-to-end local Logic Apps/Event Grid runtime is provided. |
 | Current state | Four disabled targets; onboarding remains. | Dev tags, identity and exceptions configured; resource IDs resolve from discovery. Four disabled targets; higher environments need onboarding. |
 
-Reusable resource modules are building blocks, not separately selectable products. Policy and registry templates are separately operated platform assets. No database, Key Vault, Service Bus, Container Apps, AI agent or claims application is currently a registered offering.
+Reusable resource modules are building blocks, not separately selectable products. Policy and registry templates are separately operated platform assets. Key Vault and Service Bus worker are now registered products. Databases, Container Apps and AI applications remain proposed. See [all new product resources and dependencies](workload-onboarding.md#current-catalog-and-delivery-status).
 
 ## Menus and inputs
 
@@ -34,6 +36,16 @@ Reusable resource modules are building blocks, not separately selectable product
 | Deploy - Blob copy | `azure-pipelines-blobcopy-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
 | Discover - Event flow | `azure-pipelines-eventflow-discover.yml` | Instance, environment, approved subscription and network profile. |
 | Deploy - Event flow | `azure-pipelines-eventflow-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+| Discover - Private Storage Workspace | `azure-pipelines-storage-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - Private Storage Workspace | `azure-pipelines-storage-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+| Discover - Key Vault | `azure-pipelines-keyvault-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - Key Vault | `azure-pipelines-keyvault-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+| Discover - Observability | `azure-pipelines-observe-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - Observability | `azure-pipelines-observe-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+| Discover - HTTP Functions API | `azure-pipelines-httpapi-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - HTTP Functions API | `azure-pipelines-httpapi-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+| Discover - Service Bus worker | `azure-pipelines-busworker-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - Service Bus worker | `azure-pipelines-busworker-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
 
 Blueprint, requirements, lifecycle and price text are reference fields, not resource switches. Region is currently restricted to `eastus2`. Service connections, pools, subscription IDs, RBAC and deployment options come from reviewed configuration and literal generated bindings.
 

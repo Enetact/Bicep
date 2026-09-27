@@ -131,7 +131,9 @@ $global:BlobTransferDiscoveryTestState.dnsFallbackSucceeds=$false
 try {
     $fixture=Join-Path $testRoot connection-context
     New-Item -ItemType Directory -Path (Join-Path $fixture scripts) -Force | Out-Null
-    foreach ($file in @('common.ps1','self-service-common.ps1','what-if-governance.ps1','stack-service-common.ps1','workload-common.ps1','logicapp-service-common.ps1','logic-prerequisites-common.ps1','Export-DeploymentInventory.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $fixture scripts) }
+    New-Item -ItemType Directory -Path (Join-Path $fixture config) -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path (Get-ProjectRoot) config/workloads.json) -Destination (Join-Path $fixture config/workloads.json)
+    foreach ($file in @('common.ps1','self-service-common.ps1','what-if-governance.ps1','stack-service-common.ps1','workload-common.ps1','logicapp-service-common.ps1','product-service-common.ps1','logic-prerequisites-common.ps1','Export-DeploymentInventory.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $fixture scripts) }
     $placeholder=Clone $target; $placeholder.subscriptionId=[guid]::Empty.ToString(); $placeholder.subscriptionAlias='unconfigured'; $placeholder.serviceConnection='SC-AZ-A-Bicep'
     $profilePath=Join-Path $fixture self-service/targets/placeholder.json
     Write-ServiceJson $placeholder $profilePath

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "private-storage",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "storage",
+  "environmentName": "qa",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-storage-qa",
+  "parameterFile": "workloads/private-storage/environments/main.qa.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "storage-qa",
+  "smokePrefix": "smoke/"
+}

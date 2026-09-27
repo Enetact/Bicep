@@ -4,7 +4,8 @@
 function Read-DiscoveryManifest([string]$Directory, $Target, [string]$BoundServiceConnection) {
     $manifest=Get-Content (Resolve-ServicePath $Directory manifest.json) -Raw | ConvertFrom-Json -AsHashtable
     $inventoryPath=Resolve-ServicePath $Directory inventory.json
-    $logic=(Get-TargetWorkloadType $Target) -eq 'logic-app-event-grid'
+    $type=Get-TargetWorkloadType $Target;$definition=Get-WorkloadDefinition $type
+    $logic=$type -ne 'blob-transfer'
     $schema=if($logic){2}else{1}; $kind=if($logic){'workload-discovery'}else{'blob-transfer-discovery'}
     if ($manifest.schemaVersion -ne $schema -or $manifest.kind -ne $kind -or $manifest.discoveryStatus -ne 'Complete') { throw 'A complete discovery manifest is required.' }
     if ((Get-ServiceHash $inventoryPath) -cne $manifest.inventorySha256) { throw 'Discovery inventory hash does not match its manifest.' }
@@ -13,12 +14,12 @@ function Read-DiscoveryManifest([string]$Directory, $Target, [string]$BoundServi
     if ($manifest.subscriptionId -ine $Target.subscriptionId -or $manifest.serviceConnection -cne $BoundServiceConnection -or $Target.serviceConnection -cne $BoundServiceConnection) { throw 'Discovery subscription/service connection does not match the selected target.' }
     if ($manifest.selection.workload -cne $Target.workload -or $manifest.selection.environment -cne $Target.environmentName) { throw 'Discovery workload/environment does not match the selected target.' }
     $region=if($Target.Contains('parameterOverrides') -and $Target.parameterOverrides.Contains('location')){$Target.parameterOverrides.location}else{'eastus2'}
-    if ($logic -and ($manifest.workloadType -cne 'logic-app-event-grid' -or $manifest.selection.region -cne $region -or $manifest.selection.network -cne $Target.networkProfile -or $manifest.selection.subscription -cne $Target.subscriptionAlias)) { throw 'Logic App discovery intent mismatch.' }
+    if ($logic -and ($manifest.workloadType -cne $type -or $manifest.selection.region -cne $region -or $manifest.selection.network -cne $Target.networkProfile -or $manifest.selection.subscription -cne $Target.subscriptionAlias)) { throw 'Logic App discovery intent mismatch.' }
     $inventory=Get-Content $inventoryPath -Raw | ConvertFrom-Json -AsHashtable
     if ($inventory.schemaVersion -ne 1 -or $inventory.readOnly -isnot [bool] -or !$inventory.readOnly -or $inventory.discoveryStatus -ne 'Complete' -or $inventory.subscription.id -ine $manifest.subscriptionId -or $inventory.generatedUtc -cne $manifest.generatedUtc) { throw 'Discovery inventory is incomplete or inconsistent with its manifest.' }
     if ($logic) {
-        if (!$inventory.Contains('workloadType') -or $inventory.workloadType -cne 'logic-app-event-grid' -or !$inventory.Contains('providers') -or $inventory.providers.Count -ne 5 -or !$inventory.Contains('resources')) { throw 'Logic App inventory lacks workload prerequisites.' }
-        $expectedProviders=@('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')
+        if (!$inventory.Contains('workloadType') -or $inventory.workloadType -cne $type -or !$inventory.Contains('providers') -or $inventory.providers.Count -ne $(if($type -eq 'logic-app-event-grid'){5}else{$definition.providers.Count}) -or !$inventory.Contains('resources')) { throw 'Logic App inventory lacks workload prerequisites.' }
+        $expectedProviders=if($type -eq 'logic-app-event-grid'){@('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')}else{@($definition.providers)}
         if (@(Compare-Object ($expectedProviders|Sort-Object) (@($inventory.providers|ForEach-Object {$_.namespace})|Sort-Object)).Count) { throw 'Logic App provider inventory is inconsistent.' }
         return $manifest
     }

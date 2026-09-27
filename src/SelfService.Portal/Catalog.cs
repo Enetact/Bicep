@@ -14,8 +14,15 @@ public sealed class Catalog(PortalOptions options)
     public string Root => options.RepositoryRoot;
     static JsonElement Read(string file) => JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(file));
     public string[] Regions => Read(Path.Combine(Root, "config/platform.json")).GetProperty("approvedRegions").EnumerateArray().Select(x => x.GetString()!).ToArray();
-    // These two implemented adapters also define the current dedicated YAML menus.
-    public Product[] Products => new[] { Product("blobcopy", "blob-transfer", "Blob copy"), Product("eventflow", "logic-app-event-grid", "Event flow") };
+    // Explicit source allowlist: configuration describes products but cannot supply executable paths.
+    static readonly string[] ProductTypes = ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker"];
+    public Product[] Products => ProductTypes.Select(type =>
+    {
+        var d = Read(Path.Combine(Root, "config/workloads.json")).GetProperty("workloads").GetProperty(type);
+        var slug = d.GetProperty("menuSlug").GetString()!;
+        if (!Regex.IsMatch(slug, "^[a-z0-9]{3,10}$")) throw new InvalidOperationException("Invalid registered product slug.");
+        return Product(slug, type, d.GetProperty("displayName").GetString()!);
+    }).ToArray();
     Product Product(string id, string type, string name)
     {
         var discover = $"azure-pipelines-{id}-discover.yml";

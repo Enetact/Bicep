@@ -1,10 +1,26 @@
-# Azure workload self-service: Blob Transfer and Event Flow
+# Azure workload self-service
 
-Two independently owned workload patterns share Discover, Deploy, local modules, versioned Template Specs and Deployment Stack governance. See the [Event Flow requirements and method guide](workloads/logic-app-event-grid/README.md) for Logic App Standard + Event Grid. All eight profiles remain disabled pending platform onboarding and Azure acceptance.
+Seven registered workload offerings share Discover, Deploy, local modules, versioned Template Specs and Deployment Stack governance. See the [Event Flow requirements and method guide](workloads/logic-app-event-grid/README.md) for Logic App Standard + Event Grid. All 28 profiles remain disabled pending platform onboarding and Azure acceptance.
+
+## Available self-service workloads
+
+| Offering | Discover YAML | Deploy YAML |
+|---|---|---|
+| Blob copy | `azure-pipelines-blobcopy-discover.yml` | `azure-pipelines-blobcopy-deploy.yml` |
+| Event flow | `azure-pipelines-eventflow-discover.yml` | `azure-pipelines-eventflow-deploy.yml` |
+| Private Storage Workspace | `azure-pipelines-storage-discover.yml` | `azure-pipelines-storage-deploy.yml` |
+| Key Vault | `azure-pipelines-keyvault-discover.yml` | `azure-pipelines-keyvault-deploy.yml` |
+| Observability | `azure-pipelines-observe-discover.yml` | `azure-pipelines-observe-deploy.yml` |
+| HTTP Functions API | `azure-pipelines-httpapi-discover.yml` | `azure-pipelines-httpapi-deploy.yml` |
+| Service Bus worker | `azure-pipelines-busworker-discover.yml` | `azure-pipelines-busworker-deploy.yml` |
+
+The five additions include compositions, reusable modules, environment/request contracts, discovery/Preview/Deploy routing and portal menus. **Targets remain disabled; new parameter files require platform onboarding.** Storage, Key Vault and Observability are infrastructure-only. The two Functions offerings include separately qualified runtime samples. New product cost estimates are unavailable until pricing is reviewed; Premium Service Bus and dedicated hosting are not free.
+
+Follow the [workload onboarding guide](docs/workload-onboarding.md) for exact ADO definition names, required settings, permissions, method flow and acceptance tests. Register the new definitions in ADO after merging; adding YAML locally does not register them automatically.
 
 ## Local self-service website
 
-[Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for both workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported.
+[Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for all seven workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported.
 
 The [complete bundled Azure Skills library](docs/azure-skill-discovery.md) now adds 42 Microsoft skill definitions alongside our five local skills. Microsoft cards show **No pipeline associated yet** and expose a separate read-only Azure browser-authenticated discovery action, including a networking inventory view. Live tenant acceptance still requires the portal registration.
 
@@ -17,7 +33,7 @@ From this repository root:
 ./scripts/Stop-Portal.ps1
 ```
 
-The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the four existing pipeline definitions; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets or execute an AI/MCP agent.
+The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the dedicated pipeline definitions for each selected workload; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets or execute an AI/MCP agent.
 
 ### Use the Azure Skills library
 
@@ -41,7 +57,7 @@ Networking discovery is the first inventory step in the [private networking plan
 
 ### Verification and Windows packages
 
-The [27 September 2026 validation record](docs/validation.md#bundled-azure-skills-and-browser-discovery-27-september-2026) records **41 passing backend tests**, **14 local HTTP checks per Windows package**, and matching hashes for all **944 bundled source files**. Azure responses were mocked. ARM64 ran natively; x64 ran under ARM emulation, with native x64 hardware and live Azure sign-in/discovery still unverified.
+The [27 September 2026 validation record](docs/validation.md#five-workload-expansion-27-september-2026) records **46 passing portal tests**, **14 local HTTP checks per Windows package**, and matching hashes for all **944 bundled source files**. Azure responses were mocked. ARM64 ran natively; x64 ran under ARM emulation, with native x64 hardware and live Azure sign-in/discovery still unverified.
 
 To verify or package the current source, stop the portal before building:
 
@@ -109,7 +125,7 @@ The launcher checks prerequisites and installs missing tools into ignored projec
 | **Blob copy** (`blob-transfer` / `blobcopy`) | Copies uploaded blobs to an existing data lake using a Function App, two storage accounts, queues/ledger, identity, private access, monitoring and recovery. | Real local Functions/Azurite smoke recorded; Azure deployment acceptance outstanding. |
 | **Event flow** (`logic-app-event-grid` / `eventflow`) | Processes document events using Logic App Standard, Event Grid, two storage accounts, eight private endpoints, identities and monitoring. Discovery can plan missing owned VNet/subnets, DNS zones/links and workspace. | Package, Bicep and contract tests pass locally; hosted workflow and Azure deployment acceptance outstanding. |
 
-Each offering has dev, QA, UAT and prod targets. **All eight remain disabled for deployment.** Event flow dev now has operator-authorized tags, identity and two exception decisions; it still needs matching discovery and successful live Azure validation. Higher environments require independent onboarding. The [current status matrix](docs/completion-status.md) separates implemented code, local verification, observed ADO steps and remaining work.
+The five additional offerings and their owned resources are listed in the [onboarding catalog](docs/workload-onboarding.md). Each offering has dev, QA, UAT and prod targets. **All 28 remain disabled for deployment.** Event flow dev now has operator-authorized tags, identity and two exception decisions; it still needs matching discovery and successful live Azure validation. Higher environments require independent onboarding. The [current status matrix](docs/completion-status.md) separates implemented code, local verification, observed ADO steps and remaining work.
 
 ### Choose the workload menu
 

@@ -6,14 +6,160 @@
       "stack": "workloads/blob-transfer/stack.bicep",
       "packageKind": "functions",
       "phaseParameter": "deployFunctionApp",
-      "templateSpecName": "blob-transfer"
+      "templateSpecName": "blob-transfer",
+      "adapter": "blob",
+      "menuSlug": "blobcopy",
+      "displayName": "Blob copy"
     },
     "logic-app-event-grid": {
       "composition": "workloads/logic-app-event-grid/main.bicep",
       "stack": "workloads/logic-app-event-grid/stack.bicep",
       "packageKind": "logicAppStandard",
       "phaseParameter": "releaseActivated",
-      "templateSpecName": "logic-app-event-grid"
+      "templateSpecName": "logic-app-event-grid",
+      "adapter": "logic",
+      "menuSlug": "eventflow",
+      "displayName": "Event flow"
+    },
+    "private-storage": {
+      "composition": "workloads/private-storage/main.bicep",
+      "stack": "workloads/private-storage/stack.bicep",
+      "packageKind": "infrastructure",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "private-storage",
+      "adapter": "product",
+      "menuSlug": "storage",
+      "displayName": "Private Storage Workspace",
+      "providers": [
+        "Microsoft.Storage",
+        "Microsoft.Network",
+        "Microsoft.Insights"
+      ],
+      "dnsKeys": [
+        "blob",
+        "queue"
+      ],
+      "summary": "1 identity-only StorageV2 account, workspace container, work queue, 2 private endpoints and storage diagnostics. Reuses approved subnet, DNS and Log Analytics.",
+      "requirements": "Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Storage capacity/operations, two private endpoints, monitoring ingestion and network transfer.",
+      "costDescription": "Storage capacity/operations, two private endpoints, monitoring ingestion and network transfer.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": true,
+        "application": false
+      }
+    },
+    "key-vault": {
+      "composition": "workloads/key-vault/main.bicep",
+      "stack": "workloads/key-vault/stack.bicep",
+      "packageKind": "infrastructure",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "key-vault",
+      "adapter": "product",
+      "menuSlug": "keyvault",
+      "displayName": "Key Vault",
+      "providers": [
+        "Microsoft.KeyVault",
+        "Microsoft.Network",
+        "Microsoft.Insights"
+      ],
+      "dnsKeys": [
+        "vault"
+      ],
+      "summary": "1 RBAC Key Vault with soft delete and purge protection, 1 private endpoint, a scoped reader grant and audit diagnostics. No secret values are created.",
+      "requirements": "Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Vault operations, one private endpoint, audit logs and transfer.",
+      "costDescription": "Vault operations, one private endpoint, audit logs and transfer.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": true,
+        "application": false
+      }
+    },
+    "observability": {
+      "composition": "workloads/observability/main.bicep",
+      "stack": "workloads/observability/stack.bicep",
+      "packageKind": "infrastructure",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "observability",
+      "adapter": "product",
+      "menuSlug": "observe",
+      "displayName": "Observability",
+      "providers": [
+        "Microsoft.Insights",
+        "Microsoft.OperationalInsights"
+      ],
+      "dnsKeys": [],
+      "summary": "1 Azure Monitor workbook and 1 scheduled query alert referencing an approved existing Log Analytics workspace and action group. Does not alter shared workspace networking or diagnostic settings on other resources.",
+      "requirements": "Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Alert evaluations and existing workspace ingestion/retention; notification and query charges may apply.",
+      "costDescription": "Alert evaluations and existing workspace ingestion/retention; notification and query charges may apply.",
+      "capabilities": {
+        "privateNetworking": false,
+        "observability": true,
+        "application": false
+      }
+    },
+    "http-functions": {
+      "composition": "workloads/http-functions/main.bicep",
+      "stack": "workloads/http-functions/stack.bicep",
+      "packageKind": "productFunctions",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "http-functions",
+      "adapter": "product",
+      "menuSlug": "httpapi",
+      "displayName": "HTTP Functions API",
+      "providers": [
+        "Microsoft.Web",
+        "Microsoft.Storage",
+        "Microsoft.ManagedIdentity",
+        "Microsoft.Insights",
+        "Microsoft.Network"
+      ],
+      "dnsKeys": [
+        "blob",
+        "queue",
+        "table",
+        "sites"
+      ],
+      "summary": "1 private .NET 10 HTTP Function App on a dedicated Linux B1 plan, identity, host/package storage, 4 private endpoints, diagnostics and a separately versioned health API sample. Entra authentication is required.",
+      "requirements": "Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Dedicated B1 hosting, storage, four private endpoints, logs and network transfer.",
+      "costDescription": "Dedicated B1 hosting, storage, four private endpoints, logs and network transfer.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": true,
+        "application": true
+      }
+    },
+    "service-bus-worker": {
+      "composition": "workloads/service-bus-worker/main.bicep",
+      "stack": "workloads/service-bus-worker/stack.bicep",
+      "packageKind": "productFunctions",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "service-bus-worker",
+      "adapter": "product",
+      "menuSlug": "busworker",
+      "displayName": "Service Bus worker",
+      "providers": [
+        "Microsoft.Web",
+        "Microsoft.Storage",
+        "Microsoft.ManagedIdentity",
+        "Microsoft.Insights",
+        "Microsoft.Network",
+        "Microsoft.ServiceBus"
+      ],
+      "dnsKeys": [
+        "blob",
+        "queue",
+        "table",
+        "sites",
+        "servicebus"
+      ],
+      "summary": "1 private Premium Service Bus namespace and work queue with DLQ/duplicate detection, private .NET 10 Function worker on Linux B1, identity, receipt/host/package storage, 5 private endpoints and diagnostics. Includes an idempotent receipt sample.",
+      "requirements": "Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Premium Service Bus capacity, dedicated B1 hosting, storage, five private endpoints, logs and transfer. This is not a free-tier offering.",
+      "costDescription": "Premium Service Bus capacity, dedicated B1 hosting, storage, five private endpoints, logs and transfer. This is not a free-tier offering.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": true,
+        "application": true
+      }
     }
   }
 }

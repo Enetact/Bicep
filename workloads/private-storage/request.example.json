@@ -1,0 +1,6 @@
+{
+  "workloadName": "storage",
+  "environment": "dev",
+  "region": "eastus2",
+  "workloadType": "private-storage"
+}

@@ -1,6 +1,8 @@
 # Documentation index
 
-Reviewed 26 September 2026. Start with the [repository README](../README.md), [catalog](self-service-catalog.md) and [current completion status](completion-status.md). Code implementation, local tests, observed ADO steps and live Azure acceptance are distinct evidence levels.
+- [Workload onboarding and seven-product catalog](workload-onboarding.md): dedicated menus, shared adapter, new modules, runtime samples and acceptance gates.
+
+Reviewed 27 September 2026. Start with the [repository README](../README.md), [catalog](self-service-catalog.md) and [current completion status](completion-status.md). Code implementation, local tests, observed ADO steps and live Azure acceptance are distinct evidence levels.
 
 ## Current self-service guides
 

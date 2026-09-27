@@ -2,7 +2,7 @@ parameters:
   - name: workloadType
     type: string
     default: blob-transfer
-    values: [blob-transfer, logic-app-event-grid]
+    values: [blob-transfer, logic-app-event-grid, private-storage, key-vault, observability, http-functions, service-bus-worker]
   - name: workload
     type: string
   - name: environment
@@ -144,8 +144,12 @@ stages:
               - template: steps/qualify-application.yml
             - ${{ if eq(parameters.workloadType, 'logic-app-event-grid') }}:
               - template: steps/qualify-logic-app.yml
+            - ${{ if not(or(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workloadType, 'logic-app-event-grid'))) }}:
+              - template: steps/qualify-product.yml
+                parameters:
+                  workloadType: ${{ parameters.workloadType }}
             - pwsh: |
-                $releaseDirectory = if ('${{ parameters.workloadType }}' -eq 'logic-app-event-grid') { 'artifacts/logic-releases/$(Build.BuildId)' } else { 'artifacts/releases/$(Build.BuildId)' }
+                $releaseDirectory = switch ('${{ parameters.workloadType }}') { 'logic-app-event-grid' { 'artifacts/logic-releases/$(Build.BuildId)' } 'blob-transfer' { 'artifacts/releases/$(Build.BuildId)' } default { 'artifacts/product-releases/${{ parameters.workloadType }}/$(Build.BuildId)' } }
                 ./scripts/New-SelfServiceBundle.ps1 -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ReleaseDirectory $releaseDirectory -OutputDirectory 'artifacts/self-service/bundle' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -DiscoveryDirectory '$(Pipeline.Workspace)/deployment-preview/discovery' -CreateDestinationPrivateEndpoints ([bool]::Parse($env:CREATE_DESTINATION_ENDPOINTS)) -EnableLogAlerts ([bool]::Parse($env:ENABLE_LOG_ALERTS))
               displayName: Freeze verified discovery, target, template and package
               env:
