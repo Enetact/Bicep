@@ -1,4 +1,40 @@
 {
+  "pipelineRegistrationDelivery": {
+    "date": "2026-09-27",
+    "scope": "All 18 root entry points; local implementation and synthetic-provider qualification",
+    "backendPassed": 130,
+    "backendSkipped": 1,
+    "backendFailed": 0,
+    "newRegistrationCases": 18,
+    "backendEvidence": "artifacts/test-results/pipeline-registration.trx",
+    "pipelineContractsPassed": 133,
+    "yamlFilesParsed": 32,
+    "catalogCheckPassed": true,
+    "hygieneIgnoreProbes": 15,
+    "hygieneSourcePaths": 183,
+    "packages": {
+      "path": "artifacts/portal-packages/20260927-155358",
+      "httpChecksEach": 29,
+      "ahpChecksEach": 5,
+      "arm64": "Native ARM64",
+      "x64": "Windows ARM emulation",
+      "nativeX64HardwareTested": false
+    },
+    "publicGitHubRead": {
+      "repository": "Enetact/Bicep",
+      "mainCommit": "bab03bf3c93745f61be9a69e6bca4d9a6a518fc3",
+      "matchingRootYamlFiles": 17,
+      "differentRootYamlFiles": ["azure-pipelines-network.yml"]
+    },
+    "browserEvidence": "artifacts/pipeline-registration-ui.png",
+    "browserRegistrationOutcome": "Synthetic localhost fixture only; stopped after verification",
+    "liveAdoInventoryPerformed": false,
+    "liveAdoDefinitionsCreated": 0,
+    "runsQueued": 0,
+    "githubWritten": false,
+    "permissionsChanged": false,
+    "remainingAcceptance": "Browser ADO sign-in, real inventory/review/create/read-back and resource authorization validation"
+  },
   "currentDocumentationReview": {
     "date": "2026-09-27",
     "kind": "five-product-source-implementation-and-local-qualification",

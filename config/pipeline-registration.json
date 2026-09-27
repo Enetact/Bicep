@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "repository": "Enetact/Bicep",
+  "branch": "main",
+  "additionalPipelines": [
+    { "yaml": "azure-pipelines.yml", "name": "Qualify - Platform", "category": "Qualification" },
+    { "yaml": "azure-pipelines-self-service.yml", "nameFrom": "discoveryPipelineName", "category": "Compatibility" },
+    { "yaml": "azure-pipelines-self-service-deploy.yml", "name": "BlobTransfer - Deploy", "category": "Compatibility" },
+    { "yaml": "azure-pipelines-network.yml", "name": "Network - AVNM allocation", "category": "Networking" }
+  ]
+}

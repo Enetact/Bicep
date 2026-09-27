@@ -1,5 +1,7 @@
 # Current implementation and verification status
 
+**ADO registration increment, 27 September 2026:** the portal can inventory/review/create all missing root pipeline definitions using an existing GitHub repository connection. Source and local contract tests are implemented; authenticated ADO creation remains a manual acceptance step. No existing pipelines, source or permissions were changed. See [registration contract](ado-pipeline-registration.md).
+
 **Network/diagram delivery, 27 September 2026:** evidence-bound Mermaid validation and image-only rendering, broader tenant/management-group network collection, deterministic configuration findings and a reviewed portal-to-ADO AVNM reservation/create-only spoke flow are implemented. The AVNM profile and all workload targets remain disabled. Live provider acceptance, effective connectivity, general IPAM lifecycle and automatic workload binding remain open. See [delivery and manual tests](network-discovery-and-diagrams.md).
 
 **Codex agent increment, 27 September 2026:** four bounded read-only reviews, isolated ChatGPT sign-in, GPT-6 Astra/High/Standard policy, MCP evidence tools and an experimental AHP coordination profile are implemented. Local backend, native Codex startup, HTTP and AHP checks passed; live authentication/model/provider acceptance remains pending. This is not a fully conformant AHP host, general Azure MCP server or autonomous deployment agent. See [workflow contracts and remaining gates](agent-workflows.md).

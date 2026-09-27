@@ -25,6 +25,8 @@ builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sess
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
 builder.Services.AddTransient<NetworkPipeline>();
+builder.Services.AddHttpClient<PipelineRegistration>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddHttpClient<AdoGateway>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddHttpClient<AzureDiscovery>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
@@ -90,6 +92,10 @@ app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.MapGet("/api/network/scopes", async (NetworkDiscovery network, HttpContext c) => await network.Scopes(Session(c), c.RequestAborted));
 app.MapGet("/api/network/allocation", (NetworkPipeline network) => network.Status());
+app.MapGet("/api/pipeline-setup/catalog", (PipelineRegistration setup) => setup.LocalCatalog());
+app.MapGet("/api/pipeline-setup/inventory", async (PipelineRegistration setup, HttpContext c) => await setup.Inventory(Session(c), c.RequestAborted));
+app.MapPost("/api/pipeline-setup/review", async (RegistrationSelection selection, PipelineRegistration setup, HttpContext c) => await setup.Review(Session(c), selection, c.RequestAborted));
+app.MapPost("/api/pipeline-setup/apply/{ticket}", async (string ticket, PipelineRegistration setup, HttpContext c) => await setup.Apply(Session(c), ticket, c.RequestAborted));
 app.MapPost("/api/network/review", async (NetworkAllocationRequest request, NetworkPipeline network, HttpContext c) => await network.Review(Session(c), request));
 app.MapPost("/api/network/queue/{ticket}", async (string ticket, NetworkPipeline network, HttpContext c) => await network.Queue(Session(c), ticket));
 app.MapPost("/api/network/discover", async (NetworkScopeRequest request, NetworkDiscovery network, HttpContext c) =>

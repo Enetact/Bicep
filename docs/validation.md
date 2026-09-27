@@ -1,5 +1,17 @@
 # Validation evidence
 
+## Bulk ADO pipeline registration: 27 September 2026
+
+The [ADO setup page](ado-pipeline-registration.md) covers all **18 root pipeline entry points**. The Release build completed with zero warnings/errors. **130 backend tests passed, one optional native Codex test skipped, zero failed**, including 18 new registration cases (`artifacts/test-results/pipeline-registration.trx`). Synthetic ADO/GitHub responses exercise create-all-missing, preservation/conflicts, incomplete inventory, source/review drift, concurrent creation, lost responses, partial batches and token/secret isolation. These tests do not establish live ADO registration acceptance.
+
+Both Windows packages in `artifacts/portal-packages/20260927-155358/` passed **29 localhost HTTP checks and five AHP coordination checks** each, without cloud calls. ARM64 ran natively; x64 ran under Windows ARM emulation, not native x64 hardware. Package checks stopped their test processes. The source portal remains running on localhost 5087 and requires fresh browser authentication after its restart.
+
+Codex browser verification showed the real 18-entry setup page and its disconnected-ADO error. A separate, explicitly labeled localhost fixture exercised status selection, the review dialog and a synthetic completed registration receipt with zero queued runs. The fixture was stopped afterward; it is not the runtime backend. Screenshot: `artifacts/pipeline-registration-ui.png`.
+
+An anonymous, read-only GitHub check observed public `Enetact/Bicep` main at `bab03bf3c93745f61be9a69e6bca4d9a6a518fc3`: **17 of 18** local root YAML blobs matched; `azure-pipelines-network.yml` differed. Registration will require that missing definition's exact source to be published, or the local/package copy reconciled. This is a point-in-time comparison, not an assurance about later main revisions.
+
+Also passed: catalog generation check (28 registered selections), **133 pipeline/infrastructure contracts across 32 YAML files**, and repository hygiene (**15 ignore probes, 183 source/control paths**). No ADO server expansion, live authenticated inventory, definition creation, pipeline run, Azure change, GitHub write, target enablement or permission change was performed. Public-repository protection and full-history secret clearance are outside these targeted checks. The ordered manual acceptance procedure is in the setup guide.
+
 ## Network discovery, diagrams and AVNM source delivery: 27 September 2026
 
 The bounded [network/diagram implementation](network-discovery-and-diagrams.md) was checked locally. **112 backend tests passed, one optional native Codex test skipped, zero failed** (`artifacts/test-results/network-increment.trx`). New coverage includes untrusted diagram rejection, resource/relationship references, tenant filtering, denied/unsafe scope reads, management-group exclusions, prefix arithmetic/overlap and ADO review expiry/configuration drift/single-use/lost-response handling. Tests use synthetic provider responses; they are not Azure or Codex acceptance.

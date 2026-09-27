@@ -55,6 +55,9 @@ await test('Existing analyzer executes and returns bounded synthetic report', as
   const r = await post('analysis', { manifest: pair.manifestBytes.toString('base64'), inventory: pair.inventoryBytes.toString('base64') });
   const body = await r.json(); assert.equal(r.status, 200, JSON.stringify(body)); assert.equal(body.report.deploymentAuthorized, false); assert.match(body.markdown, /Offline|offline/); assert.ok(body.diagrams.length > 0);
 });
+await test('Registration catalog covers all 18 root pipelines', async () => { const r = await fetch(base + '/api/pipeline-setup/catalog', {headers}); assert.equal(r.status,200); const c = await r.json(); assert.equal(c.entries.length,18); assert.ok(c.entries.some(e=>e.yaml==='azure-pipelines.yml')); });
+await test('Registration inventory requires ADO identity', async () => assert.equal((await fetch(base + '/api/pipeline-setup/inventory', {headers})).status,401));
+await test('Unissued registration ticket cannot create', async () => assert.equal((await post('pipeline-setup/apply/not-issued',{})).status,409));
 await test('Disconnect returns clean state', async () => { assert.equal((await post('disconnect', {})).status, 200); const s = await fetch(base + '/api/auth', { headers }).then(r => r.json()); assert.deepEqual(s.connected, []); });
 fs.mkdirSync('artifacts/portal-tests', { recursive: true });
 fs.writeFileSync('artifacts/portal-tests/http-smoke.json', JSON.stringify({ timestamp: new Date().toISOString(), architecture: bootstrap.architecture, liveAzure: false, results }, null, 2));

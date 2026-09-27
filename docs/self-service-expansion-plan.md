@@ -1,5 +1,7 @@
 # Self-service expansion and enhancement plan
 
+**ADO onboarding update, 27 September 2026:** the portal can inventory and register all 18 root pipeline definitions in a reviewed batch, reusing the existing GitHub connection and preserving existing definitions. Source matching, conflict handling, local receipts and no-run registration are implemented and locally verified. Live authenticated ADO acceptance and resource/approval setup remain required. See [ADO setup](ado-pipeline-registration.md).
+
 **Network delivery update, 27 September 2026:** scoped tenant/management-group inventory, evidence-bound rendered agent diagrams, deterministic network findings and AVNM reservation/create-only spoke pipeline source are delivered. These are bounded capabilities, not completion of the enterprise networking roadmap. See [implemented scope and remaining gates](network-discovery-and-diagrams.md).
 
 **27 September 2026 agent increment:** four [Codex/MCP evidence reviews](agent-workflows.md) now have explicit authentication/readiness and Run controls. Local checks are recorded in validation; live provider/model acceptance is pending. Next evidence adapters should add original discovery-pair auditing, policy/RBAC prerequisites, dated cost review and multi-subscription network coverage. Full AHP chat/action synchronization, `azmcp` hosting and write/IPAM workflows remain separately gated work. Earlier roadmap statements that all AI/MCP execution is future are superseded for these four bounded reviews only.

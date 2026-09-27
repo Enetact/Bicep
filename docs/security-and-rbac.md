@@ -1,5 +1,7 @@
 # Security and RBAC
 
+**Pipeline registration boundary:** [ADO setup](ado-pipeline-registration.md) requires pre-existing ADO view/create permissions, reuses a GitHub repository connection reference and creates only definitions. It neither grants service-connection access nor configures approvals; new definitions inherit existing project permissions. Public source is not access to ADO/Azure.
+
 **Local agent boundary:** [Codex workflows](agent-workflows.md#identity-evidence-and-failure-behavior) use isolated ChatGPT authentication plus the portal's existing Azure/ADO audiences. Readiness never grants new Azure rights. The MCP bridge exposes frozen evidence only; models cannot queue deployments or allocate addresses. Protect ignored Codex session caches and infrastructure reports locally; model metadata transfer happens only on explicit Run. Live model/provider acceptance remains pending.
 
 **New product security:** the [onboarding guide](workload-onboarding.md) documents private-by-default Storage, RBAC/purge-protected Key Vault, Premium Service Bus with local auth disabled, and Entra-protected HTTP Functions. Object IDs refer to service principals, not application IDs. The existing stack gate now also rejects weakening local authentication, vault recovery/RBAC and API authentication settings. No role grants or cloud changes were executed by this local implementation.

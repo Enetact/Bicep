@@ -14,7 +14,7 @@ foreach($rid in $Runtime){
     foreach($folder in @('config','self-service','docs','.agents','vendor')){Copy-Item -LiteralPath (Join-Path $root $folder) -Destination $snapshot -Recurse}
     New-Item -ItemType Directory -Path (Join-Path $snapshot 'scripts') -Force|Out-Null
     Copy-Item -LiteralPath (Join-Path $root 'scripts/analysis') -Destination (Join-Path $snapshot 'scripts') -Recurse
-    Get-ChildItem $root -Filter 'azure-pipelines-*.yml'|Copy-Item -Destination $snapshot
+    Get-ChildItem $root -Filter 'azure-pipelines*.yml'|Copy-Item -Destination $snapshot
     Copy-Item -LiteralPath (Join-Path $root 'docs/local-portal.md') -Destination (Join-Path $dest 'README.md')
     Copy-Item -LiteralPath (Join-Path $root 'src/SelfService.Portal/THIRD-PARTY-NOTICES.md') -Destination $dest
     # portal.local.json must never be copied by publish defaults.

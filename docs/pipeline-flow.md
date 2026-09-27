@@ -1,5 +1,7 @@
 # Pipeline flow and refactor
 
+**Register the suite:** [ADO setup](ado-pipeline-registration.md) creates missing root entry-point definitions from the portal after review. Registration itself does not execute any of the stages below.
+
 The separate [AVNM network allocation flow](network-discovery-and-diagrams.md) uses `azure-pipelines-network.yml`, registered as **Network - AVNM allocation**. Its manual menu defaults to read-only Plan. Reservation requires the protected `platform-network-allocation` environment; the optional create path adds exact-prefix PreviewNetwork and separately approved ApplyNetwork stages. It publishes `network-plan`, `network-reservation`, `network-preview` and `network-binding`. These are connectivity evidence, not substitutes for workload discovery manifests or deployment approval. Existing workload pipelines below retain their own flow.
 
 **Seven-product routing:** fourteen dedicated menu roots now feed the existing Discover and Preview/Deploy templates. Five offerings use the shared product adapter and bundle schema v3; infrastructure-only offerings have no application package and use Release directly in the dedicated flow. See [exact menus and methods](workload-onboarding.md). Existing Blob copy/Event flow adapters and older generic sequencing remain compatibility paths.
