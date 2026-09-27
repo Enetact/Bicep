@@ -152,6 +152,41 @@ Connected diagrams support search, pagination, full resource names and SVG expor
 
 Network inventory includes VNets, configured subnets/peerings, NSG rules, route tables, private endpoints and private DNS zones. It does **not** prove effective reachability, free IP capacity, authoritative IPAM availability or visibility across remote subscriptions. Denied/partial reads remain unknown coverage. Portal inventory reports are supporting evidence, **not deployment manifests**. See [discovery scope and methods](docs/azure-skill-discovery.md).
 
+### Azure Resource Visualizer: the network discovery skill
+
+Microsoft's [Azure Resource Visualizer](https://learn.microsoft.com/en-us/azure/developer/azure-skills/skills/azure-resource-visualizer) is the foundational diagramming skill for our agent-assisted network discovery experience. Its purpose is to explain resource topology and relationships through Mermaid architecture diagrams. The exact [bundled skill](vendor/azure-skills/skills/azure-resource-visualizer/SKILL.md) is registered as `azure--azure-resource-visualizer` and is wired into both **Azure resource visualizer** and **Private network evidence review**. It is more than a library card, but our adapter intentionally implements a narrower scope than the complete upstream workflow.
+
+**Discovery supplies facts; the skill guides interpretation.** The portal's Azure reader collects the inventory using the signed-in user's permissions. The skill does not grant access, perform discovery on its own or prove connectivity. Our MCP bridge gives the agent a frozen evidence snapshot and the selected skill instructions; it does not expose a general-purpose Azure MCP server or Azure CLI to the model.
+
+#### How the connected workflow works today
+
+1. Connect **Azure** and **Codex** in the portal. Azure authorizes resource reads; Codex provides model execution. Neither connection starts a review automatically.
+2. Open **Agent workflows**, select **Azure resource visualizer** or **Private network evidence review**, and choose a registered subscription and visible resource group. No subnet ID or IP range is needed to start this analysis.
+3. Select **Run**. The application verifies resource-group visibility and collects supported resource metadata and network configuration: VNets, subnets, peerings, NSGs, routes, private DNS zones and private endpoints. Cross-group dependencies and uncollected details remain coverage limits.
+4. The application freezes that evidence and supplies `platform_evidence` and `platform_skill` through the scoped MCP bridge. The agent must read both. The visualizer instructions guide grouping, labels and relationships; adapter rules require evidenced connections and explicit unknowns.
+5. Codex returns an advisory Markdown review. The visualization workflow requests a fenced Mermaid diagram; network review explains the available network evidence and missing checks. The application saves `evidence.json`, completed `review.md` and `receipt.json` under `artifacts/portal-agents/<id>/`, including evidence/skill hashes and tool-call records.
+6. Read or download the review. **Agent-generated Mermaid currently appears as text/Markdown, not a rendered diagram in the portal.** The existing graphical discovery and proposed-workload diagrams use the separate deterministic renderer. A completed review does not yet guarantee that Mermaid syntax or relationships have passed a dedicated diagram validator.
+
+```mermaid
+flowchart LR
+    Azure[Azure browser authentication] --> Reader[Selected resource-group discovery]
+    Reader --> Facts[Frozen resource and network evidence]
+    Skill[Bundled Azure Resource Visualizer skill] --> MCP[Scoped MCP evidence bridge]
+    Facts --> MCP
+    MCP --> Agent[Explicit Codex review]
+    Agent --> Review[Markdown and Mermaid source with receipt]
+    Review -. planned .-> Validate[Validate diagram syntax and evidence links]
+    Validate -. planned .-> Render[Render and export agent diagram in portal]
+```
+
+#### What remains for the complete network experience
+
+The next diagram increment is **planned**: validate generated Mermaid and its resource references, render it safely in the portal, and retain the downloadable source and receipt alongside the visual. The UI should distinguish **observed configuration**, **agent interpretation**, **proposed workload components** and **Azure What-If changes**. Generated output must remain untrusted, with no executable links/directives and no invented connection presented as a verified fact.
+
+Broader network self-service also needs the planned tenant/management-group collectors, explicit coverage reporting, deterministic capacity/DNS/routing checks and authoritative IPAM reservation. A diagram cannot establish free IPs, effective reachability or permission to allocate a subnet. AI can explain supported choices and missing evidence; deterministic platform rules and the reviewed ADO Preview/Deploy path must authorize changes. See the [private networking design](docs/plans/private-networking-self-service.md) and [tenant discovery assessment](docs/plans/tenant-network-discovery.md).
+
+**Acceptance boundary:** the skill binding and scoped MCP path are implemented and locally tested. Live Azure/Codex end-to-end diagram acceptance and the generated-Mermaid rendering path remain outstanding. This section describes the current implementation and intended next steps; it does not enable deployment or network allocation.
+
 ## Codex agent workflows
 
 The **Agent workflows** menu runs four bounded advisory workflows. The provider policy is fixed to **GPT-6 Astra**, **High** reasoning and **Standard** speed (`gpt-6-astra` / `high` / `default`). Unsupported settings block execution; there is no alternative-model or API-key fallback.
