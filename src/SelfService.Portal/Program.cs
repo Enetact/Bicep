@@ -25,6 +25,8 @@ builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sess
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddHttpClient<AdoGateway>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddHttpClient<AzureDiscovery>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
@@ -51,7 +53,8 @@ app.UseDefaultFiles(); app.UseStaticFiles();
 app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Session(c).Csrf, configured = options.AuthenticationConfigured,
     packagedCatalog = options.RepositoryRoot == Path.Combine(AppContext.BaseDirectory, "repository"),
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
-    products = catalog.Products, regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Description }) });
+    products = catalog.Products, regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
+    discoveryScopes = catalog.Products.SelectMany(p => p.Targets).DistinctBy(t => t.SubscriptionId).Select(t => new { id = t.SubscriptionId, name = t.Subscription }) });
 app.MapGet("/api/auth", (HttpContext c) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Account?.Username, connected = s.Connected.Keys.ToArray() }; });
 app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIdentity identity) => { identity.Begin(Session(c), audience); return Results.Accepted(); });
 app.MapPost("/api/cancel-login", (HttpContext c) => { try { Session(c).Login?.Cancel(); } catch (ObjectDisposedException) { } return Results.Ok(); });
@@ -78,5 +81,6 @@ app.MapPost("/api/queue/{ticket}", async (HttpContext c, string ticket, AdoGatew
 });
 app.MapGet("/api/runs/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Status(Session(c), product, id));
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
+app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.Run();
 public partial class Program { }

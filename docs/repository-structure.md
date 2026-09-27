@@ -1,5 +1,7 @@
 # Bicep repository structure and authoring conventions
 
+`vendor/azure-skills/` preserves a pinned Microsoft skill snapshot, nested guidance, supporting resources, licenses and `bundle.json` hashes. It is reference content for the portal, outside the active project `.agents/skills` instructions. `AzureDiscovery.cs` implements fixed read-only ARM adapters; vendor scripts and plugin hooks are not executed. See [bundle maintenance](azure-skill-discovery.md#updating-and-packaging-the-bundle).
+
 The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources; it does not move Bicep compositions, introduce another workload registry or implement the planned MCP server. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
 
 Reviewed against Microsoft Learn and Microsoft's Bicep/AVM repositories on 19 September 2026. This is a workload deployment repository containing its application, not the Bicep compiler or an AVM publishing repository.

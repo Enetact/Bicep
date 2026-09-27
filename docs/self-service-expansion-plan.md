@@ -6,6 +6,8 @@
 
 ## Outcome and starting point
 
+**27 September 2026 increment:** the local portal now includes all 42 pinned Microsoft skill definitions with **No pipeline associated yet** labels and browser-authenticated, read-only Azure resource inventory. The networking profile collects configured topology without requiring address inputs; occupancy, effective connectivity, IPAM authority and allocation remain unknown or proposed. This advances the discovery experience, not the number of registered deployment products. See the [implemented discovery contract](azure-skill-discovery.md).
+
 **Implementation follow-up:** initial saved-evidence analysis/reporting and four local review skills are delivered; see [progress and boundaries](plans/implementation-progress.md). The broader product, networking allocation and operational offerings below remain proposed. User authorization to proceed with phased implementation does not establish completion of their technical/live acceptance gates.
 
 Build a catalog where developers choose a supported product, understand its resources and costs, select an approved environment and review a plan before deployment. Each product must define ownership, dependencies, identity, application delivery, evidence, support and retirement.

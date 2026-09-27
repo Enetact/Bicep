@@ -4,6 +4,8 @@ Source review: **26 September 2026**. Two workload types and eight environment t
 
 ## What a developer can request
 
+The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The two workload routes and their ADO manifest contracts are unchanged.
+
 The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. It adds no Azure products or target enablement. Entra registration and live authentication/ADO acceptance remain required.
 
 Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.

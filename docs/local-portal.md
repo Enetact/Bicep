@@ -9,11 +9,12 @@ The portal adds a browser workspace to the two existing ADO workload routes. It 
 - Recent successful main discovery picker; review verifies the definition, YAML path, repository, age and selected instance/environment. Pipeline-side manifest/hash/provenance checks remain authoritative.
 - Browser Microsoft sign-in for separate Azure and ADO audiences, consent/MFA on Microsoft pages, themed return page, waiting/completion/cancellation/error states, and local disconnect.
 - Registered-subscription access check; it does not expand the deployment catalog based on everything a user can access.
-- Project-local skills read from `.agents/skills`. Guidance is displayed as text; arbitrary commands or an AI agent are not executed.
+- Five project-local skills read from `.agents/skills`, plus [42 Microsoft Azure skill definitions](azure-skill-discovery.md) and supporting files bundled under `vendor/azure-skills`. Guidance is displayed as text; arbitrary commands or an AI agent are not executed.
+- Microsoft skill cards show **No pipeline associated yet**. A separate Azure browser-authenticated read-only inventory adapter collects approved subscription metadata, with service views and a networking profile. These are supporting facts, not full execution of each upstream workflow.
 - Saved discovery analysis invoking the existing deterministic analyzer and displaying its Markdown-as-text and containment diagrams. No model or Azure connection is required.
 - Run submission, status polling and ADO links for logs, approvals, Summary/Extensions and artifact downloads. Run history in the portal lasts for the current page session; ADO retains the actual history.
 
-This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. AI/MCP execution, dynamic IPAM, automatic subnet allocation, skill installation, in-portal ADO artifact downloads and in-portal environment approval are not implemented. Resources are still provisioned in Azure by ADO, not on your computer.
+This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. AI/MCP execution, dynamic IPAM, automatic subnet allocation, runtime skill installation, in-portal ADO artifact downloads and in-portal environment approval are not implemented. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
 
 ## Run from source, in order
 
@@ -106,6 +107,7 @@ Leave IDs blank for offline use or enter your registration IDs. Never add a clie
 | `Catalog.cs` | Read generated menu descriptions, targets, regions and local skills; validate selection; build allowlisted ADO payload. |
 | `BrowserIdentity.cs` | MSAL public-client browser flow, token acquisition/renewal, cancellation and per-session cache clearing. |
 | `AdoGateway.cs` | Resolve definitions, verify handoff, submit once, read status and approved-subscription access. |
+| `AzureDiscovery.cs` | Fixed ARM GET collections for the selected upstream skill profile; scoped pagination, projected fields, explicit partial coverage and local reports. |
 | `AnalysisRunner.cs` | Size-bound file upload, isolated evidence directory, fixed analyzer command with bounded execution and safe error handling. |
 | `wwwroot/` | Dependency-free UI, responsive/light-dark theme, explicit confirmation, safe text rendering and image-only SVG reports. |
 | `scripts/*-Portal.ps1` | Setup, ownership-checked lifecycle, tests and architecture-specific publishing. |

@@ -1,5 +1,13 @@
 # Validation evidence
 
+## Bundled Azure Skills and browser discovery: 27 September 2026
+
+The portal catalog now includes 42 pinned Microsoft definitions and five project skills. `scripts/Test-Portal.ps1` passed **41 backend tests, zero failures/skips**, including fixed ARM discovery, scope rejection, safe pagination, filtered metadata, successful empty results and partial/failed reads. `tests/portal/verify-skills.mjs` verified all 42 index entries and **944 source-file hashes**. Azure responses in backend tests were mocked; no subscription was queried.
+
+Both Windows packages at `artifacts/portal-packages/20260927-084842` launched and passed **14 real local HTTP checks each** with `scripts/Test-PortalPackage.ps1`. ARM64 ran natively and x64 under Windows ARM emulation; native x64 hardware remains untested. All 944 bundled source hashes were also verified inside each ZIP. The unconfigured portal rejects discovery without Azure sign-in. Browser inspection confirmed filtering, **No pipeline associated yet**, the networking coverage explanation and the disabled unauthenticated discovery control; the screenshot is `artifacts/portal-tests/azure-skills.png`.
+
+The source portal is running on localhost:5087 for review. Live Entra consent, Azure collection and ADO execution remain unverified; the separate portal registration is required. No deployment targets were enabled, cloud writes executed or upstream skill scripts run. This targeted increment does not repeat the full application/infrastructure suite. See [implemented discovery scope](azure-skill-discovery.md). The earlier portal baseline below remains historical.
+
 ## Saved-discovery analysis implementation: 26 September 2026
 
 Reviewed documentation/plan scope and repository placement, then implemented the first offline reporting contract, compatibility readers, safe renderer, shared Discover report step and four project-local review skills. `scripts/Test-Project.ps1` completed successfully: **36 new offline analysis cases**, **5 output-schema validations**, **46 pipeline/infrastructure checks across 20 YAML files**, the existing tooling/manifest/self-service/discovery/cost/platform/stack/preview/Logic App/prerequisite suites, both workloads' environment/stack compilations, and **18 application tests passed / 15 opt-in emulator cases skipped**. The operator tool built without warnings/errors; the Function dependency advisory query reported no vulnerabilities. This run did not start the Functions/Azurite stack or execute Azure/ADO services.
@@ -341,6 +349,18 @@ The 15 emulator integration cases directly invoke Function methods and use stora
 Local tests set IncludeSourceVersions=false because they do not qualify Azure version-listing/retention behavior. Production configuration defaults to true, and the code uses version-addressed, ETag-conditioned reads. The live smoke script specifically exercises an overwritten source name, but it has not been run here.
 
 The ordinary external uploader still needs its own private network path and authorized access. No external uploading system was configured. No historical Azure data was migrated or cleaned up.
+
+## Local portal verification — 27 September 2026
+
+This is a targeted portal verification, not another full Bicep/Functions project test run. The existing pipeline YAML and target enablement were unchanged by the portal increment.
+
+- `scripts/Test-Portal.ps1`: **24 passed**, zero failed/skipped. Tests cover catalog/region/operation gates, disabled deployment, exact discovery binding, unconfigured identity, rejected definition/YAML/repository/branch/age/selection cases, sanitized upstream errors and no automatic queue retry. ADO transport is mocked. Evidence: `artifacts/test-results/portal.trx`.
+- `node tests/portal/smoke.mjs`: **13 passed** against the real unconfigured local HTTP server. Includes session/CSRF/Origin/Host protections, unauthenticated access, disabled deployment, synthetic inventory analysis via Node and disconnect.
+- Final self-contained packages `artifacts/portal-packages/20260927-082310/win-arm64.zip` and `win-x64.zip`: both launched and each passed those 13 HTTP checks using the bundled catalog and analyzer. ARM64 ran natively; x64 ran under Windows 11 ARM emulation. Native x64 hardware and clean-machine installation are still acceptance items. Per-package receipts are `package-test.json` in their publish folders.
+- Package SHA-256: ARM64 `53D962784C2058FB194BFE666638B520F44A1E5746ECF2B1517B7E8DA292ECD8`; x64 `EF060D5DA15F0953BB369F53FDE4837A83BB598CE707D77F4CAEB7D1D9F6DFB9`.
+- Actual setup/start/ownership-checked stop verified. A timestamp/path normalization defect was corrected. Source startup works with the repository SDK/runtime (10.0.300 / 10.0.8); portable packages carry runtime 10.0.12. MSAL is 4.90.1; package advisory query reported no known vulnerable portal dependencies.
+- Codex browser inspected narrow and 1440-pixel desktop layouts, workload selection, Preview handoff fields, disabled gates, registration setup, skill listing and skill text. The browser file chooser stalled, so the **file-picker-to-report UI path remains unverified**; HTTP upload and real analyzer invocation passed. Clean narrow-viewport screenshot: `artifacts/portal-tests/portal-preview.png`. The browser's stitched desktop capture was unsuitable as evidence.
+- Generated menu check passed for all eight targets; portal PowerShell files parsed successfully. No live Entra login/consent, Azure reads/writes or ADO queue calls were performed. Registration and the live Discover → Preview acceptance flow remain outstanding.
 
 ## Required live acceptance
 

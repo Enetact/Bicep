@@ -4,7 +4,9 @@ Reviewed from local source on **26 September 2026**. This is the current summary
 
 ## Available now
 
-The [local portal](local-portal.md) adds a Windows ARM64/x64 website, project skill library, saved-inventory analysis, browser-authentication implementation and guarded ADO queue/status integration. Local verification is separate from live sign-in/consent and ADO execution, which require registration and remain unverified. It is a desktop companion, not the proposed AI/MCP server.
+The portal now bundles **42 Microsoft Azure skill definitions** plus five project skills and provides read-only Azure browser-authenticated resource discovery, including network configuration inventory. Each Microsoft skill is explicitly marked **No pipeline associated yet**. This is supporting inventory, not full agent execution or automatic IPAM/planning. Targeted verification: 41 backend tests, 14 local HTTP checks and integrity checks for all 944 vendored source files. Live Azure identity/collection acceptance remains pending. See [scope and limitations](azure-skill-discovery.md).
+
+The [local portal](local-portal.md) adds a Windows ARM64/x64 website, project skill library, saved-inventory analysis, browser-authentication implementation and guarded ADO queue/status integration. Its earlier baseline on 27 September passed 24 backend tests and 13 HTTP checks per package; the skill-library increment above supersedes those test counts. ARM64 ran natively; x64 ran under Windows ARM emulation. Live sign-in/consent and ADO execution require registration and remain unverified. It is a desktop companion, not the proposed AI/MCP server.
 
 Two workload types (`blob-transfer`, `logic-app-event-grid`), two example instances (`blobcopy`, `eventflow`), four environments each and **eight disabled targets**. Four dedicated ADO menus share discovery/deployment implementation. The generic pair remains for compatibility. See the [catalog and method map](self-service-catalog.md).
 

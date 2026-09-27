@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
 let data, chosen, auth = { connected: [] }, ticket, reviewedProduct, loginTimer, runTimer;
+let discoverySkill, discoveryBusy = false, discoveryReport;
 const runs = [], diagramUrls = [];
 async function api(path, body) {
   const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -39,6 +40,7 @@ function updateGates() {
   $('subscriptions').disabled = !auth.connected.includes('azure');
   $('review').disabled = !chosen || !auth.connected.includes('ado') || ($('operation').value !== 'discover' && !$('discovery-run').value);
   $('refresh-discovery').disabled = !auth.connected.includes('ado'); $('cancel-login').hidden = !waiting;
+  $('run-skill-discovery').disabled = !discoverySkill || !auth.connected.includes('azure') || discoveryBusy;
 }
 async function refreshAuth() {
   auth = await api('auth'); $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
@@ -52,6 +54,42 @@ for (const audience of ['ado', 'azure']) action('connect-' + audience, async () 
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
 action('disconnect', async () => { await api('disconnect', {}); await refreshAuth(); });
 action('subscriptions', async () => { const subscriptions = await api('subscriptions'); $('subscription-list').replaceChildren(...subscriptions.map(s => make('p', `${s.name} · ${s.state}`))); if (!subscriptions.length) $('subscription-list').textContent = 'No registered subscriptions are visible to this account.'; });
+function openSkillDiscovery(skill) {
+  if (discoveryBusy) { notice('Wait for the current discovery to finish.'); return; }
+  discoverySkill = skill; $('skill-discovery').hidden = false; $('discovery-title').textContent = skill.name;
+  $('discovery-result').hidden = true; discoveryReport = null; $('discovery-progress').textContent = '';
+  $('discovery-explanation').textContent = skill.discoveryProfile === 'network' ? 'Observe VNets, inline subnets/peerings, DNS zones, configured NSG rules, route tables and private endpoints. Occupancy, IPAM, effective connectivity and remote networks remain unknown; no address ranges are allocated.' : `Collect ${skill.discoveryProfile} resource metadata visible in the selected subscription. Cost, directory, application, data-plane and specialist assessments are not executed by this inventory action.`;
+  options($('skill-subscription'), data.discoveryScopes, s => `${s.name} · ${s.id}`); updateGates();
+  $('skill-discovery').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function drawSkills() {
+  const query = $('skill-search').value.toLowerCase();
+  const shown = data.skills.filter(s => (!query || `${s.name} ${s.description}`.toLowerCase().includes(query)) && (!$('skill-origin').value || s.origin === $('skill-origin').value) && (!$('skill-profile').value || s.discoveryProfile === $('skill-profile').value));
+  $('skill-count').textContent = `${shown.length} of ${data.skills.length} skills · ${data.skills.filter(s => s.origin === 'Microsoft Azure Skills').length} bundled Microsoft definitions`;
+  $('skills').replaceChildren(...shown.map(s => {
+    const card = make('article', null, 'panel skill-card'); const button = make('button', 'Read skill →', 'secondary');
+    button.addEventListener('click', async () => { try { const skill = await api('skills/' + s.id); $('skill-detail').hidden = false; $('skill-title').textContent = skill.name; $('skill-content').textContent = skill.content; $('skill-detail').scrollIntoView({ behavior: 'smooth' }); } catch (e) { notice(e.message, true); } });
+    card.append(make('div', s.origin, 'eyebrow'), make('h2', s.name), make('span', s.pipelineStatus, 'tag'), make('p', s.description));
+    const controls = make('div', null, 'skill-actions'); controls.append(button);
+    if (s.discoveryProfile !== 'none') { const discover = make('button', 'Discover in Azure →', 'primary'); discover.addEventListener('click', () => openSkillDiscovery(s)); controls.append(discover); card.append(make('p', `Browser-authenticated discovery: ${s.discoveryProfile}. Upstream workflow execution is not enabled.`, 'muted')); }
+    card.append(controls); if (s.sourceUrl) { const link = make('a', 'Pinned Microsoft source ↗', 'muted'); link.href = s.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link); } return card;
+  }));
+}
+for (const id of ['skill-search','skill-origin','skill-profile']) $(id).addEventListener('input', drawSkills);
+$('discovery-connect').addEventListener('click', () => page('connections'));
+action('run-skill-discovery', async () => {
+  discoveryBusy = true; updateGates(); $('discovery-progress').textContent = 'Reading Azure inventory. Collection is bounded to two minutes; unavailable collections will be reported as unknown.';
+  $('discovery-result').hidden = true;
+  try {
+    discoveryReport = await api('skill-discovery', { skillId: discoverySkill.id, subscriptionId: $('skill-subscription').value });
+    $('discovery-progress').textContent = `${discoveryReport.status} · no pipeline run · no Azure changes`;
+    $('discovery-coverage').replaceChildren(make('p', discoveryReport.coverage), ...discoveryReport.collections.map(c => make('p', `${c.name}: ${c.status} · ${c.resources.length} matching records · ${c.pages} pages. ${c.issue ?? ''}`)), ...discoveryReport.limitations.map(l => make('p', l, 'muted')));
+    $('discovery-saved').textContent = `Saved locally: artifacts/portal-discovery/${discoveryReport.id}/report.json`;
+    $('discovery-json').textContent = JSON.stringify(discoveryReport, null, 2); $('discovery-result').hidden = false;
+  } catch (e) { $('discovery-progress').textContent = 'Discovery did not complete. No empty inventory or creation approval is inferred.'; throw e; }
+  finally { discoveryBusy = false; updateGates(); }
+});
+$('download-discovery').addEventListener('click', () => { if (!discoveryReport) return; const url = URL.createObjectURL(new Blob([JSON.stringify(discoveryReport, null, 2)], { type: 'application/json' })); const a = make('a'); a.href = url; a.download = `azure-discovery-${discoveryReport.id}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); });
 for (const id of ['environment', 'region', 'operation', 'discovery-run']) $(id).addEventListener('change', selectionChanged);
 action('refresh-discovery', async () => { const found = await api('discovery/' + chosen.id); options($('discovery-run'), [{ id: '', name: 'Choose a matching discovery run' }, ...found], v => v.name + (v.finished ? ` · ${new Date(v.finished).toLocaleString()}` : '')); if (!found.length) notice('No successful main discovery runs from the last seven days were found. Run Discover first.'); });
 action('review', async () => {
@@ -85,6 +123,6 @@ try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
   $('products').replaceChildren(...data.products.map((p, i) => { const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top'); top.append(make('div', i ? '⌁' : '⇄', 'card-icon'), make('span', i ? 'EVENT DRIVEN' : 'FILE TRANSFER', 'tag')); card.append(top, make('h2', p.name), make('p', p.summary, 'summary')); const details = make('details'); details.append(make('summary', 'Dependencies & estimated costs'), make('p', p.requirements), make('p', p.costs)); const button = make('button', 'Configure workload →', 'primary'); button.addEventListener('click', () => showProduct(p)); card.append(details, button); return card; }));
-  $('skills').replaceChildren(...data.skills.map(s => { const card = make('article', null, 'panel'); const button = make('button', 'Read skill →', 'secondary'); button.addEventListener('click', async () => { try { const skill = await api('skills/' + s.id); $('skill-detail').hidden = false; $('skill-title').textContent = skill.id; $('skill-content').textContent = skill.content; $('skill-detail').scrollIntoView({ behavior: 'smooth' }); } catch (e) { notice(e.message, true); } }); card.append(make('h2', s.id), make('p', s.description), button); return card; }));
+  drawSkills();
   await refreshAuth(); if (auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => notice(e.message, true)), 2000);
 } catch (e) { notice(e.message, true); }

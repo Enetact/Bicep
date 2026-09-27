@@ -4,7 +4,11 @@ Two independently owned workload patterns share Discover, Deploy, local modules,
 
 ## Local self-service website
 
-[Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for both workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported. From this repository root:
+[Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for both workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported.
+
+The [complete bundled Azure Skills library](docs/azure-skill-discovery.md) now adds 42 Microsoft skill definitions alongside our five local skills. Microsoft cards show **No pipeline associated yet** and expose a separate read-only Azure browser-authenticated discovery action, including a networking inventory view. Live tenant acceptance still requires the portal registration.
+
+From this repository root:
 
 ```powershell
 ./scripts/Setup-Portal.ps1

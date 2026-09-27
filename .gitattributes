@@ -1,2 +1,4 @@
 # Stable checkout bytes keep the source SHA-256 manifest portable across agents.
 * text=auto eol=lf
+# Preserve the exact upstream bytes recorded by the Azure Skills provenance manifest.
+vendor/azure-skills/** -text

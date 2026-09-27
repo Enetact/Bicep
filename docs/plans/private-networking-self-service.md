@@ -1,5 +1,7 @@
 # Private networking self-service: analyzer, allocation and AI assistance
 
+**27 September implementation follow-up:** the portal now has a [browser-authenticated networking inventory adapter](../azure-skill-discovery.md) backed by fixed read-only ARM queries and explicit partial/unknown coverage. It collects visible configuration without developer-entered CIDRs. Enterprise coverage, subnet recommendation, IPAM reservation/allocation, effective connectivity and AI-assisted execution described below remain proposed.
+
 **Status: proposed, not implemented.** Source and Microsoft Learn research reviewed on **26 September 2026**. This design expands the [self-service roadmap](../self-service-expansion-plan.md); it does not change current target settings, grant access, allocate addresses or deploy resources. Azure service behavior below is documented guidance; the architecture, interfaces and acceptance gates are proposals for this repository.
 
 The [implementation readiness review](enhanced-self-service-validation.md) controls delivery order and final validation. It corrects approval timing to separate ADO stages, distinguishes non-deploying Preview from read-only discovery, and defines compatibility and live-pilot gates.
@@ -25,7 +27,7 @@ Prefer an adapter to Azure Virtual Network Manager IPAM when it fits the enterpr
 | `modules/network/workload-vnet/main.bicep` | Creates one workload VNet, delegated integration subnet, endpoint subnet and integration NSG; endpoint policies disabled. | Separate owned-network creation from controlled attachment to shared networks; explicit DNS, route, egress and policy profiles. |
 | Preview/Deploy templates and workload adapters | Frozen inputs, provenance, What-If, drift checks and workload smoke contracts. | Network plan schema, reservation lifecycle, final plan rebinding and dedicated connectivity ownership boundary. |
 
-There is currently no enterprise network graph, shared allocation ledger, automatic best-fit subnet selection, AI network planner, or dynamic portal. `SC-AZ-A-Bicep` is registered for one subscription; that does not establish visibility or write permission in a connectivity subscription or on-premises. Existing platform checks and disabled targets remain unchanged. See [current prerequisites](../prerequisite-resolution.md) and [verification status](../completion-status.md).
+There is currently no enterprise network graph, shared allocation ledger, automatic best-fit subnet selection or AI network planner. The local portal now supplies a bounded discovery interface; it does not implement those allocation capabilities. `SC-AZ-A-Bicep` is registered for one subscription; that does not establish visibility or write permission in a connectivity subscription or on-premises. Existing platform checks and disabled targets remain unchanged. See [current prerequisites](../prerequisite-resolution.md) and [verification status](../completion-status.md).
 
 ## Developer experience
 

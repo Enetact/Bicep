@@ -11,7 +11,7 @@ foreach($rid in $Runtime){
     if($LASTEXITCODE -ne 0){throw "Publish failed for $rid."}
     # Ship only reviewed catalog, skills, analyzer and documentation; never local configuration or artifacts.
     $snapshot=Join-Path $dest 'repository';New-Item -ItemType Directory -Path $snapshot -Force|Out-Null
-    foreach($folder in @('config','self-service','docs','.agents')){Copy-Item -LiteralPath (Join-Path $root $folder) -Destination $snapshot -Recurse}
+    foreach($folder in @('config','self-service','docs','.agents','vendor')){Copy-Item -LiteralPath (Join-Path $root $folder) -Destination $snapshot -Recurse}
     New-Item -ItemType Directory -Path (Join-Path $snapshot 'scripts') -Force|Out-Null
     Copy-Item -LiteralPath (Join-Path $root 'scripts/analysis') -Destination (Join-Path $snapshot 'scripts') -Recurse
     Get-ChildItem $root -Filter 'azure-pipelines-*.yml'|Copy-Item -Destination $snapshot

@@ -6,7 +6,7 @@ namespace SelfService.Portal;
 public record Product(string Id, string Type, string Name, string DiscoverName, string DeployName, string DiscoverYaml, string DeployYaml,
     string Summary, string Requirements, string Costs, Target[] Targets);
 public record Target(string Workload, string Environment, string Subscription, string SubscriptionId, string Network, bool Enabled);
-public record Skill(string Id, string Description, string Content);
+public record Skill(string Id, string Name, string Description, string Content, string Origin, string PipelineStatus, string DiscoveryProfile, string? SourceUrl);
 public record RunRequest(string Product, string Environment, string Region, string Operation, int? DiscoveryRunId);
 
 public sealed class Catalog(PortalOptions options)
@@ -36,12 +36,30 @@ public sealed class Catalog(PortalOptions options)
         var match = Regex.Match(yaml, $@"(?m)^  - name: {Regex.Escape(name)}\r?\n(?:(?!  - name:)[^\n]*\n)*?    default: (""[^\r\n]*"")\r?$", RegexOptions.None, TimeSpan.FromSeconds(1));
         return match.Success ? JsonSerializer.Deserialize<string>(match.Groups[1].Value)! : "See the generated pipeline menu for current details.";
     }
-    public Skill[] Skills => Directory.GetDirectories(Path.Combine(Root, ".agents/skills")).Order().Select(dir =>
+    public Skill[] Skills => LocalSkills.Concat(AzureSkills).ToArray();
+    IEnumerable<Skill> LocalSkills => Directory.GetDirectories(Path.Combine(Root, ".agents/skills")).Order().Select(dir =>
     {
         var text = File.ReadAllText(Path.Combine(dir, "SKILL.md"));
         var desc = Regex.Match(text, "(?m)^description: (.+)$").Groups[1].Value.Trim();
-        return new Skill(Path.GetFileName(dir), desc, text);
+        var id = Path.GetFileName(dir);
+        return new Skill(id, id, desc, text, "Project", "Local guidance; no direct pipeline", "none", null);
     }).ToArray();
+    IEnumerable<Skill> AzureSkills
+    {
+        get
+        {
+            var root = Path.Combine(Root, "vendor/azure-skills");
+            var bundle = Read(Path.Combine(root, "bundle.json"));
+            foreach (var s in bundle.GetProperty("skills").EnumerateArray())
+            {
+                var relative = s.GetProperty("path").GetString()!;
+                if (relative.Split('/').Any(p => p is ".." or "." or "") || Path.IsPathRooted(relative) || relative.Contains('\\')) throw new InvalidOperationException("Invalid bundled skill path.");
+                yield return new Skill(s.GetProperty("id").GetString()!, s.GetProperty("name").GetString()!, s.GetProperty("description").GetString()!,
+                    File.ReadAllText(Path.Combine(root, relative)), "Microsoft Azure Skills", "No pipeline associated yet", s.GetProperty("discoveryProfile").GetString()!,
+                    $"https://github.com/microsoft/azure-skills/blob/{bundle.GetProperty("commit").GetString()}/{relative}");
+            }
+        }
+    }
     public (Product Product, Target Target) Validate(RunRequest request)
     {
         var p = Products.SingleOrDefault(p => p.Id == request.Product) ?? throw new PortalException("Unknown workload.");
