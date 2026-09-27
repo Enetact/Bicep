@@ -15,6 +15,12 @@ const headers = { cookie, origin: base, 'x-portal-csrf': bootstrap.csrf, 'conten
 const post = (path, data, extra = {}) => fetch(base + '/api/' + path, { method: 'POST', headers: { ...headers, ...extra }, body: JSON.stringify(data) });
 await test('Session cookie and restrictive response headers', () => { assert.match(response.headers.get('set-cookie'), /httponly/i); assert.match(response.headers.get('set-cookie'), /samesite=strict/i); assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/); assert.equal(response.headers.get('access-control-allow-origin'), null); });
 await test('Catalog and complete skill API', async () => { assert.equal(bootstrap.products.length, 7); assert.equal(bootstrap.skills.length, 47); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
+await test('Every product has a served conceptual topology', () => assert.deepEqual(Object.keys(bootstrap.topologies.products).sort(), bootstrap.products.map(p => p.id).sort()));
+await test('Diagram module and connected panels are served', async () => {
+  const module = await fetch(base + '/topology.mjs'); assert.equal(module.status, 200); assert.match(module.headers.get('content-type'), /javascript/);
+  const html = await fetch(base + '/').then(r => r.text()); for (const id of ['observed-diagram','workload-diagram','preview-diagram','load-preview']) assert.ok(html.includes(`id="${id}"`));
+});
+await test('Unauthenticated Preview artifact read fails closed', async () => assert.equal((await fetch(base + '/api/preview/storage/44', { headers })).status, 401));
 await test('Cross-site POST rejected', async () => assert.equal((await post('disconnect', {}, { origin: 'https://outside.example' })).status, 403));
 await test('Missing CSRF rejected', async () => assert.equal((await post('disconnect', {}, { 'x-portal-csrf': '' })).status, 403));
 await test('Cross-site GET rejected', async () => assert.equal((await fetch(base + '/api/bootstrap', { headers: { 'sec-fetch-site': 'cross-site' } })).status, 403));

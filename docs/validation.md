@@ -1,5 +1,9 @@
 # Validation evidence
 
+## Network discovery scope review: 27 September 2026
+
+Verified the current portal and ADO single-subscription boundaries against source, the pinned Microsoft skill guidance and Microsoft Learn. All **17 existing AzureDiscoveryTests passed** using the prior qualified build and mocked HTTP/tokens; evidence is `artifacts/discovery-scope-audit/discovery-scope.trx`. No application code changed, no full-suite rerun occurred and no tenant, management-group or MCP live scan was performed. The [scope assessment](plans/tenant-network-discovery.md) records the proposed UI, Resource Graph collector, optional MCP analysis, identity separation and acceptance requirements. This review does not implement or enable broader discovery.
+
 ## Five-workload expansion: 27 September 2026
 
 Added Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. The source catalog now has seven types, 28 disabled profiles and fourteen dedicated Discover/Deploy roots. This is local implementation and qualification, not Azure acceptance. The working tree extends base commit `6e36a5822d0d3f7c26433ff3c58fa8a2dc15b3ed`; changes were not committed or pushed by this task.
@@ -384,3 +388,12 @@ This is a targeted portal verification, not another full Bicep/Functions project
 - Recovery audit attribution, ledger backup/restore, privilege boundaries and approved operational cleanup.
 
 This is a locally tested production-oriented baseline. It is not a claim of deployed production readiness.
+
+## Connected portal diagrams — 27 September 2026
+
+Implemented inline observed inventory, conceptual component diagrams for seven workload configurations, and guarded reading/projection of saved ADO Preview artifacts. Scope and methods: [connected diagrams](portal-diagrams.md). No cloud calls, target enablement or new package dependencies.
+
+- `./scripts/Test-Portal.ps1`: all 944 pinned skill source hashes matched; six topology tests and 66 backend tests passed, zero failures/skips.
+- `node tests/portal/smoke.mjs`: 17 real localhost HTTP checks passed on ARM64, including module serving and unauthenticated Preview rejection.
+- Codex browser: real Private Storage configuration rendered; a separate localhost fixture verified partial discovery/unknown references, the same-subscription comparison control, blocked Preview display and clearing on environment change. Fixtures are synthetic, not Azure or ADO evidence.
+- Evidence: `artifacts/test-results/portal.trx` and `artifacts/portal-tests/http-smoke.json`. Portable packages from before this increment are unchanged and require rebuilding. Native x64 and live identity/artifact compatibility were not tested in this increment.

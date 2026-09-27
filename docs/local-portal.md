@@ -14,9 +14,10 @@ The portal adds a browser workspace to the seven registered ADO workload routes.
 - Five project-local skills read from `.agents/skills`, plus [42 Microsoft Azure skill definitions](azure-skill-discovery.md) and supporting files bundled under `vendor/azure-skills`. Guidance is displayed as text; arbitrary commands or an AI agent are not executed.
 - Microsoft skill cards show **No pipeline associated yet**. A separate Azure browser-authenticated read-only inventory adapter collects approved subscription metadata, with service views and a networking profile. These are supporting facts, not full execution of each upstream workflow.
 - Saved discovery analysis invoking the existing deterministic analyzer and displaying its Markdown-as-text and containment diagrams. No model or Azure connection is required.
+- [Connected diagrams](portal-diagrams.md): inline visible-resource topology, proposed component diagrams for all seven workload configurations, same-subscription inventory comparison and a guarded reader for saved ADO Preview changes. Search, pagination, full-name details and SVG export are included.
 - Run submission, status polling and ADO links for logs, approvals, Summary/Extensions and artifact downloads. Run history in the portal lasts for the current page session; ADO retains the actual history.
 
-This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. AI/MCP execution, dynamic IPAM, automatic subnet allocation, runtime skill installation, in-portal ADO artifact downloads and in-portal environment approval are not implemented. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
+This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. AI/MCP execution, dynamic IPAM, automatic subnet allocation, runtime skill installation, general-purpose artifact browsing and in-portal environment approval are not implemented. The portal reads only the named `deployment-preview` artifact for the connected Preview diagram. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
 
 ## Run from source, in order
 

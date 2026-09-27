@@ -10,6 +10,8 @@ The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 
 
 The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Entra registration and live authentication/ADO acceptance remain required.
 
+The [connected diagram views](portal-diagrams.md) add observed Azure inventory, conceptual component diagrams for every selected product, and resource-action diagrams from the registered workload's saved ADO Preview artifact. Conceptual components are separate from exact Azure resource IDs; no name-based reuse or deployment approval is inferred.
+
 Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.
 
 A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for seven instances are 28 targets, representing seven products.

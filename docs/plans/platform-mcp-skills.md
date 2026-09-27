@@ -1,5 +1,7 @@
 # Platform skills and MCP capability design
 
+**Scope review, 27 September 2026:** see [tenant and management-group discovery](tenant-network-discovery.md). Microsoft documents tenant-scoped MCP Insights with sampling and management-group-scoped Resource Graph queries; our portal implements neither integration yet. Browser identity, MCP identity and ADO service connections must not be conflated.
+
 **Status: four local skill entrypoints implemented; eight further skills and MCP interfaces proposed. Reviewed 26 September 2026.** This specifies twelve project-specific skills for the [enhanced self-service implementation plan](enhanced-self-service-validation.md). It complements the [Microsoft Azure skills assessment](../azure-skills-assessment.md). No platform MCP server or AI write operation is registered by this increment.
 
 ## Architecture decision

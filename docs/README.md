@@ -9,7 +9,9 @@ Reviewed 27 September 2026. Start with the [repository README](../README.md), [c
 | Need | Guide |
 |---|---|
 | Local website, browser sign-in, ADO requests and ARM64/x64 packages | [Platform Studio](local-portal.md) |
+| Existing-resource diagrams, proposed workloads and saved Azure Preview changes | [Connected portal diagrams](portal-diagrams.md) |
 | Complete Microsoft skill bundle and Azure-only read-only discovery | [Azure skill discovery](azure-skill-discovery.md) |
+| Tenant/management-group discovery feasibility and proposed scope menu | [Scope verification and design](plans/tenant-network-discovery.md) |
 | Available products, menus, resources and methods | [Catalog and implementation map](self-service-catalog.md) |
 | Register definitions, configure permissions and queue runs | [Developer/platform self-service](self-service.md) |
 | YAML jobs and artifact handoffs | [Pipeline flow](pipeline-flow.md) |

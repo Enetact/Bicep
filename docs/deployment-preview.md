@@ -1,5 +1,7 @@
 # Bicep Preview and Deploy
 
+The [connected portal diagram](portal-diagrams.md) can now load this pipeline's published `deployment-preview` artifact by run ID, including while Deploy waits for approval. It projects resource actions and retains blocked/uncertain status; ADO's full README, pipeline guards and approval checks remain authoritative. This adds no pipeline stage or automatic deployment.
+
 **Product coverage:** Preview also supports Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. It freezes typed inputs and checks existing shared dependencies before Azure What-If. Missing shared network/DNS/monitoring remains a blocker. Infrastructure-only deployment applies Release once; app products use Foundation/package/Release. See [onboarding](workload-onboarding.md).
 
 Use the workload-specific **Deploy - Blob copy** (`/azure-pipelines-blobcopy-deploy.yml`) or **Deploy - Event flow** (`/azure-pipelines-eventflow-deploy.yml`). Both extend the protected `pipelines/deploy-entry.yml` and route to `pipelines/templates/self-service-two-stage.yml`. The legacy generic Deploy file keeps its older six-stage/setup flow.

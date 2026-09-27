@@ -8,6 +8,8 @@
 
 ## Outcome and starting point
 
+**27 September 2026 connected-diagram increment:** observed portal inventory, seven conceptual workload diagrams and saved ADO Preview resource-action diagrams are implemented with searchable/exportable views. The last same-subscription inventory can be compared in the configuration panel. This delivers the visual handoff described in [connected diagrams](portal-diagrams.md); executing Microsoft skills/MCP, automatic network selection, live connectivity validation and Azure/ADO acceptance remain separate work.
+
 **27 September 2026 increment:** the local portal now includes all 42 pinned Microsoft skill definitions with **No pipeline associated yet** labels and browser-authenticated, read-only Azure resource inventory. The networking profile collects configured topology without requiring address inputs; occupancy, effective connectivity, IPAM authority and allocation remain unknown or proposed. This advances the discovery experience, not the number of registered deployment products. See the [implemented discovery contract](azure-skill-discovery.md).
 
 **Implementation follow-up:** initial saved-evidence analysis/reporting and four local review skills are delivered; see [progress and boundaries](plans/implementation-progress.md). The five new product implementations are documented above; broader product, networking allocation and operational offerings remain proposed. User authorization to proceed with phased implementation does not establish completion of their technical/live acceptance gates.

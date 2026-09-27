@@ -88,4 +88,27 @@ public sealed class AdoGateway(HttpClient http, ITokenProvider identity, PortalO
         return result.GetProperty("value").EnumerateArray().Where(v => allowed.Contains(v.GetProperty("subscriptionId").GetString()!))
             .Select(v => (object)new { id = v.GetProperty("subscriptionId").GetString(), name = v.GetProperty("displayName").GetString(), state = v.GetProperty("state").GetString() }).ToArray();
     }
+    public async Task<object> Preview(BrowserSession s, string product, int runId, CancellationToken ct)
+    {
+        if (runId <= 0) throw new PortalException("Enter a positive Preview run ID.");
+        var p = catalog.Products.SingleOrDefault(p => p.Id == product) ?? throw new PortalException("Unknown workload.");
+        var d = await Definition(s, p, false);
+        var b = await Send(s, "ado", Api($"build/builds/{runId}"));
+        if (b.GetProperty("definition").GetProperty("id").GetInt32() != d.GetProperty("id").GetInt32() ||
+            b.GetProperty("repository").GetProperty("id").GetString() != d.GetProperty("repository").GetProperty("id").GetString() ||
+            b.GetProperty("sourceBranch").GetString() != "refs/heads/main")
+            throw new PortalException("Preview must belong to this workload's registered main pipeline and repository.", 403);
+        // It may be waiting for Deploy approval: artifact publication, not whole-run success, is required.
+        var artifact = await Send(s, "ado", Api($"pipelines/{d.GetProperty("id").GetInt32()}/runs/{runId}/artifacts?artifactName=deployment-preview&$expand=signedContent"));
+        if (artifact.GetProperty("name").GetString() != "deployment-preview") throw new PortalException("Unexpected preview artifact.", 502);
+        var uri = PreviewDiagram.DownloadUri(artifact.GetProperty("signedContent").GetProperty("url").GetString());
+        // Anonymous signed URL, fixed host allowlist, redirects disabled by the registered HttpClient.
+        // Never forward the delegated ADO bearer token to artifact storage.
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!response.IsSuccessStatusCode) throw new PortalException("Preview download is unavailable. Retry or open the artifact in ADO.", 502);
+        using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var bytes = await PreviewDiagram.Bounded(stream, 32 * 1024 * 1024, ct);
+        return await PreviewDiagram.Read(bytes, p, runId, b.GetProperty("sourceVersion").GetString()!, ct);
+    }
 }

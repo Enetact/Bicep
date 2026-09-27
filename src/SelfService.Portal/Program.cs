@@ -53,7 +53,7 @@ app.UseDefaultFiles(); app.UseStaticFiles();
 app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Session(c).Csrf, configured = options.AuthenticationConfigured,
     packagedCatalog = options.RepositoryRoot == Path.Combine(AppContext.BaseDirectory, "repository"),
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
-    products = catalog.Products, regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
+    products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
     discoveryScopes = catalog.Products.SelectMany(p => p.Targets).DistinctBy(t => t.SubscriptionId).Select(t => new { id = t.SubscriptionId, name = t.Subscription }) });
 app.MapGet("/api/auth", (HttpContext c) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Account?.Username, connected = s.Connected.Keys.ToArray() }; });
 app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIdentity identity) => { identity.Begin(Session(c), audience); return Results.Accepted(); });
@@ -80,6 +80,7 @@ app.MapPost("/api/queue/{ticket}", async (HttpContext c, string ticket, AdoGatew
     return await ado.Queue(s, pending.Request);
 });
 app.MapGet("/api/runs/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Status(Session(c), product, id));
+app.MapGet("/api/preview/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Preview(Session(c), product, id, c.RequestAborted));
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.Run();

@@ -22,6 +22,8 @@ Follow the [workload onboarding guide](docs/workload-onboarding.md) for exact AD
 
 [Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for all seven workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported.
 
+[Connected diagrams](docs/portal-diagrams.md) now show existing resources after Azure discovery, proposed components when configuring any workload, and resource actions from a saved ADO Preview. Search, page and export diagrams; compare observed inventory with the proposal. Live cloud acceptance remains separate from local verification.
+
 The [complete bundled Azure Skills library](docs/azure-skill-discovery.md) now adds 42 Microsoft skill definitions alongside our five local skills. Microsoft cards show **No pipeline associated yet** and expose a separate read-only Azure browser-authenticated discovery action, including a networking inventory view. Live tenant acceptance still requires the portal registration.
 
 From this repository root:

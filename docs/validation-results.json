@@ -497,5 +497,48 @@
       "expansionPlan": "docs/self-service-expansion-plan.md",
       "expansionPlanStatus": "Initial offline analysis/reporting implemented; later product/network/allocation work remains proposed."
     }
-  ]
+  ],
+  "networkDiscoveryScopeReview": {
+    "date": "2026-09-27",
+    "kind": "source-documentation-and-existing-mocked-tests",
+    "currentScope": "one registered subscription",
+    "currentTransport": "fixed ARM GET collections using Azure browser token",
+    "tenantManagementGroupPortalImplemented": false,
+    "mcpClientIntegrated": false,
+    "existingDiscoveryTestsPassed": 17,
+    "testAssemblyRebuilt": false,
+    "fullSuiteRerun": false,
+    "liveAzureOrMcpScanPerformed": false,
+    "evidence": "artifacts/discovery-scope-audit/discovery-scope.trx",
+    "design": "docs/plans/tenant-network-discovery.md"
+  },
+  "connectedPortalDiagrams": {
+    "httpChecks": 17,
+    "scope": "Observed inventory, seven proposed workload views and ADO Preview diagram reader",
+    "portablePackagesRebuilt": false,
+    "backendTests": {
+      "passed": 66,
+      "skipped": 0,
+      "failed": 0
+    },
+    "topologyTests": {
+      "failed": 0,
+      "passed": 6
+    },
+    "browserVerification": [
+      "Real storage configuration diagram",
+      "Synthetic partial network discovery diagram",
+      "Same-subscription comparison exposed",
+      "Synthetic blocked Preview actions rendered",
+      "Environment switch cleared saved Preview"
+    ],
+    "evidence": [
+      "artifacts/test-results/portal.trx",
+      "artifacts/portal-tests/http-smoke.json"
+    ],
+    "liveAdoArtifact": false,
+    "liveAzure": false,
+    "enabledTargets": 0,
+    "date": "2026-09-27"
+  }
 }
