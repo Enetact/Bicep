@@ -1,5 +1,7 @@
 # Microsoft Azure skills assessment for self-service analysis
 
+**Implementation follow-up, 27 September 2026:** [Platform Studio](local-portal.md) now adapts the upstream landing-page theme with MIT attribution and integrates this project's existing catalog, local skills and analyzer. Upstream skills have not been installed as an executable agent runtime. The research and proposed MCP adoption below retain their original scope.
+
 **Reviewed: 26 September 2026. Status: research and proposed adoption; no skills installed or pipeline behavior changed.** This assessment extends the [expansion roadmap](self-service-expansion-plan.md) and [private networking plan](plans/private-networking-self-service.md). It does not establish Azure acceptance, authorize remediation or enable targets.
 
 The [implementation readiness and validation plan](plans/enhanced-self-service-validation.md) consolidates A0–A4 with the networking/product workstreams. Its V0–V6 sequence, shared evidence contracts and protected stage boundaries govern implementation. A0's local renderer acceptance and live ADO rendering acceptance are distinct gates.
