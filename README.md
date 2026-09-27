@@ -19,6 +19,44 @@ From this repository root:
 
 The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the four existing pipeline definitions; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets or execute an AI/MCP agent.
 
+### Use the Azure Skills library
+
+The library ships with **42 Microsoft Azure skill definitions and their supporting files**, plus **five project-local skills**. The Microsoft snapshot is pinned in [the bundle index](vendor/azure-skills/bundle.json), with source paths, licenses and hashes. Each Microsoft card displays **No pipeline associated yet**. Its discovery action collects supporting resource inventory; it does not execute that skill's complete upstream workflow.
+
+1. Start the portal with the commands above and open [Platform Studio](http://localhost:5087/).
+2. Select **Skills library**. Search by name or filter by source and discovery view. **Read skill** opens the bundled instructions.
+3. For live discovery, configure the [separate portal Entra registration](docs/local-portal.md#configure-microsoft-browser-sign-in), then open **Connections → Connect Azure** and complete Microsoft browser sign-in. The Azure user needs read access to the resources being queried. ADO sign-in and `SC-AZ-A-Bicep` are not used for this action.
+4. On a Microsoft skill, select **Discover in Azure**, choose a registered subscription and select **Discover visible resources**. You do not need to enter a subnet, resource name or IP range.
+5. Review collection status and resource facts, then download the JSON report. A local copy is saved at `artifacts/portal-discovery/<id>/report.json`; these private infrastructure reports are ignored by Git.
+
+| Discovery view | What is collected |
+|---|---|
+| Networking | Resource metadata, VNets, inline subnets and peerings, private DNS zones, configured NSG rules, route tables and private endpoints. |
+| Compute, Kubernetes, Storage, AI, Messaging, Monitoring and Data | Resource metadata filtered to the view's supported Azure providers. |
+| General inventory | Visible resource metadata for cross-cutting skills, including cost and identity guidance; no billing or Entra directory assessment. |
+
+Discovery reads only the selected registered subscription using the signed-in user's access. A successful empty query means no matching visible resources were found. Permission errors, timeouts and incomplete reads remain **Failed/Partial**, with unknown coverage. They do not authorize resource creation.
+
+Networking discovery is the first inventory step in the [private networking plan](docs/plans/private-networking-self-service.md). IP availability, IPAM reservations, effective connectivity and remote-network coverage remain unverified. Automatic subnet selection/allocation, AI execution and new skill-specific pipelines are still planned. These reports are **not deployment manifests**; the existing Blob copy and Event flow Discover → Preview → Deploy pipelines keep their own artifact and approval requirements.
+
+### Verification and Windows packages
+
+The [27 September 2026 validation record](docs/validation.md#bundled-azure-skills-and-browser-discovery-27-september-2026) records **41 passing backend tests**, **14 local HTTP checks per Windows package**, and matching hashes for all **944 bundled source files**. Azure responses were mocked. ARM64 ran natively; x64 ran under ARM emulation, with native x64 hardware and live Azure sign-in/discovery still unverified.
+
+To verify or package the current source, stop the portal before building:
+
+```powershell
+./scripts/Stop-Portal.ps1
+./scripts/Test-Portal.ps1
+./scripts/Publish-Portal.ps1
+# Resume the source portal when ready:
+./scripts/Start-Portal.ps1
+```
+
+Publishing creates self-contained `win-arm64.zip` and `win-x64.zip` packages under `artifacts/portal-packages/<timestamp>/`, including the skill bundle. See [Windows requirements and packaging](docs/local-portal.md) and the [full discovery contract](docs/azure-skill-discovery.md) for setup, methods, permissions and limits.
+
+## Blob transfer workload
+
 The blob-transfer workload below provides production-minded Azure Bicep for Dev, QA, UAT and Prod, with .NET 10 Functions, deduplication and recovery. **The uploading system is outside our control. It only needs to place a file in the solution storage container. No custom metadata, request ID, filename convention or queue message is required from it.**
 
 ```mermaid
