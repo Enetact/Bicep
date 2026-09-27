@@ -130,7 +130,7 @@ public static class TagRules
         }
         var plan=new TagPlan("platform.tag-plan/v1",request,ProfileHash(p),inventory.GovernanceDigest,p.RuleVersion,now.AddMinutes(30),changes.ToArray(),before,blockers.Distinct().ToArray(),"");return plan with{Digest=PlanHash(plan)};
     }
-    public static string PlanHash(TagPlan plan)=>TagJson.Hash(new{plan.Schema,plan.Request,plan.ProfileDigest,plan.GovernanceDigest,plan.RuleVersion,plan.Changes,plan.Before,plan.Blockers});
+    public static string PlanHash(TagPlan plan)=>TagJson.Hash(new{plan.Schema,plan.Request,plan.ProfileDigest,plan.GovernanceDigest,plan.RuleVersion,plan.ExpiresUtc,plan.Changes,plan.Before,plan.Blockers});
     public static void ValidatePlan(TagPlan plan,TagProfile p,DateTimeOffset now)
     {
         if(plan.Schema!="platform.tag-plan/v1"||plan.Digest!=PlanHash(plan)||plan.ProfileDigest!=ProfileHash(p)||plan.ExpiresUtc<now||plan.ExpiresUtc>now.AddMinutes(31)||plan.Blockers.Length>0)throw new TagException("Plan blocked, expired, changed or unqualified.");

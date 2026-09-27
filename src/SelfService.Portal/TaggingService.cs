@@ -113,6 +113,31 @@ public sealed class TaggingService(HttpClient http,ITokenProvider identity,Catal
         var ticket=Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));s.TagPending[ticket]=new(request,TagRules.ProfileHash(p),payload,d.GetProperty("id").GetInt32(),DateTimeOffset.UtcNow.AddMinutes(5));
         return new{ticket,payload,warning="Queues the exact reviewed request in private ADO. Requests are not secret. Apply requires separate protected approval; no tag writes occur in this portal."};
     }
+    async Task<string> ResultArtifact(BrowserSession s,int definition,int run,string artifactName,string file,CancellationToken ct)
+    {
+        var artifact=await ado.Send(s,"ado",Api($"pipelines/{definition}/runs/{run}/artifacts?artifactName={artifactName}&$expand=signedContent"));
+        var uri=PreviewDiagram.DownloadUri(artifact.GetProperty("signedContent").GetProperty("url").GetString());
+        using var response=await http.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,ct);if(!response.IsSuccessStatusCode)throw new PortalException("Result artifact not available.",409);
+        using var stream=await response.Content.ReadAsStreamAsync(ct);using var zip=new ZipArchive(new MemoryStream(await PreviewDiagram.Bounded(stream,16*1024*1024,ct)));
+        var entries=zip.Entries.Where(e=>e.FullName.Replace('\\','/').TrimStart('/')==file||e.FullName.Replace('\\','/').TrimStart('/')==artifactName+"/"+file).ToArray();
+        if(entries.Length!=1||entries[0].Length>4*1024*1024)throw new PortalException("Result artifact missing/ambiguous/oversized.",409);
+        using var input=entries[0].Open();return Encoding.UTF8.GetString(await PreviewDiagram.Bounded(input,4*1024*1024,ct));
+    }
+    public async Task<object> Results(BrowserSession s,int runId,string kind,CancellationToken ct)
+    {
+        if(kind is not("preview" or "apply" or "verify"))throw new TagException("Select Preview, Apply or Verify evidence.");
+        var d=await Definition(s,false);var definition=d.GetProperty("id").GetInt32();var run=await ado.Send(s,"ado",Api($"build/builds/{runId}"));
+        if(run.GetProperty("definition").GetProperty("id").GetInt32()!=definition||AzureTags.Text(run,"sourceBranch")!="refs/heads/main"||AzureTags.Text(run.GetProperty("repository"),"id")!="Enetact/Bicep")throw new PortalException("Tag results producer differs.",403);
+        var plan=TagJson.Read<TagPlan>(await ResultArtifact(s,definition,runId,"tag-preview","plan.json",ct));
+        if(plan.Schema!="platform.tag-plan/v1"||plan.Digest!=TagRules.PlanHash(plan))throw new TagException("Result plan digest differs.");
+        foreach(var c in plan.Changes)TagRules.Id(c.ResourceId,Profile().SubscriptionId);
+        TagReceipt? receipt=null;
+        if(kind!="preview"){
+            receipt=TagJson.Read<TagReceipt>(await ResultArtifact(s,definition,runId,kind=="apply"?"tag-apply":"tag-verification",kind=="apply"?"receipt.json":"verification.json",ct));
+            if(receipt.Schema!="platform.tag-receipt/v1"||receipt.PlanDigest!=plan.Digest||receipt.Results.Any(r=>!plan.Before.ContainsKey(r.ResourceId)))throw new TagException("Receipt differs from saved plan.");
+        }
+        return new{runId,kind,pipelineState=AzureTags.Text(run,"status"),pipelineResult=AzureTags.Text(run,"result"),plan,receipt,url=options.AdoBase+$"/_build/results?buildId={runId}",note="Historical saved evidence; no replay or current-state claim. Rediscover for a new draft."};
+    }
     public async Task<object> Queue(BrowserSession s,string ticket)
     {
         if(!s.TagPending.TryRemove(ticket,out var pending)||pending.Expires<DateTimeOffset.UtcNow||pending.ProfileHash!=TagRules.ProfileHash(Profile()))throw new PortalException("Tag review changed/expired/used. Check existing runs before retrying.",409);

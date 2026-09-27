@@ -45,5 +45,17 @@ public sealed class TaggingTests
     [Theory][InlineData(true,false)][InlineData(false,true)] public async Task DriftOrDisabledProfileProducesNoWrites(bool drift,bool disabled){var h=new Arm();var a=Client(h);var p=Profile() with{Enabled=!disabled,GovernanceReviewed=true,GovernanceDigest=await a.Governance(Profile(),default)};var i=TagRules.Seal(Inventory(p,h.Tags) with{GovernanceDigest=p.GovernanceDigest});var plan=TagRules.BuildPlan(i,Request(i),p,DateTimeOffset.UtcNow);h.Drift=drift;await Assert.ThrowsAsync<TagException>(()=>a.Apply(plan,p,_=>Task.CompletedTask,default));Assert.Equal(0,h.Writes);}
     [Fact] public async Task AmbiguousWriteRetainsReceiptAndNeverRetries(){var h=new Arm{UnknownWrite=true};var a=Client(h);var p=Profile() with{Enabled=true,GovernanceReviewed=true,GovernanceDigest=await a.Governance(Profile(),default)};var i=TagRules.Seal(Inventory(p,h.Tags) with{GovernanceDigest=p.GovernanceDigest});var plan=TagRules.BuildPlan(i,Request(i),p,DateTimeOffset.UtcNow);var r=await a.Apply(plan,p,_=>Task.CompletedTask,default);Assert.Equal("Incomplete",r.State);Assert.Equal("Unknown",r.Results[0].State);Assert.Equal(1,h.Writes);}
     [Fact] public async Task ForbiddenTagReadIsNotEmpty(){var h=new Arm{Denied=true};await Assert.ThrowsAsync<TagException>(()=>Client(h).ReadTags(Id,default));Assert.Equal(0,h.Writes);}
+    sealed class GraphHandler(bool repeat=false,bool truncate=false) : HttpMessageHandler
+    {
+        public int Calls;
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct){
+            Calls++;Assert.Equal(HttpMethod.Post,request.Method);using var body=JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));Assert.Equal(Sub,body.RootElement.GetProperty("subscriptions")[0].GetString());
+            var rows=Enumerable.Range(Calls==1?0:1000,Calls==1?1000:1).Select(n=>new{id=Id+n,name="test"+n,type="microsoft.storage/storageaccounts",tags=new{}}).ToArray();
+            var response=new Dictionary<string,object>{{"data",rows},{"totalRecords",1001}};if((Calls==1&&!truncate)||repeat)response["$skipToken"]="fixed-page-token";
+            return new(HttpStatusCode.OK){Content=new StringContent(JsonSerializer.Serialize(response))};
+        }
+    }
+    [Fact] public async Task GraphCollectsMoreThanOneThousandWithoutLosingPage(){var h=new GraphHandler();var rows=await new AzureTags(new HttpClient(h),_=>Task.FromResult("fixture")).Graph(Sub,default);Assert.Equal(1001,rows.Length);Assert.Equal(2,h.Calls);}
+    [Theory][InlineData(true,false)][InlineData(false,true)]public async Task GraphRejectsLoopsAndTruncation(bool repeat,bool truncate){var h=new GraphHandler(repeat,truncate);await Assert.ThrowsAsync<TagException>(()=>new AzureTags(new HttpClient(h),_=>Task.FromResult("fixture")).Graph(Sub,default));Assert.InRange(h.Calls,1,2);}
     [Fact] public async Task UnauthenticatedBrowserCannotReadAnotherSessionsEvidence(){var root=new DirectoryInfo(AppContext.BaseDirectory);while(root is not null&&!File.Exists(Path.Combine(root.FullName,"config/workloads.json")))root=root.Parent;var options=new PortalOptions{RepositoryRoot=root!.FullName};using var session=new BrowserSession(new());var service=new TaggingService(new HttpClient(),null!,new Catalog(options),options,null!);Assert.Throws<PortalException>(()=>service.Evidence(session,"fixture"));session.Connected["azure"]=true;Assert.Throws<PortalException>(()=>service.Evidence(session,"fixture"));await Task.CompletedTask;}
 }

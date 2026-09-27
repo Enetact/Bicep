@@ -99,6 +99,7 @@ app.MapGet("/api/tags/scopes", async (TaggingService tags, HttpContext c) => awa
 app.MapPost("/api/tags/discover", async (TagScopeRequest r, TaggingService tags, HttpContext c) => await tags.Discover(Session(c), r, c.RequestAborted));
 app.MapGet("/api/tags/evidence/{id}", (string id, TaggingService tags, HttpContext c) => tags.Read(Session(c), id));
 app.MapGet("/api/tags/discovery/{runId:int}", async (int runId, TaggingService tags, HttpContext c) => await tags.Load(Session(c), runId, c.RequestAborted));
+app.MapGet("/api/tags/results/{runId:int}/{kind}", async (int runId, string kind, TaggingService tags, HttpContext c) => await tags.Results(Session(c), runId, kind, c.RequestAborted));
 app.MapPost("/api/tags/drafts", (TagDraftRequest r, TaggingService tags, HttpContext c) => tags.Draft(Session(c), r));
 app.MapPost("/api/tags/pipeline/review", async (TagQueueRequest r, TaggingService tags, HttpContext c) => await tags.Review(Session(c), r));
 app.MapPost("/api/tags/pipeline/queue/{ticket}", async (string ticket, TaggingService tags, HttpContext c) => await tags.Queue(Session(c), ticket));

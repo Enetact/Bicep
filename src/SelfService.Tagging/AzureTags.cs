@@ -8,16 +8,17 @@ namespace SelfService.Tagging;
 public sealed class AzureTags(HttpClient http,Func<CancellationToken,Task<string>> token)
 {
     const string Arm="https://management.azure.com";
-    public async Task<(JsonElement Body,string? RequestId)> Send(string path,CancellationToken ct,object? patch=null)
+    public async Task<(JsonElement Body,string? RequestId)> Send(string path,CancellationToken ct,object? patch=null,bool graphRead=false)
     {
         if(!path.StartsWith('/')||path.Contains('#')||path.Contains('\\'))throw new TagException("Invalid ARM path.");
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromSeconds(45));
         for(var attempt=0;;attempt++){
-            using var request=new HttpRequestMessage(patch is null?HttpMethod.Get:HttpMethod.Patch,Arm+path);
+            if(graphRead&&path!="/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01")throw new TagException("Invalid Resource Graph route.");
+            using var request=new HttpRequestMessage(graphRead?HttpMethod.Post:patch is null?HttpMethod.Get:HttpMethod.Patch,Arm+path);
             request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",await token(timeout.Token));
             if(patch is not null)request.Content=JsonContent.Create(patch);
             using var response=await http.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,timeout.Token);
-            if(patch is null && (int)response.StatusCode is 429 or 503 && attempt<2){await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(response.Headers.RetryAfter?.Delta?.TotalSeconds??(attempt+1)*2,1,10)),timeout.Token);continue;}
+            if((patch is null||graphRead) && (int)response.StatusCode is 429 or 503 && attempt<2){await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(response.Headers.RetryAfter?.Delta?.TotalSeconds??(attempt+1)*2,1,10)),timeout.Token);continue;}
             if(!response.IsSuccessStatusCode)throw new TagException($"ARM HTTP {(int)response.StatusCode}; resource state is unknown, not empty.");
             using var stream=await response.Content.ReadAsStreamAsync(timeout.Token);using var bytes=new MemoryStream();var buffer=new byte[8192];int n;
             while((n=await stream.ReadAsync(buffer,timeout.Token))>0){if(bytes.Length+n>16*1024*1024)throw new TagException("ARM response exceeded limit.");bytes.Write(buffer,0,n);}
@@ -37,6 +38,20 @@ public sealed class AzureTags(HttpClient http,Func<CancellationToken,Task<string
         }return all.ToArray();
     }
     public static string Text(JsonElement x,string name)=>x.TryGetProperty(name,out var v)&&v.ValueKind==JsonValueKind.String?v.GetString()!:"";
+    public async Task<JsonElement[]> Graph(string subscription,CancellationToken ct)
+    {
+        if(!Guid.TryParse(subscription,out _))throw new TagException("Invalid Graph subscription.");
+        var rows=new List<JsonElement>();var seen=new HashSet<string>();string? token=null;long? total=null;
+        for(var page=0;page<100;page++){
+            var options=new Dictionary<string,object>{{"$top",1000},{"resultFormat","objectArray"}};if(token is not null)options["$skipToken"]=token;
+            var result=(await Send("/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01",ct,new{subscriptions=new[]{subscription},query="Resources | project id, name, type, resourceGroup, location, tags | order by id asc",options},true)).Body;
+            if(!result.TryGetProperty("data",out var data)||data.ValueKind!=JsonValueKind.Array||!result.TryGetProperty("totalRecords",out var count)||!count.TryGetInt64(out var n)||n<0)throw new TagException("Graph response malformed.");
+            total??=n;if(total!=n)throw new TagException("Graph inventory changed while paging; rediscover.");
+            rows.AddRange(data.EnumerateArray());if(rows.Count>50000||rows.Select(r=>Text(r,"id")).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=rows.Count)throw new TagException("Graph resource limit/duplicate; coverage incomplete.");
+            token=Text(result,"$skipToken");if(string.IsNullOrEmpty(token)){if(rows.Count!=total)throw new TagException("Graph response truncated without continuation.");return rows.ToArray();}
+            if(!seen.Add(token))throw new TagException("Graph repeated continuation; coverage incomplete.");
+        }throw new TagException("Graph page limit; coverage incomplete.");
+    }
     public static Dictionary<string,string> Tags(JsonElement x)
     {
         var result=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
@@ -76,8 +91,8 @@ public sealed class AzureTags(HttpClient http,Func<CancellationToken,Task<string
     {
         await VerifySubscription(p,ct);var resources=new List<TagResource>();var coverage=new List<TagCoverage>();
         async Task Collect(string name,string path,string? type=null){try{
-            var rows=await List(path,ct);foreach(var row in rows){var id=Text(row,"id");var parts=id.Split('/');resources.Add(TagRules.Resource(id,Text(row,"name"),type??Text(row,"type"),parts.Length>4&&parts[3].Equals("resourceGroups",StringComparison.OrdinalIgnoreCase)?parts[4]:"",Text(row,"location"),Tags(row),p));}
-            coverage.Add(new(name,rows.Length==0?"SucceededEmpty":"Succeeded",rows.Length,"Visible ARM objects only; provider child/data-plane coverage is not exhaustive."));
+            var rows=name=="Resources"?await Graph(p.SubscriptionId,ct):await List(path,ct);foreach(var row in rows){var id=Text(row,"id");var parts=id.Split('/');resources.Add(TagRules.Resource(id,Text(row,"name"),type??Text(row,"type"),parts.Length>4&&parts[3].Equals("resourceGroups",StringComparison.OrdinalIgnoreCase)?parts[4]:"",Text(row,"location"),Tags(row),p));}
+            coverage.Add(new(name,rows.Length==0?"SucceededEmpty":"Succeeded",rows.Length,name=="Resources"?"Resource Graph visible indexed objects; eventual consistency and access filtering apply. Children/data plane not exhaustive.":"Visible ARM objects only; provider child/data-plane coverage is not exhaustive."));
         }catch(Exception e)when(e is TagException or HttpRequestException or JsonException){coverage.Add(new(name,"Partial",resources.Count,"Collection could not complete; no empty inference."));}}
         var root=$"/subscriptions/{p.SubscriptionId}";
         await Collect("Resources",root+"/resources?api-version=2021-04-01");
