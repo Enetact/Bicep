@@ -2,6 +2,8 @@
 
 **Status: proposed, not implemented.** Source and Microsoft Learn research reviewed on **26 September 2026**. This design expands the [self-service roadmap](../self-service-expansion-plan.md); it does not change current target settings, grant access, allocate addresses or deploy resources. Azure service behavior below is documented guidance; the architecture, interfaces and acceptance gates are proposals for this repository.
 
+The [implementation readiness review](enhanced-self-service-validation.md) controls delivery order and final validation. It corrects approval timing to separate ADO stages, distinguishes non-deploying Preview from read-only discovery, and defines compatibility and live-pilot gates.
+
 ## Recommended direction
 
 The companion [Microsoft Azure skills assessment](../azure-skills-assessment.md) identifies reusable lookup, visualization and enterprise-planning guidance. Its proposed evidence model and reporting pilot support this design. No reviewed skill provides the authoritative allocation, concurrency controls or runtime proof required here; those remain explicit platform deliverables.
@@ -191,7 +193,7 @@ Cache explanations by snapshot/policy/request/model version, cap tokens/tool cal
 
 ## Pipeline and artifact evolution
 
-Keep separate Discover and Deploy entrypoints and the two visible Deploy stages where practical. Extend the shared templates rather than duplicating allocation logic in every workload YAML.
+Keep separate Discover and Deploy entrypoints. Preserve the current two-stage deployment route for compatible existing bindings; the new automatic-allocation route requires additional stages so protected approvals can review plans published earlier. Use the [validated stage topology](enhanced-self-service-validation.md#stage-and-permission-topology). Extend shared templates rather than duplicating allocation logic in every workload YAML.
 
 | Boundary | Proposed behavior |
 |---|---|
@@ -202,7 +204,9 @@ Keep separate Discover and Deploy entrypoints and the two visible Deploy stages 
 | Deploy: apply | Connectivity owner applies required network changes; retain receipt. Revalidate readiness and apply the workload's Foundation/Release flow using the binding. |
 | Acceptance/reconciliation | Probe permitted and forbidden paths, run product smoke, bind allocation to resources and retain recovery state on failure. |
 
-Reservation and final-plan approval are distinct authority boundaries. A protected environment approval at job start cannot approve an artifact generated later in that same job; use separate planning and approval/apply jobs. Expiry, changed prefixes or topology invalidate the final plan. Explicitly version the existing preview/bundle comparison contract to support this flow; do not bypass today's immutable input checks or silently replace a Preview artifact.
+Reservation and final-plan approval are distinct authority boundaries. ADO evaluates protected-resource checks before the consuming **stage**, including resources used by later jobs in that stage. Publish the final plan in an earlier stage than its protected apply stage; separate jobs alone are insufficient. Expiry that invalidates the binding, changed prefixes or topology require renewed planning/review. Explicitly version the existing preview/bundle comparison contract; do not bypass immutable input checks or silently replace a Preview artifact. [ADO check timing](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/approvals?view=azure-devops)
+
+Discovery and offline analysis are read-only. Native stack Preview is non-allocating and does not deploy workload resources, but creates/deletes Azure What-If result metadata. Give that operation its own authority and cleanup evidence; cancellation can interrupt cleanup. The current implementation requests one-day retention, so do not assume automatic expiry deletes the result. [Stack What-If lifecycle](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deployment-stacks-what-if)
 
 Proposed artifacts:
 
@@ -216,6 +220,8 @@ Proposed artifacts:
 | `network-acceptance.json` | Probe source identity/location/time, DNS answers, TCP/TLS/application results, forbidden-path results and coverage gaps. |
 
 Hash and provenance-bind these artifacts to source and run identity. Authenticate centrally issued bindings and verify issuer/access scope; a hash alone does not prove an artifact came from the platform. Avoid signing mutable credentials into artifacts. Set a short, policy-defined validity period for volatile topology/reservations and recheck before writes; the existing seven-day discovery limit alone is not sufficient allocation safety.
+
+Share one canonical evidence envelope/graph with the analysis layer. Network artifacts are typed projections, not independently collected competing inventories. Bind approved content to the immutable assignment generation; keep authenticated lease-renewal state separate so a heartbeat does not rewrite an approved plan. Reassignment invalidates it. See the [contract and recovery requirements](enhanced-self-service-validation.md#evidence-compatibility-and-approval-contracts).
 
 ## Proposed implementation placement and interfaces
 

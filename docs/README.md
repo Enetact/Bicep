@@ -15,6 +15,7 @@ Reviewed 26 September 2026. Start with the [repository README](../README.md), [c
 | Template Specs, stack ownership and permissions | [Deployment Stacks runbook](deployment-stacks-upgrade.md) |
 | Reference prices, exclusions and freshness | [Cost guide](self-service-costs.md) |
 | Future products and platform improvements | [Expansion plan — proposed](self-service-expansion-plan.md) |
+| Implementation order, approval stages and final acceptance gates | [Enhanced self-service readiness review — proposed](plans/enhanced-self-service-validation.md) |
 | Automatic network/subnet planning, IPAM and AI assistance | [Private networking design — proposed](plans/private-networking-self-service.md) |
 | Microsoft Azure skills for discovery, diagrams and assessment | [Azure skills assessment and adoption plan — proposed](azure-skills-assessment.md) |
 | Module/environment placement | [Repository conventions](repository-structure.md), [reusable modules](../modules/README.md) |

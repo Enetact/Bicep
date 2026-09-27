@@ -2,6 +2,8 @@
 
 **Status: proposed, not implemented.** Baseline reviewed 26 September 2026. This plan authorizes no resource creation, deletion, new permissions or spending. Priorities and acceptance gates are proposed; no delivery dates or completed work are implied.
 
+**Implementation readiness:** the [final design review and validation plan](plans/enhanced-self-service-validation.md) is the controlling implementation sequence. Offline contracts/reporting are ready to build; automatic allocation and live promotion require the listed ADO, IPAM and Azure acceptance gates. The review corrects approval-stage timing and consolidates evidence, compatibility and recovery requirements.
+
 ## Outcome and starting point
 
 Build a catalog where developers choose a supported product, understand its resources and costs, select an approved environment and review a plan before deployment. Each product must define ownership, dependencies, identity, application delivery, evidence, support and retirement.
@@ -70,7 +72,7 @@ Deliver in order: **N0** authority/profile contract; **N1** read-only analyzer; 
 | 5 — Improve request experience | Better generated descriptions, examples, onboarding checks, approved options and dated estimates. Consider a pre-queue portal/extension only if native menu constraints warrant it. | Developers understand requests without reading Bicep. Any portal uses the same server-side allowlist and protected pipeline. |
 | 6 — Scale governance/support | Version/deprecation policy, least-privilege roles, quota/admission checks, audit retention, cost allocation and dashboards. | Named owners, supported versions, incident/recovery procedures and measured adoption. |
 
-These are dependency gates, not calendar promises. A third product must not weaken existing checks to accommodate an unmodeled lifecycle.
+These are capability gates, not a strict serial schedule or calendar promises. The [integrated V0–V6 sequence](plans/enhanced-self-service-validation.md#integrated-implementation-sequence) permits offline reporting/contracts while existing-product Azure acceptance proceeds separately. Live acceptance remains a prerequisite for enabling the enhanced apply path. A third product must not weaken existing checks to accommodate an unmodeled lifecycle.
 
 ## Proposed product contract
 
@@ -132,12 +134,12 @@ Measure time to a valid preview, time to Ready, failure causes, stale-discovery 
 
 ## First implementation backlog
 
-1. Complete existing-workload Azure acceptance and preserve reproducible receipts.
-2. Define the metadata schema and adapter tests, including an infrastructure-only product.
-3. Establish network authority/profile contracts and a read-only analyzer; qualify the IPAM reservation and final-preview model in a sandbox before any automatic allocation.
-4. Move existing workloads behind explicit typed registration without changing their input or security/ownership contracts.
-5. Implement private storage as the smallest product pilot, followed by secrets and observability; use only accepted network profiles and bindings.
-6. Add immutable application promotion before expanding production application products.
-7. Add operating requests and optional AI explanations grounded in the analyzer; assess a portal only after native-menu usability evidence warrants it.
+1. Characterize current routes, define versioned evidence/product contracts and compatibility tests, and generate workload-specific reports from saved discovery fixtures (V0/V1). Include an infrastructure-only fake adapter without registering a new live product.
+2. Collect missing existing-workload Azure acceptance separately; it need not block offline development. Preserve reproducible receipts before enabling an enhanced apply pilot.
+3. Establish network authority/profile contracts, complete scoped discovery and deterministic analysis; move existing workloads behind typed registration while preserving current behavior (V2).
+4. Prove one IPAM backend's reservation, fencing, recovery and native-allocation behavior in an approved sandbox (V3).
+5. Refactor the automatic-allocation route into separate planning and protected apply stages; qualify one-region/profile new-instance acceptance before opt-in activation (V4). Follow the final validation matrix, not a two-stage appearance requirement.
+6. Implement private storage, then secrets/observability using accepted bindings; add immutable application promotion before expanding production applications (V5).
+7. Add operational requests and optional AI explanations after deterministic controls work; assess a portal from native-menu usability evidence (V6).
 
 Foundation references: [ADO runtime parameters](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/runtime-parameters?view=azure-devops), [Template Specs](https://learn.microsoft.com/en-us/azure/azure-resource-manager/templates/template-specs), [Deployment Stacks](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deployment-stacks). Proposed products need service-specific research during implementation.
