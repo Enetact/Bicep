@@ -1,5 +1,11 @@
 # Validation evidence
 
+## Documentation and catalog audit: 26 September 2026
+
+Re-traced both allowlisted workload adapters, all eight disabled target profiles, the four dedicated menu roots, generic compatibility routing, hosted Preview and protected Deploy jobs, prerequisite decisions, Template Spec/stack lifecycle, and artifact/readiness contracts. Added the catalog/method guide, documentation index and proposed expansion plan. Corrected stale single-workload, four-target, generic-only setup, resource-group precreation and publication-preview descriptions. Older evidence below remains historical.
+
+Fresh checks passed: catalog freshness for **8 target selections**, **46 pipeline/infrastructure contracts across 20 YAML files**, and local Markdown file/anchor validation. No application suite, emulator, hosted workflow, Azure operation or ADO run was executed for this documentation-only change. The machine-readable file now has `currentDocumentationReview`; its older sections retain their original snapshots and scope. The expansion plan describes proposed work, not additional registered products.
+
 ## Event flow dev onboarding authorization: 19 September 2026
 
 The operator supplied service-principal object ID `2b7a2791-e7d6-4181-9db3-1bee486236d0` and application ID `4749bb42-f74e-48fd-aa30-82bcec17a483`, requested generated missing dev settings, and authorized configuring both named exceptions. Dev now uses generated tags `enetact-dev` / `dev-poc`, the object ID for role assignments, and HTTPS references to the checked-in [dev review record](reviews/eventflow-dev-exceptions.md). Those GitHub links become available when the record is merged to main. No external approval ticket, finance-system code or verified Entra identity relationship is claimed.

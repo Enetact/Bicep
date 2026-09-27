@@ -1,5 +1,7 @@
 # Microsoft Learn assessment: self-service, Deployment Stacks and Template Specs
 
+Historical gap assessment: its pre-upgrade verdict is retained below, not a statement of current capabilities. Use [current status](completion-status.md) and the [new expansion plan](self-service-expansion-plan.md) for today’s baseline and proposed work.
+
 Reviewed 19 September 2026 against the current local checkout and official Microsoft Learn documentation. Azure/Microsoft Learn MCP tools were not available in this session; the sources below were accessed directly. This is a code-and-documentation assessment, not certification of Azure or Azure DevOps configuration. No Azure operations or deployment-code changes were performed for this review.
 
 **Historical assessment:** the gaps below describe the checkout before the requested implementation. The subsequent [Deployment Stacks upgrade](deployment-stacks-upgrade.md) adds Template Spec publication, native stack preview/apply, subscription RG ownership and an `extends` entry template. Live Azure verification and platform configuration remain outstanding.

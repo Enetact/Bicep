@@ -106,7 +106,7 @@ From the repository root, with PowerShell 7.4+, .NET from `global.json`, Bicep 0
 
 `Test-Project.ps1` compiles four environments for each of the two patterns plus their stack/platform templates, runs existing offline contracts, and calls `Test-PipelineStructure.ps1`. The latter restores only the locked YAML test dependency using `npm ci --ignore-scripts`, then parses all pipeline YAML, checks template/script paths, parameter bindings, discovery routing, disabled/enabled stage contracts, protected-resource bindings and the artifact chain. It checks that the subscription wrapper forwards every composition parameter/output. The build pipeline now installs Node before these checks; Deploy qualification already does so.
 
-This local verifier supports only the template-expression forms used here and fails on unsupported expressions. It is not the ADO server compiler. Live ADO resource authorization, approval checks, agent capacity, successful discovery, Template Spec publication, stack What-If and private runtime acceptance still require platform setup. Targets stay disabled until that acceptance is performed.
+This local verifier supports only the template-expression forms used here and fails on unsupported expressions. It is not the ADO server compiler. Supplied ADO evidence establishes discovery and Preview preparation for specific runs, not complete platform acceptance. Authorization/checks for every route, private-agent capacity, Template Spec publication, successful Azure What-If and private runtime acceptance remain to be verified. Targets stay disabled until that acceptance is performed.
 
 ## Path migration
 

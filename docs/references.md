@@ -34,7 +34,7 @@ Stable resource API versions are pinned in each module. Diagnostic settings use 
 - [Blob binding extension](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-blob): isolated worker packages and host.json concurrency options.
 - [Queue trigger](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-queue-trigger): explicit queue invocation, retries and poison handling.
 - [Queue binding configuration](https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-queue): host.json encoding, concurrency and retry settings.
-- [Blob event overview](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-event-overview): storage-side push subscriptions use Event Grid, which is not included here.
+- [Blob event overview](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-event-overview): storage-side push subscriptions use Event Grid, which is not used by the Blob copy dispatcher. The separate Event flow workload does use Event Grid.
 - [Storage Actions operations](https://learn.microsoft.com/en-us/azure/storage-actions/storage-tasks/storage-task-operations): supported operations do not include queue-message publishing.
 - [Blob versioning](https://learn.microsoft.com/en-us/azure/storage/blobs/versioning-overview): retained source revisions and retention implications.
 - [Blob concurrency](https://learn.microsoft.com/en-us/azure/storage/blobs/concurrency-manage): ETags and leases.

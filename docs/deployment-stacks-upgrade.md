@@ -1,5 +1,7 @@
 # Deployment Stacks and Template Specs upgrade
 
+Current scope: both workloads use these stack/publication helpers. The implementation plan below records the delivered upgrade. Dedicated menus now use Preview/Deploy; the generic route retains six stages. Event flow can create workload-owned prerequisites while external shared resources remain referenced. See the [catalog](self-service-catalog.md) and [status](completion-status.md).
+
 ## Implementation plan
 
 1. Add a subscription-scoped Bicep wrapper that owns the dedicated workload resource group and preserves existing resource names. Reference shared resources; never create shared topology through the wrapper.
@@ -15,13 +17,13 @@ The design follows Microsoft's [Deployment Stacks guidance](https://learn.micros
 
 ## Delivered flow
 
-`azure-pipelines-self-service-deploy.yml` extends the generated, platform-owned `pipelines/deploy-entry.yml`. Its four developer inputs are unchanged. Disabled profiles still expand to the hosted setup check and contain no private publication/deployment jobs.
+The dedicated Deploy roots and `azure-pipelines-self-service-deploy.yml` extend generated `pipelines/deploy-entry.yml`. Dedicated roots expose Preview/Deploy and allow disabled targets to consume discovery for Preview; only the generic compatibility root uses hosted SetupOnly. Private publication/deployment jobs are omitted for disabled targets and dedicated Preview-only selections.
 
 Enabled targets execute **Qualify → PublishTemplate → PlanFoundation → ApplyFoundation → PlanRelease → ApplyRelease**. Discovery remains a separate read-only menu and required handoff.
 
 The [pipeline flow reference](pipeline-flow.md) maps all script/artifact handoffs and the shared qualification/evidence refactor. Module registry publication is deferred; local modules are embedded during compilation.
 
-`workloads/blob-transfer/stack.bicep` runs at subscription scope. It creates the dedicated workload RG and invokes `./main.bicep`, forwarding its parameters/outputs. Existing names remain stable. The resource-group composition moved from the repository root to `workloads/blob-transfer/main.bicep`; `Deploy.ps1` also compiles that source for legacy manual incremental deployment. Do not use the manual path to modify stack-managed instances. See the [source layout and migration](repository-structure.md).
+Each workload's `stack.bicep` runs at subscription scope. The Blob copy wrapper is `workloads/blob-transfer/stack.bicep`; Event flow uses `workloads/logic-app-event-grid/stack.bicep`. It creates the dedicated workload RG and invokes `./main.bicep`, forwarding its parameters/outputs. Existing names remain stable. The resource-group composition moved from the repository root to `workloads/blob-transfer/main.bicep`; `Deploy.ps1` also compiles that source for legacy manual incremental deployment. Do not use the manual path to modify stack-managed instances. See the [source layout and migration](repository-structure.md).
 
 The frozen bundle adds `stack-template.json` and `stack.json`; both are hashed in `bundle.json`. New pipeline bundles require `deploymentEngine: deploymentStack`. Legacy bundles cannot be silently applied by the new pipeline. Stack configuration must also match the reviewed checkout when the bundle is consumed.
 
@@ -33,7 +35,7 @@ The version is `sha256-<canonical compiled-template hash>`. An identical composi
 
 This implements infrastructure-version reuse. It does not add a UI for arbitrary older versions or promote the same application ZIP between independent environment runs; application builds remain per run. Previous versions can be redeployed only through a separately reviewed source/configuration release and the same validation gates.
 
-`Publish-WorkloadTemplate.ps1` validates manual main-branch provenance, exact publisher bindings and CLI capabilities before publication. The catalog RG is platform-owned and must already exist; workload deployment never creates it. Publication writes `template-publication/publication.json` and a success/failure receipt. Preview and apply re-read the exact Template Spec and verify its canonical hash against the frozen wrapper. Nested `templateLink` content is rejected to preserve preview coverage.
+`Publish-WorkloadTemplate.ps1` validates manual main-branch provenance, exact publisher bindings and CLI capabilities before publication. The catalog RG is platform-owned and must already exist; workload deployment never creates it. Publication writes `template-publication/publication.json` and a success/failure receipt. Dedicated prepublication Preview uses the frozen local template. Subsequent published-template phase previews and apply verify the exact Template Spec against the frozen wrapper. Nested `templateLink` content is rejected to preserve preview coverage.
 
 ## Stack ownership and phase safety
 

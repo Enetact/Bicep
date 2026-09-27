@@ -1,4 +1,45 @@
 {
+  "currentDocumentationReview": {
+    "date": "2026-09-26",
+    "kind": "source-and-documentation-review",
+    "implementationSourceCommit": "9da5af5b4c3260c2d1061f97895001770917a107",
+    "scope": "Two workloads; previous fields below are dated historical snapshots, primarily Blob copy unless named otherwise.",
+    "workloadTypes": [
+      "blob-transfer",
+      "logic-app-event-grid"
+    ],
+    "registeredTargets": 8,
+    "enabledTargets": 0,
+    "dedicatedMenuFiles": 4,
+    "dedicatedDeployStages": [
+      "Preview",
+      "Deploy"
+    ],
+    "defaultMode": "Preview only",
+    "genericCompatibilityDisabledBehavior": "SetupOnly",
+    "devEventFlowOnboarding": "Configured; 19 September local validation passed with resolved discovery; Azure acceptance unverified.",
+    "latestSuppliedAdoEvidence": {
+      "previewRunId": 23,
+      "discoveryRunId": 21,
+      "result": "Discovery verified; five onboarding fields blocked before Azure What-If. Later local configuration resolved those fields."
+    },
+    "successfulAzureWorkloadDeploymentEstablished": false,
+    "applicationPromotionImplemented": false,
+    "genericAdditionalProductAdapterImplemented": false,
+    "newVerification": {
+      "catalogTargetsValidated": 8,
+      "pipelineContractsPassed": 46,
+      "yamlFilesParsed": 20,
+      "adoServerExpansionPerformed": false,
+      "applicationTestsRerun": false,
+      "runtimeTestsRerun": false,
+      "azureCallsPerformed": false
+    },
+    "currentStatus": "docs/completion-status.md",
+    "catalogGuide": "docs/self-service-catalog.md",
+    "expansionPlan": "docs/self-service-expansion-plan.md",
+    "expansionPlanStatus": "Proposed, not implemented"
+  },
   "design": "external-upload-polling-dispatcher-storage-queue-worker",
   "eventGrid": false,
   "mcp": false,

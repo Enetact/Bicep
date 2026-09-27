@@ -47,31 +47,43 @@ From this checkout in PowerShell:
 
 The launcher checks prerequisites and installs missing tools into ignored project folders, starts Azurite and the real Functions host on loopback, and retains data on stop. No Azure account, Docker, Azure CLI, or Bicep is needed for this local workflow. See [local development](docs/local-development.md) for PowerShell bootstrap, tool versions, logs, explicit reset, and Azure-only validation limits. Stop local mode before `Test-Recovery.ps1`, which uses the same emulator ports.
 
-## Deploy through developer self-service
+## Developer self-service: what is available
 
-Choose **Discover - Blob copy / Deploy - Blob copy** or **Discover - Event flow / Deploy - Event flow** in ADO. Each menu shows only that workload's resources, requirements and costs. Register the four generated YAML files using the [pipeline names and setup steps](docs/self-service.md#choose-the-workload-pipeline-first); they share the existing deployment templates.
+| Offering | What it does and creates | Current evidence |
+|---|---|---|
+| **Blob copy** (`blob-transfer` / `blobcopy`) | Copies uploaded blobs to an existing data lake using a Function App, two storage accounts, queues/ledger, identity, private access, monitoring and recovery. | Real local Functions/Azurite smoke recorded; Azure deployment acceptance outstanding. |
+| **Event flow** (`logic-app-event-grid` / `eventflow`) | Processes document events using Logic App Standard, Event Grid, two storage accounts, eight private endpoints, identities and monitoring. Discovery can plan missing owned VNet/subnets, DNS zones/links and workspace. | Package, Bicep and contract tests pass locally; hosted workflow and Azure deployment acceptance outstanding. |
 
-All pipeline entry points disable push and pull-request triggers explicitly. Start build/test or self-service runs manually with **Run pipeline** in Azure DevOps.
+Each offering has dev, QA, UAT and prod targets. **All eight remain disabled for deployment.** Event flow dev now has operator-authorized tags, identity and two exception decisions; it still needs matching discovery and successful live Azure validation. Higher environments require independent onboarding. The [current status matrix](docs/completion-status.md) separates implemented code, local verification, observed ADO steps and remaining work.
 
-The [full pipeline flow](docs/pipeline-flow.md) maps the workload-specific and legacy entry files, two dedicated deployment stages and the legacy six-stage route, local-module compilation, Template Spec publication, stack ownership, artifacts and platform gates. Build and Deploy share qualification and failure-evidence steps; no module registry is required.
+### Choose the workload menu
 
-The second pattern `logic-app-event-grid` / `eventflow` is implemented in the generated menus. Read its [requirements, resource inventory, methods and onboarding](workloads/logic-app-event-grid/README.md). Its queue bridge requires two explicit platform exceptions and has fixed hosting/private-endpoint costs. The [implementation plan](docs/plans/logic-app-event-grid-workload.md) records the delivered scope and remaining Azure acceptance.
+| ADO pipeline | YAML to register |
+|---|---|
+| Discover - Blob copy | [azure-pipelines-blobcopy-discover.yml](azure-pipelines-blobcopy-discover.yml) |
+| Deploy - Blob copy | [azure-pipelines-blobcopy-deploy.yml](azure-pipelines-blobcopy-deploy.yml) |
+| Discover - Event flow | [azure-pipelines-eventflow-discover.yml](azure-pipelines-eventflow-discover.yml) |
+| Deploy - Event flow | [azure-pipelines-eventflow-deploy.yml](azure-pipelines-eventflow-deploy.yml) |
 
-The workload-specific Deploy menus default to **Run stages = Preview only**. Stage **Preview** consumes discovery, validates Bicep and publishes every Azure-returned resource/property change in **Summary / Extensions** and `deployment-preview/README.md`. Stage **Deploy** runs only when **Preview and deploy** is selected and the target is enabled. Preview uses hosted `windows-latest` without private-pool bindings. Disabled targets can preview configured inputs, but placeholders or missing Azure permissions block validation. See [the preview guide](docs/deployment-preview.md).
+All entrypoints are manual; push, PR and discovery-completion triggers are disabled. `azure-pipelines.yml` is the build/test/package entry, not the developer deployment menu. The generic self-service pair remains a compatibility route with its older setup/six-stage behavior.
 
-Platform operators run the chosen workload's Discover pipeline first (see the registration table above). It saves inventory and a manifest in `subscription-discovery`. Developers open its matching Deploy pipeline on `main`, select **instance, environment and region**, then choose a matching successful `main` discovery run under **Resources > discovery**. Platform configuration resolves the subscription, network, service connection, endpoint and alert settings; the form retains reference costs. ADO supplies the pipeline/run IDs automatically. For enabled targets, deployment verifies the manifest and source run, freezes a release, validates ARM, gates What-If changes, applies approved changes and runs private readiness/runtime checks before reporting Ready. Enterprise targets reuse central networking/DNS; new-network deployment requires an explicit reviewed exception. Failed listings remain unknown and cannot authorize provisioning.
+### How a request works
 
-The [enterprise platform review](docs/enterprise-platform.md) documents the intent contract, ownership boundaries, shared DNS/resolver and monitoring support, Policy and registry templates, and remaining platform work. Both registered patterns are implemented locally; Azure acceptance remains outstanding.
+1. Run the chosen **Discover** pipeline on `main`: select instance, environment, approved subscription and network profile. It reads inventory and publishes `subscription-discovery`; it creates no Azure resources.
+2. Open the matching **Deploy** pipeline on `main`: select instance, environment and approved region. Under **Resources > discovery**, choose a successful matching run no older than seven days. Subscription, identity, topology and protected resources come from reviewed platform configuration.
+3. Leave **Run stages = Preview only**. Stage **Preview** verifies the manifest/provenance, resolves inputs, compiles Bicep and performs Azure validation/What-If. Read **Summary / Extensions** or `deployment-preview/README.md`. Failed/incomplete previews show blockers, not zero changes. Native stack What-If uses temporary metadata with cleanup; it does not apply workload resources.
+4. After onboarding and enablement, queue a fresh **Preview and deploy** run. Stage **Deploy** qualifies/freezes the app and infrastructure, publishes a versioned Template Spec, rechecks the plan for drift, then applies the Deployment Stack through Foundation and Release. ADO approvals/locks/private agents must be configured externally.
+5. Inspect `deployment-result/receipt.json`. Only `status: Ready` and `ready: true`, backed by workload smoke evidence, establish a successful release. Failures can leave resources; automatic rollback is not implemented.
 
-The Deploy pipeline now publishes a content-hashed **Template Spec** and creates/updates a **subscription-scoped Deployment Stack** owning the dedicated workload resource group. It extends `pipelines/deploy-entry.yml` for Required Template checks. See the [upgrade and onboarding runbook](docs/deployment-stacks-upgrade.md): do not precreate the workload RG or use the legacy manual deployment path against stack-managed resources. Existing resource groups require a separate adoption review. All Azure behavior remains subject to live acceptance.
+For Event flow, discovery decisions mean **Create** missing standard resources, **Reuse** approved external resources, **Manage** resources already owned by this stack, or **Blocked** when evidence/configuration is unsafe or unknown. Failed listings never mean resources are absent. Blob copy follows its approved network profile and keeps destination storage externally owned.
 
-Event flow discovery now saves a [prerequisite resource plan](docs/prerequisite-resolution.md): reuse compatible selected resources, create absent standard resources within the workload stack, and block when inventory is unknown. Rerun Discover before using this behavior.
+The form shows only the chosen workload's resources, dependencies and dated cost references. These are not free-resource claims or live billing quotes. Dropdowns come from generated, reviewed YAML and cannot refresh from an artifact midway through a run. Local modules are embedded in the Template Spec; the separate application ZIP is installed by the workload adapter. Cross-environment application artifact promotion is not yet implemented.
 
-The [subscription discovery and naming guide](docs/subscription-discovery.md) explains scoped discovery, existing-subnet selection, generated dropdowns, standard names and templated data permissions. Azure DevOps dropdowns refresh after reviewed catalog changes are merged; they do not query Azure interactively when clicked.
+Read the [catalog, exact methods and artifact map](docs/self-service-catalog.md), [ADO registration/onboarding guide](docs/self-service.md), [Preview runbook](docs/deployment-preview.md), [prerequisite resolution](docs/prerequisite-resolution.md) and [cost guide](docs/self-service-costs.md). The [documentation index](docs/README.md) identifies current guides and historical assessments.
 
-**The pipeline is implemented and locally contract-tested; Azure onboarding and a live pipeline run are still required.** All checked-in targets are disabled examples. Platform owners must configure real target parameters, federated service connections, private agents/networking, approvals and exclusive locks before enabling them.
+### Expansion roadmap
 
-Start with the [developer and platform guide](docs/self-service.md) for exact access/setup steps and method documentation. The [completion audit](docs/completion-status.md) distinguishes implemented features, verified behavior, missing platform setup and deferred work. Each environment run builds a release; promotion of one previously built artifact across environments is not implemented.
+The [self-service expansion and enhancement plan](docs/self-service-expansion-plan.md) proposes a reusable product/adapter contract, private storage, Key Vault, observability, APIs, workers, web apps, databases and later integration/container/AI foundations. It also plans immutable release promotion and reviewed operating actions. These are future offerings with explicit acceptance gates, not additional items currently available in the Run menu. Module registry work is not required.
 
 ## Files and local validation
 
@@ -79,11 +91,13 @@ Start with the [developer and platform guide](docs/self-service.md) for exact ac
 workloads/blob-transfer/   main.bicep, stack.bicep, request contract
   environments/            main.{dev,qa,uat,prod}.bicepparam
   modules/                 workload-specific Function, monitoring, network and RBAC
-modules/                   reusable network/private-endpoint and storage/storage-account
+workloads/logic-app-event-grid/  Logic App/Event Grid composition, stack and environments
+modules/                   reusable storage, network, monitoring, Logic App and Event Grid
 platform/                  separately operated Policy and registry templates
 config/                    reviewed topology and stack/publication policy
 src/BlobTransfer/          dispatcher, queue worker, ledger, timers, recovery
 src/TransferTool/          status / reviewed resume CLI
+src/LogicAppEventFlow/     packaged stateful workflow content
 tests/BlobTransfer.Tests/  policy and Azurite integration tests
 tests/infrastructure/      locked YAML parser and pipeline/Bicep contract checks
 scripts/                   validation, local recovery tests, deployment, smoke, packaging
@@ -95,7 +109,7 @@ pipelines/                 protected-resource bindings and plan/apply templates
 self-service/targets/      disabled catalog examples for platform onboarding
 ```
 
-See [Bicep repository conventions](docs/repository-structure.md) for Microsoft source references, module placement, environment/stack configuration, and the migration from the old root template paths. Pipeline YAML filenames remain unchanged.
+See [Bicep repository conventions](docs/repository-structure.md) for Microsoft source references, module placement, environment/stack configuration, and the migration from the old root template paths. Use the dedicated workload YAML files listed above; the original generic files remain for compatibility.
 
 Extract `blob-transfer-project.tar` with `tar -xf blob-transfer-project.tar`, then enter `blob-transfer`. Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward.
 

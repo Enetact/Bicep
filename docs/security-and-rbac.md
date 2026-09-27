@@ -1,5 +1,7 @@
 # Security and RBAC
 
+The data-path/RBAC details below primarily describe Blob copy. Event flow uses its [separate runtime and scoped exceptions](../workloads/logic-app-event-grid/README.md); dev authorization does not apply to higher environments. See [current status](completion-status.md) for verified versus external setup.
+
 For the stack-based self-service pipeline, use the [publishing and deployment permissions runbook](deployment-stacks-upgrade.md#platform-setup-and-exact-local-checks). Template Spec publication, version reads, subscription stack/preview operations, RG creation and deny-setting management are additional to the workload permissions below. Restrict publishing writers and stack administrators; application developers only queue the protected workflow. External destination grants remain outside the stack's subscription deny boundary when they belong to another subscription.
 
 ## Discovery and selected-target permissions

@@ -1,6 +1,6 @@
 # Enterprise platform architecture and implementation review
 
-Review date: 19 September 2026. This is a governed **blob-transfer** workload platform, not yet a general catalog of arbitrary Azure applications. No enterprise subscriptions, hubs, DNS zones, Policy assignments, registry, agents or workloads were deployed during this change. All current targets remain disabled and use the hosted setup check.
+Current scope reviewed 26 September 2026: two governed products, Blob copy and Event flow, with explicit typed adapters rather than arbitrary Azure application registration. All eight targets are disabled. Dedicated Deploy supports hosted Preview for configured inputs; hosted SetupOnly belongs to the generic compatibility route. Azure deployment acceptance remains unverified in the reviewed evidence. See the [catalog](self-service-catalog.md), [current status](completion-status.md) and [expansion plan](self-service-expansion-plan.md).
 
 The ownership rule is: **application teams request a supported capability; platform engineers own its topology and lifecycle**.
 
@@ -12,7 +12,7 @@ Follow-up: the [Microsoft Learn assessment](microsoft-learn-platform-assessment.
 flowchart TD
   Developer[Application team: workload, pattern, environment, region] --> Menu[ADO Deploy menu / JSON intent]
   Menu --> Catalog[Reviewed platform configuration and target catalog]
-  Catalog --> Composition[Workload composition: workloads/blob-transfer/main.bicep]
+  Catalog --> Composition[Selected workload main.bicep and stack.bicep]
   Composition --> Modules[Small Bicep modules]
   Modules --> Validate[ARM Provider validation and What-If property gates]
   Policy[Platform Azure Policy assignments] --> Validate
@@ -45,7 +45,7 @@ Central private DNS is the normal enterprise design. Microsoft describes integra
 | Any What-If `Modify` was allowed | Sensitive topology, identity, RBAC, location, SKU, network/public-access and TLS changes now fail before approval/apply. Missing property deltas fail closed. |
 | No separate ARM provider-validation artifact | Each non-skipped preview runs provider validation before What-If and retains `arm-validation.json`. Failed validation stops before apply. |
 | No platform Policy/registry assets | Added separate, compiled Policy-definition and private ACR templates. Neither is invoked by workload deployment; neither has been deployed. |
-| Broad multi-pattern expectations exceed the application | Only `blob-transfer` is admitted. SQL, Key Vault, Cosmos DB, Container Apps and generic private APIs are rejected until real compositions, contracts and tests exist. No empty modules pretend to implement them. |
+| Broad multi-pattern expectations exceed the application | Only `blob-transfer` and `logic-app-event-grid` are admitted. SQL, Key Vault, Cosmos DB, Container Apps and generic APIs remain rejected until real compositions, adapters, contracts and tests exist. No empty modules pretend to implement them. |
 | Monitor ingestion/query endpoints remain public | Known exception: storage and app are private, but the monitoring module retains public ingestion/query. AMPLS and private monitoring require a separate platform design and live validation. |
 
 ## Developer request and configuration hierarchy
@@ -60,7 +60,7 @@ Resolution order:
 4. Target `parameterOverrides`: authoritative platform IDs and topology settings. Region must match the resolved intent during bundle creation.
 5. The frozen bundle records exact target, compiled parameters, package, costs and discovery evidence. Review and hashes bind the configuration to the approved deployment.
 
-No configuration merge accepts arbitrary developer infrastructure properties. Unknown capabilities or ambiguous target mappings fail. Storage and observability are required by blob transfer; neither is presented as optional. The current menu lists only `blob-transfer`, `blobcopy`, the four environments and `eastus2`. Reference cost fields remain informational.
+No configuration merge accepts arbitrary developer infrastructure properties. Unknown capabilities or ambiguous target mappings fail. Storage and observability are required by blob transfer; neither is presented as optional. Dedicated menus fix the selected workload type and restrict instances to `blobcopy` or `eventflow`, four environments and `eastus2`; generic menus also expose workload type. Reference cost fields remain informational.
 
 From the repository root, resolve a request locally without Azure:
 

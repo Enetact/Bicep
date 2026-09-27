@@ -1,5 +1,7 @@
 # Pipeline flow and refactor
 
+For the resource catalog, exact methods and current verification boundaries, see [how self-service works](self-service-catalog.md) and [completion status](completion-status.md).
+
 Event flow discovery now saves a [prerequisite resource plan](prerequisite-resolution.md): reuse compatible selected resources, create absent standard resources within the workload stack, and block when inventory is unknown. Rerun Discover before using this behavior.
 
 The manual Build definition and four workload-specific Discover/Deploy definitions use the same GitHub checkout. Two original generic roots remain compatible with existing ADO definitions. Discovery supplies verified inventory. Deploy freezes its own release, publishes the compiled infrastructure as a Template Spec, then manages the workload through a Deployment Stack. Reusable Bicep modules remain local to this repository; no module registry is required.
@@ -13,7 +15,7 @@ The table below lists the original generic entry points retained for compatibili
 | ADO definition | YAML path | Purpose |
 |---|---|---|
 | Build / Validate | `/azure-pipelines.yml` | Compile, test, exercise local runtime and package; no Azure deployment. |
-| Discover (`Enetact.Bicep`) | `/azure-pipelines-self-service.yml` | Read selected subscription scope and publish `wosubscription-discovery`. |
+| Discover (`Enetact.Bicep`) | `/azure-pipelines-self-service.yml` | Read selected subscription scope and publish `subscription-discovery`. |
 | Deploy | `/azure-pipelines-self-service-deploy.yml` | Select workload type/name, environment and region; choose the discovery run under **Resources > discovery**. |
 
 Push, PR and discovery-completion triggers remain disabled. Deploy downloads the exact selected discovery run. The standalone Build artifact is for validation/inspection; Deploy does not consume or promote its application ZIP.
@@ -70,10 +72,10 @@ Every legacy enabled stage depends on its predecessor succeeding. Apply consumes
 
 ```text
 modules/*/main.bicep                       reusable resource implementations
-workloads/blob-transfer/modules/*.bicep    workload-specific compositions
+workloads/<type>/modules/*.bicep    workload-specific compositions
                ^ local relative references
-workloads/blob-transfer/main.bicep         resource-group composition
-workloads/blob-transfer/stack.bicep        subscription wrapper and owned RG
+workloads/<type>/main.bicep                resource-group composition
+workloads/<type>/stack.bicep               subscription wrapper and owned RG
                | compile during Qualify
 self-service-bundle/stack-template.json   embedded ARM templates
                | protected publication
@@ -84,7 +86,7 @@ Subscription Deployment Stack            tracks dedicated workload resources
 
 The Template Spec packages the compiled composition; the Deployment Stack tracks ownership and lifecycle. Neither needs to clone GitHub or fetch source modules at deployment time. `platform/registry/main.bicep` remains a deferred source template compiled by project checks. There is no ACR deployment, module publication or registry dependency in this flow.
 
-Environment values live in `workloads/blob-transfer/environments/`; platform policy in `config/platform.json`; publication/lifecycle settings in `config/deployment-stack.json`; approved bindings in `self-service/targets/`. The catalog generator owns both self-service roots, `pipelines/deploy-entry.yml` and `pipelines/catalog-bindings.yml`. Change their source configuration and regenerate instead of hand-editing generated routing.
+Environment values live in `workloads/<type>/environments/`; platform policy in `config/platform.json`; publication/lifecycle settings in `config/deployment-stack.json`; approved bindings in `self-service/targets/`. The catalog generator owns all six self-service roots (four dedicated and two generic), `pipelines/deploy-entry.yml` and `pipelines/catalog-bindings.yml`. Change their source configuration and regenerate instead of hand-editing generated routing.
 
 ## Refactor delivered
 
