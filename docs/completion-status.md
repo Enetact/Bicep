@@ -25,7 +25,6 @@ Two workload types (`blob-transfer`, `logic-app-event-grid`), two example instan
 | More workload types and generic adapters | Planned | Two adapter IDs are explicitly allowlisted. JSON alone cannot register arbitrary applications. See the [expansion plan](self-service-expansion-plan.md). |
 | Drift/TTL/adoption/deletion menus and automatic rollback | Not implemented | Existing preview and operator recovery safeguards are not a general operations catalog. Failures can leave resources. |
 | Policy assignments, module registry, AVM migration | Partial/deferred | Separate Policy-definition/registry templates exist; workload flow uses local modules. Assignments/publication/migration are not delivered by it. |
-| Claims platform, AI agents, databases and COBOL integration | Outside current implementation | No such application runtime exists here; transport consumers are separate products. |
 
 ## Evidence levels
 
