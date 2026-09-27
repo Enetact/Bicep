@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 1,
+  "description": "Conceptual component groups, not exact ARM resource counts or evaluated Bicep. Source symbols are checked by portal tests.",
+  "products": {
+    "blobcopy": {
+      "source": "workloads/blob-transfer/main.bicep",
+      "nodes": [
+        [
+          "network",
+          "VNet, subnets and DNS",
+          "Create or reuse per approved network profile",
+          "network"
+        ],
+        [
+          "monitor",
+          "Monitoring and alerts",
+          "Workspace, Application Insights and configured alerts",
+          "monitoring"
+        ],
+        [
+          "host",
+          "Runtime storage",
+          "Host state, queues and transfer ledger",
+          "hostStorage"
+        ],
+        [
+          "upload",
+          "Upload storage",
+          "Source blobs and work queues",
+          "uploadStorage"
+        ],
+        [
+          "destination",
+          "Existing destination storage",
+          "External dependency; access and optional endpoints",
+          "destination"
+        ],
+        [
+          "identity",
+          "Managed identity and RBAC",
+          "Scoped storage permissions",
+          "identity"
+        ],
+        [
+          "app",
+          "Function App and hosting plan",
+          "Release phase; dispatcher, worker and recovery",
+          "app"
+        ],
+        [
+          "pe",
+          "Private endpoints",
+          "Storage, app and conditional destination endpoints",
+          "storagePrivateEndpoints"
+        ]
+      ],
+      "edges": [
+        [
+          "upload",
+          "app",
+          "Blob trigger / work queue"
+        ],
+        [
+          "app",
+          "host",
+          "Runtime and ledger"
+        ],
+        [
+          "app",
+          "destination",
+          "Copy blobs"
+        ],
+        [
+          "identity",
+          "app",
+          "Identity"
+        ],
+        [
+          "network",
+          "pe",
+          "Approved subnets and DNS"
+        ],
+        [
+          "pe",
+          "app",
+          "Private access"
+        ],
+        [
+          "app",
+          "monitor",
+          "Telemetry"
+        ]
+      ]
+    },
+    "eventflow": {
+      "source": "workloads/logic-app-event-grid/main.bicep",
+      "nodes": [
+        [
+          "network",
+          "Network, DNS and workspace",
+          "Create / reuse / manage only after prerequisite resolution",
+          "prerequisites"
+        ],
+        [
+          "runtime",
+          "Runtime storage",
+          "Logic App host state",
+          "runtime"
+        ],
+        [
+          "events",
+          "Event storage",
+          "Events queue, receipts, quarantine and dead letters",
+          "events"
+        ],
+        [
+          "topic",
+          "Event Grid topic",
+          "Private ingestion; managed identity",
+          "topic"
+        ],
+        [
+          "delivery",
+          "Event subscription",
+          "Storage Queue delivery",
+          "delivery"
+        ],
+        [
+          "host",
+          "Logic App Standard and plan",
+          "Stateful workflow; release activation",
+          "host"
+        ],
+        [
+          "access",
+          "Access and RBAC",
+          "Scoped managed identity grants",
+          "access"
+        ],
+        [
+          "pe",
+          "Private endpoints",
+          "Storage, topic and app",
+          "endpoints"
+        ],
+        [
+          "monitor",
+          "Monitoring and alerts",
+          "Application Insights, diagnostics and backlog alerts",
+          "insights"
+        ]
+      ],
+      "edges": [
+        [
+          "topic",
+          "delivery",
+          "Event delivery"
+        ],
+        [
+          "delivery",
+          "events",
+          "Storage Queue"
+        ],
+        [
+          "events",
+          "host",
+          "Workflow trigger and receipts"
+        ],
+        [
+          "host",
+          "runtime",
+          "Runtime state"
+        ],
+        [
+          "network",
+          "pe",
+          "Approved subnets and DNS"
+        ],
+        [
+          "pe",
+          "host",
+          "Private access"
+        ],
+        [
+          "host",
+          "monitor",
+          "Telemetry"
+        ],
+        [
+          "access",
+          "events",
+          "Scoped grants"
+        ]
+      ]
+    },
+    "storage": {
+      "source": "workloads/private-storage/main.bicep",
+      "nodes": [
+        [
+          "shared",
+          "Approved subnet, DNS and workspace",
+          "Required existing dependencies",
+          "storageEndpoints"
+        ],
+        [
+          "storage",
+          "StorageV2 account",
+          "Workspace container and work queue",
+          "storage"
+        ],
+        [
+          "access",
+          "Scoped data access",
+          "Blob and Queue roles",
+          "dataAccess"
+        ],
+        [
+          "pe",
+          "Two private endpoints",
+          "Blob and Queue; diagnostics to shared workspace",
+          "storageEndpoints"
+        ]
+      ],
+      "edges": [
+        [
+          "shared",
+          "pe",
+          "Subnet and DNS"
+        ],
+        [
+          "pe",
+          "storage",
+          "Private access"
+        ],
+        [
+          "access",
+          "storage",
+          "Scoped grants"
+        ]
+      ]
+    },
+    "keyvault": {
+      "source": "workloads/key-vault/main.bicep",
+      "nodes": [
+        [
+          "shared",
+          "Approved subnet, DNS and workspace",
+          "Required existing dependencies",
+          "endpoint"
+        ],
+        [
+          "vault",
+          "RBAC Key Vault",
+          "Soft delete, purge protection, reader grant and diagnostics",
+          "vault"
+        ],
+        [
+          "pe",
+          "Private endpoint",
+          "Vault access",
+          "endpoint"
+        ]
+      ],
+      "edges": [
+        [
+          "shared",
+          "pe",
+          "Subnet and DNS"
+        ],
+        [
+          "pe",
+          "vault",
+          "Private access"
+        ]
+      ]
+    },
+    "observe": {
+      "source": "workloads/observability/main.bicep",
+      "nodes": [
+        [
+          "shared",
+          "Existing workspace and action groups",
+          "Required external monitoring and notification destinations",
+          "monitoring"
+        ],
+        [
+          "workbook",
+          "Shared Azure Workbook",
+          "Heartbeat visualization against the existing workspace",
+          "monitoring"
+        ],
+        [
+          "alert",
+          "Scheduled query alert",
+          "Missing heartbeat for previously reporting machines",
+          "monitoring"
+        ]
+      ],
+      "edges": [
+        [
+          "shared",
+          "workbook",
+          "Queries workspace"
+        ],
+        [
+          "shared",
+          "alert",
+          "Workspace scope and notification destinations"
+        ]
+      ]
+    },
+    "httpapi": {
+      "source": "workloads/http-functions/main.bicep",
+      "nodes": [
+        [
+          "shared",
+          "Approved network, DNS and workspace",
+          "Existing integration/endpoint subnets and monitoring",
+          "storageEndpoints"
+        ],
+        [
+          "storage",
+          "Runtime storage",
+          "Blob, Queue and Table services",
+          "storage"
+        ],
+        [
+          "identity",
+          "Managed identity and RBAC",
+          "Runtime and scoped data access",
+          "identity"
+        ],
+        [
+          "app",
+          "HTTP Functions API and plan",
+          "Release phase; Health endpoint",
+          "app"
+        ],
+        [
+          "pe",
+          "Four private endpoints",
+          "Three storage services and app",
+          "storageEndpoints"
+        ]
+      ],
+      "edges": [
+        [
+          "shared",
+          "pe",
+          "Subnets and DNS"
+        ],
+        [
+          "pe",
+          "app",
+          "Private access"
+        ],
+        [
+          "app",
+          "storage",
+          "Runtime state"
+        ],
+        [
+          "identity",
+          "app",
+          "Identity"
+        ]
+      ]
+    },
+    "busworker": {
+      "source": "workloads/service-bus-worker/main.bicep",
+      "nodes": [
+        [
+          "shared",
+          "Approved network, DNS and workspace",
+          "Existing integration/endpoint subnets and monitoring",
+          "storageEndpoints"
+        ],
+        [
+          "storage",
+          "Runtime storage",
+          "Blob, Queue and Table services",
+          "storage"
+        ],
+        [
+          "identity",
+          "Managed identity and RBAC",
+          "Runtime and receiver permissions",
+          "identity"
+        ],
+        [
+          "bus",
+          "Service Bus Premium namespace",
+          "Work queue and dead-letter handling",
+          "bus"
+        ],
+        [
+          "app",
+          "Worker Function App and plan",
+          "Release phase; ProcessWork trigger",
+          "app"
+        ],
+        [
+          "pe",
+          "Five private endpoints",
+          "Storage, Service Bus and app",
+          "storageEndpoints"
+        ]
+      ],
+      "edges": [
+        [
+          "shared",
+          "pe",
+          "Subnets and DNS"
+        ],
+        [
+          "pe",
+          "app",
+          "Private access"
+        ],
+        [
+          "bus",
+          "app",
+          "ProcessWork queue trigger"
+        ],
+        [
+          "app",
+          "storage",
+          "Runtime state"
+        ],
+        [
+          "identity",
+          "app",
+          "Identity"
+        ]
+      ]
+    }
+  }
+}

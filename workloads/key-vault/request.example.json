@@ -1,0 +1,6 @@
+{
+  "workloadName": "keyvault",
+  "environment": "dev",
+  "region": "eastus2",
+  "workloadType": "key-vault"
+}

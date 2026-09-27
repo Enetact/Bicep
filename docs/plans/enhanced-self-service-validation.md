@@ -47,7 +47,7 @@ The following was inspected for this review; it is not evidence that the future 
 | `scripts/logic-prerequisites-common.ps1` and `config/logic-prerequisites.json` | Current named/explicit prerequisite selection and fixed addresses. Keep as the legacy profile during the opt-in rollout; do not advertise it as enterprise IPAM. |
 | `scripts/Test-DiscoveryHandoff.ps1`, `scripts/Test-WorkloadPreview.ps1`, `scripts/Test-DeploymentStacks.ps1`, `tests/infrastructure/verify.mjs` | Existing contracts to extend with new fixtures. Local expression checks do not replace ADO compilation, protected checks or Azure acceptance. |
 
-The checkout still has two registered products and eight disabled targets. Existing live acceptance gaps remain in the [completion matrix](../completion-status.md).
+The 26 September baseline had two registered products and eight disabled targets. The 27 September product increment now has seven products and 28 disabled targets; see [onboarding](../workload-onboarding.md). Existing live acceptance gaps remain in the [completion matrix](../completion-status.md).
 
 ## Target developer experience
 

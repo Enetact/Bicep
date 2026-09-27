@@ -1,0 +1,6 @@
+{
+  "workloadName": "observe",
+  "environment": "dev",
+  "region": "eastus2",
+  "workloadType": "observability"
+}

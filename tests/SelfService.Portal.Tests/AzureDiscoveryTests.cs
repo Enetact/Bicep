@@ -17,6 +17,19 @@ public sealed class AzureDiscoveryTests
     static string Subscription => new Catalog(Options()).Products[0].Targets[0].SubscriptionId;
     static SkillDiscoveryRequest Request(string skill = "azure--azure-storage") => new(skill, Subscription);
     static JsonElement Json(object value) => JsonSerializer.SerializeToElement(value, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    [Fact] public async Task GroupScopeIsAppliedToEveryAzureCollection()
+    {
+        var (service, http, session) = Service();
+        await service.Discover(session, Request("azure--azure-resource-visualizer") with { ResourceGroup = "rg-selected" }, CancellationToken.None);
+        Assert.Equal(6, http.Requests.Count);
+        Assert.All(http.Requests, r => Assert.Contains("/resourceGroups/rg-selected/", r));
+    }
+    [Fact] public async Task InvalidGroupCannotInjectAnArmRoute()
+    {
+        var (service, http, session) = Service();
+        await Assert.ThrowsAsync<PortalException>(() => service.Discover(session, Request() with { ResourceGroup = "../other" }, CancellationToken.None));
+        Assert.Empty(http.Requests);
+    }
     static (AzureDiscovery Service, Handler Http, BrowserSession Session) Service(string scenario = "empty")
     {
         var o = Options(); var handler = new Handler(scenario);

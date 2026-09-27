@@ -1,0 +1,27 @@
+# Service Bus worker
+
+Implemented source offering; all four targets remain disabled pending platform onboarding and live Azure acceptance.
+
+1 private Premium Service Bus namespace and work queue with DLQ/duplicate detection, private .NET 10 Function worker on Linux B1, identity, receipt/host/package storage, 5 private endpoints and diagnostics. Includes an idempotent receipt sample.
+
+- Discover: `azure-pipelines-busworker-discover.yml` (**Discover - Service Bus worker**).
+- Deploy: `azure-pipelines-busworker-deploy.yml` (**Deploy - Service Bus worker**), default **Preview only**.
+- Portal: **Workloads → Service Bus worker**.
+- Request: [schema](request.schema.json), [example](request.example.json).
+- Composition: [main.bicep](main.bicep), subscription wrapper: [stack.bicep](stack.bicep).
+- Environment files: `environments/main.{dev,qa,uat,prod}.bicepparam`.
+- Package kind: `productFunctions`. Infrastructure-only products do not contain an application ZIP.
+
+## Onboarding and ownership
+
+Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Premium Service Bus capacity, dedicated B1 hosting, storage, five private endpoints, logs and transfer. This is not a free-tier offering.
+
+Empty fields and REPLACE values are deliberate onboarding blockers. Complete owner/cost-center, principal and shared-dependency bindings through platform review; do not guess IDs or address ranges. This product owns only its dedicated resource group and resources within it. Shared networking, DNS, monitoring and action groups are referenced and retain their own owner. Missing shared resources do not become an automatic Create action. Existing unrelated resource groups are not adopted.
+
+Read the [complete product onboarding, method and acceptance guide](../../docs/workload-onboarding.md) before enabling a target. It covers identity, permissions, private-agent/DNS requirements, price qualification, runtime behavior and failure/recovery boundaries.
+
+## Cost and validation
+
+Estimate unavailable until complete reviewed pricing is configured; this does not mean zero cost. Premium Service Bus capacity, dedicated B1 hosting, storage, five private endpoints, logs and transfer. This is not a free-tier offering.
+
+Run `./scripts/Test-Products.ps1` from the repository root for local compilation and synthetic discovery/contract tests. The [validation record](../../docs/validation.md) distinguishes local evidence from live Azure acceptance. Infrastructure readiness is not proof of consumer authorization, alert delivery or recovery; runtime offerings also require their implemented smoke tests and separate production acceptance drills.

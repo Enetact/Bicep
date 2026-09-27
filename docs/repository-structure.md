@@ -1,8 +1,27 @@
 # Bicep repository structure and authoring conventions
 
+**Expansion placement:** five new `workloads/` compositions reuse `modules/security/key-vault`, `modules/messaging/service-bus`, `modules/monitoring/observability`, `modules/compute/private-functions` and existing Storage/Private Endpoint modules. `scripts/product-service-common.ps1` supplies the shared product adapter; `src/ProductFunctions` holds the two runtime samples and `tests/ProductFunctions.Tests` their tests. Catalog metadata describes seven allowlisted products; no arbitrary script/plugin dispatch was introduced. See [onboarding](workload-onboarding.md). The detailed original-product tree below remains applicable to its listed paths.
+
 `vendor/azure-skills/` preserves a pinned Microsoft skill snapshot, nested guidance, supporting resources, licenses and `bundle.json` hashes. It is reference content for the portal, outside the active project `.agents/skills` instructions. `AzureDiscovery.cs` implements fixed read-only ARM adapters; vendor scripts and plugin hooks are not executed. See [bundle maintenance](azure-skill-discovery.md#updating-and-packaging-the-bundle).
 
-The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources; it does not move Bicep compositions, introduce another workload registry or implement the planned MCP server. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
+The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources without moving Bicep compositions or introducing another workload registry. `AgentWorkflows`, `AgentPolicy`, `CodexAgentRuntime`, `AgentMcpBridge` and `AgentHostChannel` implement the bounded local [Codex/MCP review path](agent-workflows.md); the broader enterprise facade remains proposed. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
+
+## Source, runtime state and test boundaries
+
+| Location | Purpose and Git policy |
+|---|---|
+| `src/SelfService.Portal/*.cs` | Real application endpoints, identities, readers, Codex host, AHP coordination and MCP bridge. Included by the SDK project in Release/publish builds. |
+| `src/SelfService.Portal/wwwroot/` | Real portal UI, agent controls and deterministic topology renderer. No fixture-server dependency. |
+| `scripts/analysis/` | Shared production offline analyzer invoked by the portal and command-line wrapper; test fixtures live separately. |
+| `config/`, `self-service/`, `schemas/`, root YAML and `pipelines/` | Versioned catalog, contracts, targets and deployment routing. Local credentials do not belong here. |
+| `workloads/`, `modules/`, `environments/`, `platform/` | Versioned workload compositions, reusable Bicep modules, environment inputs and separately operated platform infrastructure. |
+| `.agents/skills/`, `vendor/azure-skills/` | Versioned project instructions and pinned Microsoft guidance/support files. Upstream scripts and hooks are not automatically enabled. |
+| `tests/` | Versioned test code and synthetic fixtures. Never a production application dependency. The optional diagram fixture server runs separately on 5098; normal startup uses 5087. |
+| `.local/`, `.tools/`, `.azure/`, `artifacts/`, `bin/`, `obj/` | Ignored runtime state, tools, credentials, generated reports and build/package output. Generated `SKILL.md` copies in a Codex runtime home are not authoritative source. |
+
+Run `./scripts/Test-RepositoryHygiene.ps1` before a source commit. It checks representative private/generated paths, real first-party source tracking eligibility, mistakenly tracked ignored files, portal test-path references and any available Release dependency graph. It does not stage/remove files, read token values, run inference or certify repository history as secret-free. New source shown by `git status --short` as `??` must still be included in the intended commit. Keep sanitized example settings and dependency lock files versioned; do not ignore `.codex/` wholesale because it can contain project instructions and configuration.
+
+The agent integration uses real application code and an in-process MCP server; it does not require a test harness or a separate external MCP daemon. Its functional limits remain explicit: four bounded reviews, AHP coordination only, and broader Azure MCP/tenant networking work still proposed. HTTP API and Service Bus worker remain documented starter workload samples rather than completed business applications. Source placement does not establish live provider acceptance.
 
 Reviewed against Microsoft Learn and Microsoft's Bicep/AVM repositories on 19 September 2026. This is a workload deployment repository containing its application, not the Bicep compiler or an AVM publishing repository.
 
@@ -94,7 +113,7 @@ The developer selects pattern, registered workload, environment and region. `con
 
 `config/deployment-stack.json` is platform policy, not another environment parameter file: it holds publication and stack lifecycle bindings. `stack.bicep` owns the dedicated workload RG and calls `./main.bicep`; it does not own central networks, DNS, resolver, shared workspace or external destination storage. Event flow can create its own missing VNet/subnets, DNS zones/links and workspace through `modules/prerequisites.bicep`; shared resources still remain outside stack ownership. `config/logic-prerequisites.json` holds reviewed environment address allocations and resolver policy. Stack state lives in Azure and lifecycle receipts, not in a checked-in state file. See [the stack runbook](deployment-stacks-upgrade.md).
 
-`workloads/blob-transfer/modules/` is intentionally local to the pattern: Function settings, blob-transfer alert queries, source/package access grants and the five-zone isolated-network exception are not generic infrastructure building blocks. The eight shared modules own their resource and related child/diagnostic resources; they never load environment files or target JSON. Promote a helper into `modules/` only when another composition can use the same explicit interface without workload assumptions.
+`workloads/blob-transfer/modules/` is intentionally local to the pattern: Function settings, blob-transfer alert queries, source/package access grants and the five-zone isolated-network exception are not generic infrastructure building blocks. Shared modules own their resource and related child/diagnostic resources; they never load environment files or target JSON. Promote a helper into `modules/` only when another composition can use the same explicit interface without workload assumptions.
 
 ## Authoring and dependency rules
 

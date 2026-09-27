@@ -1,13 +1,18 @@
 # Documentation index
 
-Reviewed 26 September 2026. Start with the [repository README](../README.md), [catalog](self-service-catalog.md) and [current completion status](completion-status.md). Code implementation, local tests, observed ADO steps and live Azure acceptance are distinct evidence levels.
+- [Workload onboarding and seven-product catalog](workload-onboarding.md): dedicated menus, shared adapter, new modules, runtime samples and acceptance gates.
+
+Reviewed 27 September 2026. Start with the [repository README](../README.md), [catalog](self-service-catalog.md) and [current completion status](completion-status.md). Code implementation, local tests, observed ADO steps and live Azure acceptance are distinct evidence levels.
 
 ## Current self-service guides
 
 | Need | Guide |
 |---|---|
 | Local website, browser sign-in, ADO requests and ARM64/x64 packages | [Platform Studio](local-portal.md) |
+| Codex Astra/High/Standard authentication, scoped MCP tools and agent reviews | [Agent workflows](agent-workflows.md) |
+| Existing-resource diagrams, proposed workloads and saved Azure Preview changes | [Connected portal diagrams](portal-diagrams.md) |
 | Complete Microsoft skill bundle and Azure-only read-only discovery | [Azure skill discovery](azure-skill-discovery.md) |
+| Tenant/management-group discovery feasibility and proposed scope menu | [Scope verification and design](plans/tenant-network-discovery.md) |
 | Available products, menus, resources and methods | [Catalog and implementation map](self-service-catalog.md) |
 | Register definitions, configure permissions and queue runs | [Developer/platform self-service](self-service.md) |
 | YAML jobs and artifact handoffs | [Pipeline flow](pipeline-flow.md) |

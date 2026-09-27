@@ -182,7 +182,7 @@ for(const target of targets){
     for(const stage of stages.slice(1)){const publishing=stage.stage==='PublishTemplate';for(const job of stage.jobs){assert.equal(job.pool.name,publishing?publication.publisherAgentPool:target.agentPool);if(job.deployment){assert.equal(job.environment,publishing?publication.publisherEnvironment:target.deploymentEnvironment);assert.equal(stage.lockBehavior,'sequential');}walk(job,n=>{if(n.task==='AzureCLI@2')assert.equal(n.inputs.azureSubscription,publishing?publication.publisherServiceConnection:target.serviceConnection);});}}
     const download=stages[0].jobs[0].steps.find(x=>x.task==='DownloadPipelineArtifact@2');assert.equal(download.inputs.pipelineId,'42');assert.equal(download.inputs.definition,'1');assert.equal(download.inputs.artifactName,'subscription-discovery');artifacts(stages);
     const qualify=stages[0].jobs[0].steps;const handoff=qualify.findIndex(x=>x.pwsh?.includes('Test-DiscoveryHandoff.ps1'));
-    const selected=workloadType==='blob-transfer'?sharedQualification:expand('pipelines/templates/steps/qualify-logic-app.yml',{},[],'steps');
+    const selected=workloadType==='blob-transfer'?sharedQualification:workloadType==='logic-app-event-grid'?expand('pipelines/templates/steps/qualify-logic-app.yml',{},[],'steps'):expand('pipelines/templates/steps/qualify-product.yml',{workloadType},[],'steps');
     assert.deepEqual(qualify.slice(handoff+1,handoff+1+selected.length),selected);
     assert(qualify.findIndex(x=>x.pwsh?.includes('New-SelfServiceBundle.ps1'))>handoff+selected.length);
     if(workloadType!=='blob-transfer')assert(!selected.some(x=>x.pwsh?.includes('Run-Local.ps1')));
@@ -195,7 +195,7 @@ for(const target of targets){
       assert.equal(steps.at(-1).condition,"and(always(), eq(variables['stageEvidencePrepared'], 'true'))");
     }
     assert(fs.existsSync(path.join(root,target.parameterFile)),target.parameterFile);
-    assert.equal(json('artifacts/'+(workloadType==='blob-transfer'?'':'logic-app-event-grid/')+target.environmentName+'/parameters.json').parameters.environmentName.value,target.environmentName);
+    assert.equal(json(workloadType==='blob-transfer'?'artifacts/'+target.environmentName+'/parameters.json':workloadType==='logic-app-event-grid'?'artifacts/logic-app-event-grid/'+target.environmentName+'/parameters.json':'artifacts/products/'+workloadType+'/'+target.environmentName+'.parameters.json').parameters.environmentName.value,target.environmentName);
   });
 }
 check('Unregistered developer intent is rejected by the platform entry',()=>{
@@ -220,14 +220,16 @@ check('Default menus select valid routes and cross-workload intent fails',()=>{
   assert.deepEqual(expand('azure-pipelines-self-service-deploy.yml',{}).map(x=>x.stage),['SetupOnly']);
   assert.deepEqual(expand('pipelines/deploy-entry.yml',{workloadType:'logic-app-event-grid',workloadName:'blobcopy',environment:'dev',region:'eastus2',discoveryPipelineId:'1',discoveryRunId:'42'}).map(x=>x.stage),['InvalidIntent']);
 });
-for(const [type,slug,title] of [['blob-transfer','blobcopy','Blob copy'],['logic-app-event-grid','eventflow','Event flow']]){
+for(const [type,definition] of Object.entries(json('config/workloads.json').workloads)){
+  const slug=definition.menuSlug,title=definition.displayName;
   const discoverFile=`azure-pipelines-${slug}-discover.yml`;const deployFile=`azure-pipelines-${slug}-deploy.yml`;
   const discover=document(discoverFile);const specific=document(deployFile);
   check(title+' menu contains only its own blueprint and fixed workload binding',()=>{
     for(const doc of [discover,specific]){
       assert.equal(doc.trigger,'none');assert.equal(doc.pr,'none');assert(!doc.parameters.some(p=>p.name==='workloadType'));
       const menu=JSON.stringify(doc.parameters);const foreign=type==='blob-transfer'?/Event flow|eventflow|Logic App|Event Grid/:/Blob copy|blobcopy|Function App/;
-      assert(!foreign.test(menu),'Unrelated workload leaked into the menu');
+      if(['blob-transfer','logic-app-event-grid'].includes(type))assert(!foreign.test(menu),'Unrelated workload leaked into the menu');
+      else assert(menu.includes(definition.summary),'Product summary missing');
       assert(doc.parameters.some(p=>p.name==='workloadSummary'));
     }
     assert.equal(discover.stages[0].parameters.workloadType,type);

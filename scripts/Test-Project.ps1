@@ -16,6 +16,7 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-WorkloadPreview.ps1"
 & "$PSScriptRoot/Test-LogicWorkload.ps1"
 & "$PSScriptRoot/Test-LogicPrerequisites.ps1"
+& "$PSScriptRoot/Test-Products.ps1"
 & "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {
     $output = Export-Templates -EnvironmentName $environmentName
@@ -42,3 +43,8 @@ $audit | Set-Content -LiteralPath (Join-Path $results 'vulnerabilities.json') -E
 $report = $audit -join "`n" | ConvertFrom-Json -AsHashtable
 Assert-NoVulnerablePackages -Report $report
 Write-Host "No reported vulnerable Function dependencies. Advisory evidence: $results/vulnerabilities.json"
+$productAudit = & dotnet list (Join-Path $root 'src/ProductFunctions/ProductFunctions.csproj') package --vulnerable --include-transitive --format json
+if ($LASTEXITCODE -ne 0) { throw 'Product dependency vulnerability query failed.' }
+$productAudit | Set-Content -LiteralPath (Join-Path $results 'product-vulnerabilities.json') -Encoding utf8
+Assert-NoVulnerablePackages -Report ($productAudit -join "`n" | ConvertFrom-Json -AsHashtable)
+Write-Host "No reported vulnerable ProductFunctions dependencies. Advisory evidence: $results/product-vulnerabilities.json"

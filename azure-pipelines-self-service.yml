@@ -10,12 +10,17 @@ parameters:
     default: "Blob copy - Function App + 2 Storage accounts | blob-transfer"
     values:
       - "Blob copy - Function App + 2 Storage accounts | blob-transfer"
+      - "HTTP Functions API | http-functions"
+      - "Key Vault | key-vault"
       - "Event flow - Logic App + Event Grid + 2 Storage accounts | logic-app-event-grid"
+      - "Observability | observability"
+      - "Private Storage Workspace | private-storage"
+      - "Service Bus worker | service-bus-worker"
   - name: workload
-    displayName: 2. Instance name (Blob copy = blobcopy; Event flow = eventflow)
+    displayName: 2. Registered instance name
     type: string
     default: blobcopy
-    values: [blobcopy, eventflow]
+    values: [blobcopy, busworker, eventflow, httpapi, keyvault, observe, storage]
   - name: environment
     displayName: Target environment
     type: string

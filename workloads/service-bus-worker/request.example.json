@@ -1,0 +1,6 @@
+{
+  "workloadName": "busworker",
+  "environment": "dev",
+  "region": "eastus2",
+  "workloadType": "service-bus-worker"
+}

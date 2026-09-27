@@ -18,9 +18,21 @@ public sealed class PortalTests
     static RunRequest Request(string op = "preview") => new("blobcopy", "dev", "eastus2", op, 91);
     [Fact] public void CatalogReflectsActualTargetsAndMenuCosts()
     {
-        var catalog = new Catalog(Options()); Assert.Equal(2, catalog.Products.Length);
-        Assert.Equal(8, catalog.Products.Sum(p => p.Targets.Length)); Assert.All(catalog.Products, p => { Assert.Contains("Storage", p.Summary); Assert.Contains("USD", p.Costs); Assert.DoesNotContain("See the generated", p.Requirements); });
+        var catalog = new Catalog(Options()); Assert.Equal(7, catalog.Products.Length);
+        Assert.Equal(28, catalog.Products.Sum(p => p.Targets.Length)); Assert.All(catalog.Products, p => { Assert.NotEmpty(p.Summary); Assert.NotEmpty(p.Costs); Assert.DoesNotContain("See the generated", p.Requirements); Assert.All(p.Targets,t => Assert.False(t.Enabled)); });
         Assert.Contains(catalog.Skills, s => s.Id == "platform-discovery-audit");
+    }
+    [Theory]
+    [InlineData("storage")] [InlineData("keyvault")] [InlineData("observe")] [InlineData("httpapi")] [InlineData("busworker")]
+    public void NewProductsHaveDedicatedMenusAndPreviewPayloads(string id)
+    {
+        var c = new Catalog(Options()); var p = c.Products.Single(p => p.Id == id);
+        Assert.Equal($"azure-pipelines-{id}-discover.yml",p.DiscoverYaml);
+        Assert.Equal($"azure-pipelines-{id}-deploy.yml",p.DeployYaml);
+        Assert.Contains("not zero/free",p.Costs);
+        var payload=JsonSerializer.Serialize(c.Payload(new(id,"dev","eastus2","preview",91)));
+        Assert.Contains("Preview only",payload);Assert.Contains("refs/heads/main",payload);
+        Assert.Throws<PortalException>(()=>c.Validate(new(id,"dev","eastus2","deploy",91)));
     }
     [Theory]
     [InlineData("bad", "dev", "eastus2", "preview", 91)]

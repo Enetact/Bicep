@@ -6,6 +6,7 @@
     "Project": "Enetact",
     "Port": 5087,
     "RepositoryRoot": "",
-    "NodePath": "node"
+    "NodePath": "node",
+    "CodexPath": ""
   }
 }

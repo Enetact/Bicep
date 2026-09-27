@@ -12,7 +12,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["workloadType", "workload", "environment", "subscriptionId", "generatedUtc", "evaluatedUtc", "manifestSha256", "inventorySha256", "provenance", "scope"],
       "properties": {
-        "workloadType": {"enum": ["blob-transfer", "logic-app-event-grid"]},
+        "workloadType": {"enum": ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker"]},
         "workload": {"type": "string"}, "environment": {"type": "string"}, "subscriptionId": {"type": "string", "format": "uuid"},
         "generatedUtc": {"type": "string", "format": "date-time"}, "evaluatedUtc": {"type": "string", "format": "date-time"},
         "manifestSha256": {"$ref": "#/$defs/hash"}, "inventorySha256": {"$ref": "#/$defs/hash"},

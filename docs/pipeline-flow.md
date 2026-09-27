@@ -1,5 +1,7 @@
 # Pipeline flow and refactor
 
+**Seven-product routing:** fourteen dedicated menu roots now feed the existing Discover and Preview/Deploy templates. Five offerings use the shared product adapter and bundle schema v3; infrastructure-only offerings have no application package and use Release directly in the dedicated flow. See [exact menus and methods](workload-onboarding.md). Existing Blob copy/Event flow adapters and older generic sequencing remain compatibility paths.
+
 [Platform Studio](local-portal.md) is an optional local entry point to these same four dedicated YAML definitions. It resolves definition IDs, reviews allowlisted parameters, pins a selected discovery run and queues main only after confirmation. It adds no YAML stages and cannot bypass disabled targets, artifact checks or ADO environment approvals. Live integration acceptance is pending registration.
 
 For the resource catalog, exact methods and current verification boundaries, see [how self-service works](self-service-catalog.md) and [completion status](completion-status.md).

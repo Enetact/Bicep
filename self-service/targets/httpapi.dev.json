@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "http-functions",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "httpapi",
+  "environmentName": "dev",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-httpapi-dev",
+  "parameterFile": "workloads/http-functions/environments/main.dev.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "httpapi-dev",
+  "smokePrefix": "smoke/"
+}

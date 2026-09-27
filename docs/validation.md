@@ -1,5 +1,35 @@
 # Validation evidence
 
+## Source and runtime hygiene audit: 27 September 2026
+
+Expanded `.gitignore` for Codex/Azure/MSAL credential files, repository-local Codex state, private certificate/key files, test evidence and editor files. Preserved example settings, project instructions, source and fixtures. `./scripts/Test-RepositoryHygiene.ps1` passed **15 ignore probes and 169 source/control-path checks** with no tracked ignored files, portal test-path references or test dependencies in the available Release dependency graph.
+
+Read-only process inspection matched the portal ownership receipt to the live Release assembly and executable on localhost 5087. Ports 5088 (package test) and 5098 (diagram fixture) had no listeners; no diagram fixture process was found. MSAL and ModelContextProtocol were in the application's dependency graph; test-host/xUnit dependencies were absent. No source relocation was needed: application code, first-party analyzer, Bicep modules, catalog/skills and tests already have separate authoritative locations. The audit left the portal running and did not rebuild, stop services, inspect token contents or invoke a model.
+
+The user reported Codex connected. At this inspection the portal had no active Codex child or agent process receipt, so portal-level authentication could not be confirmed; this does not establish the state of a separate Codex desktop login. Model/provider acceptance remains distinct from the source/runtime audit. This is not a full-history secret scan or production-readiness certification.
+
+## Codex agent workflows: 27 September 2026
+
+Implemented four bounded reviews with GPT-6 Astra / High / Standard, isolated ChatGPT sign-in, scoped MCP tools and an experimental AHP coordination profile. **85 backend tests passed, zero failed/skipped**, including the explicitly enabled native Codex 0.153.2 startup, account-read, inherited-MCP check and login-start/cancel protocol without completing login or invoking a model. Real in-process MCP tests cover isolated evidence, revoked sessions, scope/tool rejection and call budgets. Resource-group route and input validation tests passed. Evidence: `artifacts/test-results/portal.trx`.
+
+The unchanged diagram suite passed **six tests**, and all **944 vendored source hashes** passed. The running source portal passed **24 actual HTTP checks** and **five AHP WebSocket coordination checks**. A fresh in-app browser tab showed the four workflows, fixed model settings and disabled Run before required authentication; the older tab had stale initialization state. No Azure resource changes, ADO queue requests, credentials entry, completed ChatGPT login or inference occurred. Model-generated reviews, native x64 hardware, live consent/permissions and Azure/ADO acceptance remain unverified. See [agent contracts and remaining validation](agent-workflows.md).
+
+Rebuilt packages: `artifacts/portal-packages/20260927-124510/win-arm64.zip` and `win-x64.zip`. Each published folder passed 24 HTTP and five AHP checks. ARM64 ran natively; x64 ran under Windows ARM emulation. SHA-256: ARM64 `21CE5074412C6D853B2DA61FE6BBF0ED40FBEF416EF23A2C8A0BB541210A9C54`; x64 `2354F7797A8B0DB7AF67AC6D36E3123DA01BDA5D7A1B3F7422667014570A8695`. These packages contain the agent implementation; the latest source validation documentation additionally records their post-publish checks.
+
+## Network discovery scope review: 27 September 2026
+
+Verified the current portal and ADO single-subscription boundaries against source, the pinned Microsoft skill guidance and Microsoft Learn. All **17 existing AzureDiscoveryTests passed** using the prior qualified build and mocked HTTP/tokens; evidence is `artifacts/discovery-scope-audit/discovery-scope.trx`. No application code changed, no full-suite rerun occurred and no tenant, management-group or MCP live scan was performed. The [scope assessment](plans/tenant-network-discovery.md) records the proposed UI, Resource Graph collector, optional MCP analysis, identity separation and acceptance requirements. This review does not implement or enable broader discovery.
+
+## Five-workload expansion: 27 September 2026
+
+Added Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. The source catalog now has seven types, 28 disabled profiles and fourteen dedicated Discover/Deploy roots. This is local implementation and qualification, not Azure acceptance. The working tree extends base commit `6e36a5822d0d3f7c26433ff3c58fa8a2dc15b3ed`; changes were not committed or pushed by this task.
+
+The final complete `scripts/Test-Project.ps1` run passed (log: `artifacts/product-full-verification.log`), including **91 product contracts**, **10 ProductFunctions tests**, **46 portal tests**, **80 discovery cases**, the existing cost/platform/stack/Preview/Event flow/prerequisite checks, and **131 pipeline/infrastructure contracts across 31 YAML files**. The original Blob transfer tests passed 18 cases with 15 opt-in emulator cases skipped. All seven workloads' Bicep compositions/wrappers and environment files compiled. The operator tool built with zero warnings/errors. Advisory queries reported no vulnerable BlobTransfer or ProductFunctions dependencies. Azure calls in adapter tests were mocked; no Azure deployment or ADO server-side expansion was performed. Infrastructure-only bundle roundtrips, tamper rejection, cross-product scope, missing/failed prerequisites, network drift, flat What-If change serialization and strict runtime message handling are covered.
+
+Actual Functions ZIP creation and an infrastructure-only release receipt were verified under `artifacts/product-releases/*/local-validation-20260927`. These receipts correctly mark the local working tree dirty and cannot be used as qualified deployment artifacts. Final portable packages at `artifacts/portal-packages/20260927-105645` each passed **14 real localhost HTTP checks**; ARM64 ran natively and x64 under ARM emulation. Native x64 hardware remains untested. Browser review confirmed seven distinct cards, scoped summaries/cost caveats, saved-discovery Preview selection and disabled Deploy. Screenshot: `artifacts/seven-workload-portal.png`. Live Entra consent and ADO execution remain unverified.
+
+Onboarding values, reviewed prices, private connectivity, registered ADO definitions and each product's live positive/negative/recovery/alert or DLQ acceptance remain required. See [workload onboarding](workload-onboarding.md). No targets, permissions or Azure resources were changed. Older records below retain their original scope and counts.
+
 ## Bundled Azure Skills and browser discovery: 27 September 2026
 
 The portal catalog now includes 42 pinned Microsoft definitions and five project skills. `scripts/Test-Portal.ps1` passed **41 backend tests, zero failures/skips**, including fixed ARM discovery, scope rejection, safe pagination, filtered metadata, successful empty results and partial/failed reads. `tests/portal/verify-skills.mjs` verified all 42 index entries and **944 source-file hashes**. Azure responses in backend tests were mocked; no subscription was queried.
@@ -374,3 +404,12 @@ This is a targeted portal verification, not another full Bicep/Functions project
 - Recovery audit attribution, ledger backup/restore, privilege boundaries and approved operational cleanup.
 
 This is a locally tested production-oriented baseline. It is not a claim of deployed production readiness.
+
+## Connected portal diagrams — 27 September 2026
+
+Implemented inline observed inventory, conceptual component diagrams for seven workload configurations, and guarded reading/projection of saved ADO Preview artifacts. Scope and methods: [connected diagrams](portal-diagrams.md). No cloud calls, target enablement or new package dependencies.
+
+- `./scripts/Test-Portal.ps1`: all 944 pinned skill source hashes matched; six topology tests and 66 backend tests passed, zero failures/skips.
+- `node tests/portal/smoke.mjs`: 17 real localhost HTTP checks passed on ARM64, including module serving and unauthenticated Preview rejection.
+- Codex browser: real Private Storage configuration rendered; a separate localhost fixture verified partial discovery/unknown references, the same-subscription comparison control, blocked Preview display and clearing on environment change. Fixtures are synthetic, not Azure or ADO evidence.
+- Evidence: `artifacts/test-results/portal.trx` and `artifacts/portal-tests/http-smoke.json`. Portable packages from before this increment are unchanged and require rebuilding. Native x64 and live identity/artifact compatibility were not tested in this increment.

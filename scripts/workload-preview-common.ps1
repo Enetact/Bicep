@@ -7,7 +7,7 @@ function Get-PreviewParameters($Target,$Parameters,[string]$ReleaseId) {
     $type=Get-TargetWorkloadType $Target
     $p.parameters[(Get-WorkloadDefinition $type).phaseParameter]=@{value=$true}
     $p.parameters.workloadResourceGroupName=@{value=$Target.resourceGroup}
-    if($type -eq 'blob-transfer'){$p.parameters.packageBlobName=@{value="releases/$ReleaseId.zip"}}
+    if((Get-WorkloadDefinition $type).packageKind -in @('functions','productFunctions')){$p.parameters.packageBlobName=@{value="releases/$ReleaseId.zip"}}
     return $p
 }
 function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$Directory,[string]$ReleaseId) {
@@ -29,11 +29,12 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
     }
     # Compile first so a blocked README can still list locally declared resource types.
     Assert-ServiceParameters $Target $p.parameters
+    if(Test-ProductWorkload $type){Assert-ProductDiscovery $Target $p.parameters $DiscoveryDirectory}
     if($type -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $Target $p.parameters $DiscoveryDirectory}
     $stackTemplate=Get-Content (Join-Path $Directory stack-template.json) -Raw|ConvertFrom-Json -AsHashtable
     Write-ServiceJson (New-StackContract $Target $stackTemplate) (Join-Path $Directory stack.json)
     Write-ServiceJson (Get-PreviewParameters $Target $p $ReleaseId) (Join-Path $Directory effective.parameters.json)
-    $cost=if($type -eq 'logic-app-event-grid'){Get-LogicCostEstimate $p.parameters}else{Get-ServiceCostEstimate $p.parameters}
+    $cost=if(Test-ProductWorkload $type){Get-ProductCostEstimate $Target $p.parameters}elseif($type -eq 'logic-app-event-grid'){Get-LogicCostEstimate $p.parameters}else{Get-ServiceCostEstimate $p.parameters}
     Write-ServiceJson $cost (Join-Path $Directory cost-estimate.json)
     New-Item -ItemType Directory -Path (Join-Path $Directory discovery) -Force|Out-Null
     foreach($f in @('manifest.json','inventory.json')){Copy-Item (Join-Path $DiscoveryDirectory $f) (Join-Path $Directory "discovery/$f") -Force}
@@ -52,6 +53,7 @@ function Read-WorkloadPreviewInputs([string]$Directory) {
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
     Assert-ServiceParameters $target $p.parameters
     $manifest=Read-DiscoveryManifest (Join-Path $Directory discovery) $target $target.serviceConnection
+    if(Test-ProductWorkload (Get-TargetWorkloadType $target)){Assert-ProductDiscovery $target $p.parameters (Join-Path $Directory discovery)}
     if((Get-TargetWorkloadType $target) -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $target $p.parameters (Join-Path $Directory discovery)}
     if((Get-ValueHash $manifest.source) -cne (Get-ValueHash $r.discoverySource)){throw 'Preview discovery provenance mismatch.'}
     $stack=Get-Content (Join-Path $Directory stack.json) -Raw|ConvertFrom-Json -AsHashtable
@@ -70,6 +72,7 @@ function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory) {
     }
     Assert-StackTooling
     $state=Get-WorkloadStackState $Bundle
+    if(Test-ProductWorkload (Get-TargetWorkloadType $Bundle.target)){$state.network=Test-ProductPrerequisites $Bundle}
     if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){Assert-LogicPrerequisiteLiveState $Bundle $state}
     $path=Join-Path $Bundle.directory effective.parameters.json
     $report=New-StackPreview $Bundle $state $path $Directory -UseLocalTemplate
@@ -177,7 +180,9 @@ function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$B
         $preview=Read-WorkloadPreviewInputs $PreviewDirectory
         $current=Invoke-WorkloadInfrastructurePreview $preview (Join-Path $EvidenceDirectory recheck)
         Assert-PreviewFingerprint $approved $current
-        foreach($phase in @('Foundation','Release')){
+        $definition=Get-WorkloadDefinition (Get-TargetWorkloadType $target)
+        $phases=if($definition.packageKind -eq 'infrastructure'){@('Release')}else{@('Foundation','Release')}
+        foreach($phase in $phases){
             $planDirectory=Join-Path $EvidenceDirectory "plan-$phase"
             $null=New-ServicePlan $bundle $phase $planDirectory
             $result=Invoke-ServiceApply $bundle $phase $planDirectory (Join-Path $EvidenceDirectory "result-$phase")
@@ -185,6 +190,7 @@ function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$B
         }
         $receipt.status=$result.status;$receipt.ready=$result.ready;$receipt.outputs=$result.outputs
         if($result.Contains('smoke')){$receipt.smoke=$result.smoke}
+        if($result.Contains('acceptance')){$receipt.acceptance=$result.acceptance}
     }catch{$receipt.error=$_.Exception.Message;throw}
     finally{
         $receipt.finishedUtc=[DateTimeOffset]::UtcNow.ToString('O')

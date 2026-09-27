@@ -1,5 +1,9 @@
 # Security and RBAC
 
+**Local agent boundary:** [Codex workflows](agent-workflows.md#identity-evidence-and-failure-behavior) use isolated ChatGPT authentication plus the portal's existing Azure/ADO audiences. Readiness never grants new Azure rights. The MCP bridge exposes frozen evidence only; models cannot queue deployments or allocate addresses. Protect ignored Codex session caches and infrastructure reports locally; model metadata transfer happens only on explicit Run. Live model/provider acceptance remains pending.
+
+**New product security:** the [onboarding guide](workload-onboarding.md) documents private-by-default Storage, RBAC/purge-protected Key Vault, Premium Service Bus with local auth disabled, and Entra-protected HTTP Functions. Object IDs refer to service principals, not application IDs. The existing stack gate now also rejects weakening local authentication, vault recovery/RBAC and API authentication settings. No role grants or cloud changes were executed by this local implementation.
+
 ## Local portal skill discovery
 
 The [bundled skill discovery route](azure-skill-discovery.md) uses the signed-in user's delegated Azure Management identity, independently of ADO service connections. Read permission on the registered subscription/resources is sufficient for inventory; discovery does not require Owner. Only fixed ARM GET collections are allowed, with bounded same-collection pagination, disabled redirects and projected output fields. Authentication failures and denied/incomplete reads never become empty inventories. Tokens remain in server memory; saved local reports may contain private network names and addresses and are ignored by Git. Upstream skill text and supporting scripts are reference content, not executable instructions or authorization. The route cannot queue pipelines, allocate addresses or modify Azure.

@@ -1,5 +1,7 @@
 # Private networking self-service: analyzer, allocation and AI assistance
 
+**Cross-subscription discovery review, 27 September 2026:** the [tenant/management-group discovery design](tenant-network-discovery.md) verifies the current single-subscription boundary and defines the next read-only scope expansion. Broader collection and optional MCP integration remain unimplemented; an accessible-subscription scan is not proof of complete tenant visibility.
+
 **27 September implementation follow-up:** the portal now has a [browser-authenticated networking inventory adapter](../azure-skill-discovery.md) backed by fixed read-only ARM queries and explicit partial/unknown coverage. It collects visible configuration without developer-entered CIDRs. Enterprise coverage, subnet recommendation, IPAM reservation/allocation, effective connectivity and AI-assisted execution described below remain proposed.
 
 **Status: proposed, not implemented.** Source and Microsoft Learn research reviewed on **26 September 2026**. This design expands the [self-service roadmap](../self-service-expansion-plan.md); it does not change current target settings, grant access, allocate addresses or deploy resources. Azure service behavior below is documented guidance; the architecture, interfaces and acceptance gates are proposals for this repository.

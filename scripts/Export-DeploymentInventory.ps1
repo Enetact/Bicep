@@ -135,16 +135,17 @@ if ($OrganizationUrl -or $Project) {
 } else { $report.serviceConnectionQuery=@{status='NotRequested'}; $report.warnings+='Azure DevOps organization/project not supplied: service connections were not discovered.' }
 $report.warnings+='Candidate flags do not prove free IP capacity, route/NSG safety, DNS resolution, pipeline authorization, or effective deployment/data-plane permissions. Cross-subscription DNS zones must be supplied explicitly.'
 Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)
-if ($PSCmdlet.ParameterSetName -eq 'Profile' -and (Get-TargetWorkloadType $target) -eq 'logic-app-event-grid') {
-    $report.workloadType='logic-app-event-grid'; $report.providers=@(); $report.resources=@(); $report.resourceQuery=@{status='Succeeded'}
+if ($PSCmdlet.ParameterSetName -eq 'Profile' -and (Get-TargetWorkloadType $target) -ne 'blob-transfer') {
+    $type=Get-TargetWorkloadType $target;$definition=Get-WorkloadDefinition $type
+    $report.workloadType=$type; $report.providers=@(); $report.resources=@(); $report.resourceQuery=@{status='Succeeded'}
     try {
-        foreach($provider in @('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')) {
+        foreach($provider in $(if($type -eq 'logic-app-event-grid'){@('Microsoft.Web','Microsoft.Storage','Microsoft.EventGrid','Microsoft.Insights','Microsoft.OperationalInsights')}else{$definition.providers})) {
             $item=Invoke-ServiceJson @('provider','show','--namespace',$provider,'--subscription',$SubscriptionId)
             $report.providers+=@{namespace=$item.namespace;registrationState=$item.registrationState}
         }
         $report.resources=@(Invoke-ServiceJson @('resource','list','--subscription',$SubscriptionId,'--query','[].{id:id,name:name,type:type,location:location}'))
     } catch { $report.discoveryStatus='Partial'; $report.resourceQuery.status='Failed'; $report.warnings+=('Workload prerequisite inventory failed: '+$_.Exception.Message) }
-    if(Read-LogicPrerequisitePolicy $target){
+    if($type -eq 'logic-app-event-grid' -and (Read-LogicPrerequisitePolicy $target)){
         try{$report.prerequisiteOwnership=Get-LogicPrerequisiteOwnership $target}
         catch{$report.discoveryStatus='Partial';$report.prerequisiteOwnership=@{status='Failed';stackExists=$false;managedResourceIds=@()};$report.warnings+=('Stack ownership read failed: '+$_.Exception.Message)}
         $report.prerequisitePlan=Get-LogicPrerequisitePlan $target $report
@@ -189,7 +190,7 @@ if ($env:TF_BUILD -eq 'True') {
         $type=Get-TargetWorkloadType $target
         $pipelineSettings=Get-Content (Join-Path (Get-ProjectRoot) self-service/pipeline-settings.json) -Raw|ConvertFrom-Json -AsHashtable
         if($pipelineSettings.Contains('workloadDiscoveryPipelineNames') -and $pipelineSettings.workloadDiscoveryPipelineNames.Contains($type) -and $env:BUILD_DEFINITIONNAME -ceq $pipelineSettings.workloadDiscoveryPipelineNames[$type]){
-            $deployMenu=if($type -eq 'blob-transfer'){'azure-pipelines-blobcopy-deploy.yml'}else{'azure-pipelines-eventflow-deploy.yml'}
+            $deployMenu='azure-pipelines-'+(Get-WorkloadDefinition $type).menuSlug+'-deploy.yml'
         }
     }
     $lines+=@('', '## Deployment handoff', '', "Discovery pipeline ID: $($manifest.source.pipelineId)", "Discovery run ID: $($manifest.source.runId)",

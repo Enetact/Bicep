@@ -1,0 +1,11 @@
+using '../main.bicep'
+param workload = 'keyvault'
+param environmentName = 'qa'
+param location = 'eastus2'
+param owner = 'REPLACE_OWNER'
+param costCenter = 'REPLACE_COST_CENTER'
+param existingLogAnalyticsWorkspaceId = ''
+param deploymentPrincipalObjectId = ''
+param privateEndpointSubnetId = ''
+param privateDnsZoneIds = {}
+param readerPrincipalObjectId = ''

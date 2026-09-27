@@ -1,5 +1,9 @@
 # Platform skills and MCP capability design
 
+**27 September 2026 implementation update:** [portal agent workflows](../agent-workflows.md) now provide a real in-process MCP SDK bridge with `platform_evidence` and `platform_skill`, Codex Astra/High/Standard inference wiring, isolated browser authentication and a bounded AHP coordination profile. Four read-only reviews are implemented; live model/Azure/ADO acceptance is pending. The richer `platform_*` contracts and general Azure MCP integration below remain proposed. Historical “no MCP implementation” statements below describe the earlier increment only.
+
+**Scope review, 27 September 2026:** see [tenant and management-group discovery](tenant-network-discovery.md). Microsoft documents tenant-scoped MCP Insights with sampling and management-group-scoped Resource Graph queries; our portal implements neither integration yet. Browser identity, MCP identity and ADO service connections must not be conflated.
+
 **Status: four local skill entrypoints implemented; eight further skills and MCP interfaces proposed. Reviewed 26 September 2026.** This specifies twelve project-specific skills for the [enhanced self-service implementation plan](enhanced-self-service-validation.md). It complements the [Microsoft Azure skills assessment](../azure-skills-assessment.md). No platform MCP server or AI write operation is registered by this increment.
 
 ## Architecture decision

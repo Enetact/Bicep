@@ -1,6 +1,10 @@
 # Bundled Azure Skills and browser-authenticated discovery
 
-Implemented 27 September 2026. The portal includes **42 upstream skill definitions**: 28 top-level skill directories, 10 nested workflows and four cost skills from the repository's bundled cost plugin. It also retains our five project-local skills. These are separate from the two registered workload products and their four ADO definitions.
+**Scope verification, 27 September 2026:** current discovery is restricted to one registered subscription and calls ARM directly. Tenant/management-group discovery and MCP execution are not wired into this route. The [verified capability assessment and proposed scope menu](plans/tenant-network-discovery.md) describe Resource Graph, optional MCP Insights, permission coverage and implementation gates.
+
+**Separate agent increment:** [Agent workflows](agent-workflows.md) now connects Codex Astra/High/Standard to a platform-owned MCP evidence bridge. Four bounded reviews can consume selected metadata, including the visualizer with an explicit resource-group selection. This does not turn every library discovery button into an agent or launch Microsoft's `azmcp` server. Live login/model acceptance remains pending.
+
+Implemented 27 September 2026. The portal includes **42 upstream skill definitions**: 28 top-level skill directories, 10 nested workflows and four cost skills from the repository's bundled cost plugin. It also retains our five project-local skills. These are separate from the seven registered workload products and their fourteen dedicated ADO definitions.
 
 Source: [Microsoft Azure Skills at commit 117b038e](https://github.com/microsoft/azure-skills/tree/117b038edfef5d7af09848b8ffcd355f28f19956). Exact downloaded source bytes and licenses are under `vendor/azure-skills`; `bundle.json` records each definition, discovery profile and SHA-256 for **944 source files**. The three onboarding sub-workflows without front matter have explicit wrapper metadata in the catalog; their source is unchanged. No runtime downloads, telemetry hooks or plugin installation are activated by the portal.
 
@@ -11,7 +15,7 @@ Source: [Microsoft Azure Skills at commit 117b038e](https://github.com/microsoft
 3. Choose **Discover in Azure**. The panel describes the exact collection and its limits; select a registered subscription. No CIDR, subnet ID or resource name is needed for inventory.
 4. In **Connections**, sign in to Azure using the [portal's separate Entra registration](local-portal.md#configure-microsoft-browser-sign-in). ADO sign-in is not required for this action. The signed-in user needs read access to the relevant resources; do not grant Owner just for discovery.
 5. Click **Discover visible resources**. The local host uses an Azure Management token to issue fixed ARM GET requests. It does not run upstream scripts, execute an AI/MCP agent or queue a pipeline.
-6. Inspect per-collection status and projected resource facts. Download the report or retain `artifacts/portal-discovery/<id>/report.json` locally. These reports may contain private network names/IP ranges; they remain ignored by Git.
+6. Inspect the new **Existing resources** diagram, per-collection status and projected resource facts. Search/page the diagram or export its current page as SVG. Choose **Configure a workload** to compare this inventory with the selected product's proposed components. See [connected diagrams](portal-diagrams.md) for saved ADO Preview changes and evidence boundaries. Download the report or retain `artifacts/portal-discovery/<id>/report.json` locally. These reports may contain private network names/IP ranges; they remain ignored by Git.
 
 Live consent and tenant calls remain unverified until registration is configured. Local mocked Azure and real localhost tests do not establish Azure acceptance. Skill guidance is available immediately in this portal and repository; the bundle is not installed into the user's global Codex skill directory or advertised as an active agent toolset.
 

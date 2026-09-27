@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "observability",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "observe",
+  "environmentName": "dev",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-observe-dev",
+  "parameterFile": "workloads/observability/environments/main.dev.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "observe-dev",
+  "smokePrefix": "smoke/"
+}
