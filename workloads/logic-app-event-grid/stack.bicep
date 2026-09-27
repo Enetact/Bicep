@@ -5,6 +5,8 @@ param workload string
 param environmentName string
 param location string
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 param prerequisitePlan object = {}
 param integrationSubnetId string
@@ -18,7 +20,7 @@ param releaseActivated bool = false
 @allowed(['WS1', 'WS2', 'WS3'])
 param hostingSku string = 'WS1'
 param alertActionGroupIds array = []
-resource group 'Microsoft.Resources/resourceGroups@2025-04-01' = { name: workloadResourceGroupName, location: location, tags: { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter } }
+resource group 'Microsoft.Resources/resourceGroups@2025-04-01' = { name: workloadResourceGroupName, location: location, tags: union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter }) }
 module composition './main.bicep' = {
  name: 'workload'
  scope: group
@@ -29,6 +31,7 @@ module composition './main.bicep' = {
   location: location
   owner: owner
   costCenter: costCenter
+  customTags: customTags
   integrationSubnetId: integrationSubnetId
   privateEndpointSubnetId: privateEndpointSubnetId
   privateDnsZoneIds: privateDnsZoneIds

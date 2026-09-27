@@ -37,6 +37,9 @@
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.8.3"
         }
+      },
+      "selfservice.tagging": {
+        "type": "Project"
       }
     },
     "net10.0/win-arm64": {},

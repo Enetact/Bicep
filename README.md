@@ -2,6 +2,10 @@
 
 **Pipeline setup:** the portal now has **ADO setup** to inventory and register all 18 pipeline entry points in one reviewed batch. Existing definitions are preserved, exact GitHub main YAML is checked, and no runs, source edits or permission changes are requested. See [registration and public-repo safety](docs/ado-pipeline-registration.md).
 
+**Planned: Tag governance.** Subscription discovery, a resource/tag matrix, deterministic checks, optional skill advice, custom-tag drafts and protected ADO Preview/Apply are specified in the [tagging implementation plan](docs/plans/tagging-self-service.md). This is a researched design; the tagging UI, skill and pipelines are not implemented yet.
+
+**Reusable agent workflow:** new capabilities follow the [shared workflow standard](docs/agent-workflow-standard.md) and [copyable blueprint](docs/templates/agent-workflow-blueprint.md): discover evidence, run deterministic checks, request optional Codex analysis through the existing AHP/MCP integration, review recommendations, and use protected ADO execution where supported. The standard distinguishes existing runtime behavior from the planned structured-advice/draft extensions.
+
 A local Windows portal and governed Azure DevOps delivery platform for discovering Azure resources, designing workload stacks, reviewing changes and deploying approved infrastructure. Reusable Bicep modules, versioned Template Specs and Deployment Stacks connect the developer experience to the same reviewed delivery flow.
 
 **Seven workload offerings · 14 dedicated pipeline menus · 42 bundled Microsoft skill definitions · Five project skills · Four Codex agent reviews · Windows ARM64 and x64**

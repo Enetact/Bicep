@@ -13,6 +13,8 @@ param environmentName string
 
 param location string = resourceGroup().location
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 param dataClassification string = 'Confidential'
 
@@ -99,14 +101,14 @@ param alertActionGroupIds array = []
 
 var suffix = empty(namingSuffix) ? uniqueString(subscription().subscriptionId, resourceGroup().id, workload, environmentName) : uniqueString(subscription().subscriptionId, resourceGroup().id, workload, environmentName, namingSuffix)
 var stem = '${workload}-${environmentName}${empty(namingSuffix) ? '' : '-${namingSuffix}'}'
-var tags = {
+var tags = union(customTags, {
   workload: workload
   environment: environmentName
   owner: owner
   costCenter: costCenter
   dataClassification: dataClassification
   managedBy: 'Bicep'
-}
+})
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
   name: 'id-${stem}-${suffix}'

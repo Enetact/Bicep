@@ -1,5 +1,9 @@
 # Current implementation and verification status
 
+**Agent workflow standard, 27 September 2026 — documentation delivered:** traced current AHP coordination, typed agent API, MCP tools, provider runtime and independent network/ADO handoff. Added the [standard](agent-workflow-standard.md) and [copyable blueprint](templates/agent-workflow-blueprint.md), including current gaps and adoption phases. Structured recommendation envelopes, shared runtime extraction and tagging integration remain proposed; no new executable agent or skill is registered.
+
+**Tagging plan, 27 September 2026 — proposed only:** researched the subscription selector, inventory/tag matrix, deterministic analyzer, new review skill, custom tags and protected ADO Preview/Apply route. See [design, file placement and acceptance phases](plans/tagging-self-service.md). This adds no runtime capability or registered pipeline; the existing counts remain unchanged.
+
 **ADO registration increment, 27 September 2026:** the portal can inventory/review/create all missing root pipeline definitions using an existing GitHub repository connection. Source and local contract tests are implemented; authenticated ADO creation remains a manual acceptance step. No existing pipelines, source or permissions were changed. See [registration contract](ado-pipeline-registration.md).
 
 **Network/diagram delivery, 27 September 2026:** evidence-bound Mermaid validation and image-only rendering, broader tenant/management-group network collection, deterministic configuration findings and a reviewed portal-to-ADO AVNM reservation/create-only spoke flow are implemented. The AVNM profile and all workload targets remain disabled. Live provider acceptance, effective connectivity, general IPAM lifecycle and automatic workload binding remain open. See [delivery and manual tests](network-discovery-and-diagrams.md).

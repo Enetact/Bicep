@@ -4,6 +4,8 @@ param workload string
 param environmentName string
 param location string
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 @description('Platform-owned existing monitoring destination. This stack never adopts it.')
 param existingLogAnalyticsWorkspaceId string
@@ -13,7 +15,7 @@ param privateEndpointSubnetId string
 param privateDnsZoneIds object
 param readerPrincipalObjectId string
 var stem = '${workload}-${environmentName}'
-var tags = { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId }
+var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
 module vault '../../modules/security/key-vault/main.bicep' = {
  name: 'vault'
  params: { name: 'kv-${stem}-${take(uniqueString(resourceGroup().id), 4)}', location: location, tags: tags, workspaceId: existingLogAnalyticsWorkspaceId, readerPrincipalId: readerPrincipalObjectId }

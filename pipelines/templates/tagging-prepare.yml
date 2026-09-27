@@ -1,0 +1,19 @@
+parameters:
+  - name: discoveryRunId
+    type: number
+    default: 0
+steps:
+  - checkout: self
+    persistCredentials: false
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      version: 10.0.x
+  - pwsh: |
+      ./scripts/Assert-TagPipelineContext.ps1 -DiscoveryRunId $env:TAG_DISCOVERY_RUN
+      dotnet build src/SelfService.Tagging.Tool/SelfService.Tagging.Tool.csproj -c Release -p:RestoreLockedMode=true
+      if ($LASTEXITCODE -ne 0) { throw 'Tag tool build failed.' }
+    displayName: Verify private project, source and tagging tool
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      TAG_DISCOVERY_RUN: ${{ parameters.discoveryRunId }}

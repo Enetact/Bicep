@@ -1,11 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using SelfService.Tagging;
 
 namespace SelfService.Portal;
 
 public record AgentWorkflow(string Id, string Name, string SkillId, string? Audience, string Scope, string Limits);
-public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null);
+public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null, string? EvidenceId = null, string[]? ResourceIds = null);
 public sealed class AgentSession : IAsyncDisposable
 {
     public SemaphoreSlim Gate { get; } = new(1, 1);
@@ -14,15 +15,10 @@ public sealed class AgentSession : IAsyncDisposable
     public string State { get; set; } = "Not connected";
     public async ValueTask DisposeAsync() { Run?.Cancel(); var runtime = Runtime; Runtime = null; State = "Not connected"; if (runtime is not null) await runtime.DisposeAsync(); }
 }
-public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, AzureDiscovery azure, AdoGateway ado)
+public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, AzureDiscovery azure, AdoGateway ado, TaggingService? tagging = null)
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
-    public static readonly AgentWorkflow[] Definitions = [
-        new("visualize", "Azure resource visualizer", "azure--azure-resource-visualizer", "azure", "resource-group", "Selected group or browser-owned network snapshot. Mermaid is validated against evidence before image-only rendering. Data plane, identities and reachability remain unverified."),
-        new("network", "Private network evidence review", "azure--azure-resource-visualizer", "azure", "resource-group", "Review configured VNets, subnets, peerings, NSGs, routes, DNS links and endpoints from selected scope. Partial visibility remains unknown. No free-IP or allocation approval."),
-        new("workload", "Workload configuration advisor", "platform-request-design", null, "workload", "Explain the registered catalog, resource composition and onboarding. This adapter does not create or resolve a typed request or queue a pipeline."),
-        new("preview", "Saved Preview change review", "platform-change-review", "ado", "preview", "Review the saved, bounded Preview resource-action projection. Full plan digests, ownership, ZIP contents and deployment gate outcome remain outside this projection.")
-    ];
+    public static AgentWorkflow[] Definitions => WorkflowReviews.Definitions;
     public static AgentWorkflow Find(string id) => Definitions.SingleOrDefault(w => w.Id == id) ?? throw new PortalException("Unknown agent workflow.");
     public static bool Authorized(BrowserSession s, AgentWorkflow w) => w.Audience is null || s.Connected.ContainsKey(w.Audience);
     public async Task<object> Status(BrowserSession s, CancellationToken ct)
@@ -73,8 +69,16 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             var readiness = JsonSerializer.SerializeToElement(await runtime.Status(timeout.Token));
             if (!readiness.GetProperty("ready").GetBoolean()) throw new PortalException("Complete Codex browser sign-in first.", 401);
             s.Agent.State = "Running";
-            object evidence;
-            if (workflow.Scope == "resource-group")
+            object evidence; TagInventory? tagEvidence = null; TagProfile? tagProfile = null;
+            if (workflow.Scope == "tag-evidence")
+            {
+                if (tagging is null) throw new PortalException("Tagging adapter unavailable.",409);
+                var full = tagging.Evidence(s, request.EvidenceId ?? ""); tagProfile = tagging.Profile(full.SubscriptionId);
+                if (request.ResourceIds is not { Length: > 0 and <= 50 } || request.ResourceIds.Distinct().Count()!=request.ResourceIds.Length || request.ResourceIds.Any(id=>!full.Resources.Any(r=>r.Id==id))) throw new PortalException("Select 1–50 observed resources for the model review.");
+                tagEvidence = full with { Resources=full.Resources.Where(r=>request.ResourceIds.Contains(r.Id)).Select(r=>r with { Tags=r.Tags.Where(p=>tagProfile.RequiredKeys.Concat(tagProfile.ApprovedCustomKeys).Contains(p.Key,StringComparer.OrdinalIgnoreCase)).ToDictionary(p=>p.Key,p=>p.Value) }).ToArray() };
+                evidence = new { inventory=tagEvidence, findings=TagRules.Analyze(tagEvidence,tagProfile), rules=new { tagProfile.RequiredKeys, tagProfile.ApprovedCustomKeys, protectedKeys=TagRules.Protected, customPrefix="custom." }, projection="Explicit selected resources and approved tag keys only; the digest identifies the original saved inventory." };
+            }
+            else if (workflow.Scope == "resource-group")
             {
                 if (request.NetworkReportId is not null)
                 {
@@ -120,8 +124,9 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             bridge = await AgentMcpBridge.Create(frozen, skill.Content + "\n\nADAPTER COVERAGE: " + workflow.Limits, () => Authorized(s, workflow) && !timeout.IsCancellationRequested, timeout.Token);
             runtime.ToolHandler = bridge.Call;
             inferenceStarted = true;
-            var review = await runtime.Review(skillPath, skill.Name, bridge.Tools, timeout.Token);
+            var review = await runtime.Review(skillPath, skill.Name, bridge.Tools, timeout.Token, tagEvidence is not null);
             if (!bridge.EvidenceRead) throw new PortalException("Agent did not read both required evidence tools. Review rejected.", 502);
+            WorkflowReview? structuredReview = tagEvidence is null ? null : WorkflowReviews.Tags(review,tagEvidence,tagProfile!);
             var diagram = diagramGraph is null ? null : EvidenceDiagram.Validate(review, diagramGraph);
             if (diagram is not null)
             {
@@ -131,12 +136,13 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             var receipt = new { id, status = "Completed", workflow = workflow.Id, startedUtc = started, completedUtc = DateTimeOffset.UtcNow,
                 model = AgentPolicy.Model, reasoning = AgentPolicy.Effort, serviceTier = AgentPolicy.Tier, skillId = skill.Id, skillHash,
                 evidenceSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(frozen))).ToLowerInvariant(),
-                diagramStatus = diagram?.Status, diagramSha256 = diagram?.Source is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(diagram.Source))).ToLowerInvariant(),
+                outputValidation = structuredReview is null ? "Advisory prose" : "Accepted structured advice", diagramStatus = diagram?.Status, diagramSha256 = diagram?.Source is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(diagram.Source))).ToLowerInvariant(),
                 toolCalls = bridge.Audit, deploymentAuthorized = false, limitations = workflow.Limits };
             await File.WriteAllTextAsync(Path.Combine(folder, "review.md"), review, timeout.Token);
             await File.WriteAllTextAsync(Path.Combine(folder, "receipt.json"), JsonSerializer.Serialize(receipt, Json), timeout.Token);
             s.Agent.State = "Completed";
-            return new { receipt, review, diagram, path = $"artifacts/portal-agents/{id}" };
+            if(structuredReview is not null) await File.WriteAllTextAsync(Path.Combine(folder,"review.json"),TagJson.Write(structuredReview),timeout.Token);
+            return new { receipt, review, structuredReview, diagram, path = $"artifacts/portal-agents/{id}" };
         }
         catch (Exception e)
         {

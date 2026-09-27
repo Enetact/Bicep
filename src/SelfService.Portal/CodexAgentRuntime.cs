@@ -100,7 +100,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         if (LoginId is not null) await Call("account/login/cancel", new { loginId = LoginId }, ct);
         LoginId = null;
     }
-    public async Task<string> Review(string skillPath, string skillName, object[] tools, CancellationToken ct)
+    public async Task<string> Review(string skillPath, string skillName, object[] tools, CancellationToken ct, bool structured = false)
     {
         var status = JsonSerializer.SerializeToElement(await Status(ct));
         if (!status.GetProperty("ready").GetBoolean()) throw new PortalException("Connect Codex before running an agent workflow.", 401);
@@ -119,7 +119,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         {
             await Call("turn/start", new { threadId = activeThread, model = AgentPolicy.Model, effort = AgentPolicy.Effort,
                 serviceTier = AgentPolicy.Tier, serviceTierForTurn = AgentPolicy.Tier,
-                input = new object[] { new { type = "text", text = "Review the selected platform workflow. First call platform_skill and platform_evidence; then apply the selected skill within the read-only adapter limits. Return Markdown evidence review; do not execute scripts." }, new { type = "skill", name = skillName, path = skillPath } } }, ct);
+                input = new object[] { new { type = "text", text = "Review the selected platform workflow. First call platform_skill and platform_evidence; apply the pinned skill within read-only limits. " + (structured ? "Return only the skill's strict JSON review contract, not Markdown." : "Return Markdown evidence review; do not execute scripts.") }, new { type = "skill", name = skillName, path = skillPath } } }, ct);
             return await turnFinished.Task.WaitAsync(ct);
         }
         finally { activeThread = null; ToolHandler = null; }

@@ -14,6 +14,7 @@ Reviewed 27 September 2026. Start with the [repository README](../README.md), [c
 |---|---|
 | Local website, browser sign-in, ADO requests and ARM64/x64 packages | [Platform Studio](local-portal.md) |
 | Codex Astra/High/Standard authentication, scoped MCP tools and agent reviews | [Agent workflows](agent-workflows.md) |
+| Repeated AHP/Codex/MCP workflow, shared contracts and new-skill design | [Workflow standard](agent-workflow-standard.md), [copyable blueprint](templates/agent-workflow-blueprint.md) |
 | Existing-resource diagrams, proposed workloads and saved Azure Preview changes | [Connected portal diagrams](portal-diagrams.md) |
 | Complete Microsoft skill bundle and Azure-only read-only discovery | [Azure skill discovery](azure-skill-discovery.md) |
 | Tenant/management-group discovery feasibility and proposed scope menu | [Scope verification and design](plans/tenant-network-discovery.md) |
@@ -28,6 +29,7 @@ Reviewed 27 September 2026. Start with the [repository README](../README.md), [c
 | Template Specs, stack ownership and permissions | [Deployment Stacks runbook](deployment-stacks-upgrade.md) |
 | Reference prices, exclusions and freshness | [Cost guide](self-service-costs.md) |
 | Future products and platform improvements | [Expansion plan — proposed](self-service-expansion-plan.md) |
+| Subscription tag discovery, resource/tag matrix, skill advice and governed updates | [Tag governance implementation plan — proposed](plans/tagging-self-service.md) |
 | Implementation order, approval stages and final acceptance gates | [Enhanced self-service readiness review — proposed](plans/enhanced-self-service-validation.md) |
 | Automatic network/subnet planning, IPAM and AI assistance | [Private networking design — proposed](plans/private-networking-self-service.md) |
 | Microsoft Azure skills for discovery, diagrams and assessment | [Azure skills assessment and adoption plan — proposed](azure-skills-assessment.md) |

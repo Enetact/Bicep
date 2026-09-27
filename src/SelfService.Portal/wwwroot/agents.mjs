@@ -22,15 +22,16 @@ export async function connectAgentHost(csrf) {
 
 export function setupAgents({ api, data, notice }) {
   const $ = id => document.getElementById(id);
-  let status, host, busy = false, timer, lastResult, networkReportId;
+  let status, host, busy = false, timer, lastResult, networkReportId, tagEvidence;
   const selected = () => status?.workflows.find(w => w.id === $('agent-workflow').value);
   const opts = (id, values) => { $(id).replaceChildren(...values.map(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.name; return o; })); };
   function fields() {
     const w = selected(); if (!w) return;
-    $('agent-network-fields').hidden = w.scope !== 'resource-group' || !!networkReportId; $('agent-workload-fields').hidden = w.scope === 'resource-group';
+    $('agent-network-fields').hidden = w.scope !== 'resource-group' || !!networkReportId; $('agent-workload-fields').hidden = !['workload', 'preview'].includes(w.scope);
     $('agent-network-snapshot').hidden = !networkReportId || w.scope !== 'resource-group'; $('agent-clear-snapshot').hidden = $('agent-network-snapshot').hidden;
     $('agent-preview-field').hidden = w.scope !== 'preview'; $('agent-limits').textContent = w.limits;
-    $('agent-run').disabled = busy || !w.ready;
+    $('agent-tag-snapshot').hidden = w.scope !== 'tag-evidence';
+    $('agent-run').disabled = busy || !w.ready || (w.scope === 'tag-evidence' && !tagEvidence);
     $('agent-connect').disabled = busy || !status.installed || status.provider.ready || String(status.provider.state).includes('Waiting');
     $('agent-groups').disabled = busy || !w.evidenceReady;
     for (const id of ['agent-workflow','agent-subscription','agent-group','agent-product','agent-environment','agent-region','agent-preview']) $(id).disabled = busy;
@@ -81,9 +82,11 @@ export function setupAgents({ api, data, notice }) {
       const result = await api('agent/run', { workflow: $('agent-workflow').value, subscriptionId: $('agent-subscription').value,
         resourceGroup: $('agent-group').value, product: $('agent-product').value, environment: $('agent-environment').value,
         region: $('agent-region').value, previewRunId: Number($('agent-preview').value) || null,
-        networkReportId: selected()?.scope === 'resource-group' ? networkReportId : null });
+        networkReportId: selected()?.scope === 'resource-group' ? networkReportId : null, evidenceId: selected()?.scope === 'tag-evidence' ? tagEvidence?.id : null, resourceIds: selected()?.scope === 'tag-evidence' ? tagEvidence?.resourceIds : null });
       $('agent-review').textContent = result.review; $('agent-receipt').textContent = JSON.stringify(result.receipt, null, 2);
-      lastResult = result; $('agent-diagram').replaceChildren();
+      lastResult = result; $('agent-tag-advice').replaceChildren(); $('agent-use-tags').hidden = !result.structuredReview;
+      for(const r of result.structuredReview?.recommendations ?? []) { const label=document.createElement('label'), check=document.createElement('input'); check.type='checkbox'; check.value=r.id; label.append(check,document.createTextNode(`${r.key} = ${r.value} · ${r.resourceId} · ${r.rationale}`)); $('agent-tag-advice').append(label); }
+      $('agent-diagram').replaceChildren();
       $('agent-diagram-status').textContent = result.diagram ? `${result.diagram.status}: ${result.diagram.issue}` : 'This advisory workflow does not produce an observed-resource diagram.';
       if (result.diagram?.status === 'Validated') renderTopology($('agent-diagram'), result.diagram);
       $('agent-mermaid').disabled = !result.diagram?.source;
@@ -97,6 +100,8 @@ export function setupAgents({ api, data, notice }) {
   $('agent-receipt-download').addEventListener('click', () => { if (lastResult) save(JSON.stringify(lastResult.receipt, null, 2), 'agent-receipt.json', 'application/json'); });
   window.addEventListener('platform-network-report', event => { networkReportId = event.detail.id; $('agent-network-snapshot').textContent = 'Using your latest network discovery snapshot. Review sends this projected evidence to Codex; it does not scan again or authorize changes.'; $('agent-workflow').value = 'visualize'; fields(); });
   $('agent-clear-snapshot').addEventListener('click', () => {networkReportId = null; fields();});
+  window.addEventListener('platform-tag-evidence', event => { tagEvidence=event.detail; $('agent-workflow').value='tagging'; $('agent-tag-snapshot').textContent=`Using saved tag evidence for ${tagEvidence.resourceIds.length} selected resources. Click Run to send the approved projection to Codex.`; fields(); });
+  $('agent-use-tags').addEventListener('click', () => { const review=lastResult?.structuredReview; if(!review)return; const ids=[...$('agent-tag-advice').querySelectorAll('input:checked')].map(n=>n.value); window.dispatchEvent(new CustomEvent('platform-tag-recommendations',{detail:{evidenceDigest:review.evidenceDigest,edits:review.recommendations.filter(r=>ids.includes(r.id)).map(r=>({resourceId:r.resourceId,key:r.key,value:r.value,operation:r.operation}))}})); });
   window.addEventListener('pagehide', () => { clearInterval(timer); host?.close(); });
   return refresh;
 }

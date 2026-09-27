@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "subscription-tags",
+  "tenantId": "d3af4706-a63d-482a-bbfe-b3b9f33c7381",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "enabled": false,
+  "governanceReviewed": false,
+  "governanceDigest": "",
+  "externalResourceIds": [],
+  "sourceTargets": {},
+  "requiredKeys": ["owner", "costCenter", "workload", "environment"],
+  "automationKeys": ["cm-resource-parent", "AutoShutdown", "BackupPolicy"],
+  "approvedCustomKeys": ["dataClassification", "criticality"],
+  "qualifiedWriteTypes": [],
+  "ruleVersion": "tags-2026-09-27"
+}

@@ -1,0 +1,101 @@
+# Register as Tags - Preview and Apply. Configure platform-tag-governance checks externally.
+trigger: none
+pr: none
+lockBehavior: sequential
+parameters:
+  - name: profile
+    displayName: Subscription profile (Azure subscription A)
+    type: string
+    default: subscription-tags
+    values: [subscription-tags]
+  - name: operation
+    displayName: Preview tag changes or request protected Apply
+    type: string
+    default: Preview only
+    values: [Preview only, Preview and apply]
+  - name: discoveryRunId
+    displayName: Successful Discover - Tags run from this main commit
+    type: number
+    default: 0
+  - name: requestBase64
+    displayName: Encoded non-secret request from Tag governance (private ADO only)
+    type: string
+    default: unconfigured
+pool:
+  vmImage: windows-latest
+stages:
+  - stage: Preview
+    jobs:
+      - job: TagDelta
+        steps:
+          - template: pipelines/templates/tagging-prepare.yml
+            parameters:
+              discoveryRunId: ${{ parameters.discoveryRunId }}
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: specific
+              project: $(System.TeamProjectId)
+              definition: $(TagDiscoveryDefinitionId)
+              buildVersionToDownload: specific
+              pipelineId: ${{ parameters.discoveryRunId }}
+              artifactName: tag-discovery
+              targetPath: $(Pipeline.Workspace)/tag-discovery
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: SC-AZ-A-Bicep
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                ./scripts/Invoke-TagWorkflow.ps1 -Mode preview -InventoryPath '$(Pipeline.Workspace)/tag-discovery/inventory.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/tag-preview'
+            env:
+              TAG_REQUEST_BASE64: ${{ parameters.requestBase64 }}
+          - pwsh: Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/tag-preview/README.md'
+            condition: succeededOrFailed()
+          - publish: $(Build.ArtifactStagingDirectory)/tag-preview
+            artifact: tag-preview
+            condition: succeededOrFailed()
+  - ${{ if eq(parameters.operation, 'Preview and apply') }}:
+      - stage: Apply
+        dependsOn: Preview
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+        jobs:
+          - deployment: MergeReviewedTags
+            environment: platform-tag-governance
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - template: pipelines/templates/tagging-prepare.yml
+                    - download: current
+                      artifact: tag-preview
+                    - task: AzureCLI@2
+                      inputs:
+                        azureSubscription: SC-AZ-A-Bicep
+                        scriptType: pscore
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          ./scripts/Invoke-TagWorkflow.ps1 -Mode apply -PlanPath '$(Pipeline.Workspace)/tag-preview/plan.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/tag-apply'
+                      env:
+                        TAG_APPROVED_STAGE: Apply
+                    - publish: $(Build.ArtifactStagingDirectory)/tag-apply
+                      artifact: tag-apply
+                      condition: always()
+      - stage: Verify
+        dependsOn: Apply
+        condition: succeededOrFailed()
+        jobs:
+          - job: ReadBack
+            steps:
+              - template: pipelines/templates/tagging-prepare.yml
+              - download: current
+                artifact: tag-preview
+              - task: AzureCLI@2
+                inputs:
+                  azureSubscription: SC-AZ-A-Bicep
+                  scriptType: pscore
+                  scriptLocation: inlineScript
+                  inlineScript: |
+                    ./scripts/Invoke-TagWorkflow.ps1 -Mode verify -PlanPath '$(Pipeline.Workspace)/tag-preview/plan.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/tag-verification'
+              - publish: $(Build.ArtifactStagingDirectory)/tag-verification
+                artifact: tag-verification
+                condition: always()
