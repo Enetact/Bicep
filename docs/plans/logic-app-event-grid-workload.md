@@ -1,5 +1,7 @@
 # Implementation plan: Logic App and Event Grid workload
 
+Historical implementation plan. Later dedicated menus, Preview/Deploy stages and discover-or-create prerequisites supersede its original UI/stage/shared-resource proposals. The [current catalog](../self-service-catalog.md) describes delivered behavior; further products are proposed in the [expansion plan](../self-service-expansion-plan.md).
+
 Status: repository implementation completed and locally verified, 19 September 2026. The sections below preserve the implementation plan. The [delivered runbook](../../workloads/logic-app-event-grid/README.md) is authoritative for current behavior, methods, exceptions and limits. Both pattern menus, modules, composition/wrapper, workflow package, typed discovery/bundle and guarded deployment adapters are implemented. All eight targets remain disabled; Azure acceptance and platform configuration remain outstanding. Module registries are excluded.
 
 Delivery decisions: use HTTP actions with managed identity for Storage Queue/Blob operations; use a reviewed key-based private runtime mount; require Azure-provided DNS with linked zones for this V1; monitor queue count (age monitoring deferred). No local Logic Apps runtime execution, automated replay, content rollback/slots or application promotion is claimed. See [verification evidence](../validation.md).

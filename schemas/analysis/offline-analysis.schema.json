@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:blob-transfer:platform-offline-analysis:1",
+  "title": "Saved-evidence analysis v1; never a deployment approval",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "ruleSetVersion", "context", "status", "deploymentAuthorized", "coverage", "findings", "graph", "limitations"],
+  "properties": {
+    "schemaVersion": {"const": 1}, "kind": {"const": "platform-offline-analysis"},
+    "ruleSetVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "status": {"enum": ["partial", "blocked"]}, "deploymentAuthorized": {"const": false},
+    "context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workloadType", "workload", "environment", "subscriptionId", "generatedUtc", "evaluatedUtc", "manifestSha256", "inventorySha256", "provenance", "scope"],
+      "properties": {
+        "workloadType": {"enum": ["blob-transfer", "logic-app-event-grid"]},
+        "workload": {"type": "string"}, "environment": {"type": "string"}, "subscriptionId": {"type": "string", "format": "uuid"},
+        "generatedUtc": {"type": "string", "format": "date-time"}, "evaluatedUtc": {"type": "string", "format": "date-time"},
+        "manifestSha256": {"$ref": "#/$defs/hash"}, "inventorySha256": {"$ref": "#/$defs/hash"},
+        "provenance": {"const": "UnverifiedOffline"}, "scope": {"const": "SavedSubscriptionOnly"}
+      }
+    },
+    "coverage": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["collection", "state", "count", "evidenceRef", "required"],
+      "properties": {"collection": {"type": "string"}, "state": {"enum": ["ReportedComplete", "Unknown"]}, "count": {"type": "integer", "minimum": 0}, "evidenceRef": {"type": "string"}, "required": {"type": "boolean"}}
+    }},
+    "findings": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["ruleId", "outcome", "message", "evidenceRefs", "required"],
+      "properties": {"ruleId": {"type": "string"}, "outcome": {"enum": ["pass", "fail", "unknown"]}, "message": {"type": "string"}, "evidenceRefs": {"$ref": "#/$defs/refs"}, "required": {"type": "boolean"}}
+    }},
+    "graph": {
+      "type": "object", "additionalProperties": false, "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {"type": "array", "maxItems": 5000, "items": {
+          "type": "object", "additionalProperties": false,
+          "required": ["id", "resourceId", "label", "type", "states", "action", "ownership", "runtime", "evidenceRefs"],
+          "properties": {
+            "id": {"type": "string", "pattern": "^r[0-9a-f]{20}$"}, "resourceId": {"type": "string"}, "label": {"type": "string"}, "type": {"type": "string"},
+            "states": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["Observed", "Proposed"]}},
+            "action": {"enum": ["Unspecified", "Create", "Reuse", "Manage", "Blocked"]},
+            "ownership": {"enum": ["Unknown", "ReportedOwned", "ReportedExternal"]}, "runtime": {"const": "Unverified"}, "evidenceRefs": {"$ref": "#/$defs/refs"}
+          }
+        }},
+        "edges": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["from", "to", "relation", "state", "evidenceRefs"],
+          "properties": {"from": {"type": "string"}, "to": {"type": "string"}, "relation": {"const": "Contains"}, "state": {"enum": ["Observed", "Proposed"]}, "evidenceRefs": {"$ref": "#/$defs/refs"}}
+        }}
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "refs": {"type": "array", "minItems": 1, "items": {"type": "string"}}}
+}

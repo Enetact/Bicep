@@ -33,6 +33,8 @@ These are **17 prerequisite decision rows**, including the inline subnets, in ad
 
 Review [config/logic-prerequisites.json](../config/logic-prerequisites.json) before discovery. QA, UAT and prod use `10.71`, `10.72` and `10.73` respectively with the same masks. Local validation rejects overlap within the proposed network and against inventoried VNets. It cannot establish absence of overlap with networks outside this subscription, on-premises networks or future peering. Those address allocations remain a platform choice.
 
+The proposed [private networking self-service design](plans/private-networking-self-service.md) would replace repeated manual address selection with governed profiles, authoritative IPAM and a coverage-aware analyzer. It includes concurrency, DNS/routing, shared ownership and optional AI assistance. This is future work; the current resolver does not allocate from a pool or automatically select any available subnet.
+
 ## Select existing shared infrastructure
 
 Keep the target's `networkProfile` selector as `central-private`; it is the registered routing key, not a promise that shared resources already exist. Put approved shared IDs in `parameterOverrides` in `self-service/targets/eventflow.<env>.json` and rerun Discover:

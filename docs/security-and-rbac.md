@@ -1,5 +1,13 @@
 # Security and RBAC
 
+## Local portal skill discovery
+
+The [bundled skill discovery route](azure-skill-discovery.md) uses the signed-in user's delegated Azure Management identity, independently of ADO service connections. Read permission on the registered subscription/resources is sufficient for inventory; discovery does not require Owner. Only fixed ARM GET collections are allowed, with bounded same-collection pagination, disabled redirects and projected output fields. Authentication failures and denied/incomplete reads never become empty inventories. Tokens remain in server memory; saved local reports may contain private network names and addresses and are ignored by Git. Upstream skill text and supporting scripts are reference content, not executable instructions or authorization. The route cannot queue pipelines, allocate addresses or modify Azure.
+
+The [local portal](local-portal.md#configure-microsoft-browser-sign-in) uses a separate Entra public-client registration and delegated user access for ADO. Tokens remain in process memory behind loopback-only, session/origin/CSRF controls. Azure service-connection permissions and existing deployment guards remain independent. The portal has no credentials form, client secret or PAT configuration and is not supported as a shared remote web server.
+
+The data-path/RBAC details below primarily describe Blob copy. Event flow uses its [separate runtime and scoped exceptions](../workloads/logic-app-event-grid/README.md); dev authorization does not apply to higher environments. See [current status](completion-status.md) for verified versus external setup.
+
 For the stack-based self-service pipeline, use the [publishing and deployment permissions runbook](deployment-stacks-upgrade.md#platform-setup-and-exact-local-checks). Template Spec publication, version reads, subscription stack/preview operations, RG creation and deny-setting management are additional to the workload permissions below. Restrict publishing writers and stack administrators; application developers only queue the protected workflow. External destination grants remain outside the stack's subscription deny boundary when they belong to another subscription.
 
 ## Discovery and selected-target permissions

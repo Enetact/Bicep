@@ -1,6 +1,6 @@
 # Enterprise platform architecture and implementation review
 
-Review date: 19 September 2026. This is a governed **blob-transfer** workload platform, not yet a general catalog of arbitrary Azure applications. No enterprise subscriptions, hubs, DNS zones, Policy assignments, registry, agents or workloads were deployed during this change. All current targets remain disabled and use the hosted setup check.
+Current scope reviewed 26 September 2026: two governed products, Blob copy and Event flow, with explicit typed adapters rather than arbitrary Azure application registration. All eight targets are disabled. Dedicated Deploy supports hosted Preview for configured inputs; hosted SetupOnly belongs to the generic compatibility route. Azure deployment acceptance remains unverified in the reviewed evidence. See the [catalog](self-service-catalog.md), [current status](completion-status.md) and [expansion plan](self-service-expansion-plan.md).
 
 The ownership rule is: **application teams request a supported capability; platform engineers own its topology and lifecycle**.
 
@@ -12,7 +12,7 @@ Follow-up: the [Microsoft Learn assessment](microsoft-learn-platform-assessment.
 flowchart TD
   Developer[Application team: workload, pattern, environment, region] --> Menu[ADO Deploy menu / JSON intent]
   Menu --> Catalog[Reviewed platform configuration and target catalog]
-  Catalog --> Composition[Workload composition: workloads/blob-transfer/main.bicep]
+  Catalog --> Composition[Selected workload main.bicep and stack.bicep]
   Composition --> Modules[Small Bicep modules]
   Modules --> Validate[ARM Provider validation and What-If property gates]
   Policy[Platform Azure Policy assignments] --> Validate
@@ -35,6 +35,8 @@ Central private DNS is the normal enterprise design. Microsoft describes integra
 
 ## Findings and changes
 
+The topology and monitoring changes below describe the Blob copy baseline. Event flow additionally supports discovery-planned creation of workload-owned prerequisites; see its [prerequisite runbook](prerequisite-resolution.md).
+
 | Finding | Change / disposition |
 |---|---|
 | Developers selected network profiles, subscriptions and endpoint/alert implementation switches | Deploy now accepts workload type/name, environment and region. Platform configuration supplies all implementation bindings and booleans. Discover remains a platform/operator inventory menu. |
@@ -45,14 +47,14 @@ Central private DNS is the normal enterprise design. Microsoft describes integra
 | Any What-If `Modify` was allowed | Sensitive topology, identity, RBAC, location, SKU, network/public-access and TLS changes now fail before approval/apply. Missing property deltas fail closed. |
 | No separate ARM provider-validation artifact | Each non-skipped preview runs provider validation before What-If and retains `arm-validation.json`. Failed validation stops before apply. |
 | No platform Policy/registry assets | Added separate, compiled Policy-definition and private ACR templates. Neither is invoked by workload deployment; neither has been deployed. |
-| Broad multi-pattern expectations exceed the application | Only `blob-transfer` is admitted. SQL, Key Vault, Cosmos DB, Container Apps and generic private APIs are rejected until real compositions, contracts and tests exist. No empty modules pretend to implement them. |
+| Broad multi-pattern expectations exceed the application | Only `blob-transfer` and `logic-app-event-grid` are admitted. SQL, Key Vault, Cosmos DB, Container Apps and generic APIs remain rejected until real compositions, adapters, contracts and tests exist. No empty modules pretend to implement them. |
 | Monitor ingestion/query endpoints remain public | Known exception: storage and app are private, but the monitoring module retains public ingestion/query. AMPLS and private monitoring require a separate platform design and live validation. |
 
 ## Developer request and configuration hierarchy
 
-The concrete request is in `workloads/blob-transfer/request.example.json`; its schema forbids extra fields. Workload names are existing registered codes (3–10 lowercase alphanumeric characters), not free-form resource prefixes. `orders-api` is illustrative future intent and is not accepted by this deployed application's existing naming contract. Registration remains a platform review step.
+The concrete request is in `workloads/blob-transfer/request.example.json`; its schema forbids extra fields. Workload names are existing registered codes (3–10 lowercase alphanumeric characters), not free-form resource prefixes. `orders-api` is illustrative future intent and is not accepted by this repository's current naming contract. Registration remains a platform review step.
 
-Resolution order:
+Blob copy resolution order (Event flow also uses its typed workload definition and prerequisite policy, described in the [catalog](self-service-catalog.md)):
 
 1. `config/platform.json`: supported composition, approved/default regions, required capabilities, endpoint/alert options and explicit isolated-network exceptions.
 2. `self-service/targets/*.json`: one unambiguous workload/environment/region to subscription/RG, network, service connection, agent pool, environment and parameter file.
@@ -60,7 +62,7 @@ Resolution order:
 4. Target `parameterOverrides`: authoritative platform IDs and topology settings. Region must match the resolved intent during bundle creation.
 5. The frozen bundle records exact target, compiled parameters, package, costs and discovery evidence. Review and hashes bind the configuration to the approved deployment.
 
-No configuration merge accepts arbitrary developer infrastructure properties. Unknown capabilities or ambiguous target mappings fail. Storage and observability are required by blob transfer; neither is presented as optional. The current menu lists only `blob-transfer`, `blobcopy`, the four environments and `eastus2`. Reference cost fields remain informational.
+No configuration merge accepts arbitrary developer infrastructure properties. Unknown capabilities or ambiguous target mappings fail. Storage and observability are required by blob transfer; neither is presented as optional. Dedicated menus fix the selected workload type and restrict instances to `blobcopy` or `eventflow`, four environments and `eastus2`; generic menus also expose workload type. Reference cost fields remain informational.
 
 From the repository root, resolve a request locally without Azure:
 
@@ -72,7 +74,7 @@ pwsh -NoProfile -File scripts/Update-Manifest.ps1
 pwsh -NoProfile -File scripts/Update-Manifest.ps1 -Check
 ```
 
-Use a fresh request-output filename for each review. Push/merge reviewed source before opening the updated ADO form. On enabled targets, select a matching successful main discovery run through **Resources > discovery**. Disabled targets only check setup, preserving the temporary hosted `windows-latest` workflow.
+Use a fresh request-output filename for each review. Push/merge reviewed source before opening the updated ADO form. Dedicated Deploy menus consume a matching successful main discovery run through **Resources > discovery**, including hosted Preview for disabled targets. Actual deployment requires an enabled target. Only the generic compatibility route uses SetupOnly for disabled targets.
 
 ## Enterprise topology contract
 
@@ -93,7 +95,7 @@ Existing Key Vault, App Configuration, firewalls and route tables are owned by p
 
 ## Governance and lifecycle
 
-The release stages are Qualify, PublishTemplate, PlanFoundation, ApplyFoundation, PlanRelease and ApplyRelease. They collectively validate selection, build/lint, run tests, freeze artifacts, publish/verify the Template Spec, validate ARM, analyze stack What-If, request protected environment approvals, recheck drift, deploy and smoke-test. Azure DevOps approvals, exclusive locks, Required Template and branch checks must be configured by the platform owner; YAML cannot create their protection implicitly.
+Dedicated workload pipelines expose **Preview** and **Deploy** stages. Deploy contains bundle qualification, Template Spec publication, and protected stack application with Foundation and Release phases. The generic compatibility route retains Qualify, PublishTemplate, PlanFoundation, ApplyFoundation, PlanRelease and ApplyRelease stages. Both routes bind reviewed artifacts to validation, drift checks and runtime smoke gates. Azure DevOps approvals, exclusive locks, Required Template and branch checks must be configured by the platform owner; YAML cannot create their protection implicitly.
 
 `Get-ServiceChanges` now calls `Assert-ServiceChange`. Delete, replacement/unknown/unanalyzed resource changes fail. Changes to existing topology/PE/DNS/NSG/route/firewall/resolver, identity or role assignments require a separate platform migration workflow. Sensitive property modifications—including SKU changes in either direction—also fail. This intentionally requires review for upgrades as well as downgrades rather than guessing a safe SKU ordering. Ordinary application-setting updates still reach the usual approvals. Object replacement checks cover named sensitive fields; this is a deterministic guard, not a complete Azure semantic analyzer. Review the full payload and retain Azure Policy as an independent control.
 

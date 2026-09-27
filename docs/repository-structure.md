@@ -1,5 +1,9 @@
 # Bicep repository structure and authoring conventions
 
+`vendor/azure-skills/` preserves a pinned Microsoft skill snapshot, nested guidance, supporting resources, licenses and `bundle.json` hashes. It is reference content for the portal, outside the active project `.agents/skills` instructions. `AzureDiscovery.cs` implements fixed read-only ARM adapters; vendor scripts and plugin hooks are not executed. See [bundle maintenance](azure-skill-discovery.md#updating-and-packaging-the-bundle).
+
+The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources; it does not move Bicep compositions, introduce another workload registry or implement the planned MCP server. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
+
 Reviewed against Microsoft Learn and Microsoft's Bicep/AVM repositories on 19 September 2026. This is a workload deployment repository containing its application, not the Bicep compiler or an AVM publishing repository.
 
 ## What Microsoft recommends, and what we choose
@@ -32,6 +36,7 @@ config/
   platform.json                          blob-transfer defaults, region and topology policy
   workloads.json                         two allowlisted composition/package/phase contracts
   deployment-stack.json                  lifecycle policy and publishing bindings
+  logic-prerequisites.json               Event flow prerequisite allocations and policy
 workloads/blob-transfer/
   main.bicep                             resource-group composition
   stack.bicep                            subscription stack: workload RG + composition
@@ -44,7 +49,7 @@ workloads/blob-transfer/
 workloads/logic-app-event-grid/
   main.bicep, stack.bicep                 second composition and subscription wrapper
   environments/                          four parameter profiles
-  modules/                               event/runtime storage and scoped access
+  modules/                               prerequisites, event/runtime storage and scoped access
   event.schema.json, request.schema.json  message and developer contracts
   README.md                              requirements, methods, onboarding, operations
 src/LogicAppEventFlow/                    separately packaged Standard workflow files
@@ -53,6 +58,9 @@ modules/
   event-grid/event-subscription/main.bicep queue delivery and dead lettering
   logic-app/standard/main.bicep           private Standard hosting
   network/private-endpoint/main.bicep     reusable endpoint + DNS zone group
+  network/workload-vnet/main.bicep        workload VNet, subnets and integration NSG
+  network/private-dns-zone/main.bicep     workload-owned zone and VNet link
+  monitoring/log-analytics/main.bicep     workload-owned monitoring workspace
   storage/storage-account/main.bicep     reusable private account + children/diagnostics
 platform/
   policy/guardrails.bicep                 separately operated policy definitions
@@ -67,6 +75,10 @@ pipelines/
   templates/                             discovery, setup, qualify, publish, plan/apply
     steps/                               shared qualification, cleanup and evidence
 scripts/                                 setup, qualification and lifecycle commands
+  analysis/                              pure saved-evidence analysis and rendering, Node 22+
+schemas/analysis/                         versioned offline analysis output contract
+tests/analysis/                           synthetic compatibility/reporting cases
+.agents/skills/                          project documentation and offline review guidance
 tests/infrastructure/                    locked YAML parser + pipeline/Bicep contracts
 tests/BlobTransfer.Tests/                 application and opt-in emulator tests
 src/                                     Functions and operator tool
@@ -76,11 +88,13 @@ artifacts/                               ignored compiler output, bundles and re
 
 ## Ownership and configuration precedence
 
+The [analysis component](self-service-analysis.md) extends this layout without relocating Bicep. `scripts/analysis/core.mjs` is pure and shared by CLI/pipeline adapters; `render.mjs` only produces projected report text. Filesystem access stays in `cli.mjs`. Future MCP hosting belongs in a separate `src/` project after runtime selection, and must reuse tested contracts rather than fork analysis rules. `platform/` remains independently operated infrastructure. Tenant reports stay under ignored `artifacts/`, not beside reusable module source.
+
 The developer selects pattern, registered workload, environment and region. `config/platform.json` constrains those choices; `self-service/targets/*.json` resolves the service connection, subscription, private agent, protected environment, parameter file and approved overrides. Bicep supplies defaults, the selected `.bicepparam` supplies environment values, and the validated target/platform settings are overlaid before qualification. The deployment phase sets `deployFunctionApp` and the immutable package name. The bundle freezes the effective parameters and reviewed lifecycle configuration.
 
 `config/deployment-stack.json` is platform policy, not another environment parameter file: it holds publication and stack lifecycle bindings. `stack.bicep` owns the dedicated workload RG and calls `./main.bicep`; it does not own central networks, DNS, resolver, shared workspace or external destination storage. Event flow can create its own missing VNet/subnets, DNS zones/links and workspace through `modules/prerequisites.bicep`; shared resources still remain outside stack ownership. `config/logic-prerequisites.json` holds reviewed environment address allocations and resolver policy. Stack state lives in Azure and lifecycle receipts, not in a checked-in state file. See [the stack runbook](deployment-stacks-upgrade.md).
 
-`workloads/blob-transfer/modules/` is intentionally local to the pattern: Function settings, blob-transfer alert queries, source/package access grants and the five-zone isolated-network exception are not generic infrastructure building blocks. The two shared modules own their resource and related child/diagnostic resources; they never load environment files or target JSON. Promote a helper into `modules/` only when another composition can use the same explicit interface without workload assumptions.
+`workloads/blob-transfer/modules/` is intentionally local to the pattern: Function settings, blob-transfer alert queries, source/package access grants and the five-zone isolated-network exception are not generic infrastructure building blocks. The eight shared modules own their resource and related child/diagnostic resources; they never load environment files or target JSON. Promote a helper into `modules/` only when another composition can use the same explicit interface without workload assumptions.
 
 ## Authoring and dependency rules
 
@@ -106,7 +120,7 @@ From the repository root, with PowerShell 7.4+, .NET from `global.json`, Bicep 0
 
 `Test-Project.ps1` compiles four environments for each of the two patterns plus their stack/platform templates, runs existing offline contracts, and calls `Test-PipelineStructure.ps1`. The latter restores only the locked YAML test dependency using `npm ci --ignore-scripts`, then parses all pipeline YAML, checks template/script paths, parameter bindings, discovery routing, disabled/enabled stage contracts, protected-resource bindings and the artifact chain. It checks that the subscription wrapper forwards every composition parameter/output. The build pipeline now installs Node before these checks; Deploy qualification already does so.
 
-This local verifier supports only the template-expression forms used here and fails on unsupported expressions. It is not the ADO server compiler. Live ADO resource authorization, approval checks, agent capacity, successful discovery, Template Spec publication, stack What-If and private runtime acceptance still require platform setup. Targets stay disabled until that acceptance is performed.
+This local verifier supports only the template-expression forms used here and fails on unsupported expressions. It is not the ADO server compiler. Supplied ADO evidence establishes discovery and Preview preparation for specific runs, not complete platform acceptance. Authorization/checks for every route, private-agent capacity, Template Spec publication, successful Azure What-If and private runtime acceptance remain to be verified. Targets stay disabled until that acceptance is performed.
 
 ## Path migration
 

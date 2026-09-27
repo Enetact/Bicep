@@ -1,5 +1,7 @@
 # Architecture and recovery contract
 
+Scope: Blob copy runtime and network contracts. For Event flow and the current two-workload provisioning system, use the [catalog](self-service-catalog.md) and [status matrix](completion-status.md).
+
 ## Deployment selection and network ownership
 
 The generated self-service pipeline maps an approved subscription alias and network profile to exact resource IDs and protected Azure DevOps resources. Its default discovery operation only reads inventory. Deployment supports either a new dedicated VNet or existing platform-managed integration/private-endpoint subnets and private DNS zones. Existing mode validates those resources before planning and leaves their definitions/delegation under platform ownership. Optional naming and pipeline data-role parameters follow the selected profile; empty naming suffix preserves the original resource names. See [subscription discovery and naming](subscription-discovery.md) and the [self-service release workflow](self-service.md).

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Self-service documentation"
+  short_description: "Keep capability guides and verification status accurate"
+  default_prompt: "Use $self-service-docs to update this project's documentation for the current capability changes and verification evidence."
+policy:
+  allow_implicit_invocation: true

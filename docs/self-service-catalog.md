@@ -1,0 +1,99 @@
+# Self-service catalog and how it works
+
+Source review: **26 September 2026**. Two workload types and eight environment targets are registered; all targets have `enabled: false`. Local tests and supplied ADO discovery/blocked-preview logs establish partial verification. No successful Azure workload deployment is established by the evidence reviewed. See [current status](completion-status.md).
+
+## What a developer can request
+
+The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The two workload routes and their ADO manifest contracts are unchanged.
+
+The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. It adds no Azure products or target enablement. Entra registration and live authentication/ADO acceptance remain required.
+
+Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.
+
+A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for two instances are eight targets, not eight different products.
+
+| Item | Blob copy | Event flow |
+|---|---|---|
+| Type / instance | `blob-transfer` / `blobcopy` | `logic-app-event-grid` / `eventflow` |
+| Purpose | Copy uploaded blobs to an existing destination with deduplication, a ledger and recovery. | Process document events through an Event Grid to Storage Queue bridge and a stateful Logic App. |
+| Main resources | Function App and plan; two storage accounts; queues/ledger; identity; private endpoints, monitoring and alerts. | Logic App Standard and plan; Event Grid topic/subscription; two storage accounts; queue and receipt/quarantine/dead-letter containers; eight private endpoints; access, monitoring and alerts. |
+| Dependencies | Existing destination account/container; approved topology; real tags/identity and private-agent connectivity. | Resolved networking, six DNS service zones and workspace; real tags/identity; two scoped exceptions; private-agent connectivity. |
+| Create versus reuse | Reviewed existing-network profile, or new-network profile admitted by platform policy. Destination storage is external. | Discovery resolves standard prerequisites as Create / Reuse / Manage / Blocked. Owned VNet/subnets/NSG, DNS zones/links and workspace are conditional declarations. |
+| Application package | ZIP containing five .NET Functions. | ZIP containing the Standard workflow and supporting JSON. |
+| Ready evidence | Private connectivity, five indexed Functions and smoke verification of three requests sharing the expected destination. | Private connectivity, verified deployed workflow content/indexing and a synthetic event's durable receipt. |
+| Local runtime | Functions + Azurite tested historically; local lifecycle scripts included. | Package/contract/infrastructure tests; no equivalent end-to-end local Logic Apps/Event Grid runtime is provided. |
+| Current state | Four disabled targets; onboarding remains. | Dev tags, identity and exceptions configured; resource IDs resolve from discovery. Four disabled targets; higher environments need onboarding. |
+
+Reusable resource modules are building blocks, not separately selectable products. Policy and registry templates are separately operated platform assets. No database, Key Vault, Service Bus, Container Apps, AI agent or claims application is currently a registered offering.
+
+## Menus and inputs
+
+| ADO definition | YAML entry | Editable request fields |
+|---|---|---|
+| Discover - Blob copy | `azure-pipelines-blobcopy-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - Blob copy | `azure-pipelines-blobcopy-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+| Discover - Event flow | `azure-pipelines-eventflow-discover.yml` | Instance, environment, approved subscription and network profile. |
+| Deploy - Event flow | `azure-pipelines-eventflow-deploy.yml` | Instance, environment, approved region, Run stages; saved discovery under Resources. |
+
+Blueprint, requirements, lifecycle and price text are reference fields, not resource switches. Region is currently restricted to `eastus2`. Service connections, pools, subscription IDs, RBAC and deployment options come from reviewed configuration and literal generated bindings.
+
+Native ADO parameters are resolved before execution. A previous stage's artifact cannot add dropdown choices midway through a run. This repository uses a separate Discover run followed by a Deploy run with Preview and Deploy stages. See [Microsoft's parameter timing](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/runtime-parameters?view=azure-devops). Resource selections require reviewed catalog changes, not clicking a live Azure query in the form.
+
+## From request to a running workload
+
+```mermaid
+flowchart TD
+    A[Choose workload Discover menu] --> B[Read scoped inventory]
+    B --> C[Save manifest and summary]
+    C --> D[Choose matching Deploy and saved run]
+    D --> E[Preview: compile, validate, What-If, report]
+    E --> F{Mode and target state}
+    F -->|Preview only| G[Review report and stop]
+    F -->|Deploy requested but disabled| H[Deployment unavailable]
+    F -->|Preview and deploy, enabled| I[Build and verify frozen bundle]
+    I --> J[Publish pinned Template Spec]
+    J --> K[Protected apply job rechecks preview]
+    K --> L[Foundation: plan, recheck, apply]
+    L --> M[Release: plan, recheck, apply and verify]
+    M --> N[Ready receipt after successful smoke]
+```
+
+1. **Discover:** read the selected connection's scoped subscription. Failed listings remain unknown. Event flow additionally reads provider/resource inventory and stack ownership. No resource creation, provider registration or access grant occurs.
+2. **Save evidence:** `subscription-discovery` carries inventory, its hash and run provenance. Event flow embeds a prerequisite plan in the hashed inventory and writes a readable companion. Inventory is not deployment validation.
+3. **Select the run:** Deploy requires successful matching `main` discovery in the same project/repository, at most seven days old. It checks ADO run provenance, hashes, selection and connection scope. Event flow rechecks its saved policy/target selection; changes require new discovery.
+4. **Preview:** a hosted Windows agent checks the source manifest, compiles the full runtime-enabled stack, resolves saved inputs, validates onboarding and runs Azure validation/native stack What-If. The Markdown report retains blockers on failures reached after evidence preparation. Native stack What-If creates temporary preview metadata and attempts cleanup; it does not deploy the workload.
+5. **Deploy:** `BuildBundle` qualifies/packages the application, freezes inputs and compares them with Preview. `PublishTemplateSpec` publishes or verifies the content-hashed infrastructure version. `ApplyStack` rechecks the full preview for drift, then runs Foundation and Release through the selected adapter. Protected environments/pools and configured approval/lock checks apply.
+6. **Verify:** only successful application-specific readiness/smoke produces `ready: true` and `status: Ready`. Discovery, compilation, publication or Foundation success alone is insufficient. Failure can leave Azure resources; automatic rollback is not implemented.
+
+Disabled targets can use Preview with complete inputs and real Azure permissions. Preview-only cannot become Deploy midway through a run. A fresh deployment run builds its application again; cross-environment promotion of an already approved application package is not implemented.
+
+## Implementation map
+
+| Concern | Source of truth / methods |
+|---|---|
+| Allowed workload types | `config/workloads.json`; `Get-WorkloadDefinition` in `scripts/workload-common.ps1` explicitly permits two adapters. JSON registration alone cannot add a third. |
+| Instance/environment binding | `self-service/targets/*.json`; `Read-ServiceTarget`, `Assert-ServiceTarget`; strict intent resolution in `scripts/platform-contract.ps1`. |
+| Region and platform options | `config/platform.json`; Blob copy endpoint/log-alert policy and isolated-network exceptions. Event flow address allocations use `config/logic-prerequisites.json`. |
+| Generated menus/bindings | `scripts/Update-ServiceCatalog.ps1`; `-Check` detects generated-file drift. |
+| Inventory and prerequisites | `scripts/Export-DeploymentInventory.ps1`; `Get-LogicPrerequisitePlan` and ownership resolution in `scripts/logic-prerequisites-common.ps1`. |
+| Artifact trust | `scripts/Test-DiscoveryHandoff.ps1`, `Read-DiscoveryManifest`; hashes plus build/run identity checks. |
+| Preview | `New-WorkloadPreviewInputs`, `Invoke-WorkloadInfrastructurePreview`, `Write-WorkloadPreviewReadme` in `scripts/workload-preview-common.ps1`. |
+| Bundle and adapter dispatch | `scripts/New-SelfServiceBundle.ps1`, `Read-ServiceBundle`, `New-ServicePlan`, `Invoke-ServiceApply`; Logic App dispatches to its typed bundle/plan/apply methods. |
+| Infrastructure lifecycle | `Publish-StackTemplate`, `New-StackPreview`, `Invoke-WorkloadStackApply` in `scripts/stack-service-common.ps1`; workload `stack.bicep` calls its `main.bicep`. |
+| Apply coordinator | `scripts/Deploy-PreviewedWorkload.ps1` → `Invoke-PreviewedWorkloadDeployment`; input comparison, drift rejection, Foundation/Release and receipt retention. |
+| Runtime acceptance | Blob copy: `Wait-ServiceFunctions` / `Invoke-ServiceSmoke`. Event flow: `Publish-LogicPackage` / `Invoke-LogicSmoke`. |
+
+Reusable modules live under `modules/`; workload composition and environment values live under `workloads/<type>/`. Compiled local modules are embedded in the Template Spec. The application ZIP is separate; Template Spec publication does not install app code.
+
+## Evidence to inspect
+
+| Artifact | Meaning |
+|---|---|
+| `subscription-discovery` | Inventory/query status, source run and Event flow prerequisite decisions. |
+| `deployment-preview` | README, inputs and Azure changes when reached. A blocked README is not a completed What-If. |
+| `self-service-bundle` | Qualified ZIP, stack, parameters, hashes and discovery/cost data. |
+| `self-service-tests` | Available qualification evidence; absent results do not imply a pass. |
+| `template-publication` | Infrastructure version publication/reuse, not workload readiness. |
+| `deployment-result` | Receipt plus phase, drift, connectivity, package and smoke evidence. |
+
+Blob copy recovery currently uses the [operator runbook](operations.md), not an additional self-service menu. For setup, use [developer/platform guidance](self-service.md). Additional products and operations are proposed in the [expansion plan](self-service-expansion-plan.md).
