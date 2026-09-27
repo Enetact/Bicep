@@ -48,5 +48,5 @@ public static class AgentPolicy
         "Missing, partial, denied and stale evidence stays unknown. Never infer reachability, free IPs, permissions, approval, or Azure acceptance. " +
         "Produce a concise Markdown review with evidence limitations. For visualization include a Mermaid graph TB fenced block with only evidenced relationships, " +
         "escape labels, and no links, click directives or initialization directives. A proposed workload is not an observed resource. " +
-        "Identify additional required evidence and platform-owner decisions. Never claim changes were performed.";
+        "Identify additional required evidence and platform-owner decisions. Never claim changes were performed. " + EvidenceDiagram.Instructions;
 }

@@ -1,4 +1,40 @@
 {
+  "pipelineRegistrationDelivery": {
+    "date": "2026-09-27",
+    "scope": "All 18 root entry points; local implementation and synthetic-provider qualification",
+    "backendPassed": 130,
+    "backendSkipped": 1,
+    "backendFailed": 0,
+    "newRegistrationCases": 18,
+    "backendEvidence": "artifacts/test-results/pipeline-registration.trx",
+    "pipelineContractsPassed": 133,
+    "yamlFilesParsed": 32,
+    "catalogCheckPassed": true,
+    "hygieneIgnoreProbes": 15,
+    "hygieneSourcePaths": 183,
+    "packages": {
+      "path": "artifacts/portal-packages/20260927-155358",
+      "httpChecksEach": 29,
+      "ahpChecksEach": 5,
+      "arm64": "Native ARM64",
+      "x64": "Windows ARM emulation",
+      "nativeX64HardwareTested": false
+    },
+    "publicGitHubRead": {
+      "repository": "Enetact/Bicep",
+      "mainCommit": "bab03bf3c93745f61be9a69e6bca4d9a6a518fc3",
+      "matchingRootYamlFiles": 17,
+      "differentRootYamlFiles": ["azure-pipelines-network.yml"]
+    },
+    "browserEvidence": "artifacts/pipeline-registration-ui.png",
+    "browserRegistrationOutcome": "Synthetic localhost fixture only; stopped after verification",
+    "liveAdoInventoryPerformed": false,
+    "liveAdoDefinitionsCreated": 0,
+    "runsQueued": 0,
+    "githubWritten": false,
+    "permissionsChanged": false,
+    "remainingAcceptance": "Browser ADO sign-in, real inventory/review/create/read-back and resource authorization validation"
+  },
   "currentDocumentationReview": {
     "date": "2026-09-27",
     "kind": "five-product-source-implementation-and-local-qualification",
@@ -606,5 +642,34 @@
     "secretContentsRead": false,
     "fullHistorySecretScan": false,
     "script": "scripts/Test-RepositoryHygiene.ps1"
+  },
+  "networkDiagramDelivery": {
+    "date": "2026-09-27",
+    "scope": "Bounded network discovery, evidence-bound diagrams and AVNM create-only allocation flow",
+    "backendPassed": 112,
+    "backendSkipped": 1,
+    "backendFailed": 0,
+    "topologyPassed": 7,
+    "allocationOfflinePassed": 16,
+    "pipelineContractsPassed": 133,
+    "yamlFilesParsed": 32,
+    "skillDefinitions": 42,
+    "vendoredHashes": 944,
+    "bicepCompositionsCompiled": 2,
+    "backendReceipt": "artifacts/test-results/network-increment.trx",
+    "browserFixtureEvidence": "artifacts/network-diagram-browser.png",
+    "packageDirectory": "artifacts/portal-packages/20260927-135312",
+    "httpChecksPerPackage": 26,
+    "ahpChecksPerPackage": 5,
+    "arm64Native": true,
+    "x64OnArmEmulation": true,
+    "nativeX64HardwareTested": false,
+    "liveAzureCalls": false,
+    "modelCalls": false,
+    "adoRunsQueued": false,
+    "allocationProfileEnabled": false,
+    "automaticWorkloadBinding": false,
+    "generalReservationRelease": false,
+    "manualRunbook": "docs/network-discovery-and-diagrams.md"
   }
 }

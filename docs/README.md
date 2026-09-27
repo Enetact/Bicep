@@ -1,5 +1,9 @@
 # Documentation index
 
+- [Bulk ADO pipeline registration](ado-pipeline-registration.md): register the 18 root entry points from the portal, with source checks, conflict detection and no runs.
+
+- [Network discovery, validated agent diagrams and AVNM IPAM](network-discovery-and-diagrams.md): implemented scope/diagram/allocation flows, platform setup and ordered manual tests.
+
 - [Workload onboarding and seven-product catalog](workload-onboarding.md): dedicated menus, shared adapter, new modules, runtime samples and acceptance gates.
 
 Reviewed 27 September 2026. Start with the [repository README](../README.md), [catalog](self-service-catalog.md) and [current completion status](completion-status.md). Code implementation, local tests, observed ADO steps and live Azure acceptance are distinct evidence levels.

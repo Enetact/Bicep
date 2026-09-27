@@ -24,7 +24,7 @@ try {
         try {& node tests/portal/smoke.mjs;if($LASTEXITCODE -ne 0){throw 'Packaged HTTP smoke tests failed.'}}finally{Pop-Location}
     }finally{$env:PORTAL_TEST_URL=$old}
     & (Join-Path $PSScriptRoot 'Test-AgentHost.ps1') -Port $Port
-    @{architecture=$ready.architecture;package=$directory;verifiedUtc=[datetimeoffset]::UtcNow.ToString('O');httpChecks=24;ahpChecks=5;bundledAzureSkills=42;liveAzure=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $directory 'package-test.json')
+    @{architecture=$ready.architecture;package=$directory;verifiedUtc=[datetimeoffset]::UtcNow.ToString('O');httpChecks=29;ahpChecks=5;bundledAzureSkills=42;liveAzure=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $directory 'package-test.json')
     Write-Host "PASS: $ExpectedArchitecture package started and served UI, catalog, skills and analysis. No live cloud calls."
 }finally{
     $p.Refresh()

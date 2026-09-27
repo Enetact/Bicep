@@ -1,5 +1,7 @@
 # Platform Studio — Azure developer self-service
 
+**Pipeline setup:** the portal now has **ADO setup** to inventory and register all 18 pipeline entry points in one reviewed batch. Existing definitions are preserved, exact GitHub main YAML is checked, and no runs, source edits or permission changes are requested. See [registration and public-repo safety](docs/ado-pipeline-registration.md).
+
 A local Windows portal and governed Azure DevOps delivery platform for discovering Azure resources, designing workload stacks, reviewing changes and deploying approved infrastructure. Reusable Bicep modules, versioned Template Specs and Deployment Stacks connect the developer experience to the same reviewed delivery flow.
 
 **Seven workload offerings · 14 dedicated pipeline menus · 42 bundled Microsoft skill definitions · Five project skills · Four Codex agent reviews · Windows ARM64 and x64**
@@ -14,7 +16,7 @@ A local Windows portal and governed Azure DevOps delivery platform for discoveri
 |---|---|---|
 | **Platform Studio** | Workload configuration, resource/dependency/cost descriptions, skills library, connection status, pipeline request review and run tracking. | Single-user localhost website; Azure provisioning runs in ADO. |
 | **Workload delivery** | Dedicated Discover and Deploy menus for seven products and dev/QA/UAT/prod profiles. | Preview is the default; deployment requires an enabled, onboarded target. |
-| **Resource discovery** | Read-only Azure resource metadata and service-specific views, including network configuration inventory. | Selected registered subscription and caller permissions; tenant/management-group discovery is planned. |
+| **Resource discovery** | Read-only service inventory plus registered, selected, management-group and accessible-tenant network scans. | Browser identity and configured-tenant filtering; explicit partial coverage, with bounded scan limits. |
 | **Analysis and diagrams** | Saved-inventory coverage reports, existing topology, proposed workload components and saved Preview resource changes. | Deterministic reports remain usable without a model; observed, proposed and planned changes are labeled separately. |
 | **Skills library** | Pinned Microsoft Azure instructions and supporting references, plus project-specific review and documentation skills. | Microsoft cards say **No pipeline associated yet**; inventory collection does not execute every upstream skill. |
 | **Codex agents** | Resource visualization, private-network review, workload advice and saved Preview review. | Four explicit, read-only workflows using GPT-6 Astra / High / Standard and a scoped MCP evidence bridge. |
@@ -148,7 +150,7 @@ The suite offers distinct evidence views:
 | **Workload proposal** | Configure any of the seven offerings. | Proposed component diagram and comparison with current same-subscription discovery. This is not Azure What-If. |
 | **Saved deployment Preview** | Connect ADO and select a matching saved Preview. | Resource-action diagram from the guarded `deployment-preview` artifact reader. Failed/blocked Preview remains visibly incomplete. |
 
-Connected diagrams support search, pagination, full resource names and SVG export. They use deterministic application rendering. Optional agent-generated Mermaid is advisory downloadable text, not an automatically executed diagram. Read [connected diagram behavior](docs/portal-diagrams.md).
+Connected diagrams support search, pagination, full resource names and SVG export. They use deterministic application rendering. Agent-generated Mermaid passes a separate evidence/grammar validator before its graph is rendered; the original advisory text stays downloadable. Read [connected diagram behavior](docs/portal-diagrams.md).
 
 Network inventory includes VNets, configured subnets/peerings, NSG rules, route tables, private endpoints and private DNS zones. It does **not** prove effective reachability, free IP capacity, authoritative IPAM availability or visibility across remote subscriptions. Denied/partial reads remain unknown coverage. Portal inventory reports are supporting evidence, **not deployment manifests**. See [discovery scope and methods](docs/azure-skill-discovery.md).
 
@@ -161,31 +163,35 @@ Microsoft's [Azure Resource Visualizer](https://learn.microsoft.com/en-us/azure/
 #### How the connected workflow works today
 
 1. Connect **Azure** and **Codex** in the portal. Azure authorizes resource reads; Codex provides model execution. Neither connection starts a review automatically.
-2. Open **Agent workflows**, select **Azure resource visualizer** or **Private network evidence review**, and choose a registered subscription and visible resource group. No subnet ID or IP range is needed to start this analysis.
-3. Select **Run**. The application verifies resource-group visibility and collects supported resource metadata and network configuration: VNets, subnets, peerings, NSGs, routes, private DNS zones and private endpoints. Cross-group dependencies and uncollected details remain coverage limits.
+2. Open **Agent workflows**, select **Azure resource visualizer** or **Private network evidence review**, and choose a registered subscription and visible resource group. Alternatively, scan a broader scope on **Network discovery** and select **Review this evidence with Codex**. No subnet ID or IP range is needed to start this analysis.
+3. Select **Run**. For a resource-group selection the application verifies visibility and collects resource/network metadata. For a saved network selection it reuses this browser's snapshot, at most 15 minutes old. Supported configuration includes VNets, subnets, peerings, NSGs, routes, private DNS zones/links and endpoints; uncollected dependencies remain coverage limits.
 4. The application freezes that evidence and supplies `platform_evidence` and `platform_skill` through the scoped MCP bridge. The agent must read both. The visualizer instructions guide grouping, labels and relationships; adapter rules require evidenced connections and explicit unknowns.
 5. Codex returns an advisory Markdown review. The visualization workflow requests a fenced Mermaid diagram; network review explains the available network evidence and missing checks. The application saves `evidence.json`, completed `review.md` and `receipt.json` under `artifacts/portal-agents/<id>/`, including evidence/skill hashes and tool-call records.
-6. Read or download the review. **Agent-generated Mermaid currently appears as text/Markdown, not a rendered diagram in the portal.** The existing graphical discovery and proposed-workload diagrams use the separate deterministic renderer. A completed review does not yet guarantee that Mermaid syntax or relationships have passed a dedicated diagram validator.
+6. Read the review and its **Agent interpretation** visual. The server validates a restricted Mermaid flowchart grammar and requires every node/relationship to match the collected evidence. Accepted graphs render through escaped, image-only SVG; rejected output remains untrusted text with a visible explanation. Download the original review, validated Mermaid, receipt and diagram SVG. Observed configuration and proposed-workload diagrams remain separately labeled.
 
 ```mermaid
 flowchart LR
-    Azure[Azure browser authentication] --> Reader[Selected resource-group discovery]
+    Azure[Azure browser authentication] --> Reader[Selected group or scoped network discovery]
     Reader --> Facts[Frozen resource and network evidence]
     Skill[Bundled Azure Resource Visualizer skill] --> MCP[Scoped MCP evidence bridge]
     Facts --> MCP
     MCP --> Agent[Explicit Codex review]
     Agent --> Review[Markdown and Mermaid source with receipt]
-    Review -. planned .-> Validate[Validate diagram syntax and evidence links]
-    Validate -. planned .-> Render[Render and export agent diagram in portal]
+    Review --> Validate[Validate diagram syntax and evidence links]
+    Validate --> Render[Render accepted graph and export source plus receipt]
 ```
 
-#### What remains for the complete network experience
+#### Network discovery and AVNM IPAM delivery
 
-The next diagram increment is **planned**: validate generated Mermaid and its resource references, render it safely in the portal, and retain the downloadable source and receipt alongside the visual. The UI should distinguish **observed configuration**, **agent interpretation**, **proposed workload components** and **Azure What-If changes**. Generated output must remain untrusted, with no executable links/directives and no invented connection presented as a verified fact.
+The **Network discovery** page now supports registered/selected subscriptions, management-group descendants and all accessible subscriptions in the configured tenant. It shows observed topology, per-collection coverage and deterministic prefix/containment/overlap, delegation, DNS-link, route and endpoint findings. Its recent browser-owned snapshot can be passed to the visualizer without silently rescanning or expanding scope. Tenant visibility is bounded by the caller; inaccessible or undisclosed scopes remain unknown.
 
-Broader network self-service also needs the planned tenant/management-group collectors, explicit coverage reporting, deterministic capacity/DNS/routing checks and authoritative IPAM reservation. A diagram cannot establish free IPs, effective reachability or permission to allocate a subnet. AI can explain supported choices and missing evidence; deterministic platform rules and the reviewed ADO Preview/Deploy path must authorize changes. See the [private networking design](docs/plans/private-networking-self-service.md) and [tenant discovery assessment](docs/plans/tenant-network-discovery.md).
+The **AVNM IPAM pipeline** menu reviews and queues [azure-pipelines-network.yml](azure-pipelines-network.yml), registered as **Network - AVNM allocation**. Plan/Reconcile are read-only. Approved reservation obtains a stable provider-assigned prefix; a separate exact-prefix What-If and approval precede creation of a connectivity-owned spoke stack. Configure the existing pool and protected ADO environment in [network-allocation.json](config/network-allocation.json) before use; the profile ships disabled. Reservation never occurs during discovery or model review.
 
-**Acceptance boundary:** the skill binding and scoped MCP path are implemented and locally tested. Live Azure/Codex end-to-end diagram acceptance and the generated-Mermaid rendering path remain outstanding. This section describes the current implementation and intended next steps; it does not enable deployment or network allocation.
+This is a bounded first delivery: the network creation profile supplies a retained /24 reservation, /26 Web integration subnet and /27 endpoint subnet. Effective DNS/routing, IP occupancy, external-address reconciliation, hub integration and automated workload binding still require platform qualification. Inventory is not free-capacity or allocation authority; a NetworkCreated receipt is not WorkloadReady. No allocation is automatically released after failure.
+
+Start with the [implementation and manual test runbook](docs/network-discovery-and-diagrams.md) and [delivery plan](docs/plans/network-diagram-delivery.md). The [wider private networking design](docs/plans/private-networking-self-service.md) retains the unimplemented production extensions.
+
+**Acceptance boundary:** diagram validation/rendering, broader discovery, deterministic findings and the guarded AVNM pipeline are implemented in source and locally qualified. Live Azure/Codex/ADO/IPAM end-to-end acceptance remains for manual testing. No cloud resources were created or deployment targets enabled by this implementation.
 
 ## Codex agent workflows
 
@@ -301,6 +307,6 @@ The wider infrastructure/runtime regression entry is `./scripts/Test-Project.ps1
 | Extend products and reusable modules | [Repository conventions](docs/repository-structure.md), [module catalog](modules/README.md), [expansion plan](docs/self-service-expansion-plan.md) |
 | Find all current and historical guides | [Documentation index](docs/README.md) |
 
-The five additional Storage, Key Vault, Observability, HTTP API and Service Bus offerings are **implemented in source**, with acceptance work remaining. Further expansion includes tenant/management-group network discovery, authoritative IPAM and subnet reservation, qualified private-connectivity profiles, more scoped MCP review adapters, immutable cross-environment promotion and additional application/database/container offerings.
+The five additional Storage, Key Vault, Observability, HTTP API and Service Bus offerings are **implemented in source**, with acceptance work remaining. Further expansion includes qualified private-connectivity profiles, automated workload binding/admission, more scoped MCP review adapters, immutable cross-environment promotion and additional application/database/container offerings.
 
 Those extensions remain planned. Follow the [implementation progress](docs/plans/implementation-progress.md), [private networking design](docs/plans/private-networking-self-service.md), [tenant discovery assessment](docs/plans/tenant-network-discovery.md) and [platform MCP/skills plan](docs/plans/platform-mcp-skills.md) for their contracts and acceptance gates.

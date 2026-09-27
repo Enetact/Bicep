@@ -1,5 +1,7 @@
 # Developer self-service deployment
 
+**Registration shortcut:** use **ADO setup** in Platform Studio to register all missing entry points together. The manual registration instructions below remain an alternative. Matching definitions are reused; conflicts require deliberate reconciliation. See [bulk registration](ado-pipeline-registration.md).
+
 **Additional workload menus:** the [seven-offering onboarding guide](workload-onboarding.md) adds Storage, Key Vault, Observability, HTTP Functions API and Service Bus worker. Their dedicated Discover/Deploy roots share the existing Preview/Deploy controls. The Blob copy and Event flow settings documented below remain scoped to those original adapters; they are not requirements for the new products.
 
 Status reviewed 27 September 2026: seven implemented workload types, 28 disabled targets and dedicated Discover/Deploy menus. Supplied Preview run 23 verified discovery run 21, then stopped before Azure What-If on five onboarding settings. Dev now passes those checks locally with matching resolved discovery; successful live Azure acceptance is still unverified. See the [catalog/method map](self-service-catalog.md), [completion status](completion-status.md) and [future expansion plan](self-service-expansion-plan.md).

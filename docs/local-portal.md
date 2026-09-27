@@ -1,5 +1,9 @@
 # Platform Studio: local Windows self-service portal
 
+**ADO setup:** connects the existing ADO browser identity to a reviewed registration workflow for all root pipeline YAML files. It creates missing definitions without queuing runs or changing GitHub source/permissions. See [registration guide and public-repo boundaries](ado-pipeline-registration.md).
+
+**Network delivery update:** the portal now includes Network discovery, evidence-bound agent diagram rendering and reviewed AVNM pipeline submission. Setup for the real pool, protected pipeline and manual acceptance is in [the network runbook](network-discovery-and-diagrams.md). These capabilities are implemented; live cloud/model acceptance remains pending.
+
 **New workload menus:** the portal now reads seven registered product definitions. The five additions require their ten ADO definitions to be registered using the exact names/files in [workload onboarding](workload-onboarding.md). All 28 targets remain disabled; missing onboarding settings block Preview with an explanatory report. Portable packages built at `artifacts/portal-packages/20260927-105645` include this catalog revision; both architectures passed 14 local HTTP checks. Older packages must be rebuilt.
 
 **Latest agent packages:** `artifacts/portal-packages/20260927-124510` supersedes that catalog-only package revision. Both ARM64 and x64 packages include the Codex/MCP agent menu and passed 24 HTTP plus five AHP checks each; x64 was tested under Windows ARM emulation. Codex CLI is a separate prerequisite. See [agent setup](agent-workflows.md) and [validation evidence](validation.md#codex-agent-workflows-27-september-2026).
@@ -19,7 +23,7 @@ The portal adds a browser workspace to the seven registered ADO workload routes.
 - [Connected diagrams](portal-diagrams.md): inline visible-resource topology, proposed component diagrams for all seven workload configurations, same-subscription inventory comparison and a guarded reader for saved ADO Preview changes. Search, pagination, full-name details and SVG export are included.
 - Run submission, status polling and ADO links for logs, approvals, Summary/Extensions and artifact downloads. Run history in the portal lasts for the current page session; ADO retains the actual history.
 
-This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. The scoped MCP evidence bridge and Codex agent reviews are implemented with separate ChatGPT sign-in; live inference acceptance is pending. Dynamic IPAM, automatic subnet allocation, runtime skill installation, general-purpose artifact browsing and in-portal environment approval are not implemented. The portal reads only the named `deployment-preview` artifact for the connected Preview diagram. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
+This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. The scoped MCP evidence bridge and Codex agent reviews are implemented with separate ChatGPT sign-in; live inference acceptance is pending. The [AVNM allocation path](network-discovery-and-diagrams.md) can request provider-assigned space and create a separate spoke through protected ADO stages after platform setup. Automatic workload placement/binding, runtime skill installation, general-purpose artifact browsing and in-portal environment approval remain unimplemented. The portal reads only the named `deployment-preview` artifact for the connected workload Preview diagram. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
 
 ## Run from source, in order
 

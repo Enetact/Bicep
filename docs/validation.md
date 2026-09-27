@@ -1,5 +1,29 @@
 # Validation evidence
 
+## Bulk ADO pipeline registration: 27 September 2026
+
+The [ADO setup page](ado-pipeline-registration.md) covers all **18 root pipeline entry points**. The Release build completed with zero warnings/errors. **130 backend tests passed, one optional native Codex test skipped, zero failed**, including 18 new registration cases (`artifacts/test-results/pipeline-registration.trx`). Synthetic ADO/GitHub responses exercise create-all-missing, preservation/conflicts, incomplete inventory, source/review drift, concurrent creation, lost responses, partial batches and token/secret isolation. These tests do not establish live ADO registration acceptance.
+
+Both Windows packages in `artifacts/portal-packages/20260927-155358/` passed **29 localhost HTTP checks and five AHP coordination checks** each, without cloud calls. ARM64 ran natively; x64 ran under Windows ARM emulation, not native x64 hardware. Package checks stopped their test processes. The source portal remains running on localhost 5087 and requires fresh browser authentication after its restart.
+
+Codex browser verification showed the real 18-entry setup page and its disconnected-ADO error. A separate, explicitly labeled localhost fixture exercised status selection, the review dialog and a synthetic completed registration receipt with zero queued runs. The fixture was stopped afterward; it is not the runtime backend. Screenshot: `artifacts/pipeline-registration-ui.png`.
+
+An anonymous, read-only GitHub check observed public `Enetact/Bicep` main at `bab03bf3c93745f61be9a69e6bca4d9a6a518fc3`: **17 of 18** local root YAML blobs matched; `azure-pipelines-network.yml` differed. Registration will require that missing definition's exact source to be published, or the local/package copy reconciled. This is a point-in-time comparison, not an assurance about later main revisions.
+
+Also passed: catalog generation check (28 registered selections), **133 pipeline/infrastructure contracts across 32 YAML files**, and repository hygiene (**15 ignore probes, 183 source/control paths**). No ADO server expansion, live authenticated inventory, definition creation, pipeline run, Azure change, GitHub write, target enablement or permission change was performed. Public-repository protection and full-history secret clearance are outside these targeted checks. The ordered manual acceptance procedure is in the setup guide.
+
+## Network discovery, diagrams and AVNM source delivery: 27 September 2026
+
+The bounded [network/diagram implementation](network-discovery-and-diagrams.md) was checked locally. **112 backend tests passed, one optional native Codex test skipped, zero failed** (`artifacts/test-results/network-increment.trx`). New coverage includes untrusted diagram rejection, resource/relationship references, tenant filtering, denied/unsafe scope reads, management-group exclusions, prefix arithmetic/overlap and ADO review expiry/configuration drift/single-use/lost-response handling. Tests use synthetic provider responses; they are not Azure or Codex acceptance.
+
+Also passed: **seven topology tests**, **42 skill definitions/944 vendored hashes**, **16 offline allocation helper/parser cases**, **133 infrastructure contracts with 32 YAML files parsed**, and compilation of both the AVNM static-CIDR module and subscription network composition. YAML checks are local; ADO server expansion was not performed. No live pool, reservation, Deployment Stack, model call or ADO run was created.
+
+The source portal was restarted from Release source and left running on localhost 5087. Codex browser checks verified the real Network discovery menu, disabled reservation configuration and clear disconnected-Azure error. An isolated, visibly labeled local fixture verified network evidence handoff, accepted graph rendering, partial coverage and rejected-output text-only behavior. The fixture was stopped after verification; it is not the portal's runtime backend. Visual evidence: `artifacts/network-diagram-browser.png`.
+
+Windows packages under `artifacts/portal-packages/20260927-135312/` each passed **26 HTTP checks and five AHP coordination checks** without cloud calls. ARM64 ran natively; x64 ran under Windows ARM emulation, not on native x64 hardware. Package documentation snapshots were refreshed after these executable checks. The current portal/package source adds no new .NET dependency: SDK 10.0.300, existing locked packages, PowerShell 7.6.2 and Node 24.16.0 were used.
+
+Remaining acceptance: real browser consent and cross-subscription visibility, live Codex output/downloads, ADO definition/environment/check configuration, real AVNM pool/permissions and reservation/reconciliation/network creation. The current spoke profile is create-only; effective DNS/routing, automated workload admission/binding and release/resize/renumbering are outside this delivery. All workload targets and the allocation profile remain disabled. Follow the ordered manual runbook before enablement.
+
 ## Source and runtime hygiene audit: 27 September 2026
 
 Expanded `.gitignore` for Codex/Azure/MSAL credential files, repository-local Codex state, private certificate/key files, test evidence and editor files. Preserved example settings, project instructions, source and fixtures. `./scripts/Test-RepositoryHygiene.ps1` passed **15 ignore probes and 169 source/control-path checks** with no tracked ignored files, portal test-path references or test dependencies in the available Release dependency graph.

@@ -8,6 +8,7 @@ These are locally maintained, private-by-default modules, not Azure Verified Mod
 
 | Module | Owns | References only |
 |---|---|---|
+| [AVNM IPAM reservation](network/README.md) | One durable static CIDR allocation | Existing network manager and IPAM pool |
 | [Private endpoint](network/private-endpoint/README.md) | Endpoint and DNS zone group | Target resource, subnet, private DNS zones |
 | [Storage account](storage/storage-account/README.md) | Storage account, service/container/queue children, diagnostics | Log Analytics workspace |
 | [Workload VNet](network/workload-vnet/README.md) | VNet, two subnets and integration NSG | Reviewed address allocation |

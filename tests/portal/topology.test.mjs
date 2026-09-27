@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { observedTopology, proposedTopology, previewTopology, graphSvg } from '../../src/SelfService.Portal/wwwroot/topology.mjs';
+import { observedTopology, proposedTopology, previewTopology, networkTopology, graphSvg } from '../../src/SelfService.Portal/wwwroot/topology.mjs';
 const root = '/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network';
 const vnet = `${root}/virtualNetworks/vnet`, subnet = `${vnet}/subnets/apps`, pe = `${root}/privateEndpoints/pe`;
+test('multi-subscription topology reconciles references without making visibility complete',()=>{
+  const remote='/subscriptions/other/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/remote';
+  const g=networkTopology({status:'Partial',membershipCoverage:'Visible tenant only',issues:['denied scope'],reports:[
+    {subscriptionId:'test',status:'Collected',collections:[{resources:[{id:vnet,name:'local',peerings:[{remoteVnetId:remote}]}]}]},
+    {subscriptionId:'other',status:'Collected',collections:[{resources:[{id:remote,name:'remote'}]}]}
+  ]});
+  assert.equal(g.nodes.filter(n=>n.id===remote.toLowerCase()).length,1);assert.equal(g.nodes.find(n=>n.id===remote.toLowerCase()).status,'Observed');
+  assert.match(g.note,/Visible tenant only/);assert.ok(g.coverage.includes('denied scope'));assert.ok(g.edges.some(e=>e.to===remote.toLowerCase()));
+});
 test('observed inventory merges duplicate ARM IDs and preserves configured references, partial coverage and unknown remote networks', () => {
   const g = observedTopology({subscriptionId:'test',status:'Partial',collections:[
     {name:'Resources',status:'Succeeded',resources:[{id:vnet.toUpperCase(),name:'vnet'}]},

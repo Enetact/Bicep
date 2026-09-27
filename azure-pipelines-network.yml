@@ -1,0 +1,113 @@
+# Register as Network - AVNM allocation. Configure the protected environment's approval
+# and exclusive lock before enabling the reviewed profile; all runs are manual.
+trigger: none
+pr: none
+lockBehavior: sequential
+parameters:
+  - name: operation
+    displayName: Address allocation operation
+    type: string
+    default: Plan only
+    values: [Plan only, Reserve only, Reserve and create network, Reconcile]
+  - name: workload
+    type: string
+    default: blobcopy
+    values: [blobcopy, eventflow, storage, keyvault, httpapi, busworker]
+  - name: environment
+    type: string
+    default: dev
+    values: [dev, qa, uat, prod]
+  - name: profile
+    displayName: Reviewed connectivity profile (configure pool before running)
+    type: string
+    default: avnm-private-web
+    values: [avnm-private-web]
+pool:
+  vmImage: windows-latest
+stages:
+  - stage: Plan
+    jobs:
+      - job: ReadAllocation
+        steps:
+          - checkout: self
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: SC-AZ-A-Bicep
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                $mode = 'Plan'
+                if ('${{ parameters.operation }}' -eq 'Reconcile') { $mode = 'Reconcile' }
+                ./scripts/Invoke-NetworkAllocation.ps1 -Mode $mode -Profile '${{ parameters.profile }}' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -OutputDirectory '$(Build.ArtifactStagingDirectory)/network-plan'
+          - publish: $(Build.ArtifactStagingDirectory)/network-plan
+            artifact: network-plan
+            condition: always()
+  - ${{ if or(eq(parameters.operation, 'Reserve only'), eq(parameters.operation, 'Reserve and create network')) }}:
+    - stage: Reserve
+      dependsOn: Plan
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      jobs:
+        - deployment: ReserveAddresses
+          environment: platform-network-allocation
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                  - download: current
+                    artifact: network-plan
+                  - task: AzureCLI@2
+                    inputs:
+                      azureSubscription: SC-AZ-A-Bicep
+                      scriptType: pscore
+                      scriptLocation: inlineScript
+                      inlineScript: |
+                        ./scripts/Invoke-NetworkAllocation.ps1 -Mode Reserve -Profile '${{ parameters.profile }}' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -ExpectedIntentPath '$(Pipeline.Workspace)/network-plan/intent.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/network-reservation'
+                  - publish: $(Build.ArtifactStagingDirectory)/network-reservation
+                    artifact: network-reservation
+                    condition: always()
+    - ${{ if eq(parameters.operation, 'Reserve and create network') }}:
+      - stage: PreviewNetwork
+        dependsOn: Reserve
+        jobs:
+          - job: ExactPrefixes
+            steps:
+              - checkout: self
+              - download: current
+                artifact: network-reservation
+              - task: AzureCLI@2
+                inputs:
+                  azureSubscription: SC-AZ-A-Bicep
+                  scriptType: pscore
+                  scriptLocation: inlineScript
+                  inlineScript: |
+                    ./scripts/Invoke-ReservedNetwork.ps1 -ReservationDirectory '$(Pipeline.Workspace)/network-reservation' -OutputDirectory '$(Build.ArtifactStagingDirectory)/network-preview'
+                    Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/network-preview/README.md'
+              - publish: $(Build.ArtifactStagingDirectory)/network-preview
+                artifact: network-preview
+                condition: always()
+      - stage: ApplyNetwork
+        dependsOn: PreviewNetwork
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+        jobs:
+          - deployment: CreateReservedSpoke
+            environment: platform-network-allocation
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - download: current
+                      artifact: network-reservation
+                    - download: current
+                      artifact: network-preview
+                    - task: AzureCLI@2
+                      inputs:
+                        azureSubscription: SC-AZ-A-Bicep
+                        scriptType: pscore
+                        scriptLocation: inlineScript
+                        inlineScript: |
+                          ./scripts/Invoke-ReservedNetwork.ps1 -Mode Apply -ReservationDirectory '$(Pipeline.Workspace)/network-reservation' -ExpectedPreviewPath '$(Pipeline.Workspace)/network-preview/preview.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/network-binding'
+                    - publish: $(Build.ArtifactStagingDirectory)/network-binding
+                      artifact: network-binding
+                      condition: always()

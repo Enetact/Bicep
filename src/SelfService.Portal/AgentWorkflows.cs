@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace SelfService.Portal;
 
 public record AgentWorkflow(string Id, string Name, string SkillId, string? Audience, string Scope, string Limits);
-public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId);
+public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null);
 public sealed class AgentSession : IAsyncDisposable
 {
     public SemaphoreSlim Gate { get; } = new(1, 1);
@@ -18,8 +18,8 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     public static readonly AgentWorkflow[] Definitions = [
-        new("visualize", "Azure resource visualizer", "azure--azure-resource-visualizer", "azure", "resource-group", "Selected resource group metadata and configured network relationships. Data plane, app settings, identities and reachability remain unverified. Mermaid is advisory source text."),
-        new("network", "Private network evidence review", "azure--azure-resource-visualizer", "azure", "resource-group", "Review configured VNets, subnets, peerings, NSGs, routes, DNS zones and private endpoints. No IPAM, free-IP calculation, tenant-wide visibility or allocation approval."),
+        new("visualize", "Azure resource visualizer", "azure--azure-resource-visualizer", "azure", "resource-group", "Selected group or browser-owned network snapshot. Mermaid is validated against evidence before image-only rendering. Data plane, identities and reachability remain unverified."),
+        new("network", "Private network evidence review", "azure--azure-resource-visualizer", "azure", "resource-group", "Review configured VNets, subnets, peerings, NSGs, routes, DNS links and endpoints from selected scope. Partial visibility remains unknown. No free-IP or allocation approval."),
         new("workload", "Workload configuration advisor", "platform-request-design", null, "workload", "Explain the registered catalog, resource composition and onboarding. This adapter does not create or resolve a typed request or queue a pipeline."),
         new("preview", "Saved Preview change review", "platform-change-review", "ado", "preview", "Review the saved, bounded Preview resource-action projection. Full plan digests, ownership, ZIP contents and deployment gate outcome remain outside this projection.")
     ];
@@ -76,12 +76,22 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             object evidence;
             if (workflow.Scope == "resource-group")
             {
+                if (request.NetworkReportId is not null)
+                {
+                    if (!s.NetworkReports.TryGetValue(request.NetworkReportId, out var snapshot) ||
+                        snapshot.GetProperty("generatedUtc").GetDateTimeOffset() < DateTimeOffset.UtcNow.AddMinutes(-15))
+                        throw new PortalException("Network snapshot is missing, belongs to another browser or is older than 15 minutes. Run discovery again.", 409);
+                    evidence = snapshot;
+                }
+                else
+                {
                 if (string.IsNullOrWhiteSpace(request.ResourceGroup) || string.IsNullOrWhiteSpace(request.SubscriptionId)) throw new PortalException("Select a subscription and resource group before analysis.");
                 // Prove the group exists and is visible; a 404 is not an empty group.
                 var groups = await azure.ResourceGroups(s, request.SubscriptionId, timeout.Token);
                 if (groups.Status is not ("Succeeded" or "SucceededEmpty") || !groups.Resources.Any(r => JsonSerializer.SerializeToElement(r, Json).GetProperty("name").GetString() == request.ResourceGroup))
                     throw new PortalException("Resource group visibility could not be verified. Refresh the resource-group list.", 409);
                 evidence = await azure.Discover(s, new(workflow.SkillId, request.SubscriptionId, request.ResourceGroup), timeout.Token);
+                }
             }
             else
             {
@@ -101,7 +111,8 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             }
             var skill = catalog.Skills.Single(x => x.Id == workflow.SkillId);
             var skillHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(skill.Content))).ToLowerInvariant();
-            var frozen = JsonSerializer.Serialize(new { workflow, request, collectedUtc = DateTimeOffset.UtcNow, evidence, deploymentAuthorized = false }, Json);
+            var diagramGraph = workflow.Scope == "resource-group" ? EvidenceDiagram.Build(JsonSerializer.SerializeToElement(evidence, Json)) : null;
+            var frozen = JsonSerializer.Serialize(new { workflow, request, collectedUtc = DateTimeOffset.UtcNow, evidence, diagramGraph, deploymentAuthorized = false }, Json);
             if (Encoding.UTF8.GetByteCount(frozen) > 256 * 1024) throw new PortalException("Evidence exceeds the 256 KiB model budget. Select a smaller resource group; no silent truncation is allowed.", 413);
             await File.WriteAllTextAsync(Path.Combine(folder, "evidence.json"), frozen, timeout.Token);
             var skillPath = Path.Combine(runtime.Home, "SKILL.md");
@@ -111,14 +122,21 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             inferenceStarted = true;
             var review = await runtime.Review(skillPath, skill.Name, bridge.Tools, timeout.Token);
             if (!bridge.EvidenceRead) throw new PortalException("Agent did not read both required evidence tools. Review rejected.", 502);
+            var diagram = diagramGraph is null ? null : EvidenceDiagram.Validate(review, diagramGraph);
+            if (diagram is not null)
+            {
+                await File.WriteAllTextAsync(Path.Combine(folder, "diagram.json"), JsonSerializer.Serialize(diagram, Json), timeout.Token);
+                if (diagram.Source is not null) await File.WriteAllTextAsync(Path.Combine(folder, "diagram.mmd"), diagram.Source, timeout.Token);
+            }
             var receipt = new { id, status = "Completed", workflow = workflow.Id, startedUtc = started, completedUtc = DateTimeOffset.UtcNow,
                 model = AgentPolicy.Model, reasoning = AgentPolicy.Effort, serviceTier = AgentPolicy.Tier, skillId = skill.Id, skillHash,
                 evidenceSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(frozen))).ToLowerInvariant(),
+                diagramStatus = diagram?.Status, diagramSha256 = diagram?.Source is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(diagram.Source))).ToLowerInvariant(),
                 toolCalls = bridge.Audit, deploymentAuthorized = false, limitations = workflow.Limits };
             await File.WriteAllTextAsync(Path.Combine(folder, "review.md"), review, timeout.Token);
             await File.WriteAllTextAsync(Path.Combine(folder, "receipt.json"), JsonSerializer.Serialize(receipt, Json), timeout.Token);
             s.Agent.State = "Completed";
-            return new { receipt, review, path = $"artifacts/portal-agents/{id}" };
+            return new { receipt, review, diagram, path = $"artifacts/portal-agents/{id}" };
         }
         catch (Exception e)
         {

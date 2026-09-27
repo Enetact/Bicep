@@ -1,5 +1,7 @@
 # Tenant and management-group network discovery
 
+**Implementation update, 27 September 2026:** the scope menus, same-tenant enumeration, management-group reconciliation and bounded network collection are now implemented in a separate Network discovery workspace. The delivery uses direct ARM reads; Resource Graph optimization remains proposed. The assessment below records the pre-implementation baseline. See [current behavior and manual tests](../network-discovery-and-diagrams.md).
+
 Reviewed 27 September 2026. **Feasible, not implemented in the portal.** This review checks source, the pinned skill bundle and Microsoft Learn contracts. No broader discovery, MCP installation, access grant or tenant scan was performed.
 
 ## Verified current behavior

@@ -27,12 +27,16 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
         return await Collect(token, "Resource groups", $"/subscriptions/{id}/resourcegroups?api-version=2021-04-01", [], ct);
     }
     public async Task<object> Discover(BrowserSession session, SkillDiscoveryRequest request, CancellationToken cancellation)
+        => await DiscoverCore(session, request, false, cancellation);
+    internal Task<object> CollectAuthorizedSubscription(BrowserSession session, string subscription, CancellationToken ct)
+        => DiscoverCore(session, new("azure--azure-resource-visualizer", subscription), true, ct);
+    async Task<object> DiscoverCore(BrowserSession session, SkillDiscoveryRequest request, bool scopeResolved, CancellationToken cancellation)
     {
         var skill = catalog.Skills.SingleOrDefault(s => s.Id == request.SkillId) ?? throw new PortalException("Unknown skill.");
         if (!Providers.TryGetValue(skill.DiscoveryProfile, out var prefixes)) throw new PortalException("This skill has no Azure discovery adapter.");
         if (!Guid.TryParse(request.SubscriptionId, out var parsed)) throw new PortalException("Select a registered subscription.");
         var subscription = parsed.ToString();
-        if (!catalog.Products.SelectMany(p => p.Targets).Any(t => t.SubscriptionId.Equals(subscription, StringComparison.OrdinalIgnoreCase)))
+        if (!scopeResolved && !catalog.Products.SelectMany(p => p.Targets).Any(t => t.SubscriptionId.Equals(subscription, StringComparison.OrdinalIgnoreCase)))
             throw new PortalException("Subscription is outside the registered platform scope.", 403);
         var token = await identity.Token(session, "azure"); // Authentication failure is never an empty inventory.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); timeout.CancelAfter(TimeSpan.FromMinutes(2));
@@ -52,6 +56,15 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
             foreach (var item in new[] { ("Virtual networks", "virtualNetworks", NetworkVersion), ("Private DNS zones", "privateDnsZones", "2024-06-01"),
                 ("Network security groups", "networkSecurityGroups", NetworkVersion), ("Route tables", "routeTables", NetworkVersion), ("Private endpoints", "privateEndpoints", NetworkVersion) })
                 collections.Add(await Collect(token, item.Item1, $"{scope}/providers/Microsoft.Network/{item.Item2}?api-version={item.Item3}", [], timeout.Token));
+            // DNS links are child resources: absent/denied reads must remain explicit evidence.
+            var zones = collections.Single(c => c.Name == "Private DNS zones");
+            foreach (var zone in zones.Resources.Take(50))
+            {
+                var zoneId = Text(JsonSerializer.SerializeToElement(zone), "id");
+                if (zoneId is not null && System.Text.RegularExpressions.Regex.IsMatch(zoneId, @"^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/?#]+/providers/Microsoft.Network/privateDnsZones/[^/?#]+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    collections.Add(await Collect(token, "Private DNS links", $"{zoneId}/virtualNetworkLinks?api-version=2024-06-01", [], timeout.Token));
+            }
+            if (zones.Resources.Length > 50) collections.Add(new("Private DNS links", "Partial", 0, 0, "DNS child collection limited to 50 zones; remaining links unknown.", []));
         }
         var id = Guid.NewGuid().ToString("N");
         var report = new
@@ -60,7 +73,7 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
             skillId = skill.Id, skillName = skill.Name, profile = skill.DiscoveryProfile, subscriptionId = subscription, resourceGroup = request.ResourceGroup,
             pipelineStatus = "No pipeline associated yet", readOnly = true, deploymentAuthorized = false, allocationAuthorized = false,
             status = collections.All(c => c.Status is "Succeeded" or "SucceededEmpty") ? "Collected" : "Partial",
-            coverage = "Only resources visible to the signed-in Azure user in this registered subscription. Successful collection is not proof of enterprise-wide visibility.",
+            coverage = "Only resources visible to the signed-in Azure user in the selected authorized subscription. Successful collection is not proof of enterprise-wide visibility.",
             limitations = new[] {
                 "Generic service discovery supplies resource metadata, not execution of the upstream skill or a full assessment.",
                 "No billing, telemetry/log contents, data-plane records, Entra directory objects, secrets or keys are queried.",
@@ -179,7 +192,13 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
             result["subnetId"] = Text(Property(p, "subnet"), "id");
             result["connections"] = Children(p, "privateLinkServiceConnections", connection => new { configured = Fields(Property(connection, "properties"), "privateLinkServiceId", "groupIds"), state = Text(Property(Property(connection, "properties"), "privateLinkServiceConnectionState"), "status") });
         }
-        if (collection == "Private DNS zones") result["resolution"] = "Unknown; zones listed, links/records/resolver paths not queried";
+        if (collection == "Private DNS zones") result["resolution"] = "Unknown; configured links collected separately, records/resolver paths and live resolution not verified";
+        if (collection == "Private DNS links")
+        {
+            result["virtualNetworkId"] = Text(Property(p, "virtualNetwork"), "id");
+            result["linkState"] = Text(p, "virtualNetworkLinkState"); result["provisioningState"] = Text(p, "provisioningState");
+            result["registrationEnabled"] = Simple(p, "registrationEnabled");
+        }
         return result;
     }
 }
