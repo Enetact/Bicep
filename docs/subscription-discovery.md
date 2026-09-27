@@ -1,5 +1,7 @@
 # Subscription discovery, dropdowns and standard names
 
+The shared Discover pipeline now adds a [saved-evidence analysis report](self-service-analysis.md) under `subscription-discovery/analysis/`. It shows coverage, reported prerequisite actions and resource containment diagrams; it is not authenticated handoff approval or private-connectivity evidence. Local generation is verified; live ADO rendering remains pending.
+
 Current guide reviewed 26 September 2026. There are two operations, Discover and Deploy, with a dedicated definition for each workload. See the [catalog](self-service-catalog.md) for the four YAML files and [current verification status](completion-status.md). The generic pair remains a compatibility route.
 
 Discover selects instance, environment, approved subscription and network profile. It reads scoped networks/subnets/private DNS and optionally accessible service connections. Event flow additionally reads provider/resource inventory and stack ownership, then saves a prerequisite plan. It does not create resources, grant permissions, register providers or prove deployment/runtime readiness.

@@ -6,11 +6,14 @@ Reviewed 26 September 2026. Start with the [repository README](../README.md), [c
 
 | Need | Guide |
 |---|---|
+| Local website, browser sign-in, ADO requests and ARM64/x64 packages | [Platform Studio](local-portal.md) |
 | Available products, menus, resources and methods | [Catalog and implementation map](self-service-catalog.md) |
 | Register definitions, configure permissions and queue runs | [Developer/platform self-service](self-service.md) |
 | YAML jobs and artifact handoffs | [Pipeline flow](pipeline-flow.md) |
 | Preview only and its README/What-If | [Deployment preview](deployment-preview.md) |
 | Subscription inventory, static dropdowns and registration | [Discovery and naming](subscription-discovery.md) |
+| Saved-discovery coverage, topology and local skill workflows | [Offline analysis guide](self-service-analysis.md) |
+| Delivered enhancement increments and remaining gates | [Implementation progress](plans/implementation-progress.md) |
 | Event flow Create / Reuse / Manage / Blocked | [Prerequisite resolution](prerequisite-resolution.md) |
 | Template Specs, stack ownership and permissions | [Deployment Stacks runbook](deployment-stacks-upgrade.md) |
 | Reference prices, exclusions and freshness | [Cost guide](self-service-costs.md) |
@@ -18,6 +21,7 @@ Reviewed 26 September 2026. Start with the [repository README](../README.md), [c
 | Implementation order, approval stages and final acceptance gates | [Enhanced self-service readiness review — proposed](plans/enhanced-self-service-validation.md) |
 | Automatic network/subnet planning, IPAM and AI assistance | [Private networking design — proposed](plans/private-networking-self-service.md) |
 | Microsoft Azure skills for discovery, diagrams and assessment | [Azure skills assessment and adoption plan — proposed](azure-skills-assessment.md) |
+| Platform-specific skill workflows and typed MCP interfaces | [Platform skills and MCP design — proposed](plans/platform-mcp-skills.md) |
 | Module/environment placement | [Repository conventions](repository-structure.md), [reusable modules](../modules/README.md) |
 
 ## Workload guides

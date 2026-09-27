@@ -1,0 +1,11 @@
+{
+  "Portal": {
+    "TenantId": "",
+    "ClientId": "",
+    "Organization": "enetactgames",
+    "Project": "Enetact",
+    "Port": 5087,
+    "RepositoryRoot": "",
+    "NodePath": "node"
+  }
+}

@@ -49,6 +49,21 @@ stages:
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
               AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no'
+          - task: NodeTool@0
+            condition: succeededOrFailed()
+            inputs:
+              versionSpec: 22.x
+            displayName: Prepare offline report runtime
+          - pwsh: |
+              $folder = '$(Build.ArtifactStagingDirectory)/discovery'
+              if ((Test-Path (Join-Path $folder manifest.json)) -and (Test-Path (Join-Path $folder inventory.json))) {
+                  ./scripts/Export-SelfServiceAnalysis.ps1 -DiscoveryDirectory $folder -OutputDirectory (Join-Path $folder analysis) -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}'
+                  Write-Host "##vso[task.uploadsummary]$folder/analysis/README.md"
+              } else {
+                  Write-Host 'No complete saved evidence pair is available for an offline report. Inspect the discovery failure.'
+              }
+            condition: succeededOrFailed()
+            displayName: Explain saved discovery and resource topology (no Azure calls)
           - publish: $(Build.ArtifactStagingDirectory)/discovery
             artifact: subscription-discovery
             condition: succeededOrFailed()

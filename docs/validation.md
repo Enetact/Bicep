@@ -1,5 +1,15 @@
 # Validation evidence
 
+## Saved-discovery analysis implementation: 26 September 2026
+
+Reviewed documentation/plan scope and repository placement, then implemented the first offline reporting contract, compatibility readers, safe renderer, shared Discover report step and four project-local review skills. `scripts/Test-Project.ps1` completed successfully: **36 new offline analysis cases**, **5 output-schema validations**, **46 pipeline/infrastructure checks across 20 YAML files**, the existing tooling/manifest/self-service/discovery/cost/platform/stack/preview/Logic App/prerequisite suites, both workloads' environment/stack compilations, and **18 application tests passed / 15 opt-in emulator cases skipped**. The operator tool built without warnings/errors; the Function dependency advisory query reported no vulnerabilities. This run did not start the Functions/Azurite stack or execute Azure/ADO services.
+
+New analysis cases cover supported manifest versions, successful empty versus failed/truncated/count-inconsistent collections, stale/future evidence, selection/subscription mismatch, byte tampering, ownership contradictions, resource bounds, unsafe IDs, secret-bearing raw fields, unrelated ARM resources, paginated diagrams, CLI evidence preservation and schema output. Evidence: `artifacts/analysis-tests/run-FEhjMA/results.json`; application TRX and vulnerability report are under `artifacts/test-results/`. Existing mocked producer output was also consumed successfully by the real new report command at `artifacts/analysis/producer-compatibility/`.
+
+Four new `SKILL.md` files passed the bundled skill validator using isolated PyYAML 6.0.3 under ignored `.tools/skill-validation`. The local request-design command resolved the current Blob copy example with deployment disabled. A synthetic SVG was rasterized with the bundled Sharp library and visually inspected: labels and observed/proposed containment were readable. All four emitted Mermaid documents parsed with Mermaid 12.0.0 in strict mode, using isolated validation dependencies under `.tools/analysis-render`; this does not add Mermaid to the report's runtime dependencies. Live ADO summary rendering, authenticated handoff of a real run, private runtime acceptance and all allocation behavior remain unverified. Full-suite success is not evidence for those gates.
+
+The [progress record](plans/implementation-progress.md) and [analysis guide](self-service-analysis.md) describe the delivered subset and exact commands. Existing dated evidence below is retained as history.
+
 ## Documentation and catalog audit: 26 September 2026
 
 Re-traced both allowlisted workload adapters, all eight disabled target profiles, the four dedicated menu roots, generic compatibility routing, hosted Preview and protected Deploy jobs, prerequisite decisions, Template Spec/stack lifecycle, and artifact/readiness contracts. Added the catalog/method guide, documentation index and proposed expansion plan. Corrected stale single-workload, four-target, generic-only setup, resource-group precreation and publication-preview descriptions. Older evidence below remains historical.

@@ -38,7 +38,7 @@
     "currentStatus": "docs/completion-status.md",
     "catalogGuide": "docs/self-service-catalog.md",
     "expansionPlan": "docs/self-service-expansion-plan.md",
-    "expansionPlanStatus": "Proposed, not implemented"
+    "expansionPlanStatus": "Initial offline analysis/reporting implemented; later product/network/allocation work remains proposed."
   },
   "design": "external-upload-polling-dispatcher-storage-queue-worker",
   "eventGrid": false,
@@ -346,5 +346,37 @@
     "adoDefinitionsCreated": false,
     "adoUiVerified": false,
     "azureDeploymentPerformed": false
+  },
+  "selfServiceAnalysisImplementation": {
+    "date": "2026-09-26",
+    "status": "ImplementedLocallyAdoAcceptancePending",
+    "sourceBaseCommit": "cd8f899878afa26b211041286fc3b5dd8651793d",
+    "workingTreeChanges": true,
+    "fullLocalProjectRunPassed": true,
+    "analysisCasesPassed": 36,
+    "outputSchemasValidated": 5,
+    "pipelineCasesPassed": 46,
+    "yamlFilesParsed": 20,
+    "applicationPassed": 18,
+    "applicationSkipped": 15,
+    "failed": 0,
+    "skillsValidated": 4,
+    "applicationOperatorBuildPassed": true,
+    "functionAdvisoryFindings": 0,
+    "schema": "schemas/analysis/offline-analysis.schema.json",
+    "analysisEvidence": "artifacts/analysis-tests/run-FEhjMA/results.json",
+    "azureCallsPerformed": false,
+    "adoServerExpansionPerformed": false,
+    "adoRenderingVerified": false,
+    "runtimeSmokeExecuted": false,
+    "platformMcpServerImplemented": false,
+    "allocationImplemented": false,
+    "allTargetsDisabled": true,
+    "guide": "docs/self-service-analysis.md",
+    "progress": "docs/plans/implementation-progress.md",
+    "mermaidVersion": "12.0.0",
+    "mermaidDocumentsParsed": 4,
+    "syntheticSvgVisuallyInspected": true,
+    "skillValidatorDependency": "PyYAML 6.0.3 (isolated validation only)"
   }
 }

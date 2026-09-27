@@ -2,6 +2,19 @@
 
 Two independently owned workload patterns share Discover, Deploy, local modules, versioned Template Specs and Deployment Stack governance. See the [Event Flow requirements and method guide](workloads/logic-app-event-grid/README.md) for Logic App Standard + Event Grid. All eight profiles remain disabled pending platform onboarding and Azure acceptance.
 
+## Local self-service website
+
+[Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for both workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported. From this repository root:
+
+```powershell
+./scripts/Setup-Portal.ps1
+./scripts/Start-Portal.ps1
+# Stop the portal later:
+./scripts/Stop-Portal.ps1
+```
+
+The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the four existing pipeline definitions; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets or execute an AI/MCP agent.
+
 The blob-transfer workload below provides production-minded Azure Bicep for Dev, QA, UAT and Prod, with .NET 10 Functions, deduplication and recovery. **The uploading system is outside our control. It only needs to place a file in the solution storage container. No custom metadata, request ID, filename convention or queue message is required from it.**
 
 ```mermaid
@@ -82,6 +95,8 @@ The form shows only the chosen workload's resources, dependencies and dated cost
 Read the [catalog, exact methods and artifact map](docs/self-service-catalog.md), [ADO registration/onboarding guide](docs/self-service.md), [Preview runbook](docs/deployment-preview.md), [prerequisite resolution](docs/prerequisite-resolution.md) and [cost guide](docs/self-service-costs.md). The [documentation index](docs/README.md) identifies current guides and historical assessments.
 
 ### Expansion roadmap
+
+The first enhancement is implemented: [saved-discovery analysis](docs/self-service-analysis.md) produces workload-specific coverage, reported prerequisite actions and Markdown/Mermaid/static SVG reports without Azure calls or a model. Discover now includes this report step; live ADO rendering remains to be verified. See [implementation progress](docs/plans/implementation-progress.md) for completed work and remaining phase gates.
 
 The [self-service expansion and enhancement plan](docs/self-service-expansion-plan.md) proposes a reusable product/adapter contract, private storage, Key Vault, observability, APIs, workers, web apps, databases and later integration/container/AI foundations. It also plans immutable release promotion and reviewed operating actions. These are future offerings with explicit acceptance gates, not additional items currently available in the Run menu. Module registry work is not required.
 

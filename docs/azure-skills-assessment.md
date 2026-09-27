@@ -4,6 +4,8 @@
 
 The [implementation readiness and validation plan](plans/enhanced-self-service-validation.md) consolidates A0–A4 with the networking/product workstreams. Its V0–V6 sequence, shared evidence contracts and protected stage boundaries govern implementation. A0's local renderer acceptance and live ADO rendering acceptance are distinct gates.
 
+The companion [platform skill pack design](plans/platform-mcp-skills.md) turns this assessment into twelve proposed project-specific workflows with typed tool contracts, task boundaries, acceptance cases and phased delivery. It distinguishes reusable upstream guidance from the authorization and evidence requirements our platform must enforce.
+
 ## Recommendation
 
 Adopt a small, curated set of Microsoft Azure skills as guidance for an **analysis layer** around our existing discovery and Preview artifacts. Start with resource lookup, resource visualization and the enterprise infrastructure planner's research/checklist material. Add scoped compliance, quota and cost assessment after the evidence contracts are reliable.

@@ -1,8 +1,12 @@
 # Enhanced self-service: implementation readiness and validation plan
 
-**Review date: 26 September 2026. Status: design review complete; implementation and Azure acceptance pending.** This document consolidates the [expansion roadmap](../self-service-expansion-plan.md), [networking design](private-networking-self-service.md) and [Azure skills assessment](../azure-skills-assessment.md). It is the controlling sequence and validation checklist for their next implementation increments. Product-specific details remain in those documents. No targets, permissions or cloud resources are changed by this review.
+**Review date: 26 September 2026. Status: design reviewed; initial offline implementation delivered; later increments and Azure acceptance pending.** This document consolidates the [expansion roadmap](../self-service-expansion-plan.md), [networking design](private-networking-self-service.md) and [Azure skills assessment](../azure-skills-assessment.md). It is the controlling sequence and validation checklist for implementation. Product-specific details remain in those documents. Targets, permissions and cloud resources remain unchanged.
 
 ## Readiness decision
+
+**Implementation follow-up:** V0/V1's offline analysis contract/readers/reporting and four local review skills are now implemented. The Discover integration is authored; live rendering and later phase acceptance remain pending. Use [implementation progress](implementation-progress.md) for delivered scope rather than treating the design-review snapshot above as current implementation status.
+
+The [platform skills and MCP design](platform-mcp-skills.md) specifies twelve focused analysis skills and sixteen proposed typed tools for this sequence. V0/V1 starts with saved-artifact request/discovery/topology/change-review workflows; deterministic libraries remain usable without MCP or a model. No proposed skill grants allocation, pipeline submission or deployment authority.
 
 **Ready to implement offline contracts, reporting and compatibility tests. Not ready to enable automatic network allocation or production deployment.** Start with saved discovery fixtures and deterministic reports. In parallel, platform owners can establish the external prerequisites and existing-product Azure acceptance needed for a later live pilot.
 
@@ -51,7 +55,7 @@ Keep the four workload-specific Discover/Deploy entrypoints initially. Developer
 
 Discover publishes saved evidence. Deploy consumes a selected successful, matching discovery run and defaults to Preview only. The report shows only the selected product: existing versus planned topology, Create/Reuse/Manage, unknowns and blockers, cost assumptions and next actions. New-network results remain provisional until allocation is bound.
 
-For the enhanced allocation path, “Preview and deploy” authorizes entering the reviewed workflow; protected stages still control the relevant operations. A later portal can submit the same typed request. It does not bypass catalog authorization or regenerate fields during an ADO run. ADO parameters are evaluated before execution. [Runtime parameters](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/runtime-parameters?view=azure-devops)
+For the enhanced allocation path, “Preview and deploy” authorizes entering the reviewed workflow; protected stages still control the relevant operations. The [local portal](../local-portal.md) now submits existing workload requests; support for this proposed enhanced allocation contract remains future work. It does not bypass catalog authorization or regenerate fields during an ADO run. ADO parameters are evaluated before execution. [Runtime parameters](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/runtime-parameters?view=azure-devops)
 
 ## Stage and permission topology
 
@@ -60,13 +64,13 @@ The current two-stage route remains the compatibility path for reviewed existing
 | Proposed stage | Inputs and outputs | Authority / gate |
 |---|---|---|
 | `Preview` | Validate discovery and request; produce analysis, diagrams, costs and provisional or already-bound What-If. | Read collector plus explicitly permitted preview metadata operations. No allocation or workload apply. Disabled targets can use this route. |
-| `ResolveNetwork` | Acquire/reuse an assignment; qualify application package before long waits; publish exact network plan and binding, or an explicit native-allocation proposal. | Enabled profile/target and protected allocation authority. Backend selection must already have passed its spike. No workload deployment identity. |
+| `ResolveNetwork` | Qualify the application package, then acquire/reuse an assignment; publish exact network plan and binding, or an explicit native-allocation proposal. | Enabled profile/target and protected allocation authority. Backend selection must already have passed its spike. No workload deployment identity. |
 | `ApplyNetwork` | Verify approved network plan and assignment; apply only connectivity-owned changes; publish resource/assignment receipt. | Network-owner approval/checks evaluate the preceding stage's published plan. Serialize shared writes in the broker. No implicit ownership transfer. |
 | `FinalizeRelease` | Validate actual network receipt, compile/freeze complete workload inputs and immutable application package, run workload What-If and publish final release manifest. | Preview authority and required private connectivity; no workload apply. Unexpected state becomes a new plan or a blocker. |
 | `PublishTemplate` | Publish verified templates by content identity; return publication evidence. | Protected publisher identity/scope. Source and final release hashes must match; no workload writes. |
 | `DeployWorkload` | Verify final plan/package/publication, recheck live state and binding, apply Foundation/Release and run readiness. | Workload-owner check on the final plan from the earlier stage; approved private runner and workload-scoped permissions. Publish failure/Ready receipts. |
 
-When all network prerequisites are reused, network changes are an explicit no-op with a validated binding receipt. Do not fabricate a successful allocation or deployment. A tested compile-time route must ensure skipped network stages neither block a legitimate reuse path nor allow downstream work after failure. Current existing-instance flows must not be silently switched to this new topology.
+When all network prerequisites are reused, network changes are an explicit no-op with a validated binding receipt. Prefer the same declared stage sequence with no-op receipts over trying to remove stages after discovery. Any optional stage must be declared at template expansion and its conditions tested: skipped stages must neither block legitimate reuse nor allow downstream work after failure. Do not fabricate a successful allocation or deployment. Current existing-instance flows must not be silently switched to this new topology. Reuse the qualified application package by digest in `FinalizeRelease`; do not rebuild it after qualification or review.
 
 If native allocation chooses addresses during `ApplyNetwork`, the review approves a bounded pool/capacity/profile operation rather than a claimed exact prefix. `FinalizeRelease` must wait for the actual result. If policy requires an exact prefix before *any* network write, this backend mode is unavailable. AVNM offers pool allocation; its documentation does not establish the reservation-transfer transaction our service needs. [AVNM IPAM](https://learn.microsoft.com/en-us/azure/virtual-network-manager/concept-ip-address-management)
 
@@ -148,4 +152,6 @@ These are role assignments for planning, not recorded approvals. Use explicit pe
 
 ## Review closeout
 
-The immediate implementation boundary is **V0/V1: contracts and workload-specific reports from saved discovery evidence**. The plan now specifies stage timing, metadata writes, compatibility, source authority, failure recovery and measurable exit criteria. Live ADO approval behavior, allocation semantics, least-privilege Azure operations and workload readiness remain unverified until the corresponding pilots execute. Current checks performed for this documentation review are reported separately from these future gates.
+The immediate implementation boundary is **V0/V1: contracts and workload-specific reports from saved discovery evidence**. The plan now specifies stage timing, metadata writes, compatibility, source authority, failure recovery and measurable exit criteria. Live ADO approval behavior, allocation semantics, least-privilege Azure operations and workload readiness remain unverified until the corresponding pilots execute.
+
+Review verification on 26 September 2026: `./scripts/Update-ServiceCatalog.ps1 -Check` passed for eight unique target selections; `node tests/infrastructure/verify.mjs` passed 46 existing contracts across 20 YAML files. The latter required local temporary-artifact write permission after an initial sandbox `EPERM`; it made no Azure calls or ADO server expansion. These are current-baseline checks, not tests of the unimplemented design or a new full application-suite result.

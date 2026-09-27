@@ -1,5 +1,7 @@
 # Pipeline flow and refactor
 
+[Platform Studio](local-portal.md) is an optional local entry point to these same four dedicated YAML definitions. It resolves definition IDs, reviews allowlisted parameters, pins a selected discovery run and queues main only after confirmation. It adds no YAML stages and cannot bypass disabled targets, artifact checks or ADO environment approvals. Live integration acceptance is pending registration.
+
 For the resource catalog, exact methods and current verification boundaries, see [how self-service works](self-service-catalog.md) and [completion status](completion-status.md).
 
 Event flow discovery now saves a [prerequisite resource plan](prerequisite-resolution.md): reuse compatible selected resources, create absent standard resources within the workload stack, and block when inventory is unknown. Rerun Discover before using this behavior.
@@ -7,6 +9,8 @@ Event flow discovery now saves a [prerequisite resource plan](prerequisite-resol
 The manual Build definition and four workload-specific Discover/Deploy definitions use the same GitHub checkout. Two original generic roots remain compatible with existing ADO definitions. Discovery supplies verified inventory. Deploy freezes its own release, publishes the compiled infrastructure as a Template Spec, then manages the workload through a Deployment Stack. Reusable Bicep modules remain local to this repository; no module registry is required.
 
 ## Entry points
+
+Discover now runs `Export-SelfServiceAnalysis.ps1` after inventory when the saved manifest/inventory pair exists, including partial-evidence cases. It publishes an additional offline summary and retains static SVG/Mermaid/JSON under `subscription-discovery/analysis/`. The renderer does not call Azure or change handoff inputs; a failed discovery remains failed. The authored pipeline change is locally checked but has not been accepted in a live ADO run. [Report semantics](self-service-analysis.md)
 
 Recommended menus: `Discover - Blob copy` (`/azure-pipelines-blobcopy-discover.yml`), `Deploy - Blob copy` (`/azure-pipelines-blobcopy-deploy.yml`), `Discover - Event flow` (`/azure-pipelines-eventflow-discover.yml`), `Deploy - Event flow` (`/azure-pipelines-eventflow-deploy.yml`). Each fixes the workload type and exposes only its summaries. Each Deploy definition selects runs from its own named Discover definition. [Registration steps](self-service.md#register-the-new-definitions-in-ado) are required; the dedicated Deploy menus use the two-stage flow below; protected resource names remain unchanged.
 

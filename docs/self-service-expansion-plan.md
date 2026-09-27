@@ -1,10 +1,12 @@
 # Self-service expansion and enhancement plan
 
-**Status: proposed, not implemented.** Baseline reviewed 26 September 2026. This plan authorizes no resource creation, deletion, new permissions or spending. Priorities and acceptance gates are proposed; no delivery dates or completed work are implied.
+**Status: initial offline reporting delivered; remaining roadmap proposed.** Reviewed 26 September 2026. Phased implementation is authorized by the repository operator; resource creation, deletion, new permissions, spending and live acceptance still follow their explicit target/profile gates. Priorities below are not delivery dates or claims of completed future work.
 
 **Implementation readiness:** the [final design review and validation plan](plans/enhanced-self-service-validation.md) is the controlling implementation sequence. Offline contracts/reporting are ready to build; automatic allocation and live promotion require the listed ADO, IPAM and Azure acceptance gates. The review corrects approval-stage timing and consolidates evidence, compatibility and recovery requirements.
 
 ## Outcome and starting point
+
+**Implementation follow-up:** initial saved-evidence analysis/reporting and four local review skills are delivered; see [progress and boundaries](plans/implementation-progress.md). The broader product, networking allocation and operational offerings below remain proposed. User authorization to proceed with phased implementation does not establish completion of their technical/live acceptance gates.
 
 Build a catalog where developers choose a supported product, understand its resources and costs, select an approved environment and review a plan before deployment. Each product must define ownership, dependencies, identity, application delivery, evidence, support and retirement.
 
@@ -17,6 +19,8 @@ The first limitation is architectural: `Get-WorkloadDefinition`, intent validati
 The [Azure skills assessment](azure-skills-assessment.md) reviews Microsoft's catalog at a pinned revision and proposes a curated analysis layer. Prioritize resource lookup, resource visualization and the enterprise infrastructure planner's research guidance, then add scoped compliance, quota and cost assessment. Preserve the existing Template Spec/Deployment Stack pipeline; upstream preparation, deployment and remediation workflows must not become an alternate apply path.
 
 Start with **A0: workload-specific topology and analysis reports from saved discovery evidence**, without requiring AI or a live subscription scan. Follow with complete scoped collection, deterministic assessment, optional AI explanations and bounded operational analysis. These increments complement the networking N0–N6 work below; they do not replace authoritative IPAM, ownership or protected review. Skills are guidance and integration candidates, not newly implemented pipeline features.
+
+The [platform-specific skills and MCP contracts](plans/platform-mcp-skills.md) design twelve focused skills for request design, discovery auditing, topology, private connectivity, identity, capacity, cost, change review, release readiness, runtime triage, lifecycle review and product onboarding. A shared typed facade exposes deterministic assessment results; pipeline and allocation writes stay behind the existing protected execution model. Skill entrypoints and server tools will be implemented incrementally when their contracts are ready, rather than installed as nonfunctional stubs.
 
 ## Candidate products
 
@@ -69,7 +73,7 @@ Deliver in order: **N0** authority/profile contract; **N1** read-only analyzer; 
 | 2 — Add foundation products | Private storage and secrets pilots, then observability; modules, wrappers, parameters, fixtures and docs. | Qualified estimates, create/reuse tests, real Azure readiness, disabled-by-default targets and a support owner for each. |
 | 3 — Add application/data products | HTTP API, worker and web app before database, streaming and integration. Add package kinds and readiness contracts incrementally. | Immutable content and runtime failure paths verified; restore/migration controls accepted before data products launch. |
 | 4 — Mature releases and operations | Promote existing qualified application artifacts by digest; upgrade previews; inventory/drift reports; explicit recovery/adoption/retirement. | Same approved application bytes reach QA/prod; tampering fails; operations preserve retention/approval boundaries and receipts. |
-| 5 — Improve request experience | Better generated descriptions, examples, onboarding checks, approved options and dated estimates. Consider a pre-queue portal/extension only if native menu constraints warrant it. | Developers understand requests without reading Bicep. Any portal uses the same server-side allowlist and protected pipeline. |
+| 5 — Improve request experience | A local [Platform Studio portal](local-portal.md) now implements catalog/skills/analysis and reviewed ADO requests. Entra and live pipeline acceptance remain pending. Shared hosting and richer runtime MCP/AI features remain proposed. | Developers understand requests without reading Bicep. The portal uses the same registered targets and protected pipeline; wider rollout requires the documented live acceptance checks. |
 | 6 — Scale governance/support | Version/deprecation policy, least-privilege roles, quota/admission checks, audit retention, cost allocation and dashboards. | Named owners, supported versions, incident/recovery procedures and measured adoption. |
 
 These are capability gates, not a strict serial schedule or calendar promises. The [integrated V0–V6 sequence](plans/enhanced-self-service-validation.md#integrated-implementation-sequence) permits offline reporting/contracts while existing-product Azure acceptance proceeds separately. Live acceptance remains a prerequisite for enabling the enhanced apply path. A third product must not weaken existing checks to accommodate an unmodeled lifecycle.

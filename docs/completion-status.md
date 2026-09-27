@@ -4,6 +4,8 @@ Reviewed from local source on **26 September 2026**. This is the current summary
 
 ## Available now
 
+The [local portal](local-portal.md) adds a Windows ARM64/x64 website, project skill library, saved-inventory analysis, browser-authentication implementation and guarded ADO queue/status integration. Local verification is separate from live sign-in/consent and ADO execution, which require registration and remain unverified. It is a desktop companion, not the proposed AI/MCP server.
+
 Two workload types (`blob-transfer`, `logic-app-event-grid`), two example instances (`blobcopy`, `eventflow`), four environments each and **eight disabled targets**. Four dedicated ADO menus share discovery/deployment implementation. The generic pair remains for compatibility. See the [catalog and method map](self-service-catalog.md).
 
 | Capability | Implementation | Verification and remaining boundary |
@@ -12,6 +14,7 @@ Two workload types (`blob-transfer`, `logic-app-event-grid`), two example instan
 | Local install/run/test/stop/reset | Implemented for Blob copy | Local lifecycle evidence exists; not every clean-machine installation branch or architecture is verified. Event flow has no equivalent local end-to-end runtime. |
 | Workload-specific menus | Implemented | Generated YAML and local routing tests; supplied ADO discovery and Preview-preparation logs. Every live menu/authorization branch has not been certified. |
 | Scoped discovery and saved-run handoff | Implemented | Supplied Preview run 23 verified discovery run 21. Local coverage includes DNS fallback, empty/failed queries, hashes, provenance and freshness. This does not prove deploy permissions. |
+| Saved-discovery analysis, diagrams and four project review skills | Implemented locally | Two compatibility readers, versioned output schema and pure Markdown/Mermaid/static SVG renderer; shared Discover report step authored. No authenticated ADO/live Azure proof from the offline report; server rendering acceptance pending. See [analysis guide](self-service-analysis.md). |
 | Event flow prerequisites | Implemented | Create / Reuse / Manage / Blocked, names, CIDR checks, selected shared IDs, ownership and live-recheck hooks. Latest targeted evidence: 26 cases on 19 September. Actual Azure creation/reuse not established. |
 | Hosted Preview stage | Implemented | Disabled targets can consume discovery and preview complete inputs. Run 23 stopped at five onboarding settings before Azure What-If. Later local dev settings resolve them; successful subsequent Azure What-If has not been supplied. |
 | Protected Deploy stage | Implemented | BuildBundle → PublishTemplateSpec → ApplyStack, with frozen inputs, drift checks and Foundation/Release. All targets disabled; no successful live Ready receipt established. |
@@ -35,7 +38,7 @@ Two workload types (`blob-transfer`, `logic-app-event-grid`), two example instan
 - **Azure accepted:** requires retained real preview/apply/readiness evidence; a full successful deployment is not established here.
 - **Planned:** proposal only, not a shipped menu or module.
 
-The last full project run recorded on 19 September passed 333 PowerShell contracts, 46 pipeline/infrastructure checks across 20 YAML files and 18 application tests, with 15 opt-in emulator cases skipped. After dev configuration changed, the targeted run passed 26 prerequisite, 50 Logic App and 22 preview cases. These are different runs; do not combine them into a new full-suite claim. See [validation](validation.md) for receipts and tooling dates.
+The latest full local project run on 26 September passed the existing PowerShell suites plus 36 new offline analysis cases, 5 output-schema checks, 46 pipeline/infrastructure checks across 20 YAML files and 18 application tests, with 15 opt-in emulator cases skipped. Both workloads' Bicep environment/stack checks and the operator build passed. The earlier 19 September full/targeted results remain separate historical receipts. See [validation](validation.md); no new Azure or hosted-runtime acceptance is implied.
 
 ## Next acceptance sequence
 

@@ -4,6 +4,10 @@ Source review: **26 September 2026**. Two workload types and eight environment t
 
 ## What a developer can request
 
+The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. It adds no Azure products or target enablement. Entra registration and live authentication/ADO acceptance remain required.
+
+Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.
+
 A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for two instances are eight targets, not eight different products.
 
 | Item | Blob copy | Event flow |

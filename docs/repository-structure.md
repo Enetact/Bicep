@@ -1,5 +1,7 @@
 # Bicep repository structure and authoring conventions
 
+The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources; it does not move Bicep compositions, introduce another workload registry or implement the planned MCP server. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
+
 Reviewed against Microsoft Learn and Microsoft's Bicep/AVM repositories on 19 September 2026. This is a workload deployment repository containing its application, not the Bicep compiler or an AVM publishing repository.
 
 ## What Microsoft recommends, and what we choose
@@ -71,6 +73,10 @@ pipelines/
   templates/                             discovery, setup, qualify, publish, plan/apply
     steps/                               shared qualification, cleanup and evidence
 scripts/                                 setup, qualification and lifecycle commands
+  analysis/                              pure saved-evidence analysis and rendering, Node 22+
+schemas/analysis/                         versioned offline analysis output contract
+tests/analysis/                           synthetic compatibility/reporting cases
+.agents/skills/                          project documentation and offline review guidance
 tests/infrastructure/                    locked YAML parser + pipeline/Bicep contracts
 tests/BlobTransfer.Tests/                 application and opt-in emulator tests
 src/                                     Functions and operator tool
@@ -79,6 +85,8 @@ artifacts/                               ignored compiler output, bundles and re
 ```
 
 ## Ownership and configuration precedence
+
+The [analysis component](self-service-analysis.md) extends this layout without relocating Bicep. `scripts/analysis/core.mjs` is pure and shared by CLI/pipeline adapters; `render.mjs` only produces projected report text. Filesystem access stays in `cli.mjs`. Future MCP hosting belongs in a separate `src/` project after runtime selection, and must reuse tested contracts rather than fork analysis rules. `platform/` remains independently operated infrastructure. Tenant reports stay under ignored `artifacts/`, not beside reusable module source.
 
 The developer selects pattern, registered workload, environment and region. `config/platform.json` constrains those choices; `self-service/targets/*.json` resolves the service connection, subscription, private agent, protected environment, parameter file and approved overrides. Bicep supplies defaults, the selected `.bicepparam` supplies environment values, and the validated target/platform settings are overlaid before qualification. The deployment phase sets `deployFunctionApp` and the immutable package name. The bundle freezes the effective parameters and reviewed lifecycle configuration.
 
