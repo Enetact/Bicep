@@ -1,118 +1,230 @@
-# Azure workload self-service
+# Platform Studio — Azure developer self-service
 
-Seven registered workload offerings share Discover, Deploy, local modules, versioned Template Specs and Deployment Stack governance. See the [Event Flow requirements and method guide](workloads/logic-app-event-grid/README.md) for Logic App Standard + Event Grid. All 28 profiles remain disabled pending platform onboarding and Azure acceptance.
+A local Windows portal and governed Azure DevOps delivery platform for discovering Azure resources, designing workload stacks, reviewing changes and deploying approved infrastructure. Reusable Bicep modules, versioned Template Specs and Deployment Stacks connect the developer experience to the same reviewed delivery flow.
 
-## Available self-service workloads
+**Seven workload offerings · 14 dedicated pipeline menus · 42 bundled Microsoft skill definitions · Five project skills · Four Codex agent reviews · Windows ARM64 and x64**
 
-| Offering | Discover YAML | Deploy YAML |
+**Current status — 27 September 2026:** the suite is implemented in source with recorded local verification. All **28 environment targets remain disabled for deployment** pending platform onboarding and acceptance. Successful discovery or a local test does not establish a successful Azure deployment. See [current status](docs/completion-status.md) and [dated verification evidence](docs/validation.md).
+
+[Start locally](#start-platform-studio-locally) · [Workloads](#workload-catalog) · [Discovery and diagrams](#discovery-analysis-and-diagrams) · [Agent workflows](#codex-agent-workflows) · [ADO delivery](#discover-preview-and-deploy) · [Documentation](#documentation-and-expansion)
+
+## The capability suite
+
+| Area | Available capability | Scope |
 |---|---|---|
-| Blob copy | `azure-pipelines-blobcopy-discover.yml` | `azure-pipelines-blobcopy-deploy.yml` |
-| Event flow | `azure-pipelines-eventflow-discover.yml` | `azure-pipelines-eventflow-deploy.yml` |
-| Private Storage Workspace | `azure-pipelines-storage-discover.yml` | `azure-pipelines-storage-deploy.yml` |
-| Key Vault | `azure-pipelines-keyvault-discover.yml` | `azure-pipelines-keyvault-deploy.yml` |
-| Observability | `azure-pipelines-observe-discover.yml` | `azure-pipelines-observe-deploy.yml` |
-| HTTP Functions API | `azure-pipelines-httpapi-discover.yml` | `azure-pipelines-httpapi-deploy.yml` |
-| Service Bus worker | `azure-pipelines-busworker-discover.yml` | `azure-pipelines-busworker-deploy.yml` |
+| **Platform Studio** | Workload configuration, resource/dependency/cost descriptions, skills library, connection status, pipeline request review and run tracking. | Single-user localhost website; Azure provisioning runs in ADO. |
+| **Workload delivery** | Dedicated Discover and Deploy menus for seven products and dev/QA/UAT/prod profiles. | Preview is the default; deployment requires an enabled, onboarded target. |
+| **Resource discovery** | Read-only Azure resource metadata and service-specific views, including network configuration inventory. | Selected registered subscription and caller permissions; tenant/management-group discovery is planned. |
+| **Analysis and diagrams** | Saved-inventory coverage reports, existing topology, proposed workload components and saved Preview resource changes. | Deterministic reports remain usable without a model; observed, proposed and planned changes are labeled separately. |
+| **Skills library** | Pinned Microsoft Azure instructions and supporting references, plus project-specific review and documentation skills. | Microsoft cards say **No pipeline associated yet**; inventory collection does not execute every upstream skill. |
+| **Codex agents** | Resource visualization, private-network review, workload advice and saved Preview review. | Four explicit, read-only workflows using GPT-6 Astra / High / Standard and a scoped MCP evidence bridge. |
+| **Delivery governance** | Discovery provenance, frozen bundles, hashes, drift checks, scoped ownership, Template Spec publication and Deployment Stack application. | ADO permissions, approvals, private agents and Azure acceptance require platform setup. |
+| **Local development** | Real Blob copy Functions/Azurite runtime; portal lifecycle, tests and portable Windows packages. | Local emulation does not reproduce Azure identity, networking or hosted Event flow execution. |
 
-The five additions include compositions, reusable modules, environment/request contracts, discovery/Preview/Deploy routing and portal menus. **Targets remain disabled; new parameter files require platform onboarding.** Storage, Key Vault and Observability are infrastructure-only. The two Functions offerings include separately qualified runtime samples. New product cost estimates are unavailable until pricing is reviewed; Premium Service Bus and dedicated hosting are not free.
+```mermaid
+flowchart TD
+    Developer[Developer] --> Studio[Platform Studio on localhost]
+    Developer --> Menus[Workload-specific ADO menus]
+    Studio --> Inventory[Read-only Azure discovery]
+    Inventory --> Visuals[Inventory reports and topology]
+    Studio --> Proposal[Configure workload and proposed diagram]
+    Studio --> Agents[Explicit Codex review]
+    Inventory --> Evidence[Scoped evidence and pinned skill]
+    Proposal --> Evidence
+    Evidence --> Agents
+    Studio --> Request[Review and send pipeline request]
+    Request --> Discover[ADO Discover and saved manifest]
+    Menus --> Discover
+    Discover --> Preview[Deploy stage 1: Bicep validation and What-If]
+    Preview --> Report[Preview README and resource changes]
+    Report --> Gate[Enabled target and configured ADO approvals]
+    Gate --> Deploy[Deploy stage 2: qualified bundle and Template Spec]
+    Deploy --> Stack[Deployment Stack and workload verification]
+    Stack --> Receipt[Deployment result receipt]
+```
 
-Follow the [workload onboarding guide](docs/workload-onboarding.md) for exact ADO definition names, required settings, permissions, method flow and acceptance tests. Register the new definitions in ADO after merging; adding YAML locally does not register them automatically.
+The diagram shows the implemented delivery path. It does not imply that deployment targets are enabled or that an agent review authorizes changes.
 
-## Local self-service website
+## Start Platform Studio locally
 
-[Platform Studio](docs/local-portal.md) adds an Azure Skills-inspired browser UI for all seven workloads, costs, project skills, saved-discovery analysis and ADO pipeline requests. Windows ARM64 and x64 packages are supported.
+Use **Windows 11 ARM64 or x64**, PowerShell **7.4+**, Git, a .NET SDK compatible with [global.json](global.json) (currently **10.0.300**) and **Node.js 22+**. The source setup script checks both .NET and Node; Node powers saved-discovery analysis. Portal browsing does not require local Azure CLI, Bicep, Docker or Functions tools.
 
-[Connected diagrams](docs/portal-diagrams.md) now show existing resources after Azure discovery, proposed components when configuring any workload, and resource actions from a saved ADO Preview. Search, page and export diagrams; compare observed inventory with the proposal. Live cloud acceptance remains separate from local verification.
-
-The [complete bundled Azure Skills library](docs/azure-skill-discovery.md) now adds 42 Microsoft skill definitions alongside our five local skills. Microsoft cards show **No pipeline associated yet** and expose a separate read-only Azure browser-authenticated discovery action, including a networking inventory view. Live tenant acceptance still requires the portal registration.
-
-From this repository root:
+From the repository root containing this README:
 
 ```powershell
+# First setup; checks prerequisites, restores locked packages and builds Release.
 ./scripts/Setup-Portal.ps1
+
+# Start the real application and open its browser UI.
 ./scripts/Start-Portal.ps1
-# Stop the portal later:
-./scripts/Stop-Portal.ps1
 ```
 
-The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the dedicated pipeline definitions for each selected workload; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets.
+Open [Platform Studio](http://localhost:5087/). Browse the workload catalog and skills, configure proposed workload diagrams, or analyze a downloaded discovery artifact without signing in.
 
-**Agent workflows:** [Codex agent-host integration](docs/agent-workflows.md) adds resource visualization, network evidence review, workload advice and saved Preview review. The model is fixed to **GPT-6 Astra / High / Standard**, using separate ChatGPT browser authentication and a scoped MCP evidence bridge. AHP supplies a bounded coordination profile; typed workflow requests run Codex. Sign-in enables eligible menu actions, never automatic inference. Local contracts and native Codex startup are verified; live login/model/Azure/ADO acceptance is still pending.
+If setup reports missing tools, run the following, reopen PowerShell when prompted, and rerun setup until it succeeds. PowerShell and Windows App Installer/winget must already be available.
 
-### Use the Azure Skills library
+```powershell
+./scripts/Setup-Portal.ps1 -InstallMissing
+```
 
-The library ships with **42 Microsoft Azure skill definitions and their supporting files**, plus **five project-local skills**. The Microsoft snapshot is pinned in [the bundle index](vendor/azure-skills/bundle.json), with source paths, licenses and hashes. Each Microsoft card displays **No pipeline associated yet**. Its discovery action collects supporting resource inventory; it does not execute that skill's complete upstream workflow.
-
-1. Start the portal with the commands above and open [Platform Studio](http://localhost:5087/).
-2. Select **Skills library**. Search by name or filter by source and discovery view. **Read skill** opens the bundled instructions.
-3. For live discovery, configure the [separate portal Entra registration](docs/local-portal.md#configure-microsoft-browser-sign-in), then open **Connections → Connect Azure** and complete Microsoft browser sign-in. The Azure user needs read access to the resources being queried. ADO sign-in and `SC-AZ-A-Bicep` are not used for this action.
-4. On a Microsoft skill, select **Discover in Azure**, choose a registered subscription and select **Discover visible resources**. You do not need to enter a subnet, resource name or IP range.
-5. Review collection status and resource facts, then download the JSON report. A local copy is saved at `artifacts/portal-discovery/<id>/report.json`; these private infrastructure reports are ignored by Git.
-
-| Discovery view | What is collected |
-|---|---|
-| Networking | Resource metadata, VNets, inline subnets and peerings, private DNS zones, configured NSG rules, route tables and private endpoints. |
-| Compute, Kubernetes, Storage, AI, Messaging, Monitoring and Data | Resource metadata filtered to the view's supported Azure providers. |
-| General inventory | Visible resource metadata for cross-cutting skills, including cost and identity guidance; no billing or Entra directory assessment. |
-
-Discovery reads only the selected registered subscription using the signed-in user's access. A successful empty query means no matching visible resources were found. Permission errors, timeouts and incomplete reads remain **Failed/Partial**, with unknown coverage. They do not authorize resource creation.
-
-Networking discovery is the first inventory step in the [private networking plan](docs/plans/private-networking-self-service.md). IP availability, IPAM reservations, effective connectivity and remote-network coverage remain unverified. Automatic subnet selection/allocation and new skill-specific pipelines are still planned; the four bounded agent reviews are described above. These reports are **not deployment manifests**; the existing Blob copy and Event flow Discover → Preview → Deploy pipelines keep their own artifact and approval requirements.
-
-### Verification and Windows packages
-
-The [27 September 2026 validation record](docs/validation.md#five-workload-expansion-27-september-2026) records **46 passing portal tests**, **14 local HTTP checks per Windows package**, and matching hashes for all **944 bundled source files**. Azure responses were mocked. ARM64 ran natively; x64 ran under ARM emulation, with native x64 hardware and live Azure sign-in/discovery still unverified.
-
-To verify or package the current source, stop the portal before building:
+To stop the portal:
 
 ```powershell
 ./scripts/Stop-Portal.ps1
-./scripts/Test-Portal.ps1
-./scripts/Publish-Portal.ps1
-# Resume the source portal when ready:
+```
+
+Stop it before setup, rebuilding or packaging. The lifecycle scripts verify process ownership; stopping retains reports. Portal lifecycle is separate from the Blob copy Functions/Azurite lifecycle.
+
+### Connect the services you need
+
+| Connection | Enables | Required setup |
+|---|---|---|
+| **Azure** | Visible-resource discovery, inventory diagrams and Azure evidence for agent reviews. | Separate portal Entra public-client registration and user read access to the selected subscription. |
+| **Azure DevOps** | Discovery-run selection, reviewed pipeline submission, status and saved Preview reading. | Portal Entra registration with delegated ADO access, project membership and authorized pipeline definitions. |
+| **Codex** | The four model-assisted review actions. | Compatible native Codex executable and the portal's separate ChatGPT browser sign-in; account access to the fixed model settings. |
+
+Follow [Microsoft browser sign-in setup](docs/local-portal.md#configure-microsoft-browser-sign-in) to create the portal registration. Its client ID is **not** the deployment service connection's application ID. After registration, configure both identifiers together:
+
+```powershell
+./scripts/Stop-Portal.ps1
+./scripts/Setup-Portal.ps1 -TenantId '<portal-tenant-guid>' -ClientId '<portal-client-guid>'
 ./scripts/Start-Portal.ps1
 ```
 
-Publishing creates self-contained `win-arm64.zip` and `win-x64.zip` packages under `artifacts/portal-packages/<timestamp>/`, including the skill bundle. See [Windows requirements and packaging](docs/local-portal.md) and the [full discovery contract](docs/azure-skill-discovery.md) for setup, methods, permissions and limits.
+Use the portal's connection controls to complete browser consent/MFA and login. Azure, ADO and Codex have separate readiness checks. Codex desktop sign-in is not automatically reused by the portal. Authentication makes eligible actions available; it neither starts inference nor queues a pipeline by itself. See [agent authentication and lifecycle](docs/agent-workflows.md).
 
-## Blob transfer workload
+## Workload catalog
 
-The blob-transfer workload below provides production-minded Azure Bicep for Dev, QA, UAT and Prod, with .NET 10 Functions, deduplication and recovery. **The uploading system is outside our control. It only needs to place a file in the solution storage container. No custom metadata, request ID, filename convention or queue message is required from it.**
+Each offering has a Bicep composition, stack wrapper, environment parameters, request contract, dedicated pipeline pair and portal configuration. Shared dependencies and deployment readiness vary by product.
+
+| Offering | Resources and behavior | Delivery boundary |
+|---|---|---|
+| [**Blob copy**](workloads/blob-transfer/README.md) | Function App with polling dispatcher and queue worker; host and solution storage; transfer ledger, identity, private access, monitoring and recovery. Copies to an existing destination data lake. | Full transfer application with recorded real local Functions/Azurite evidence; Azure acceptance outstanding. |
+| [**Event flow**](workloads/logic-app-event-grid/README.md) | Logic App Standard, Event Grid, two storage accounts, private endpoints, identities and monitoring. Supports owned prerequisite creation or approved shared-resource reuse. | Packaged stateful workflow; hosted delivery and private-network acceptance outstanding. |
+| [**Private Storage Workspace**](workloads/private-storage/README.md) | Identity-only StorageV2 account, workspace container, work queue, two private endpoints, consumer RBAC and diagnostics. | Infrastructure only; reuses approved network, DNS and monitoring. |
+| [**Key Vault**](workloads/key-vault/README.md) | RBAC vault with soft delete and purge protection, private endpoint, scoped reader grant and audit diagnostics. | Infrastructure only; creates no secret values. |
+| [**Observability**](workloads/observability/README.md) | Azure Monitor workbook and missing-heartbeat query alert. References an existing Log Analytics workspace and action groups. | Infrastructure only; does not create notification destinations or reconfigure shared networking. |
+| [**HTTP Functions API**](workloads/http-functions/README.md) | Private .NET 10 Function App on Linux B1, identity, host/package storage, four private endpoints, diagnostics and Entra-protected health endpoint. | Deployable health API starter; application-specific endpoints remain developer work. |
+| [**Service Bus worker**](workloads/service-bus-worker/README.md) | Premium Service Bus namespace/queue, DLQ and duplicate detection, Linux B1 Functions worker, identity, receipt storage, five private endpoints and diagnostics. | Idempotent receipt-processing starter; business processing remains developer work. |
+
+There are **seven registered products and 28 disabled environment targets**. The [onboarding guide](docs/workload-onboarding.md) lists required identities, shared resources, provider registrations, permissions and per-product acceptance tests. Event flow can plan missing owned networking/DNS prerequisites; the five newer offerings require their declared shared dependencies to exist. Failed or incomplete discovery never means those dependencies are absent and safe to create.
+
+**Costs:** these are not all free-tier resources. Dedicated hosting, Premium Service Bus, private endpoints, storage operations and monitoring can incur charges. Menus expose product-specific cost drivers and available dated estimates. The five newer products explicitly show **estimate unavailable**, not zero. See [cost assumptions and exclusions](docs/self-service-costs.md).
+
+## Discover, Preview and Deploy
+
+Developers can use Platform Studio or native ADO menus. Register the workload-specific YAML files below; the portal resolves the matching definition names documented in the [ADO setup guide](docs/self-service.md) and [seven-product onboarding guide](docs/workload-onboarding.md).
+
+| Workload | Discover YAML | Deploy YAML |
+|---|---|---|
+| Blob copy | [blobcopy-discover](azure-pipelines-blobcopy-discover.yml) | [blobcopy-deploy](azure-pipelines-blobcopy-deploy.yml) |
+| Event flow | [eventflow-discover](azure-pipelines-eventflow-discover.yml) | [eventflow-deploy](azure-pipelines-eventflow-deploy.yml) |
+| Private Storage Workspace | [storage-discover](azure-pipelines-storage-discover.yml) | [storage-deploy](azure-pipelines-storage-deploy.yml) |
+| Key Vault | [keyvault-discover](azure-pipelines-keyvault-discover.yml) | [keyvault-deploy](azure-pipelines-keyvault-deploy.yml) |
+| Observability | [observe-discover](azure-pipelines-observe-discover.yml) | [observe-deploy](azure-pipelines-observe-deploy.yml) |
+| HTTP Functions API | [httpapi-discover](azure-pipelines-httpapi-discover.yml) | [httpapi-deploy](azure-pipelines-httpapi-deploy.yml) |
+| Service Bus worker | [busworker-discover](azure-pipelines-busworker-discover.yml) | [busworker-deploy](azure-pipelines-busworker-deploy.yml) |
+
+All entrypoints are manual. Push, PR and discovery-completion triggers are disabled. [azure-pipelines.yml](azure-pipelines.yml) is the build/test/package entry, **not the workload deployment menu**. The generic self-service pair remains a compatibility route with its older stage structure.
+
+1. **Discover:** select the workload, environment and approved subscription/network profile. The pipeline performs read-only collection and publishes `subscription-discovery` with inventory, manifest and provenance.
+2. **Select evidence:** open that workload's Deploy menu on `main`. Under **Resources → discovery**, select a successful matching discovery run no older than seven days. Platform Studio supplies a reviewed picker for the same handoff.
+3. **Preview only:** leave this default selected. Stage **Preview** verifies evidence and inputs, compiles Bicep, and performs Azure validation/What-If. Read **Summary / Extensions** or `deployment-preview/README.md` for resource and property changes, blockers and costs. Native stack What-If uses temporary metadata with cleanup; it does not apply workload resources.
+4. **Preview and deploy:** after platform enablement, queue a new run with this mode. A fresh Preview precedes stage **Deploy**, which qualifies the release bundle, publishes a versioned Template Spec, rechecks drift and applies the Deployment Stack through the relevant adapter. Application workloads use Foundation/package/Release sequencing; infrastructure-only products have no application ZIP.
+5. **Verify the result:** inspect `deployment-result/receipt.json` and product smoke/configuration evidence. `InfrastructureReady` covers infrastructure checks; runtime `Ready` requires its smoke checks. Neither replaces the broader product acceptance checklist. Failures can leave resources; automatic rollback is not implemented.
+
+ADO dropdowns are generated from reviewed catalog configuration; a discovery artifact does not add new queue-time fields midway through a run. Separate workload menus show only the selected product's resource/dependency descriptions. Pipeline approval checks, locks, service connections and private agent connectivity must be configured externally. Contributor permissions alone do not grant permission to create RBAC assignments.
+
+See [pipeline methods and artifact flow](docs/pipeline-flow.md), [Preview runbook](docs/deployment-preview.md), [Create / Reuse / Manage / Blocked decisions](docs/prerequisite-resolution.md) and [Template Spec/Deployment Stack lifecycle](docs/deployment-stacks-upgrade.md). Local Bicep modules are embedded during compilation; a separate module registry is not required.
+
+## Discovery, analysis and diagrams
+
+The suite offers distinct evidence views:
+
+| View | How to use it | Result |
+|---|---|---|
+| **Visible Azure resources** | Connect Azure, open a Microsoft skill, choose **Discover in Azure**, then a registered subscription. | Resource metadata and supported service/network collections, explicit coverage status, downloadable JSON and observed topology. |
+| **Saved discovery analysis** | Upload a matching saved inventory/manifest pair in the portal or use the [analysis script](docs/self-service-analysis.md). | Offline coverage/findings, Markdown, Mermaid, static SVG and output hashes; no Azure connection or model needed. |
+| **Workload proposal** | Configure any of the seven offerings. | Proposed component diagram and comparison with current same-subscription discovery. This is not Azure What-If. |
+| **Saved deployment Preview** | Connect ADO and select a matching saved Preview. | Resource-action diagram from the guarded `deployment-preview` artifact reader. Failed/blocked Preview remains visibly incomplete. |
+
+Connected diagrams support search, pagination, full resource names and SVG export. They use deterministic application rendering. Optional agent-generated Mermaid is advisory downloadable text, not an automatically executed diagram. Read [connected diagram behavior](docs/portal-diagrams.md).
+
+Network inventory includes VNets, configured subnets/peerings, NSG rules, route tables, private endpoints and private DNS zones. It does **not** prove effective reachability, free IP capacity, authoritative IPAM availability or visibility across remote subscriptions. Denied/partial reads remain unknown coverage. Portal inventory reports are supporting evidence, **not deployment manifests**. See [discovery scope and methods](docs/azure-skill-discovery.md).
+
+### Azure Resource Visualizer: the network discovery skill
+
+Microsoft's [Azure Resource Visualizer](https://learn.microsoft.com/en-us/azure/developer/azure-skills/skills/azure-resource-visualizer) is the foundational diagramming skill for our agent-assisted network discovery experience. Its purpose is to explain resource topology and relationships through Mermaid architecture diagrams. The exact [bundled skill](vendor/azure-skills/skills/azure-resource-visualizer/SKILL.md) is registered as `azure--azure-resource-visualizer` and is wired into both **Azure resource visualizer** and **Private network evidence review**. It is more than a library card, but our adapter intentionally implements a narrower scope than the complete upstream workflow.
+
+**Discovery supplies facts; the skill guides interpretation.** The portal's Azure reader collects the inventory using the signed-in user's permissions. The skill does not grant access, perform discovery on its own or prove connectivity. Our MCP bridge gives the agent a frozen evidence snapshot and the selected skill instructions; it does not expose a general-purpose Azure MCP server or Azure CLI to the model.
+
+#### How the connected workflow works today
+
+1. Connect **Azure** and **Codex** in the portal. Azure authorizes resource reads; Codex provides model execution. Neither connection starts a review automatically.
+2. Open **Agent workflows**, select **Azure resource visualizer** or **Private network evidence review**, and choose a registered subscription and visible resource group. No subnet ID or IP range is needed to start this analysis.
+3. Select **Run**. The application verifies resource-group visibility and collects supported resource metadata and network configuration: VNets, subnets, peerings, NSGs, routes, private DNS zones and private endpoints. Cross-group dependencies and uncollected details remain coverage limits.
+4. The application freezes that evidence and supplies `platform_evidence` and `platform_skill` through the scoped MCP bridge. The agent must read both. The visualizer instructions guide grouping, labels and relationships; adapter rules require evidenced connections and explicit unknowns.
+5. Codex returns an advisory Markdown review. The visualization workflow requests a fenced Mermaid diagram; network review explains the available network evidence and missing checks. The application saves `evidence.json`, completed `review.md` and `receipt.json` under `artifacts/portal-agents/<id>/`, including evidence/skill hashes and tool-call records.
+6. Read or download the review. **Agent-generated Mermaid currently appears as text/Markdown, not a rendered diagram in the portal.** The existing graphical discovery and proposed-workload diagrams use the separate deterministic renderer. A completed review does not yet guarantee that Mermaid syntax or relationships have passed a dedicated diagram validator.
 
 ```mermaid
 flowchart LR
-    X[External uploading system] --> B[Solution storage blobs]
-    B --> L[Polling BlobTrigger dispatcher]
-    L --> Q[Explicit Storage work queue]
-    Q --> F[QueueTrigger copy worker]
-    F --> D[Existing data lake]
-    F --> R[Durable transfer ledger]
-    T[Scheduled reconciliation] --> B
-    T --> Q
+    Azure[Azure browser authentication] --> Reader[Selected resource-group discovery]
+    Reader --> Facts[Frozen resource and network evidence]
+    Skill[Bundled Azure Resource Visualizer skill] --> MCP[Scoped MCP evidence bridge]
+    Facts --> MCP
+    MCP --> Agent[Explicit Codex review]
+    Agent --> Review[Markdown and Mermaid source with receipt]
+    Review -. planned .-> Validate[Validate diagram syntax and evidence links]
+    Validate -. planned .-> Render[Render and export agent diagram in portal]
 ```
 
-The Function App contains both the lightweight BlobTrigger dispatcher and the QueueTrigger copy worker. **The blob-transfer workload uses no Event Grid or MCP.** Blob Storage itself does not automatically populate a custom queue: our dispatcher does that after detecting a blob. Azure Storage Actions is not a queue-message publisher. The work queue is in the solution/upload account, while Functions runtime receipts and packages use the dedicated host account.
+#### What remains for the complete network experience
 
-## Included behavior
+The next diagram increment is **planned**: validate generated Mermaid and its resource references, render it safely in the portal, and retain the downloadable source and receipt alongside the visual. The UI should distinguish **observed configuration**, **agent interpretation**, **proposed workload components** and **Azure What-If changes**. Generated output must remain untrusted, with no executable links/directives and no invented connection presented as a verified fact.
 
-- Stable processing ID derived server-side from configured source container, blob name, and ETag.
-- Actual source SHA-256 calculation; identical bytes within a configured scope converge on one destination.
-- Versioned source references when available, with scheduled source-version scanning to recover missed revisions.
-- A dedicated `transfer-ledger` container in the private solution storage account with request/content records, conditional creation and renewable leases for concurrent workers.
-- Conditional destination creation; actual destination hash verification before success.
-- Queue retries, a bounded lifetime attempt budget, persisted reconciliation cursors, missing-destination repair, and conflict quarantine.
-- Monitoring for both dispatcher and worker poison queues, quarantined requests, missing sources, and absent reconciliation heartbeats.
-- A C# operator tool for status and explicitly reviewed recovery. No automatic source deletion.
+Broader network self-service also needs the planned tenant/management-group collectors, explicit coverage reporting, deterministic capacity/DNS/routing checks and authoritative IPAM reservation. A diagram cannot establish free IPs, effective reachability or permission to allocate a subnet. AI can explain supported choices and missing evidence; deterministic platform rules and the reviewed ADO Preview/Deploy path must authorize changes. See the [private networking design](docs/plans/private-networking-self-service.md) and [tenant discovery assessment](docs/plans/tenant-network-discovery.md).
 
-**We cannot prevent an external system uploading a duplicate or overwriting its own file.** We can detect repeated arrivals/revisions and avoid duplicate downstream copies. This is safe repeat processing, not guaranteed single invocation.
+**Acceptance boundary:** the skill binding and scoped MCP path are implemented and locally tested. Live Azure/Codex end-to-end diagram acceptance and the generated-Mermaid rendering path remain outstanding. This section describes the current implementation and intended next steps; it does not enable deployment or network allocation.
 
-Read [architecture](docs/architecture.md), [operations](docs/operations.md), [security/RBAC](docs/security-and-rbac.md), and [validation evidence](docs/validation.md). The [Mermaid guide](docs/diagram-guide.md) and [offline visual edition](docs/diagram-guide.html) explain both the runtime and Bicep organization.
+## Codex agent workflows
 
-For the dispatcher's full requirements, exact method calls, message/configuration contracts, package inventory, and less-visible runtime dependencies, start with the [Dispatcher README](docs/dispatcher/README.md). The [local workflow reference](docs/local-workflow.md) follows the worker, timers, and lifecycle scripts through each action.
+The **Agent workflows** menu runs four bounded advisory workflows. The provider policy is fixed to **GPT-6 Astra**, **High** reasoning and **Standard** speed (`gpt-6-astra` / `high` / `default`). Unsupported settings block execution; there is no alternative-model or API-key fallback.
+
+| Workflow | Evidence | Required connections |
+|---|---|---|
+| Azure resource visualizer | Selected resource-group metadata and configured relationships. | Codex + Azure |
+| Private network evidence review | Selected resource-group network inventory and coverage limits. | Codex + Azure |
+| Workload configuration advisor | Registered product, environment, approved region and proposed topology. | Codex |
+| Saved Preview change review | Matching workload/environment/region and bounded saved Preview resource actions. | Codex + ADO |
+
+On **Run**, the application collects evidence, freezes the snapshot and exposes only `platform_evidence` and `platform_skill` through the in-process MCP bridge. Codex receives the selected metadata and pinned skill, then returns an advisory review. Evidence, completed review and terminal receipt are saved under ignored `artifacts/portal-agents/<id>/`.
+
+The implementation uses native Codex app-server for inference and an experimental **AHP coordination-only profile** for session/readiness communication. It is not a general Azure MCP server or fully conformant AHP host. Agents cannot allocate networks, deploy resources or queue pipelines. Authentication does not execute skills automatically, and Azure/ADO tokens are not sent to the model.
+
+The [agent guide](docs/agent-workflows.md) documents methods, limits, cancellation, identity separation and remaining live acceptance. Local protocol/MCP tests are recorded; completed portal login and live inference acceptance are not established by the checked-in evidence.
+
+### Bundled skills
+
+The [pinned Microsoft Azure Skills bundle](vendor/azure-skills/bundle.json) contains **42 skill definitions across 944 vendored source files**, with licenses and hashes. Browse/read these offline in **Skills library**. Each Microsoft card explicitly states **No pipeline associated yet**; its discovery action supplies supporting inventory rather than the full upstream automation.
+
+Five project skills live under [.agents/skills](.agents/skills): discovery audit, topology reporting, request design, change review and documentation maintenance. Only the four typed agent workflows above are wired to model execution. The documentation skill maintains capability/status guides when development changes; it is not a background watcher. See [skill discovery guide](docs/azure-skill-discovery.md) and [documentation maintenance](docs/README.md#maintaining-these-guides-with-codex).
 
 ## Run Blob copy locally without Azure
 
-From this checkout in PowerShell:
+The original workload remains a complete local transfer path: an external uploader writes an ordinary blob; the polling BlobTrigger dispatches queue work; the worker hashes and copies content; durable ledger records and reconciliation handle retries and recovery. Uploaders do not need custom metadata or queue access. Safe repeat processing is not a guarantee of a single invocation.
+
+```mermaid
+flowchart LR
+    Upload[Ordinary blob upload] --> Dispatcher[Polling BlobTrigger dispatcher]
+    Dispatcher --> Queue[Storage work queue]
+    Queue --> Worker[QueueTrigger copy worker]
+    Worker --> Destination[Destination blob storage]
+    Worker --> Ledger[Durable transfer ledger]
+    Timer[Scheduled reconciliation] --> Queue
+```
+
+From the repository root, run these in order:
 
 ```powershell
 ./scripts/Run-Local.ps1
@@ -120,148 +232,75 @@ From this checkout in PowerShell:
 ./scripts/Stop-Local.ps1
 ```
 
-The launcher checks prerequisites and installs missing tools into ignored project folders, starts Azurite and the real Functions host on loopback, and retains data on stop. No Azure account, Docker, Azure CLI, or Bicep is needed for this local workflow. See [local development](docs/local-development.md) for PowerShell bootstrap, tool versions, logs, explicit reset, and Azure-only validation limits. Stop local mode before `Test-Recovery.ps1`, which uses the same emulator ports.
+The launcher checks/installs missing tools into ignored project folders and starts the real Functions host and Azurite on loopback. Stop preserves data. This path needs no Azure subscription, Docker, Azure CLI or Bicep. It does not emulate Event flow, Service Bus, Entra or private Azure networking.
 
-## Developer self-service: what is available
+Read [local prerequisites, logs and reset](docs/local-development.md), [dispatcher methods and dependencies](docs/dispatcher/README.md), [exact local workflow](docs/local-workflow.md) and [recovery/operations](docs/operations.md). Blob copy's application runtime uses Storage triggers, not Event Grid or MCP. The portal's agent integration is a separate component.
 
-| Offering | What it does and creates | Current evidence |
-|---|---|---|
-| **Blob copy** (`blob-transfer` / `blobcopy`) | Copies uploaded blobs to an existing data lake using a Function App, two storage accounts, queues/ledger, identity, private access, monitoring and recovery. | Real local Functions/Azurite smoke recorded; Azure deployment acceptance outstanding. |
-| **Event flow** (`logic-app-event-grid` / `eventflow`) | Processes document events using Logic App Standard, Event Grid, two storage accounts, eight private endpoints, identities and monitoring. Discovery can plan missing owned VNet/subnets, DNS zones/links and workspace. | Package, Bicep and contract tests pass locally; hosted workflow and Azure deployment acceptance outstanding. |
-
-The five additional offerings and their owned resources are listed in the [onboarding catalog](docs/workload-onboarding.md). Each offering has dev, QA, UAT and prod targets. **All 28 remain disabled for deployment.** Event flow dev now has operator-authorized tags, identity and two exception decisions; it still needs matching discovery and successful live Azure validation. Higher environments require independent onboarding. The [current status matrix](docs/completion-status.md) separates implemented code, local verification, observed ADO steps and remaining work.
-
-### Choose the workload menu
-
-| ADO pipeline | YAML to register |
-|---|---|
-| Discover - Blob copy | [azure-pipelines-blobcopy-discover.yml](azure-pipelines-blobcopy-discover.yml) |
-| Deploy - Blob copy | [azure-pipelines-blobcopy-deploy.yml](azure-pipelines-blobcopy-deploy.yml) |
-| Discover - Event flow | [azure-pipelines-eventflow-discover.yml](azure-pipelines-eventflow-discover.yml) |
-| Deploy - Event flow | [azure-pipelines-eventflow-deploy.yml](azure-pipelines-eventflow-deploy.yml) |
-
-All entrypoints are manual; push, PR and discovery-completion triggers are disabled. `azure-pipelines.yml` is the build/test/package entry, not the developer deployment menu. The generic self-service pair remains a compatibility route with its older setup/six-stage behavior.
-
-### How a request works
-
-1. Run the chosen **Discover** pipeline on `main`: select instance, environment, approved subscription and network profile. It reads inventory and publishes `subscription-discovery`; it creates no Azure resources.
-2. Open the matching **Deploy** pipeline on `main`: select instance, environment and approved region. Under **Resources > discovery**, choose a successful matching run no older than seven days. Subscription, identity, topology and protected resources come from reviewed platform configuration.
-3. Leave **Run stages = Preview only**. Stage **Preview** verifies the manifest/provenance, resolves inputs, compiles Bicep and performs Azure validation/What-If. Read **Summary / Extensions** or `deployment-preview/README.md`. Failed/incomplete previews show blockers, not zero changes. Native stack What-If uses temporary metadata with cleanup; it does not apply workload resources.
-4. After onboarding and enablement, queue a fresh **Preview and deploy** run. Stage **Deploy** qualifies/freezes the app and infrastructure, publishes a versioned Template Spec, rechecks the plan for drift, then applies the Deployment Stack through Foundation and Release. ADO approvals/locks/private agents must be configured externally.
-5. Inspect `deployment-result/receipt.json`. Only `status: Ready` and `ready: true`, backed by workload smoke evidence, establish a successful release. Failures can leave resources; automatic rollback is not implemented.
-
-For Event flow, discovery decisions mean **Create** missing standard resources, **Reuse** approved external resources, **Manage** resources already owned by this stack, or **Blocked** when evidence/configuration is unsafe or unknown. Failed listings never mean resources are absent. Blob copy follows its approved network profile and keeps destination storage externally owned.
-
-The form shows only the chosen workload's resources, dependencies and dated cost references. These are not free-resource claims or live billing quotes. Dropdowns come from generated, reviewed YAML and cannot refresh from an artifact midway through a run. Local modules are embedded in the Template Spec; the separate application ZIP is installed by the workload adapter. Cross-environment application artifact promotion is not yet implemented.
-
-Read the [catalog, exact methods and artifact map](docs/self-service-catalog.md), [ADO registration/onboarding guide](docs/self-service.md), [Preview runbook](docs/deployment-preview.md), [prerequisite resolution](docs/prerequisite-resolution.md) and [cost guide](docs/self-service-costs.md). The [documentation index](docs/README.md) identifies current guides and historical assessments.
-
-### Expansion roadmap
-
-The first enhancement is implemented: [saved-discovery analysis](docs/self-service-analysis.md) produces workload-specific coverage, reported prerequisite actions and Markdown/Mermaid/static SVG reports without Azure calls or a model. Discover now includes this report step; live ADO rendering remains to be verified. See [implementation progress](docs/plans/implementation-progress.md) for completed work and remaining phase gates.
-
-The [self-service expansion and enhancement plan](docs/self-service-expansion-plan.md) proposes a reusable product/adapter contract, private storage, Key Vault, observability, APIs, workers, web apps, databases and later integration/container/AI foundations. It also plans immutable release promotion and reviewed operating actions. These are future offerings with explicit acceptance gates, not additional items currently available in the Run menu. Module registry work is not required.
-
-The proposed [private networking workstream](docs/plans/private-networking-self-service.md) adds a network/subnet analyzer, authoritative IPAM allocation, private connectivity profiles and optional AI-assisted intent/explanations. Its goal is self-service without developer-entered network IDs or IP ranges, backed by deterministic capacity, DNS, routing, ownership and concurrency checks. It is not implemented yet.
-
-## Files and local validation
+## Source layout and ownership
 
 ```text
-workloads/blob-transfer/   main.bicep, stack.bicep, request contract
-  environments/            main.{dev,qa,uat,prod}.bicepparam
-  modules/                 workload-specific Function, monitoring, network and RBAC
-workloads/logic-app-event-grid/  Logic App/Event Grid composition, stack and environments
-modules/                   reusable storage, network, monitoring, Logic App and Event Grid
-platform/                  separately operated Policy and registry templates
-config/                    reviewed topology and stack/publication policy
-src/BlobTransfer/          dispatcher, queue worker, ledger, timers, recovery
-src/TransferTool/          status / reviewed resume CLI
-src/LogicAppEventFlow/     packaged stateful workflow content
-tests/BlobTransfer.Tests/  policy and Azurite integration tests
-tests/infrastructure/      locked YAML parser and pipeline/Bicep contract checks
-scripts/                   validation, local recovery tests, deployment, smoke, packaging
-docs/                      design, operations, diagrams, evidence
-azure-pipelines.yml        test/package CI; no automatic deployment
-azure-pipelines-self-service.yml  manual discovery and saved manifest
-azure-pipelines-self-service-deploy.yml  deployment from a selected discovery run
-pipelines/                 protected-resource bindings and plan/apply templates
-self-service/targets/      disabled catalog examples for platform onboarding
+src/
+  SelfService.Portal/          Real web host, UI, identity, ADO, diagrams, MCP/Codex
+  BlobTransfer/               Dispatcher, queue worker, ledger and recovery
+  TransferTool/               Operator status and reviewed recovery commands
+  LogicAppEventFlow/          Packaged Logic App workflow content
+  ProductFunctions/          HTTP health and Service Bus receipt starter functions
+workloads/<product>/          main.bicep, stack.bicep, request schema, environment parameters
+modules/                     Shared Bicep resource contracts and module documentation
+platform/                    Independently operated shared platform templates
+config/                      Product registry, topology, naming, costs and delivery policy
+self-service/targets/        Reviewed environment/region/protected-resource bindings
+pipelines/                   Shared Discover, Preview, Deploy and adapter templates
+azure-pipelines-*.yml        Generated workload-specific entrypoints and compatibility routes
+scripts/                    Lifecycle, analysis, build, discovery, deployment and verification
+.agents/skills/              Five project skill definitions
+vendor/azure-skills/         Pinned Microsoft instructions, references, licenses and hashes
+tests/                      Unit/integration/contract tests and explicit synthetic fixtures
+docs/                       Setup, methods, operations, evidence and expansion plans
 ```
 
-See [Bicep repository conventions](docs/repository-structure.md) for Microsoft source references, module placement, environment/stack configuration, and the migration from the old root template paths. Use the dedicated workload YAML files listed above; the original generic files remain for compatibility.
+Application code and the first-party analyzer are authoritative source; test fixture servers do not power normal portal startup. Generated runtime skill copies are not source. `.local/`, `artifacts/`, build outputs, private settings and credential caches are excluded by [.gitignore](.gitignore). Configuration examples and skill definitions remain tracked. Git exclusions are not a substitute for reviewing credentials before publication.
 
-Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward. Run the following commands from the Git checkout root; the original archive is a historical snapshot.
+See [repository structure and source boundaries](docs/repository-structure.md#source-runtime-state-and-test-boundaries). Keep shared modules reusable, product ownership in workload compositions and environment bindings in reviewed configuration. Do not use legacy manual incremental deployment scripts to modify stack-managed resources.
 
-For this GitHub repository, clone `https://github.com/Enetact/Bicep.git` and enter its checkout instead. The Azure DevOps pipeline can connect to this GitHub repository; GitHub hosting does not require changing the deployment system to GitHub Actions. `.gitattributes` keeps source line endings consistent for manifest verification.
+## Verify and package
+
+For repository metadata checks that do not restart services:
 
 ```powershell
-az bicep install --version v0.47.16
+./scripts/Test-RepositoryHygiene.ps1
+./scripts/Update-ServiceCatalog.ps1 -Check
 ./scripts/Update-Manifest.ps1 -Check
-./scripts/Test-Project.ps1
-./scripts/Test-Recovery.ps1
-./scripts/Build-Package.ps1 -ReleaseId 'queue-recovery-001'
 ```
 
-Ordinary unit-test runs skip emulator integration tests explicitly. `Test-Recovery.ps1` starts its own loopback-only Azurite, runs the integration tests, and stops only that process. It refuses already-occupied emulator ports and retains test data/evidence under `artifacts`. Azure is not required for local tests.
-
-The project check also exercises tooling contracts, parses pipeline YAML and checks template bindings/stage artifacts using the locked test-only YAML parser under `tests/infrastructure`. It requires Node.js 22+ and npm, restores that dependency with install scripts disabled, and writes unit-test/advisory/pipeline evidence to `artifacts/test-results`. Unavailable advisory data (`NU1900`) fails validation. Packaging checks the exact five Function names/triggers and writes the ZIP, SHA-256, generated metadata, compiled environment templates, and `release.json` to `artifacts/releases/<release-id>`. The receipt records the Git commit and whether local edits were present; it is provenance, not a signature or proof of approval. CI publishes this curated release folder and test results, rather than emulator tooling/data.
-
-After intentional source changes, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1` and review the diff. Do not regenerate it automatically in CI. Use the [current self-service guide](docs/self-service.md) for implementation/setup and the [historical assessment](docs/self-service-azure-devops-assessment.md) for original proposals and deferred architecture.
-
-## Configure Blob copy environments
-
-Edit owner, cost center, destination subscription/RG/account/container, source scope mapping, CIDRs, optional existing group IDs, and alert action groups in each `.bicepparam`. The destination container must already exist. Confirm actual regional SKU, zone, runtime and quota availability.
-
-The default scope mapping `{ '': 'default' }` covers every source filename in the container. A server-controlled longest-prefix map can separate opaque customer/claim/document-purpose scopes, for example `{ 'customer-a/': 'scope-a', 'customer-b/': 'scope-b' }`. This uses existing source paths, not uploader metadata. If no reliable business scope can be inferred, use container-wide deduplication or establish an authoritative mapping first.
-
-| Environment | Plan | Instances | Storage | Logs |
-|---|---|---:|---|---|
-| Dev | B1 | 1 | LRS | 30 days |
-| QA | S1 | 1 | LRS | 30 days |
-| UAT | P1v3 | 2 | ZRS | 90 days |
-| Prod | P1v3, zonal subject to support | 3 | ZRS | 90 days |
-
-By default each environment gets one workspace shared by this workload's components and one workspace-based Application Insights component. Set `existingLogAnalyticsWorkspaceId` through reviewed configuration to reuse an existing workspace; its configuration and access remain the monitoring team's responsibility. Prod requires action groups through the deployment script.
-
-## Manual Blob copy deployment sequence
-
-The commands below are the manual Blob copy path. For governed self-service, use the Discover/Deploy menus above. No successful Azure workload deployment is established in the reviewed evidence. Replace placeholders, review settings, and use a runner/workstation with approved private connectivity.
+For portal verification and portable Windows packages:
 
 ```powershell
-az login
-$subscription = '<application-subscription-id>'
-$rg = 'rg-blobcopy-dev'
-az account set --subscription $subscription
-az group create --subscription $subscription --name $rg --location eastus2
-
-./scripts/Deploy.ps1 -EnvironmentName dev -SubscriptionId $subscription -ResourceGroup $rg -Phase Bootstrap -Mode WhatIf
-./scripts/Deploy.ps1 -EnvironmentName dev -SubscriptionId $subscription -ResourceGroup $rg -Phase Bootstrap -Mode Deploy
-
-# Establish private routing/DNS, approve private endpoints, and allow RBAC propagation.
-$release = 'queue-recovery-001'
-./scripts/Build-Package.ps1 -ReleaseId $release
-$zip = "./artifacts/releases/$release/$release.zip"
-./scripts/Deploy.ps1 -EnvironmentName dev -SubscriptionId $subscription -ResourceGroup $rg -Phase Release -ReleaseId $release -Mode WhatIf
-./scripts/Deploy.ps1 -EnvironmentName dev -SubscriptionId $subscription -ResourceGroup $rg -Phase Release -ReleaseId $release -PackagePath $zip -Mode Deploy
-
-$o = (az deployment group show --subscription $subscription --resource-group $rg --name blobcopy-dev --query properties.outputs -o json | ConvertFrom-Json)
-./scripts/Smoke-Test.ps1 -SubscriptionId $subscription -UploadAccount $o.uploadStorageAccountName.value -DestinationSubscriptionId '<destination-subscription-id>' -DestinationAccount '<actual-datalake-account>' -DestinationContainer 'blobcopy-dev'
+./scripts/Stop-Portal.ps1
+./scripts/Test-Portal.ps1
+./scripts/Publish-Portal.ps1
+./scripts/Start-Portal.ps1
 ```
 
-The live smoke script performs ordinary blob uploads without queue sends or custom metadata, including two names with identical bytes and a repeated overwrite. It checks all three revision records and one shared destination. The tester needs source write, ledger read and destination read permissions. Synthetic data remains for audit.
+Publishing produces self-contained `win-arm64.zip` and `win-x64.zip` under `artifacts/portal-packages/<timestamp>/`. Extract the matching architecture package, configure its local settings and run `SelfService.Portal.exe`. These are unsigned portable packages, not installers. Node.js remains required for analysis; native Codex is a separate prerequisite for agent reviews. See [package configuration and requirements](docs/local-portal.md#arm64-and-x64-packages).
 
-Bootstrap is for first provisioning. The script rejects Bootstrap when that workload/environment already has a Function App, preserving runtime alerts; use Release for subsequent updates. `-ParameterPath` accepts a workload-specific `.bicepparam` and checks that its environment matches `-EnvironmentName`. Deployment history is named `<workload>-<environment>`; compilation/effective parameters use a unique local folder for each invocation. Manual scripts require operators to serialize deployments. The self-service pipeline uses sequential apply stages, but platform owners must configure the environment's exclusive lock check and prevent concurrent out-of-band changes.
+The wider infrastructure/runtime regression entry is `./scripts/Test-Project.ps1`; use the [validation guide](docs/validation.md) and [workload onboarding checks](docs/workload-onboarding.md) for tooling and integration prerequisites. After intentional source/documentation edits, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1`, then run its `-Check` mode. Do not regenerate it merely to conceal unexpected drift.
 
-For a custom scope map, give the smoke test the same mapping used by the Function and an authorized prefix, for example `-SourcePrefix 'claims/smoke/' -ScopePrefixesJson '{"claims/":"claims"}'`. Pass custom upload/ledger container names too. The test derives the scope before writing any blob; an optional `-ScopeId` is checked against that mapping.
+**Recorded evidence, not tests rerun by this README update:** the 27 September agent increment records 85 backend tests, six diagram tests, 944 vendored file hashes, and 24 HTTP plus five AHP checks for each Windows package. ARM64 ran natively; x64 ran under ARM emulation. Earlier product verification compiled all seven workload compositions/wrappers and environment files and checked the pipeline contracts. Native x64 hardware, live model/provider acceptance and full Azure deployment/private-network acceptance remain outstanding. See [validation history](docs/validation.md) and [machine-readable evidence](docs/validation-results.json).
 
-## Boundaries
+## Documentation and expansion
 
-- Source is non-HNS StorageV2 with versioning enabled; ordinary committed block blobs are supported. Destination may be ADLS Gen2 through Blob APIs.
-- Polling is not immediate push or a real-time SLA. Two dispatcher and two copy invocations per host instance are configured; ordering is not guaranteed.
-- Only two storage accounts are created: host and solution. The solution account holds incoming blobs, work/poison queues and the separate ledger container. Both accounts remain private with shared keys disabled; no trusted-service firewall exception is added. The existing destination is referenced separately.
-- The template does not provision the external uploading system, VPN, peering, DNS resolver, runner, egress firewall, or malware scanner.
-- Network mode can create a dedicated VNet or reuse approved existing subnet/private DNS IDs. Existing mode does not redeploy the shared network; private endpoint creation and DNS records still require platform permissions.
-- Monitor endpoints remain public, authenticated TLS. Existing destination settings remain owner-managed.
-- Destination names now use `v1/<scope>/<content-sha256>/payload`; original names map through ledger records. Earlier destination files/receipts are not migrated automatically. If upgrading from a separate ledger account, follow the ledger migration procedure in [operations](docs/operations.md) before switching endpoints.
-- Full hash verification and scanning retained versions add IO/cost. Review retention, backup, load, poison handling, and operational ownership.
-- Local tests do not prove real Azure triggers, identity, private networking, version listing, or alert delivery. Complete the live acceptance checks before production.
+| Goal | Start here |
+|---|---|
+| Install/connect the portal | [Platform Studio setup](docs/local-portal.md) |
+| Understand current delivery status | [Completion matrix](docs/completion-status.md), [verification log](docs/validation.md) |
+| Operate or onboard a workload | [Seven-product onboarding](docs/workload-onboarding.md), [catalog and method map](docs/self-service-catalog.md) |
+| Configure ADO and Preview | [Self-service setup](docs/self-service.md), [pipeline flow](docs/pipeline-flow.md), [Preview](docs/deployment-preview.md) |
+| Review permissions and governance | [Security/RBAC](docs/security-and-rbac.md), [Deployment Stacks](docs/deployment-stacks-upgrade.md) |
+| Understand diagrams and agents | [Portal diagrams](docs/portal-diagrams.md), [agent workflows](docs/agent-workflows.md), [offline analysis](docs/self-service-analysis.md) |
+| Extend products and reusable modules | [Repository conventions](docs/repository-structure.md), [module catalog](modules/README.md), [expansion plan](docs/self-service-expansion-plan.md) |
+| Find all current and historical guides | [Documentation index](docs/README.md) |
+
+The five additional Storage, Key Vault, Observability, HTTP API and Service Bus offerings are **implemented in source**, with acceptance work remaining. Further expansion includes tenant/management-group network discovery, authoritative IPAM and subnet reservation, qualified private-connectivity profiles, more scoped MCP review adapters, immutable cross-environment promotion and additional application/database/container offerings.
+
+Those extensions remain planned. Follow the [implementation progress](docs/plans/implementation-progress.md), [private networking design](docs/plans/private-networking-self-service.md), [tenant discovery assessment](docs/plans/tenant-network-discovery.md) and [platform MCP/skills plan](docs/plans/platform-mcp-skills.md) for their contracts and acceptance gates.
