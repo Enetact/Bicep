@@ -1,10 +1,12 @@
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
+import { setupAgents } from './agents.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
 let data, chosen, auth = { connected: [] }, ticket, reviewedProduct, loginTimer, runTimer;
 let discoverySkill, discoveryBusy = false, discoveryReport;
 const runs = [], diagramUrls = [];
 let selectionVersion = 0;
+let refreshAgents;
 function clearPreview() { selectionVersion++; $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
@@ -73,6 +75,7 @@ async function refreshAuth() {
   $('auth-detail').textContent = auth.error ?? (auth.state === 'Waiting for Microsoft' ? 'Your default browser is opening Microsoft sign-in. Complete account selection, consent and MFA there. This page will update automatically.' : auth.state === 'Connected' ? 'Connection complete. You can return to Workloads.' : 'Click Connect to open Microsoft sign-in. Cancelled or failed sign-in can be retried.');
   if (auth.state !== 'Waiting for Microsoft') { clearInterval(loginTimer); loginTimer = null; }
   updateGates();
+  if (refreshAgents) await refreshAgents();
 }
 for (const audience of ['ado', 'azure']) action('connect-' + audience, async () => { await api('auth/' + audience, {}); await refreshAuth(); if (!loginTimer && auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => { clearInterval(loginTimer); notice(e.message, true); }), 2000); });
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
@@ -95,7 +98,8 @@ function drawSkills() {
     button.addEventListener('click', async () => { try { const skill = await api('skills/' + s.id); $('skill-detail').hidden = false; $('skill-title').textContent = skill.name; $('skill-content').textContent = skill.content; $('skill-detail').scrollIntoView({ behavior: 'smooth' }); } catch (e) { notice(e.message, true); } });
     card.append(make('div', s.origin, 'eyebrow'), make('h2', s.name), make('span', s.pipelineStatus, 'tag'), make('p', s.description));
     const controls = make('div', null, 'skill-actions'); controls.append(button);
-    if (s.discoveryProfile !== 'none') { const discover = make('button', 'Discover in Azure →', 'primary'); discover.addEventListener('click', () => openSkillDiscovery(s)); controls.append(discover); card.append(make('p', `Browser-authenticated discovery: ${s.discoveryProfile}. Upstream workflow execution is not enabled.`, 'muted')); }
+    if (s.discoveryProfile !== 'none') { const discover = make('button', 'Discover in Azure →', 'primary'); discover.addEventListener('click', () => openSkillDiscovery(s)); controls.append(discover); card.append(make('p', `Browser-authenticated discovery: ${s.discoveryProfile}. Full upstream execution is not enabled. Selected bounded reviews are available in Agent workflows.`, 'muted')); }
+    if (['azure--azure-resource-visualizer', 'platform-request-design', 'platform-change-review'].includes(s.id)) { const agent = make('button', 'Open agent workflows →', 'secondary'); agent.addEventListener('click', () => page('agents')); controls.append(agent); }
     card.append(controls); if (s.sourceUrl) { const link = make('a', 'Pinned Microsoft source ↗', 'muted'); link.href = s.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link); } return card;
   }));
 }
@@ -183,5 +187,6 @@ try {
     card.append(details, button); return card;
   }));
   drawSkills();
+  refreshAgents = setupAgents({ api, data, notice });
   await refreshAuth(); if (auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => notice(e.message, true)), 2000);
 } catch (e) { notice(e.message, true); }

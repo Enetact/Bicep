@@ -1,5 +1,7 @@
 # Enhanced self-service implementation progress
 
+**Codex/MCP follow-up, 27 September 2026:** four bounded [agent evidence reviews](../agent-workflows.md), a local MCP SDK bridge, isolated ChatGPT sign-in and AHP coordination are implemented within the portal project. This supersedes the earlier “no AI/MCP runtime” boundary only for these adapters. Live login/inference/provider acceptance, general AHP synchronization and the enterprise network allocator remain open.
+
 **Product expansion, 27 September 2026:** five additional workload types now share a typed product adapter and code-owned registry, with 20 disabled profiles and ten dedicated YAML roots. Infrastructure products have no application ZIP; HTTP/worker products have locked runtime packages and focused tests. [Onboarding](../workload-onboarding.md) records exact ownership, methods, dependencies and unverified live acceptance. This advances the product portion of V2/V5 independently of the future allocator; V3/V4 and live promotion remain gated.
 
 Started 26 September 2026 after authorization to review the documentation/structure and proceed through the plan. This record tracks actual increments separately from the [target design](enhanced-self-service-validation.md). It is not permission to skip a required technical acceptance gate.

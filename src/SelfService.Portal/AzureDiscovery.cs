@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace SelfService.Portal;
 
-public record SkillDiscoveryRequest(string SkillId, string SubscriptionId);
+public record SkillDiscoveryRequest(string SkillId, string SubscriptionId, string? ResourceGroup = null);
 public record DiscoveryCollection(string Name, string Status, int Pages, int Observed, string? Issue, object[] Resources);
 
 // A deterministic ARM reader, not an interpreter of upstream skill instructions.
@@ -19,6 +19,13 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
         ["messaging"] = ["Microsoft.EventGrid/", "Microsoft.EventHub/", "Microsoft.ServiceBus/"],
         ["monitoring"] = ["Microsoft.Insights/", "Microsoft.OperationalInsights/"], ["data"] = ["Microsoft.Kusto/"]
     };
+    public async Task<DiscoveryCollection> ResourceGroups(BrowserSession session, string subscription, CancellationToken ct)
+    {
+        if (!Guid.TryParse(subscription, out var id) || !catalog.Products.SelectMany(p => p.Targets).Any(t => t.SubscriptionId.Equals(id.ToString(), StringComparison.OrdinalIgnoreCase)))
+            throw new PortalException("Select a registered subscription.", 403);
+        var token = await identity.Token(session, "azure");
+        return await Collect(token, "Resource groups", $"/subscriptions/{id}/resourcegroups?api-version=2021-04-01", [], ct);
+    }
     public async Task<object> Discover(BrowserSession session, SkillDiscoveryRequest request, CancellationToken cancellation)
     {
         var skill = catalog.Skills.SingleOrDefault(s => s.Id == request.SkillId) ?? throw new PortalException("Unknown skill.");
@@ -30,6 +37,11 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
         var token = await identity.Token(session, "azure"); // Authentication failure is never an empty inventory.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); timeout.CancelAfter(TimeSpan.FromMinutes(2));
         var scope = $"/subscriptions/{subscription}";
+        if (request.ResourceGroup is not null)
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(request.ResourceGroup, "^[a-zA-Z0-9_.()-]{1,90}$")) throw new PortalException("Select a valid resource group.");
+            scope += $"/resourceGroups/{Uri.EscapeDataString(request.ResourceGroup)}";
+        }
         var collections = new List<DiscoveryCollection>
         {
             await Collect(token, "Resources", $"{scope}/resources?api-version=2021-04-01", prefixes, timeout.Token)
@@ -45,7 +57,7 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
         var report = new
         {
             schemaVersion = 1, kind = "portal-skill-discovery", id, generatedUtc = DateTimeOffset.UtcNow,
-            skillId = skill.Id, skillName = skill.Name, profile = skill.DiscoveryProfile, subscriptionId = subscription,
+            skillId = skill.Id, skillName = skill.Name, profile = skill.DiscoveryProfile, subscriptionId = subscription, resourceGroup = request.ResourceGroup,
             pipelineStatus = "No pipeline associated yet", readOnly = true, deploymentAuthorized = false, allocationAuthorized = false,
             status = collections.All(c => c.Status is "Succeeded" or "SucceededEmpty") ? "Collected" : "Partial",
             coverage = "Only resources visible to the signed-in Azure user in this registered subscription. Successful collection is not proof of enterprise-wide visibility.",
@@ -95,6 +107,10 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
                     var resourceId = Text(value, "id");
                     if (resourceId is null || !resourceId.StartsWith($"/subscriptions/{start.AbsolutePath.Split('/')[2]}/", StringComparison.OrdinalIgnoreCase))
                         return Failed("Invalid or out-of-scope resource identifier; remaining coverage unknown.");
+                    var groupParts = start.AbsolutePath.Split('/');
+                    if (groupParts.Length > 4 && groupParts[3].Equals("resourceGroups", StringComparison.OrdinalIgnoreCase) &&
+                        !resourceId.StartsWith($"/subscriptions/{groupParts[2]}/resourceGroups/{Uri.UnescapeDataString(groupParts[4])}/", StringComparison.OrdinalIgnoreCase))
+                        return Failed("Resource group scope mismatch; remaining coverage unknown.");
                     observed++;
                     var type = Text(value, "type") ?? "";
                     if (prefixes.Length == 0 || prefixes.Any(p => type.StartsWith(p, StringComparison.OrdinalIgnoreCase))) resources.Add(Project(value, name));

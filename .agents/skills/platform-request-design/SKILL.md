@@ -1,11 +1,11 @@
 ---
 name: platform-request-design
-description: Turn a developer's request into an existing Blob copy or Event flow catalog selection and validated local request draft. Use for choosing supported workload, environment and region; does not queue or deploy.
+description: Explain a registered workload, environment and region selection, or validate a local typed request draft using repository tooling. Supports the seven-product catalog; does not queue or deploy.
 ---
 
 # Design a supported request
 
-This project skill supports the current local catalog. The future platform MCP tool facade is not implemented; do not invent tool calls or an Auto networking field.
+This project skill supports the current local catalog. In the portal agent workflow, read `platform_skill` and `platform_evidence`: these MCP tools supply a frozen catalog selection and its coverage limits. Explain only that selection; do not claim a typed draft was created or resolved. File/script steps below apply only to a separately requested repository-authoring workflow. See [portal agent adapters](../../../docs/agent-workflows.md). Do not invent an Auto networking field or additional tools.
 
 Read [the catalog](../../../docs/self-service-catalog.md), the selected `workloads/<type>/request.schema.json` and example, and matching files under `self-service/targets/`. Use the actual repository root, not a hard-coded drive. Match workload type, instance, environment and region together; do not infer target enablement from a display name.
 

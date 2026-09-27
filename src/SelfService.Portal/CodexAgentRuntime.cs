@@ -14,6 +14,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     readonly CancellationTokenSource lifetime = new();
     readonly Task reader;
     long sequence;
+    int disposed;
     TaskCompletionSource<string>? turnFinished;
     string? activeThread;
     string finalText = "";
@@ -54,10 +55,12 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
         start.ArgumentList.Add("app-server"); start.ArgumentList.Add("--listen"); start.ArgumentList.Add("stdio://");
         start.Environment["CODEX_HOME"] = home;
-        foreach (var key in start.Environment.Keys.Where(k => k.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) || k.StartsWith("AZURE_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("CODEX_", StringComparison.OrdinalIgnoreCase) && k != "CODEX_HOME").ToArray()) start.Environment.Remove(key);
+        foreach (var key in start.Environment.Keys.Where(k => k.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) || k.StartsWith("OPENAI_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("AZURE_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("CODEX_", StringComparison.OrdinalIgnoreCase) && k != "CODEX_HOME").ToArray()) start.Environment.Remove(key);
         var runtime = new CodexAgentRuntime(Process.Start(start) ?? throw new PortalException("Codex could not start.", 503), home);
         try
         {
+            await File.WriteAllTextAsync(Path.Combine(home, "process.json"), JsonSerializer.Serialize(new { pid = runtime.process.Id, parentPid = Environment.ProcessId,
+                executable = exe, startedUtc = runtime.process.StartTime.ToUniversalTime() }), ct);
             await runtime.Call("initialize", new { clientInfo = new { name = "platform_studio", title = "Platform Studio", version = "1.0.0" }, capabilities = new { experimentalApi = true } }, ct);
             await runtime.Write(new { method = "initialized" }, ct);
             return runtime;
@@ -177,6 +180,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         var id = Interlocked.Increment(ref sequence); var promise = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = promise;
         try { await Write(new { id, method, @params = parameters }, ct); return await promise.Task.WaitAsync(TimeSpan.FromSeconds(45), ct); }
+        catch (TimeoutException) { throw new PortalException("Codex protocol request timed out. Disconnect and reconnect Codex.", 504); }
         finally { pending.TryRemove(id, out _); }
     }
     async Task Write(object value, CancellationToken ct)
@@ -187,11 +191,13 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref disposed, 1) != 0) return;
         lifetime.Cancel();
         try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+        try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); } catch { }
         try { await reader.WaitAsync(TimeSpan.FromSeconds(5)); } catch { }
         process.Dispose();
         // Only this runtime's credential file, never desktop credentials or arbitrary paths.
-        try { File.Delete(Path.Combine(Home, "auth.json")); } catch (IOException) { }
+        try { File.Delete(Path.Combine(Home, "auth.json")); File.Delete(Path.Combine(Home, "process.json")); } catch (IOException) { }
     }
 }

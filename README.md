@@ -35,7 +35,9 @@ From this repository root:
 ./scripts/Stop-Portal.ps1
 ```
 
-The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the dedicated pipeline definitions for each selected workload; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets or execute an AI/MCP agent.
+The local catalog and analyzer work without Azure sign-in. Browser sign-in and real ADO runs require a separate Entra desktop app registration and the dedicated pipeline definitions for each selected workload; follow the [registration and packaging guide](docs/local-portal.md). Live authentication and deployment acceptance are still pending. The portal does not enable deployment targets.
+
+**Agent workflows:** [Codex agent-host integration](docs/agent-workflows.md) adds resource visualization, network evidence review, workload advice and saved Preview review. The model is fixed to **GPT-6 Astra / High / Standard**, using separate ChatGPT browser authentication and a scoped MCP evidence bridge. AHP supplies a bounded coordination profile; typed workflow requests run Codex. Sign-in enables eligible menu actions, never automatic inference. Local contracts and native Codex startup are verified; live login/model/Azure/ADO acceptance is still pending.
 
 ### Use the Azure Skills library
 
@@ -55,7 +57,7 @@ The library ships with **42 Microsoft Azure skill definitions and their supporti
 
 Discovery reads only the selected registered subscription using the signed-in user's access. A successful empty query means no matching visible resources were found. Permission errors, timeouts and incomplete reads remain **Failed/Partial**, with unknown coverage. They do not authorize resource creation.
 
-Networking discovery is the first inventory step in the [private networking plan](docs/plans/private-networking-self-service.md). IP availability, IPAM reservations, effective connectivity and remote-network coverage remain unverified. Automatic subnet selection/allocation, AI execution and new skill-specific pipelines are still planned. These reports are **not deployment manifests**; the existing Blob copy and Event flow Discover → Preview → Deploy pipelines keep their own artifact and approval requirements.
+Networking discovery is the first inventory step in the [private networking plan](docs/plans/private-networking-self-service.md). IP availability, IPAM reservations, effective connectivity and remote-network coverage remain unverified. Automatic subnet selection/allocation and new skill-specific pipelines are still planned; the four bounded agent reviews are described above. These reports are **not deployment manifests**; the existing Blob copy and Event flow Discover → Preview → Deploy pipelines keep their own artifact and approval requirements.
 
 ### Verification and Windows packages
 

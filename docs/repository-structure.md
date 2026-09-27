@@ -4,7 +4,24 @@
 
 `vendor/azure-skills/` preserves a pinned Microsoft skill snapshot, nested guidance, supporting resources, licenses and `bundle.json` hashes. It is reference content for the portal, outside the active project `.agents/skills` instructions. `AzureDiscovery.cs` implements fixed read-only ARM adapters; vendor scripts and plugin hooks are not executed. See [bundle maintenance](azure-skill-discovery.md#updating-and-packaging-the-bundle).
 
-The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources; it does not move Bicep compositions, introduce another workload registry or implement the planned MCP server. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
+The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfService.Portal.Tests/`, `tests/portal/` and `scripts/*-Portal.ps1`. It consumes the existing generated YAML/target/skill sources without moving Bicep compositions or introducing another workload registry. `AgentWorkflows`, `AgentPolicy`, `CodexAgentRuntime`, `AgentMcpBridge` and `AgentHostChannel` implement the bounded local [Codex/MCP review path](agent-workflows.md); the broader enterprise facade remains proposed. See the [portal structure and method map](local-portal.md#structure-methods-and-boundaries).
+
+## Source, runtime state and test boundaries
+
+| Location | Purpose and Git policy |
+|---|---|
+| `src/SelfService.Portal/*.cs` | Real application endpoints, identities, readers, Codex host, AHP coordination and MCP bridge. Included by the SDK project in Release/publish builds. |
+| `src/SelfService.Portal/wwwroot/` | Real portal UI, agent controls and deterministic topology renderer. No fixture-server dependency. |
+| `scripts/analysis/` | Shared production offline analyzer invoked by the portal and command-line wrapper; test fixtures live separately. |
+| `config/`, `self-service/`, `schemas/`, root YAML and `pipelines/` | Versioned catalog, contracts, targets and deployment routing. Local credentials do not belong here. |
+| `workloads/`, `modules/`, `environments/`, `platform/` | Versioned workload compositions, reusable Bicep modules, environment inputs and separately operated platform infrastructure. |
+| `.agents/skills/`, `vendor/azure-skills/` | Versioned project instructions and pinned Microsoft guidance/support files. Upstream scripts and hooks are not automatically enabled. |
+| `tests/` | Versioned test code and synthetic fixtures. Never a production application dependency. The optional diagram fixture server runs separately on 5098; normal startup uses 5087. |
+| `.local/`, `.tools/`, `.azure/`, `artifacts/`, `bin/`, `obj/` | Ignored runtime state, tools, credentials, generated reports and build/package output. Generated `SKILL.md` copies in a Codex runtime home are not authoritative source. |
+
+Run `./scripts/Test-RepositoryHygiene.ps1` before a source commit. It checks representative private/generated paths, real first-party source tracking eligibility, mistakenly tracked ignored files, portal test-path references and any available Release dependency graph. It does not stage/remove files, read token values, run inference or certify repository history as secret-free. New source shown by `git status --short` as `??` must still be included in the intended commit. Keep sanitized example settings and dependency lock files versioned; do not ignore `.codex/` wholesale because it can contain project instructions and configuration.
+
+The agent integration uses real application code and an in-process MCP server; it does not require a test harness or a separate external MCP daemon. Its functional limits remain explicit: four bounded reviews, AHP coordination only, and broader Azure MCP/tenant networking work still proposed. HTTP API and Service Bus worker remain documented starter workload samples rather than completed business applications. Source placement does not establish live provider acceptance.
 
 Reviewed against Microsoft Learn and Microsoft's Bicep/AVM repositories on 19 September 2026. This is a workload deployment repository containing its application, not the Bicep compiler or an AVM publishing repository.
 

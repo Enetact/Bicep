@@ -1,6 +1,6 @@
 # Connected discovery, workload and Preview diagrams
 
-Implemented locally on 27 September 2026. The portal renders deterministic diagrams from evidence and reviewed component definitions. It does not execute the bundled Microsoft Azure visualizer skill, invoke MCP, or call a model. Diagrams do not enable deployment targets or authorize resource creation.
+Implemented locally on 27 September 2026. The connected diagram views render deterministic diagrams from evidence and reviewed component definitions. Separately, [Agent workflows](agent-workflows.md) can invoke Codex with the pinned Microsoft visualizer and a scoped MCP evidence snapshot; its Markdown/Mermaid is displayed as advisory source text. The deterministic views do not call a model. Neither path enables deployment targets or authorizes resource creation.
 
 ## Use the connected views
 

@@ -1,5 +1,21 @@
 # Validation evidence
 
+## Source and runtime hygiene audit: 27 September 2026
+
+Expanded `.gitignore` for Codex/Azure/MSAL credential files, repository-local Codex state, private certificate/key files, test evidence and editor files. Preserved example settings, project instructions, source and fixtures. `./scripts/Test-RepositoryHygiene.ps1` passed **15 ignore probes and 169 source/control-path checks** with no tracked ignored files, portal test-path references or test dependencies in the available Release dependency graph.
+
+Read-only process inspection matched the portal ownership receipt to the live Release assembly and executable on localhost 5087. Ports 5088 (package test) and 5098 (diagram fixture) had no listeners; no diagram fixture process was found. MSAL and ModelContextProtocol were in the application's dependency graph; test-host/xUnit dependencies were absent. No source relocation was needed: application code, first-party analyzer, Bicep modules, catalog/skills and tests already have separate authoritative locations. The audit left the portal running and did not rebuild, stop services, inspect token contents or invoke a model.
+
+The user reported Codex connected. At this inspection the portal had no active Codex child or agent process receipt, so portal-level authentication could not be confirmed; this does not establish the state of a separate Codex desktop login. Model/provider acceptance remains distinct from the source/runtime audit. This is not a full-history secret scan or production-readiness certification.
+
+## Codex agent workflows: 27 September 2026
+
+Implemented four bounded reviews with GPT-6 Astra / High / Standard, isolated ChatGPT sign-in, scoped MCP tools and an experimental AHP coordination profile. **85 backend tests passed, zero failed/skipped**, including the explicitly enabled native Codex 0.153.2 startup, account-read, inherited-MCP check and login-start/cancel protocol without completing login or invoking a model. Real in-process MCP tests cover isolated evidence, revoked sessions, scope/tool rejection and call budgets. Resource-group route and input validation tests passed. Evidence: `artifacts/test-results/portal.trx`.
+
+The unchanged diagram suite passed **six tests**, and all **944 vendored source hashes** passed. The running source portal passed **24 actual HTTP checks** and **five AHP WebSocket coordination checks**. A fresh in-app browser tab showed the four workflows, fixed model settings and disabled Run before required authentication; the older tab had stale initialization state. No Azure resource changes, ADO queue requests, credentials entry, completed ChatGPT login or inference occurred. Model-generated reviews, native x64 hardware, live consent/permissions and Azure/ADO acceptance remain unverified. See [agent contracts and remaining validation](agent-workflows.md).
+
+Rebuilt packages: `artifacts/portal-packages/20260927-124510/win-arm64.zip` and `win-x64.zip`. Each published folder passed 24 HTTP and five AHP checks. ARM64 ran natively; x64 ran under Windows ARM emulation. SHA-256: ARM64 `21CE5074412C6D853B2DA61FE6BBF0ED40FBEF416EF23A2C8A0BB541210A9C54`; x64 `2354F7797A8B0DB7AF67AC6D36E3123DA01BDA5D7A1B3F7422667014570A8695`. These packages contain the agent implementation; the latest source validation documentation additionally records their post-publish checks.
+
 ## Network discovery scope review: 27 September 2026
 
 Verified the current portal and ADO single-subscription boundaries against source, the pinned Microsoft skill guidance and Microsoft Learn. All **17 existing AzureDiscoveryTests passed** using the prior qualified build and mocked HTTP/tokens; evidence is `artifacts/discovery-scope-audit/discovery-scope.trx`. No application code changed, no full-suite rerun occurred and no tenant, management-group or MCP live scan was performed. The [scope assessment](plans/tenant-network-discovery.md) records the proposed UI, Resource Graph collector, optional MCP analysis, identity separation and acceptance requirements. This review does not implement or enable broader discovery.

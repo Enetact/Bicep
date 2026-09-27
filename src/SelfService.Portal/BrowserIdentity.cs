@@ -18,12 +18,14 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public string? Error { get; set; }
     public CancellationTokenSource? Login { get; set; }
     public Dictionary<string, PendingRequest> Pending { get; } = new();
-    public void Dispose() { Login?.Cancel(); /* MSAL cache becomes unreachable when session expires. */ }
+    public AgentSession Agent { get; } = new();
+    public void Dispose() { Login?.Cancel(); _ = Agent.DisposeAsync(); /* MSAL cache becomes unreachable when session expires. */ }
 }
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
-public sealed class Sessions(PortalOptions options)
+public sealed class Sessions(PortalOptions options) : IDisposable
 {
     readonly ConcurrentDictionary<string, BrowserSession> sessions = new();
+    public void Dispose() { foreach (var s in sessions.Values) s.Dispose(); }
     public BrowserSession Get(HttpContext context)
     {
         foreach (var pair in sessions.Where(p => p.Value.Created < DateTimeOffset.UtcNow.AddHours(-8)))

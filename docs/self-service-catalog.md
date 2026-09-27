@@ -6,6 +6,8 @@ Source review: **27 September 2026**. Seven workload types and 28 environment ta
 
 ## What a developer can request
 
+The [Agent workflows menu](agent-workflows.md) adds four advisory reviews: resource visualization, private-network evidence, workload configuration and saved Preview changes. Codex ChatGPT authentication enables model access; Azure/ADO authentication separately enables the required evidence readers. These are scoped MCP-backed reviews, not additional deployment products or permissions.
+
 The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The original two workload routes retain their ADO manifest contracts; five additional products use typed discovery v2.
 
 The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Entra registration and live authentication/ADO acceptance remain required.

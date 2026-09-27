@@ -31,7 +31,8 @@ public static class AgentPolicy
     {
         if (thread.GetProperty("model").GetString() != Model || thread.GetProperty("reasoningEffort").GetString() != Effort ||
             thread.GetProperty("serviceTier").GetString() != Tier || thread.GetProperty("approvalPolicy").GetString() != "never" ||
-            thread.GetProperty("sandbox").GetProperty("type").GetString() != "readOnly")
+            thread.GetProperty("sandbox").GetProperty("type").GetString() != "readOnly" ||
+            thread.GetProperty("sandbox").TryGetProperty("networkAccess", out var network) && network.GetBoolean())
             throw new PortalException("Codex did not accept the required model, reasoning, speed or read-only policy. Turn blocked.", 409);
     }
     public static Uri LoginUri(string value)

@@ -1,21 +1,55 @@
+# Build outputs, generated reports and distributable packages (not source).
 **/bin/
 **/obj/
 artifacts/
-local.settings.json
-*.user
-.azure/
-.env
 *.zip
-# Local runtime, portable tools, emulator state, and developer settings.
+
+# Local runtime, Codex homes, portable tools and emulator data.
+# Agent source remains in src/; .local/portal/agents contains runtime copies only.
 .local/
 .tools/
+.azure/
 **/node_modules/
+
+# Machine-specific settings and credentials. Keep sanitized setup examples.
+local.settings.json
 **/local.settings.*.json
 !**/local.settings.example.json
 !**/local.settings.azurite.example.json
+.env
 .env.*
 !.env.example
+**/portal.local.json
+**/auth.json
+**/accessTokens.json
+**/azureProfile.json
+**/service_principal_entries.json
+**/msal_token_cache*
+**/msal_http_cache*
+*.pfx
+*.p12
+*.key
+
+# If a developer points Codex at a repository-local home, exclude its state.
+# Do not ignore .codex/ itself: project instructions, skills and config are source.
+.codex/sessions/
+.codex/log/
+.codex/logs/
+.codex/tmp/
+.codex/shell_snapshots/
+.codex/history.jsonl
+.codex/*.sqlite*
+
+# Test evidence and local editor state. Test source/fixtures remain versioned.
 **/TestResults/
+test-results/
+playwright-report/
+coverage/
+*.trx
+*.coverage
+*.coveragexml
 *.log
 .vs/
-**/portal.local.json
+.idea/
+*.user
+*.suo
