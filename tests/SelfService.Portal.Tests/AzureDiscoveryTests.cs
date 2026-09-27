@@ -39,7 +39,7 @@ public sealed class AzureDiscoveryTests
     [Fact] public void EntireUpstreamCatalogIncludesNestedAndCostSkills()
     {
         var skills = new Catalog(Options()).Skills;
-        Assert.Equal(47, skills.Length); Assert.Equal(42, skills.Count(s => s.Origin == "Microsoft Azure Skills"));
+        Assert.Equal(49, skills.Length); Assert.Equal(42, skills.Count(s => s.Origin == "Microsoft Azure Skills"));
         Assert.Contains(skills, s => s.Name == "azure-app-onboard-deploy"); Assert.Contains(skills, s => s.Id == "azure--azure-cost--cost-analysis");
         Assert.All(skills.Where(s => s.Origin == "Microsoft Azure Skills"), s => { Assert.Equal("No pipeline associated yet", s.PipelineStatus); Assert.NotEqual("none", s.DiscoveryProfile); Assert.NotEmpty(s.Content); });
     }

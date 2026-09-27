@@ -1,4 +1,29 @@
 {
+  "agentWorkflowStandardReview": {
+    "date": "2026-09-27",
+    "status": "Source-audited documentation and authoring template",
+    "standard": "docs/agent-workflow-standard.md",
+    "blueprint": "docs/templates/agent-workflow-blueprint.md",
+    "existingAgentWorkflows": 4,
+    "newRuntimeWorkflows": 0,
+    "ahpProfile": "Existing coordination-only 0.9.0",
+    "structuredRecommendationContract": "Proposed",
+    "runtimeRefactorDelivered": false,
+    "runtimeTestsPerformed": false,
+    "liveProviderActionsPerformed": false
+  },
+  "tagGovernanceDesignReview": {
+    "date": "2026-09-27",
+    "status": "Researched plan only",
+    "plan": "docs/plans/tagging-self-service.md",
+    "proposedSkill": "platform-tagging-review",
+    "proposedPipelineRoots": ["azure-pipelines-tags-discover.yml", "azure-pipelines-tags.yml"],
+    "implementationDelivered": false,
+    "runtimeTestsPerformed": false,
+    "liveAzureActionsPerformed": false,
+    "adoWritesPerformed": false,
+    "githubWritesPerformed": false
+  },
   "pipelineRegistrationDelivery": {
     "date": "2026-09-27",
     "scope": "All 18 root entry points; local implementation and synthetic-provider qualification",

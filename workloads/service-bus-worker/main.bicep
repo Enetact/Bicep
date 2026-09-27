@@ -4,6 +4,8 @@ param workload string
 param environmentName string
 param location string
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 @description('Platform-owned existing monitoring destination. This stack never adopts it.')
 param existingLogAnalyticsWorkspaceId string
@@ -14,7 +16,7 @@ param privateDnsZoneIds object
 param integrationSubnetId string
 param packageBlobName string = 'releases/preview.zip'
 var stem = '${workload}-${environmentName}'
-var tags = { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId }
+var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
 var storageName = 'st${workload}${environmentName}${take(uniqueString(subscription().id, resourceGroup().id), 6)}'
 module storage '../../modules/storage/storage-account/main.bicep' = {
  name: 'storage'

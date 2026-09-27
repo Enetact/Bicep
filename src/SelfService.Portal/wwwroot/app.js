@@ -1,5 +1,6 @@
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
+import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
 const $ = id => document.getElementById(id);
@@ -191,6 +192,7 @@ try {
   drawSkills();
   refreshAgents = setupAgents({ api, data, notice });
   setupNetwork({ api, data, notice, page });
+  setupTagging({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
   await refreshAuth(); if (auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => notice(e.message, true)), 2000);
 } catch (e) { notice(e.message, true); }

@@ -25,6 +25,8 @@ builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sess
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
 builder.Services.AddTransient<NetworkPipeline>();
+builder.Services.AddHttpClient<TaggingService>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddHttpClient<PipelineRegistration>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddHttpClient<AdoGateway>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
@@ -53,6 +55,7 @@ app.Use(async (context, next) =>
         await next(context);
     }
     catch (PortalException e) { context.Response.StatusCode = e.Status; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
+    catch (SelfService.Tagging.TagException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (Exception) { context.Response.StatusCode = 500; await context.Response.WriteAsJsonAsync(new { error = "Operation could not complete. For a queue request, check ADO runs before retrying; it may have been accepted." }); }
 });
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
@@ -91,6 +94,14 @@ app.MapGet("/api/preview/{product}/{id:int}", async (HttpContext c, string produ
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.MapGet("/api/network/scopes", async (NetworkDiscovery network, HttpContext c) => await network.Scopes(Session(c), c.RequestAborted));
+app.MapGet("/api/tags/config", (TaggingService tags) => tags.Configuration());
+app.MapGet("/api/tags/scopes", async (TaggingService tags, HttpContext c) => await tags.Scopes(Session(c), c.RequestAborted));
+app.MapPost("/api/tags/discover", async (TagScopeRequest r, TaggingService tags, HttpContext c) => await tags.Discover(Session(c), r, c.RequestAborted));
+app.MapGet("/api/tags/evidence/{id}", (string id, TaggingService tags, HttpContext c) => tags.Read(Session(c), id));
+app.MapGet("/api/tags/discovery/{runId:int}", async (int runId, TaggingService tags, HttpContext c) => await tags.Load(Session(c), runId, c.RequestAborted));
+app.MapPost("/api/tags/drafts", (TagDraftRequest r, TaggingService tags, HttpContext c) => tags.Draft(Session(c), r));
+app.MapPost("/api/tags/pipeline/review", async (TagQueueRequest r, TaggingService tags, HttpContext c) => await tags.Review(Session(c), r));
+app.MapPost("/api/tags/pipeline/queue/{ticket}", async (string ticket, TaggingService tags, HttpContext c) => await tags.Queue(Session(c), ticket));
 app.MapGet("/api/network/allocation", (NetworkPipeline network) => network.Status());
 app.MapGet("/api/pipeline-setup/catalog", (PipelineRegistration setup) => setup.LocalCatalog());
 app.MapGet("/api/pipeline-setup/inventory", async (PipelineRegistration setup, HttpContext c) => await setup.Inventory(Session(c), c.RequestAborted));

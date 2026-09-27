@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+**Proposed operations workflow:** [Tag governance](plans/tagging-self-service.md) would discover a subscription's visible resources/tags, show resource and tag views, analyze recommendations, and apply reviewed custom-tag changes through ADO. It is not a workload offering or an implemented skill/pipeline yet.
+
 **Pipeline registration:** use the portal **ADO setup** menu for all 18 root entry points, including the fourteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
 
 **Network capability update, 27 September 2026:** Network discovery is a separate portal workspace with registered/selected/management-group/accessible-tenant scopes and an AVNM allocation request menu. Agent Mermaid can now render after evidence/grammar validation. The separate `azure-pipelines-network.yml` does not add a workload product or enable any of the 28 targets. See [contracts and tests](network-discovery-and-diagrams.md).

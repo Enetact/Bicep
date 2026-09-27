@@ -4,6 +4,8 @@ param workload string
 param environmentName string
 param location string
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 param prerequisitePlan object = {}
 param integrationSubnetId string
@@ -23,7 +25,7 @@ var appName = 'logic-${stem}-${suffix}'
 var runtimeName = take('strt${workload}${environmentName}${suffix}', 24)
 var eventName = take('stev${workload}${environmentName}${suffix}', 24)
 var topicName = 'evgt-${stem}'
-var tags = { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, workloadType: 'logic-app-event-grid', trustedServiceReview: trustedServiceException.reviewReference, runtimeCredentialReview: runtimeStorageCredentialException.reviewReference }
+var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, workloadType: 'logic-app-event-grid', trustedServiceReview: trustedServiceException.reviewReference, runtimeCredentialReview: runtimeStorageCredentialException.reviewReference })
 module prerequisites './modules/prerequisites.bicep' = if (!empty(prerequisitePlan)) {
   name: 'workload-prerequisites'
   params: { plan: prerequisitePlan, location: location, tags: tags }

@@ -70,16 +70,16 @@ public sealed class PipelineRegistrationTests
     [Fact] public async Task AllRootPipelinesAreCataloguedAndExistingSeedIsReused() {
         var (service, h, s) = Setup(); using (s) {
             var inventory = await service.Inventory(s, CancellationToken.None);
-            Assert.Equal(18, inventory.Pipelines.Length); Assert.Equal(17, inventory.Pipelines.Count(p => p.Status == "Missing")); Assert.Single(inventory.Pipelines, p => p.Status == "Existing"); Assert.Single(inventory.Sources); Assert.Equal(0, h.Posts);
+            Assert.Equal(20, inventory.Pipelines.Length); Assert.Equal(19, inventory.Pipelines.Count(p => p.Status == "Missing")); Assert.Single(inventory.Pipelines, p => p.Status == "Existing"); Assert.Single(inventory.Sources); Assert.Equal(0, h.Posts);
         }
     }
     [Fact] public async Task AllMissingDefinitionsAreCreatedOnceWithoutRunningOrCopyingSecrets() {
         var (service, h, s) = Setup(); using (s) {
             var files = (await service.Inventory(s, CancellationToken.None)).Pipelines.Where(p => p.Status == "Missing").Select(p => p.Yaml).ToArray();
             var ticket = await Review(service, s, files); var result = Element(await service.Apply(s, ticket, CancellationToken.None));
-            Assert.Equal("Completed", result.GetProperty("status").GetString()); Assert.Equal(17, h.Posts); Assert.False(result.GetProperty("runsQueued").GetBoolean());
+            Assert.Equal("Completed", result.GetProperty("status").GetString()); Assert.Equal(19, h.Posts); Assert.False(result.GetProperty("runsQueued").GetBoolean());
             Assert.All((await service.Inventory(s, CancellationToken.None)).Pipelines, p => Assert.Equal("Existing", p.Status));
-            await Assert.ThrowsAsync<PortalException>(() => service.Apply(s, ticket, CancellationToken.None)); Assert.Equal(17, h.Posts);
+            await Assert.ThrowsAsync<PortalException>(() => service.Apply(s, ticket, CancellationToken.None)); Assert.Equal(19, h.Posts);
         }
     }
     [Theory][InlineData("source-drift")][InlineData("missing-source")]

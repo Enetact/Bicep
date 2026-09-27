@@ -1,5 +1,7 @@
 # Authenticated Codex agent workflows
 
+**Extension standard:** the [shared workflow standard](agent-workflow-standard.md) traces the four implemented reviews and defines the common discovery/assessment/AI/draft/Preview/Apply experience for future skills. Use its [blueprint](templates/agent-workflow-blueprint.md). AHP remains coordination-only; structured recommendation envelopes and AI-to-draft handoff are proposed additions, not current behavior.
+
 Implemented locally on 27 September 2026. Platform Studio now connects a browser-owned agent host, Codex inference and an in-process MCP evidence server. **Live ChatGPT login, Astra inference, Azure collection and ADO Preview review remain unverified.** The native Codex startup/account/MCP handshake and local contract tests are verified; those checks made no model calls.
 
 ## Developer experience

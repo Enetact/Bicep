@@ -1,0 +1,29 @@
+# Register as Discover - Tags. Private ADO project required; no tag writes.
+trigger: none
+pr: none
+parameters:
+  - name: profile
+    displayName: Subscription profile (Azure subscription A)
+    type: string
+    default: subscription-tags
+    values: [subscription-tags]
+pool:
+  vmImage: windows-latest
+stages:
+  - stage: Discover
+    jobs:
+      - job: TagInventory
+        steps:
+          - template: pipelines/templates/tagging-prepare.yml
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: SC-AZ-A-Bicep
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                ./scripts/Invoke-TagWorkflow.ps1 -Mode discover -OutputDirectory '$(Build.ArtifactStagingDirectory)/tag-discovery'
+          - pwsh: Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/tag-discovery/README.md'
+            condition: succeededOrFailed()
+          - publish: $(Build.ArtifactStagingDirectory)/tag-discovery
+            artifact: tag-discovery
+            condition: succeededOrFailed()

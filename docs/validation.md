@@ -1,5 +1,13 @@
 # Validation evidence
 
+## Reusable agent workflow source audit: 27 September 2026
+
+Read `AgentWorkflows`, `AgentHostChannel`, `AgentMcpBridge`, `AgentPolicy`, provider runtime call sites, API routes, agent/network UI handoff, network queue adapter and catalog skill discovery. Documented [the repeated workflow](agent-workflow-standard.md) and [authoring blueprint](templates/agent-workflow-blueprint.md). The audit distinguishes AHP snapshots from inference, Markdown reviews from future structured suggestions, and the existing manual network request from a future AI-to-draft path. Updated the tagging plan and project instructions to reuse the standard. Documentation-only change: no application restart, runtime test, model inference, cloud scan, pipeline queue or Azure mutation was performed. Existing test results retain their original scope.
+
+## Tag governance design review: 27 September 2026
+
+Researched Microsoft tagging/Resource Graph/Policy/Bicep/ADO guidance and traced the current scope reader, four agent workflows, MCP evidence bridge, network pipeline adapter, registration catalog and workload tag declarations. Added the [tagging implementation plan](plans/tagging-self-service.md) with proposed UI, contracts, two pipelines, source ownership routes, public-repo boundaries, file placement and T0–T6 acceptance gates. This is documentation-only work: no tagging implementation, runtime test, model call, Azure scan/write, ADO registration/run or GitHub publication occurred. Prior test counts below retain their original scope; they do not qualify the proposed tagging workflow.
+
 ## Bulk ADO pipeline registration: 27 September 2026
 
 The [ADO setup page](ado-pipeline-registration.md) covers all **18 root pipeline entry points**. The Release build completed with zero warnings/errors. **130 backend tests passed, one optional native Codex test skipped, zero failed**, including 18 new registration cases (`artifacts/test-results/pipeline-registration.trx`). Synthetic ADO/GitHub responses exercise create-all-missing, preservation/conflicts, incomplete inventory, source/review drift, concurrent creation, lost responses, partial batches and token/secret isolation. These tests do not establish live ADO registration acceptance.

@@ -4,6 +4,8 @@ param workload string
 param environmentName string
 param location string
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 @description('Platform-owned existing monitoring destination. This stack never adopts it.')
 param existingLogAnalyticsWorkspaceId string
@@ -11,7 +13,7 @@ param deploymentPrincipalObjectId string
 param releaseActivated bool = false
 param alertActionGroupIds string[]
 var stem = '${workload}-${environmentName}'
-var tags = { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId }
+var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
 module monitoring '../../modules/monitoring/observability/main.bicep' = {
  name: 'monitoring'
  params: { name: 'mon-${stem}', location: location, tags: tags, workspaceId: existingLogAnalyticsWorkspaceId, actionGroupIds: alertActionGroupIds }

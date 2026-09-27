@@ -14,6 +14,8 @@ param environmentName string
 
 param location string
 param owner string
+@description('Reviewed source-owned custom tags. Required platform tags take precedence.')
+param customTags object = {}
 param costCenter string
 param dataClassification string = 'Confidential'
 
@@ -103,7 +105,7 @@ param workloadResourceGroupName string
 resource workloadGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
   name: workloadResourceGroupName
   location: location
-  tags: { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, managedBy: 'Bicep' }
+  tags: union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, managedBy: 'Bicep' })
 }
 
 module composition './main.bicep' = {
@@ -115,6 +117,7 @@ module composition './main.bicep' = {
     location: location
     owner: owner
     costCenter: costCenter
+    customTags: customTags
     dataClassification: dataClassification
     destinationSubscriptionId: destinationSubscriptionId
     destinationResourceGroupName: destinationResourceGroupName

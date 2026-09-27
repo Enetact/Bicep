@@ -200,8 +200,12 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Identity.Client": "[4.90.1, )",
-          "ModelContextProtocol": "[2.2.0, )"
+          "ModelContextProtocol": "[2.2.0, )",
+          "SelfService.Tagging": "[1.0.0, )"
         }
+      },
+      "selfservice.tagging": {
+        "type": "Project"
       }
     }
   }

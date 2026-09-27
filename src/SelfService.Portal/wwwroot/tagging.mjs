@@ -1,0 +1,50 @@
+// Resource data and agent output are always rendered as text, never HTML.
+export const csvCell = value => `"${String(value ?? '').replace(/^[=+\-@\t\r]/, "'$&").replaceAll('"', '""')}"`;
+export function setupTagging({ api, data, notice, page }) {
+  const $ = id => document.getElementById(id), node = (tag, text) => { const n = document.createElement(tag); if (text != null) n.textContent = text; return n; };
+  let report, draft, ticket, pageIndex = 0, edits = [], selected = new Set(), controller;
+  const save = (value, name, type = 'application/json') => { const url = URL.createObjectURL(new Blob([value], { type })), a = node('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+  const invalidate = () => { draft = null; ticket = null; $('tag-confirm').hidden = true; $('tag-draft-result').textContent = ''; };
+  function action(id, fn) { $(id).addEventListener('click', async () => { $(id).disabled = true; try { await fn(); } catch(e) { notice(e.message, true); } finally { $(id).disabled = false; } }); }
+  function show(value) { report = value; edits = []; selected.clear(); pageIndex = 0; invalidate(); $('tag-result').hidden = false; $('tag-coverage').textContent = JSON.stringify(value.inventory.coverage, null, 2); $('tag-evidence').textContent = `${value.inventory.source} · ${value.inventory.observedUtc} · ${value.inventory.resources.length} visible resources · ${value.findings.length} findings. Evidence expires after 30 minutes.`; render(); renderEdits(); }
+  const filtered = () => (report?.inventory.resources ?? []).filter(r => `${r.name} ${r.id} ${r.type} ${r.resourceGroup} ${JSON.stringify(r.tags)}`.toLowerCase().includes($('tag-search').value.toLowerCase()) && (!$('tag-state').value || r.tagState === $('tag-state').value));
+  function render() {
+    const rows = filtered(), mode = $('tag-view').value, table = node('table'), head = node('tr'); table.className = 'tag-table';
+    const keys = [...new Set(rows.flatMap(r => Object.keys(r.tags)))].sort();
+    const columns = mode === 'matrix' ? ['Select', 'Resource', ...keys.slice(0, 12)] : ['Select', 'Resource / scope', 'Type / ownership', 'Tags / findings'];
+    columns.forEach(k => head.append(node('th', k))); const thead = node('thead'); thead.append(head); table.append(thead); const body = node('tbody');
+    pageIndex = Math.min(pageIndex, Math.max(0, Math.ceil(rows.length / 25) - 1));
+    for (const r of rows.slice(pageIndex * 25, (pageIndex + 1) * 25)) {
+      const row = node('tr'), choose = node('input'); choose.type = 'checkbox'; choose.checked = selected.has(r.id); choose.setAttribute('aria-label', `Select ${r.name}`);
+      choose.onchange = () => { choose.checked ? selected.add(r.id) : selected.delete(r.id); $('tag-selection').textContent = `${selected.size} resources selected`; };
+      const cell = node('td'); cell.append(choose); row.append(cell); const resource = node('td'); resource.append(node('strong', r.name), node('p', r.resourceGroup || 'Subscription'), node('small', r.id)); row.append(resource);
+      if(mode === 'matrix') keys.slice(0, 12).forEach(k => row.append(node('td', r.tags[k] ?? '—')));
+      else { row.append(node('td', `${r.type}\n${r.ownership} · ${r.tagState}${r.supported ? '' : ' · Support unknown'}`)); const values = node('td'); for(const [k,v] of Object.entries(r.tags)) values.append(node('p', `${k}: ${v}`)); if(!Object.keys(r.tags).length) values.append(node('p', 'No observed tags')); const details = node('details'); details.append(node('summary', 'Findings')); for(const f of report.findings.filter(f => f.resourceId === r.id)) details.append(node('p', `${f.state}: ${f.key} ${f.summary}`)); values.append(details); row.append(values); }
+      body.append(row);
+    }
+    table.append(body); $('tag-table').replaceChildren(table); $('tag-page').textContent = `${rows.length} matching resources · Page ${pageIndex + 1} of ${Math.max(1, Math.ceil(rows.length / 25))}${mode === 'matrix' && keys.length > 12 ? ' · First 12 keys; use resource view or export for all tags.' : ''}`;
+    $('tag-prev').disabled = pageIndex === 0; $('tag-next').disabled = (pageIndex + 1) * 25 >= rows.length; $('tag-selection').textContent = `${selected.size} resources selected`;
+    const totals = new Map(); for(const r of rows) for(const k of Object.keys(r.tags)) totals.set(k, (totals.get(k) ?? 0) + 1);
+    $('tag-keys').replaceChildren(...[...totals].sort(([a],[b]) => a.localeCompare(b)).map(([k,n]) => node('p', `${k}: ${n} visible resources`)));
+  }
+  function renderEdits() { $('tag-edits').replaceChildren(...edits.map((e, i) => { const line = node('div'), remove = node('button'); remove.className = 'quiet'; remove.textContent = 'Remove'; remove.onclick = () => { edits.splice(i, 1); invalidate(); renderEdits(); }; line.append(node('span', `${e.resourceId} · ${e.operation} ${e.key} = ${e.value} `), remove); return line; })); }
+  function add(values) { if(edits.length + values.length > 100) throw new Error('Choose at most 100 edits.'); for(const value of values) { const i = edits.findIndex(e => e.resourceId === value.resourceId && e.key.toLowerCase() === value.key.toLowerCase()); if(i >= 0) edits[i] = value; else edits.push(value); } invalidate(); renderEdits(); }
+  $('tag-subscription').replaceChildren(...data.discoveryScopes.map(s => { const o = node('option', s.name); o.value = s.id; return o; }));
+  action('tag-scopes', async () => { const scopes = await api('tags/scopes'); $('tag-subscription').replaceChildren(...scopes.map(s => { const o = node('option', s.name); o.value = s.id; return o; })); });
+  action('tag-discover', async () => { controller = new AbortController(); $('tag-cancel').hidden = false; $('tag-progress').textContent = 'Reading visible resources and governance evidence…'; try { const response = await fetch('/api/tags/discover', {method:'POST', headers:{'Content-Type':'application/json','X-Portal-CSRF':data.csrf}, body:JSON.stringify({subscriptionId:$('tag-subscription').value}), signal:controller.signal}); const value = await response.json(); if(!response.ok) throw new Error(value.error ?? 'Discovery failed'); show(value); $('tag-progress').textContent = 'Discovery saved locally. Check coverage before drafting.'; } finally { $('tag-cancel').hidden = true; } });
+  action('tag-cancel', async () => { controller?.abort(); $('tag-progress').textContent = 'Scan cancelled.'; });
+  action('tag-load', async () => show(await api(`tags/discovery/${Number($('tag-run-id').value)}`)));
+  for(const id of ['tag-search','tag-state','tag-view']) $(id).addEventListener('input', () => {pageIndex = 0; render();});
+  action('tag-prev', async () => { pageIndex--; render(); }); action('tag-next', async () => { pageIndex++; render(); });
+  action('tag-export', async () => { if(report) save(JSON.stringify(report,null,2),'tag-evidence.json'); });
+  action('tag-csv', async () => { const rows = [['Resource ID','Type','Ownership','Tag key','Tag value','Tag state']]; for(const r of filtered()) for(const [k,v] of Object.entries(r.tags).length ? Object.entries(r.tags) : [['','']]) rows.push([r.id,r.type,r.ownership,k,v,r.tagState]); save(rows.map(row => row.map(csvCell).join(',')).join('\r\n'),'tag-inventory.csv','text/csv'); });
+  action('tag-add', async () => { if(!selected.size) throw new Error('Select resources first.'); add([...selected].map(resourceId => ({resourceId,key:$('tag-key').value,value:$('tag-value').value,operation:$('tag-edit-operation').value}))); });
+  action('tag-validate', async () => { if(!report) throw new Error('Discover or load evidence first.'); draft = await api('tags/drafts',{evidenceId:report.inventory.id,edits}); $('tag-draft-result').textContent = JSON.stringify(draft,null,2); });
+  action('tag-save-draft', async () => { if(!draft) throw new Error('Validate the draft first.'); save(JSON.stringify(draft,null,2),'tag-draft-and-source-proposals.json'); });
+  action('tag-agent', async () => { if(!report || selected.size < 1 || selected.size > 50) throw new Error('Select 1–50 observed resources.'); window.dispatchEvent(new CustomEvent('platform-tag-evidence',{detail:{id:report.inventory.id,resourceIds:[...selected]}})); page('agents'); });
+  window.addEventListener('platform-tag-recommendations', event => { if(!report || event.detail.evidenceDigest !== report.inventory.digest) { notice('Agent evidence differs from the open tag inventory. Load its evidence again.',true); return; } try { add(event.detail.edits); page('tagging'); notice('Selected advice copied into your editable draft. Validate before preview.'); } catch(e) {notice(e.message,true);} });
+  action('tag-pipeline-review', async () => { const op = $('tag-operation').value; const result = await api('tags/pipeline/review',{operation:op,subscriptionId:op === 'Discover' ? $('tag-subscription').value : report?.inventory.subscriptionId,evidenceId:report?.inventory.id,edits}); ticket=result.ticket; $('tag-queue-review').textContent=JSON.stringify(result,null,2); $('tag-confirm').hidden=false; });
+  action('tag-confirm', async () => { const t=ticket; ticket=null; $('tag-confirm').hidden=true; if(!t) throw new Error('Review the request first.'); const result=await api(`tags/pipeline/queue/${t}`,{}); const link=$('tag-run-link'); link.href=result.url; link.textContent=`Open tagging run ${result.id} in ADO`; link.hidden=false; });
+  $('tag-operation').addEventListener('change',invalidate); $('tag-subscription').addEventListener('change',invalidate);
+  api('tags/config').then(c => { $('tag-profile-status').textContent = `${c.profile} · ${c.enabled ? 'Apply enabled subject to protected ADO approval' : 'Apply disabled pending platform qualification'}. ${c.note}`; }).catch(e => notice(e.message,true));
+}
