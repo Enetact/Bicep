@@ -9,6 +9,7 @@ public sealed class PortalOptions
     public string RepositoryRoot { get; set; } = "";
     public int Port { get; set; } = 5087;
     public string NodePath { get; set; } = "node";
+    public string CodexPath { get; set; } = "";
     public bool AuthenticationConfigured => Guid.TryParse(TenantId, out _) && Guid.TryParse(ClientId, out _);
     public string Origin => $"http://localhost:{Port}";
     public string AdoBase => $"https://dev.azure.com/{Uri.EscapeDataString(Organization)}/{Uri.EscapeDataString(Project)}";

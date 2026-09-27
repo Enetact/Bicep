@@ -6,6 +6,6 @@
     <RuntimeIdentifiers>win-arm64;win-x64</RuntimeIdentifiers>
     <RuntimeFrameworkVersion Condition="'$(SelfContained)' == 'true'">10.0.12</RuntimeFrameworkVersion>
   </PropertyGroup>
-  <ItemGroup><PackageReference Include="Microsoft.Identity.Client" Version="4.90.1" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Identity.Client" Version="4.90.1" /><PackageReference Include="ModelContextProtocol" Version="2.2.0" /></ItemGroup>
   <ItemGroup><Content Update="portal.local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" /></ItemGroup>
 </Project>
