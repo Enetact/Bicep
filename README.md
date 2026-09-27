@@ -85,6 +85,8 @@ Read the [catalog, exact methods and artifact map](docs/self-service-catalog.md)
 
 The [self-service expansion and enhancement plan](docs/self-service-expansion-plan.md) proposes a reusable product/adapter contract, private storage, Key Vault, observability, APIs, workers, web apps, databases and later integration/container/AI foundations. It also plans immutable release promotion and reviewed operating actions. These are future offerings with explicit acceptance gates, not additional items currently available in the Run menu. Module registry work is not required.
 
+The proposed [private networking workstream](docs/plans/private-networking-self-service.md) adds a network/subnet analyzer, authoritative IPAM allocation, private connectivity profiles and optional AI-assisted intent/explanations. Its goal is self-service without developer-entered network IDs or IP ranges, backed by deterministic capacity, DNS, routing, ownership and concurrency checks. It is not implemented yet.
+
 ## Files and local validation
 
 ```text

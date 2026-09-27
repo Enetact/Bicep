@@ -23,6 +23,7 @@ Two workload types (`blob-transfer`, `logic-app-event-grid`), two example instan
 | Shared workspace / hub resolver reuse | Supported Blob copy configuration | Azure acceptance pending. Event flow requires its supported same-region VNet/Azure-provided DNS topology; do not assume the adapters share resolver capabilities. |
 | Same application artifact promoted across environments | Not implemented | Identical infrastructure may reuse a Template Spec version. Each environment run currently builds its application again. |
 | More workload types and generic adapters | Planned | Two adapter IDs are explicitly allowlisted. JSON alone cannot register arbitrary applications. See the [expansion plan](self-service-expansion-plan.md). |
+| Enterprise network analyzer, dynamic IPAM allocation and AI assistance | Planned | Current discovery and fixed-CIDR prerequisite checks are implemented; coverage-aware topology analysis, allocation transactions and AI assistance are not. See the [networking design](plans/private-networking-self-service.md). |
 | Drift/TTL/adoption/deletion menus and automatic rollback | Not implemented | Existing preview and operator recovery safeguards are not a general operations catalog. Failures can leave resources. |
 | Policy assignments, module registry, AVM migration | Partial/deferred | Separate Policy-definition/registry templates exist; workload flow uses local modules. Assignments/publication/migration are not delivered by it. |
 
