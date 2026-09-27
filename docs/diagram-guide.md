@@ -2,7 +2,7 @@
 
 Source layout updated on 19 September 2026: the composition and environment files now live under `workloads/blob-transfer/`, with reusable resource modules under `modules/<category>/<resource>/`. The rendered HTML/SVG diagrams are historical illustrations and can show old paths; use the [current repository map](repository-structure.md) for source navigation.
 
-This is the current implementation: an external system uploads normally, a polling BlobTrigger dispatcher sends a pointer to an explicit Storage Queue, and a QueueTrigger worker copies with deduplication and recovery. No Event Grid, MCP, custom uploader, or uploader metadata is required.
+This guide describes the **Blob copy** implementation: an external system uploads normally, a polling BlobTrigger dispatcher sends a pointer to an explicit Storage Queue, and a QueueTrigger worker copies with deduplication and recovery. No Event Grid, MCP, custom uploader, or uploader metadata is required for this workload. The separate Event flow workload and both self-service lifecycles are documented in the [catalog](self-service-catalog.md); verification boundaries are in [current status](completion-status.md).
 
 Start with diagrams 1, 4, 9 and 10 for the workflow. Engineers can continue through the Bicep, identity, and configuration diagrams. These diagrams describe code/templates; they are not evidence of a live Azure deployment.
 

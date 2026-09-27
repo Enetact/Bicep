@@ -32,6 +32,7 @@ config/
   platform.json                          blob-transfer defaults, region and topology policy
   workloads.json                         two allowlisted composition/package/phase contracts
   deployment-stack.json                  lifecycle policy and publishing bindings
+  logic-prerequisites.json               Event flow prerequisite allocations and policy
 workloads/blob-transfer/
   main.bicep                             resource-group composition
   stack.bicep                            subscription stack: workload RG + composition
@@ -44,7 +45,7 @@ workloads/blob-transfer/
 workloads/logic-app-event-grid/
   main.bicep, stack.bicep                 second composition and subscription wrapper
   environments/                          four parameter profiles
-  modules/                               event/runtime storage and scoped access
+  modules/                               prerequisites, event/runtime storage and scoped access
   event.schema.json, request.schema.json  message and developer contracts
   README.md                              requirements, methods, onboarding, operations
 src/LogicAppEventFlow/                    separately packaged Standard workflow files
@@ -53,6 +54,9 @@ modules/
   event-grid/event-subscription/main.bicep queue delivery and dead lettering
   logic-app/standard/main.bicep           private Standard hosting
   network/private-endpoint/main.bicep     reusable endpoint + DNS zone group
+  network/workload-vnet/main.bicep        workload VNet, subnets and integration NSG
+  network/private-dns-zone/main.bicep     workload-owned zone and VNet link
+  monitoring/log-analytics/main.bicep     workload-owned monitoring workspace
   storage/storage-account/main.bicep     reusable private account + children/diagnostics
 platform/
   policy/guardrails.bicep                 separately operated policy definitions
@@ -80,7 +84,7 @@ The developer selects pattern, registered workload, environment and region. `con
 
 `config/deployment-stack.json` is platform policy, not another environment parameter file: it holds publication and stack lifecycle bindings. `stack.bicep` owns the dedicated workload RG and calls `./main.bicep`; it does not own central networks, DNS, resolver, shared workspace or external destination storage. Event flow can create its own missing VNet/subnets, DNS zones/links and workspace through `modules/prerequisites.bicep`; shared resources still remain outside stack ownership. `config/logic-prerequisites.json` holds reviewed environment address allocations and resolver policy. Stack state lives in Azure and lifecycle receipts, not in a checked-in state file. See [the stack runbook](deployment-stacks-upgrade.md).
 
-`workloads/blob-transfer/modules/` is intentionally local to the pattern: Function settings, blob-transfer alert queries, source/package access grants and the five-zone isolated-network exception are not generic infrastructure building blocks. The two shared modules own their resource and related child/diagnostic resources; they never load environment files or target JSON. Promote a helper into `modules/` only when another composition can use the same explicit interface without workload assumptions.
+`workloads/blob-transfer/modules/` is intentionally local to the pattern: Function settings, blob-transfer alert queries, source/package access grants and the five-zone isolated-network exception are not generic infrastructure building blocks. The eight shared modules own their resource and related child/diagnostic resources; they never load environment files or target JSON. Promote a helper into `modules/` only when another composition can use the same explicit interface without workload assumptions.
 
 ## Authoring and dependency rules
 

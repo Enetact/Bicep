@@ -35,7 +35,7 @@ Read [architecture](docs/architecture.md), [operations](docs/operations.md), [se
 
 For the dispatcher's full requirements, exact method calls, message/configuration contracts, package inventory, and less-visible runtime dependencies, start with the [Dispatcher README](docs/dispatcher/README.md). The [local workflow reference](docs/local-workflow.md) follows the worker, timers, and lifecycle scripts through each action.
 
-## Run locally without Azure
+## Run Blob copy locally without Azure
 
 From this checkout in PowerShell:
 
@@ -111,7 +111,7 @@ self-service/targets/      disabled catalog examples for platform onboarding
 
 See [Bicep repository conventions](docs/repository-structure.md) for Microsoft source references, module placement, environment/stack configuration, and the migration from the old root template paths. Use the dedicated workload YAML files listed above; the original generic files remain for compatibility.
 
-Extract `blob-transfer-project.tar` with `tar -xf blob-transfer-project.tar`, then enter `blob-transfer`. Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward.
+Install PowerShell 7, .NET 10 SDK, Azure CLI and Node 22+. SDK 10.0.300 is pinned with stable feature-band roll-forward. Run the following commands from the Git checkout root; the original archive is a historical snapshot.
 
 For this GitHub repository, clone `https://github.com/Enetact/Bicep.git` and enter its checkout instead. The Azure DevOps pipeline can connect to this GitHub repository; GitHub hosting does not require changing the deployment system to GitHub Actions. `.gitattributes` keeps source line endings consistent for manifest verification.
 
@@ -129,7 +129,7 @@ The project check also exercises tooling contracts, parses pipeline YAML and che
 
 After intentional source changes, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1` and review the diff. Do not regenerate it automatically in CI. Use the [current self-service guide](docs/self-service.md) for implementation/setup and the [historical assessment](docs/self-service-azure-devops-assessment.md) for original proposals and deferred architecture.
 
-## Configure environments
+## Configure Blob copy environments
 
 Edit owner, cost center, destination subscription/RG/account/container, source scope mapping, CIDRs, optional existing group IDs, and alert action groups in each `.bicepparam`. The destination container must already exist. Confirm actual regional SKU, zone, runtime and quota availability.
 
@@ -142,11 +142,11 @@ The default scope mapping `{ '': 'default' }` covers every source filename in th
 | UAT | P1v3 | 2 | ZRS | 90 days |
 | Prod | P1v3, zonal subject to support | 3 | ZRS | 90 days |
 
-Each environment gets one workspace shared by this workload's components and one workspace-based Application Insights component. Existing organization-workspace reuse is not implemented. Prod requires action groups through the deployment script.
+By default each environment gets one workspace shared by this workload's components and one workspace-based Application Insights component. Set `existingLogAnalyticsWorkspaceId` through reviewed configuration to reuse an existing workspace; its configuration and access remain the monitoring team's responsibility. Prod requires action groups through the deployment script.
 
-## Exact deployment sequence
+## Manual Blob copy deployment sequence
 
-Nothing has been deployed while preparing this project. Replace placeholders, review settings, and use a runner/workstation with approved private connectivity.
+The commands below are the manual Blob copy path. For governed self-service, use the Discover/Deploy menus above. No successful Azure workload deployment is established in the reviewed evidence. Replace placeholders, review settings, and use a runner/workstation with approved private connectivity.
 
 ```powershell
 az login

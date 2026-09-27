@@ -35,6 +35,8 @@ Central private DNS is the normal enterprise design. Microsoft describes integra
 
 ## Findings and changes
 
+The topology and monitoring changes below describe the Blob copy baseline. Event flow additionally supports discovery-planned creation of workload-owned prerequisites; see its [prerequisite runbook](prerequisite-resolution.md).
+
 | Finding | Change / disposition |
 |---|---|
 | Developers selected network profiles, subscriptions and endpoint/alert implementation switches | Deploy now accepts workload type/name, environment and region. Platform configuration supplies all implementation bindings and booleans. Discover remains a platform/operator inventory menu. |
@@ -50,9 +52,9 @@ Central private DNS is the normal enterprise design. Microsoft describes integra
 
 ## Developer request and configuration hierarchy
 
-The concrete request is in `workloads/blob-transfer/request.example.json`; its schema forbids extra fields. Workload names are existing registered codes (3–10 lowercase alphanumeric characters), not free-form resource prefixes. `orders-api` is illustrative future intent and is not accepted by this deployed application's existing naming contract. Registration remains a platform review step.
+The concrete request is in `workloads/blob-transfer/request.example.json`; its schema forbids extra fields. Workload names are existing registered codes (3–10 lowercase alphanumeric characters), not free-form resource prefixes. `orders-api` is illustrative future intent and is not accepted by this repository's current naming contract. Registration remains a platform review step.
 
-Resolution order:
+Blob copy resolution order (Event flow also uses its typed workload definition and prerequisite policy, described in the [catalog](self-service-catalog.md)):
 
 1. `config/platform.json`: supported composition, approved/default regions, required capabilities, endpoint/alert options and explicit isolated-network exceptions.
 2. `self-service/targets/*.json`: one unambiguous workload/environment/region to subscription/RG, network, service connection, agent pool, environment and parameter file.
@@ -72,7 +74,7 @@ pwsh -NoProfile -File scripts/Update-Manifest.ps1
 pwsh -NoProfile -File scripts/Update-Manifest.ps1 -Check
 ```
 
-Use a fresh request-output filename for each review. Push/merge reviewed source before opening the updated ADO form. On enabled targets, select a matching successful main discovery run through **Resources > discovery**. Disabled targets only check setup, preserving the temporary hosted `windows-latest` workflow.
+Use a fresh request-output filename for each review. Push/merge reviewed source before opening the updated ADO form. Dedicated Deploy menus consume a matching successful main discovery run through **Resources > discovery**, including hosted Preview for disabled targets. Actual deployment requires an enabled target. Only the generic compatibility route uses SetupOnly for disabled targets.
 
 ## Enterprise topology contract
 
@@ -93,7 +95,7 @@ Existing Key Vault, App Configuration, firewalls and route tables are owned by p
 
 ## Governance and lifecycle
 
-The release stages are Qualify, PublishTemplate, PlanFoundation, ApplyFoundation, PlanRelease and ApplyRelease. They collectively validate selection, build/lint, run tests, freeze artifacts, publish/verify the Template Spec, validate ARM, analyze stack What-If, request protected environment approvals, recheck drift, deploy and smoke-test. Azure DevOps approvals, exclusive locks, Required Template and branch checks must be configured by the platform owner; YAML cannot create their protection implicitly.
+Dedicated workload pipelines expose **Preview** and **Deploy** stages. Deploy contains bundle qualification, Template Spec publication, and protected stack application with Foundation and Release phases. The generic compatibility route retains Qualify, PublishTemplate, PlanFoundation, ApplyFoundation, PlanRelease and ApplyRelease stages. Both routes bind reviewed artifacts to validation, drift checks and runtime smoke gates. Azure DevOps approvals, exclusive locks, Required Template and branch checks must be configured by the platform owner; YAML cannot create their protection implicitly.
 
 `Get-ServiceChanges` now calls `Assert-ServiceChange`. Delete, replacement/unknown/unanalyzed resource changes fail. Changes to existing topology/PE/DNS/NSG/route/firewall/resolver, identity or role assignments require a separate platform migration workflow. Sensitive property modifications—including SKU changes in either direction—also fail. This intentionally requires review for upgrades as well as downgrades rather than guessing a safe SKU ordering. Ordinary application-setting updates still reach the usual approvals. Object replacement checks cover named sensitive fields; this is a deterministic guard, not a complete Azure semantic analyzer. Review the full payload and retain Azure Policy as an independent control.
 
