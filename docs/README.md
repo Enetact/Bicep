@@ -41,3 +41,9 @@ Module READMEs describe implemented resource contracts, not extra catalog offeri
 - [References](references.md) contains source links; a reference is not proof that a capability is implemented or deployed.
 
 Plans do not grant deployment authority or replace protected pipeline checks. Updating documentation does not refresh historical execution evidence.
+
+## Maintaining these guides with Codex
+
+The repository includes the [self-service-docs skill](../.agents/skills/self-service-docs/SKILL.md) and an [AGENTS.md rule](../AGENTS.md) to apply it as capabilities change. It maps code changes to affected guides, preserves dated verification evidence, reconciles the expansion plan, and checks the source manifest.
+
+Open Codex in the `Bicep` repository directory (or a subdirectory) and request: `Use $self-service-docs to update documentation for the current changes.` Automatic selection is enabled for matching tasks; this is a task workflow, not a background file watcher or CI job. Repository skill discovery follows the [official Codex skill guidance](https://learn.chatgpt.com/docs/build-skills). If it does not appear, restart Codex.
