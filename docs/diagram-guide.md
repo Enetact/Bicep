@@ -68,7 +68,7 @@ flowchart TD
     P --> PR[Prod resources and workspace]
 ```
 
-Every environment has its own host account, solution account, identity and Function. Its ledger is a separate container inside that environment's solution account. Components share the workspace inside their own environment. Existing enterprise workspace reuse is not implemented.
+Every environment has its own host account, solution account, identity and Function. Its ledger is a separate container inside that environment's solution account. Components share a workspace created for the environment by default; reviewed `existingLogAnalyticsWorkspaceId` configuration can instead reference a shared enterprise workspace.
 
 ## 5. Module responsibilities
 
