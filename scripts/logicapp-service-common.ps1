@@ -41,6 +41,7 @@ function Get-LogicOnboardingIssues($P) {
     }
 }
 function Assert-LogicParameters($Target,$P) {
+    Assert-CustomTags (Get-ServiceParameter $P customTags)
     $issues=@(Get-LogicOnboardingIssues $P)
     if($issues.Count){
         $details=@($issues|ForEach-Object {"- $($_.parameter): $($_.requirement)"}) -join "`n"

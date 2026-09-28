@@ -1,6 +1,6 @@
 # Register the pipeline suite from Platform Studio
 
-Implemented locally on 27 September 2026. **ADO setup** inventories all 18 root YAML entry points and can register the missing definitions in one reviewed batch. It does not queue runs. Existing definitions, GitHub source, service connections, permissions, environments and approval checks remain unchanged. Live authenticated ADO creation is still an acceptance step; local tests use synthetic responses.
+Implemented locally on 27 September 2026. **ADO setup** inventories all 20 root YAML entry points and can register the missing definitions in one reviewed batch. It does not queue runs. Existing definitions, GitHub source, service connections, permissions, environments and approval checks remain unchanged. Live authenticated ADO creation is still an acceptance step; local tests use synthetic responses.
 
 ## Use it
 
@@ -32,9 +32,10 @@ The seven products contribute their existing Discover/Deploy names and paths fro
 | Qualification | `azure-pipelines.yml` → **Qualify - Platform** |
 | Generic Discover compatibility | `azure-pipelines-self-service.yml` → configured `discoveryPipelineName` (currently **Enetact.Bicep**) |
 | Generic Deploy compatibility | `azure-pipelines-self-service-deploy.yml` → **BlobTransfer - Deploy** |
+| Tag governance | `azure-pipelines-tags-discover.yml` → **Discover - Tags**; `azure-pipelines-tags.yml` → **Tags - Preview and Apply**. Private ADO and writer qualification required. |
 | Network allocation | `azure-pipelines-network.yml` → **Network - AVNM allocation** |
 
-The four non-product entries and public repository identity are recorded in [pipeline-registration.json](../config/pipeline-registration.json). Every root `azure-pipelines*.yml` must appear exactly once, with unique names. Adding a new entry without a registration binding fails validation rather than silently leaving it out. Shared YAML templates under `pipelines/templates/` are consumed by the entry points and must **not** be registered independently.
+The six non-product entries and public repository identity are recorded in [pipeline-registration.json](../config/pipeline-registration.json). Every root `azure-pipelines*.yml` must appear exactly once, with unique names. Adding a new entry without a registration binding fails validation rather than silently leaving it out. Shared YAML templates under `pipelines/templates/` are consumed by the entry points and must **not** be registered independently.
 
 Matching currently requires root-folder definitions and the exact names used by portal/deployment resource bindings. A differently named existing pipeline is a conflict even if its YAML is correct. Reconcile the naming/bindings deliberately; no automatic duplicate, rename or move is performed. Existing matched definitions are not certified for trigger policy, source freshness, queue availability or authorization by this registration check.
 
@@ -61,7 +62,7 @@ Denied reads, missing consent, GitHub rate limits and incomplete inventory fail 
 
 ## Local and manual verification
 
-`PipelineRegistrationTests` exercises the real service with synthetic ADO/GitHub HTTP responses: all 18 roots, create-all-missing, reuse, duplicate/path/repository conflict, incomplete paging, unpublished source, expired/drifted reviews, lost responses, partial batches, no secret/settings cloning and token isolation. The real unauthenticated HTTP smoke test confirms catalog access, identity enforcement and rejection of unissued tickets. See [dated verification](validation.md).
+`PipelineRegistrationTests` exercises the real service with synthetic ADO/GitHub HTTP responses: all 20 roots, create-all-missing, reuse, duplicate/path/repository conflict, incomplete paging, unpublished source, expired/drifted reviews, lost responses, partial batches, no secret/settings cloning and token isolation. The real unauthenticated HTTP smoke test confirms catalog access, identity enforcement and rejection of unissued tickets. See [dated verification](validation.md).
 
 For live acceptance, first run **Check registration** with the intended ADO account. Compare results with the ADO UI. Review a selected missing definition or the full missing batch, then register and verify the definitions, zero new runs, unchanged GitHub commit and unchanged existing pipelines. Confirm resource access remains gated before attempting a Discover run. A service connection or private pool may need a separately approved authorization even after registration succeeds.
 

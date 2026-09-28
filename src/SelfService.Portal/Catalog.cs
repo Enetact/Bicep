@@ -12,6 +12,21 @@ public record RunRequest(string Product, string Environment, string Region, stri
 public sealed class Catalog(PortalOptions options)
 {
     public string Root => options.RepositoryRoot;
+    // Display metadata only. Execution cannot be enabled by editing this catalog.
+    public JsonElement RecoveryPolicies
+    {
+        get
+        {
+            var c = Read(Path.Combine(Root, "config/recovery-capabilities.json"));
+            if (c.GetProperty("schemaVersion").GetInt32() != 1 || c.GetProperty("executionEnabled").GetBoolean())
+                throw new InvalidOperationException("Recovery catalog cannot enable execution.");
+            var ids = c.GetProperty("policies").EnumerateArray().Select(p => p.GetProperty("id").GetString()!).ToArray();
+            var expected = ProductTypes.Concat(new[] { "tags-external", "tags-source", "network-ipam", "pipeline-registration", "discovery", "agent-review", "bicep-draft" }).ToArray();
+            if (ids.Length != expected.Length || !ids.Order().SequenceEqual(expected.Order()))
+                throw new InvalidOperationException("Recovery catalog must cover exactly the registered workflows.");
+            return c;
+        }
+    }
     static JsonElement Read(string file) => JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(file));
     public string[] Regions => Read(Path.Combine(Root, "config/platform.json")).GetProperty("approvedRegions").EnumerateArray().Select(x => x.GetString()!).ToArray();
     // Explicit source allowlist: configuration describes products but cannot supply executable paths.

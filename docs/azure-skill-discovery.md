@@ -6,7 +6,7 @@
 
 **Separate agent increment:** [Agent workflows](agent-workflows.md) now connects Codex Astra/High/Standard to a platform-owned MCP evidence bridge. Four bounded reviews can consume selected metadata, including the visualizer with an explicit resource-group selection. This does not turn every library discovery button into an agent or launch Microsoft's `azmcp` server. Live login/model acceptance remains pending.
 
-Implemented 27 September 2026. The portal includes **42 upstream skill definitions**: 28 top-level skill directories, 10 nested workflows and four cost skills from the repository's bundled cost plugin. It also retains our five project-local skills. These are separate from the seven registered workload products and their fourteen dedicated ADO definitions.
+Implemented 27 September 2026. The portal includes **42 upstream skill definitions**: 28 top-level skill directories, 10 nested workflows and four cost skills from the repository's bundled cost plugin. It also retains our eight project-local skills. These are separate from the seven registered workload products and their fourteen dedicated ADO definitions.
 
 Source: [Microsoft Azure Skills at commit 117b038e](https://github.com/microsoft/azure-skills/tree/117b038edfef5d7af09848b8ffcd355f28f19956). Exact downloaded source bytes and licenses are under `vendor/azure-skills`; `bundle.json` records each definition, discovery profile and SHA-256 for **944 source files**. The three onboarding sub-workflows without front matter have explicit wrapper metadata in the catalog; their source is unchanged. No runtime downloads, telemetry hooks or plugin installation are activated by the portal.
 

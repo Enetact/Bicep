@@ -73,7 +73,7 @@ public static class TagRules
     public static bool Sensitive(string key,string value) => Regex.IsMatch(key,"secret|password|token|credential|private.?key",RegexOptions.IgnoreCase) || Regex.IsMatch(value,"(?i)(AccountKey=|SharedAccessSignature=|Bearer |-----BEGIN|[?&]sig=|eyJ[A-Za-z0-9_-]+\\.)") || Regex.IsMatch(value,@"\b[^\s@]+@[^\s@]+\.[^\s@]+\b");
     public static string Id(string id,string subscription)
     {
-        if(!Guid.TryParse(subscription,out var s) || id.Length>2048 || !Regex.IsMatch(id,@"^/subscriptions/[0-9a-fA-F-]{36}(?:/[A-Za-z0-9_.() -]+)*$",RegexOptions.CultureInvariant) || !id.Split('/')[2].Equals(s.ToString(),StringComparison.OrdinalIgnoreCase) || id.Contains("/../") || id.Contains("/./"))throw new TagException("Resource ID is invalid or outside the selected subscription.");
+        if(!Guid.TryParse(subscription,out var s) || id.Length>2048 || !Regex.IsMatch(id,@"^/subscriptions/[0-9a-fA-F-]{36}(?:/[A-Za-z0-9_.() -]+)*$",RegexOptions.CultureInvariant) || !id.Split('/')[2].Equals(s.ToString(),StringComparison.OrdinalIgnoreCase) || id.Split('/').Any(segment=>segment is "." or ".."))throw new TagException("Resource ID is invalid or outside the selected subscription.");
         return id.TrimEnd('/').ToLowerInvariant();
     }
     public static string Fingerprint(Dictionary<string,string> tags) => TagJson.Hash(tags.OrderBy(p=>p.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(p=>p.Key.ToLowerInvariant(),p=>p.Value));
@@ -101,7 +101,7 @@ public static class TagRules
     public static TagInventory Seal(TagInventory x)=>x with{Digest=TagJson.Hash(x with{Digest=""})};
     public static void ValidateInventory(TagInventory x,TagProfile p)
     {
-        if(x.Schema!="platform.tag-inventory/v1"||x.SubscriptionId!=p.SubscriptionId||x.TenantId!=p.TenantId||x.Digest!=Seal(x).Digest||x.Resources.Length>50000||x.Resources.Select(r=>r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=x.Resources.Length)throw new TagException("Inventory schema, scope, digest or size is invalid.");
+        if(x.Schema!="platform.tag-inventory/v1"||!Regex.IsMatch(x.Id,@"^[a-f0-9]{32}$")||x.SubscriptionId!=p.SubscriptionId||x.TenantId!=p.TenantId||x.Digest!=Seal(x).Digest||x.Resources.Length>50000||x.Resources.Select(r=>r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=x.Resources.Length)throw new TagException("Inventory schema, identifier, scope, digest or size is invalid.");
         foreach(var r in x.Resources){
             if(Id(r.Id,p.SubscriptionId)!=r.Id)throw new TagException("Resource IDs must be canonical.");
             var qualified=Resource(r.Id,r.Name,r.Type,r.ResourceGroup,r.Location,r.Tags,p);
@@ -130,7 +130,7 @@ public static class TagRules
         }
         var plan=new TagPlan("platform.tag-plan/v1",request,ProfileHash(p),inventory.GovernanceDigest,p.RuleVersion,now.AddMinutes(30),changes.ToArray(),before,blockers.Distinct().ToArray(),"");return plan with{Digest=PlanHash(plan)};
     }
-    public static string PlanHash(TagPlan plan)=>TagJson.Hash(new{plan.Schema,plan.Request,plan.ProfileDigest,plan.GovernanceDigest,plan.RuleVersion,plan.Changes,plan.Before,plan.Blockers});
+    public static string PlanHash(TagPlan plan)=>TagJson.Hash(new{plan.Schema,plan.Request,plan.ProfileDigest,plan.GovernanceDigest,plan.RuleVersion,plan.ExpiresUtc,plan.Changes,plan.Before,plan.Blockers});
     public static void ValidatePlan(TagPlan plan,TagProfile p,DateTimeOffset now)
     {
         if(plan.Schema!="platform.tag-plan/v1"||plan.Digest!=PlanHash(plan)||plan.ProfileDigest!=ProfileHash(p)||plan.ExpiresUtc<now||plan.ExpiresUtc>now.AddMinutes(31)||plan.Blockers.Length>0)throw new TagException("Plan blocked, expired, changed or unqualified.");

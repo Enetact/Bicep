@@ -18,6 +18,10 @@ Each diagram supports search, 40-node pages, a full-name resource/relationship l
 
 Changing workload/environment/region/action/discovery selection clears saved Preview evidence. Switching selections while an artifact loads cannot attach the old response to the new configuration. The current discovery comparison and run list are session-only; refreshing clears them. Existing saved-manifest **Discovery analysis** remains available independently.
 
+## Deployment timeline boundary
+
+The observed inventory, conceptual proposal and saved Preview are connected views, but they are not yet a durable before/after deployment history. On completion, the portal reloads the run's Preview; it does not collect a verified observed-after topology. Product readiness receipts remain in `deployment-result`. The [state and recovery design](plans/deployment-state-and-recovery.md) defines run-bound captures, reconciliation, optional visualizer interpretation and qualified recovery controls. These additions are planned; a diagram is neither a backup nor executable rollback code.
+
 ## Methods and contracts
 
 | Path | Responsibilities |

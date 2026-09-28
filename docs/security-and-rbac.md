@@ -1,5 +1,8 @@
 # Security and RBAC
 
+**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+
+
 **Pipeline registration boundary:** [ADO setup](ado-pipeline-registration.md) requires pre-existing ADO view/create permissions, reuses a GitHub repository connection reference and creates only definitions. It neither grants service-connection access nor configures approvals; new definitions inherit existing project permissions. Public source is not access to ADO/Azure.
 
 **Local agent boundary:** [Codex workflows](agent-workflows.md#identity-evidence-and-failure-behavior) use isolated ChatGPT authentication plus the portal's existing Azure/ADO audiences. Readiness never grants new Azure rights. The MCP bridge exposes frozen evidence only; models cannot queue deployments or allocate addresses. Protect ignored Codex session caches and infrastructure reports locally; model metadata transfer happens only on explicit Run. Live model/provider acceptance remains pending.

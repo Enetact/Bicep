@@ -6,7 +6,7 @@ using SelfService.Tagging;
 namespace SelfService.Portal;
 
 public record AgentWorkflow(string Id, string Name, string SkillId, string? Audience, string Scope, string Limits);
-public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null, string? EvidenceId = null, string[]? ResourceIds = null);
+public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null, string? EvidenceId = null, string[]? ResourceIds = null, string? DraftGoal = null);
 public sealed class AgentSession : IAsyncDisposable
 {
     public SemaphoreSlim Gate { get; } = new(1, 1);
@@ -69,8 +69,13 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             var readiness = JsonSerializer.SerializeToElement(await runtime.Status(timeout.Token));
             if (!readiness.GetProperty("ready").GetBoolean()) throw new PortalException("Complete Codex browser sign-in first.", 401);
             s.Agent.State = "Running";
-            object evidence; TagInventory? tagEvidence = null; TagProfile? tagProfile = null;
-            if (workflow.Scope == "tag-evidence")
+            object evidence; TagInventory? tagEvidence = null; TagProfile? tagProfile = null; BicepDraftContext? draftContext = null;
+            if (workflow.Scope == "composition")
+            {
+                draftContext = BicepDrafts.Context(catalog.Root, catalog, s, request);
+                evidence = draftContext;
+            }
+            else if (workflow.Scope == "tag-evidence")
             {
                 if (tagging is null) throw new PortalException("Tagging adapter unavailable.",409);
                 var full = tagging.Evidence(s, request.EvidenceId ?? ""); tagProfile = tagging.Profile(full.SubscriptionId);
@@ -124,8 +129,17 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             bridge = await AgentMcpBridge.Create(frozen, skill.Content + "\n\nADAPTER COVERAGE: " + workflow.Limits, () => Authorized(s, workflow) && !timeout.IsCancellationRequested, timeout.Token);
             runtime.ToolHandler = bridge.Call;
             inferenceStarted = true;
-            var review = await runtime.Review(skillPath, skill.Name, bridge.Tools, timeout.Token, tagEvidence is not null);
+            var review = await runtime.Review(skillPath, skill.Name, bridge.Tools, timeout.Token, tagEvidence is not null || draftContext is not null);
             if (!bridge.EvidenceRead) throw new PortalException("Agent did not read both required evidence tools. Review rejected.", 502);
+            if (!Authorized(s, workflow)) throw new PortalException("Identity disconnected during review.", 401);
+            BicepDraftResult? draft = draftContext is null ? null : BicepDrafts.Generate(catalog.Root, draftContext, review);
+            if (draft is not null)
+                foreach (var (path, content) in draft.Files)
+                {
+                    var file = Path.Combine(folder, "source-draft", path);
+                    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                    await File.WriteAllTextAsync(file, content, timeout.Token);
+                }
             WorkflowReview? structuredReview = tagEvidence is null ? null : WorkflowReviews.Tags(review,tagEvidence,tagProfile!);
             var diagram = diagramGraph is null ? null : EvidenceDiagram.Validate(review, diagramGraph);
             if (diagram is not null)
@@ -136,13 +150,13 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             var receipt = new { id, status = "Completed", workflow = workflow.Id, startedUtc = started, completedUtc = DateTimeOffset.UtcNow,
                 model = AgentPolicy.Model, reasoning = AgentPolicy.Effort, serviceTier = AgentPolicy.Tier, skillId = skill.Id, skillHash,
                 evidenceSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(frozen))).ToLowerInvariant(),
-                outputValidation = structuredReview is null ? "Advisory prose" : "Accepted structured advice", diagramStatus = diagram?.Status, diagramSha256 = diagram?.Source is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(diagram.Source))).ToLowerInvariant(),
+                outputValidation = draft is not null ? "Validated composition contract; unqualified source draft" : structuredReview is null ? "Advisory prose" : "Accepted structured advice", diagramStatus = diagram?.Status, diagramSha256 = diagram?.Source is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(diagram.Source))).ToLowerInvariant(),
                 toolCalls = bridge.Audit, deploymentAuthorized = false, limitations = workflow.Limits };
             await File.WriteAllTextAsync(Path.Combine(folder, "review.md"), review, timeout.Token);
             await File.WriteAllTextAsync(Path.Combine(folder, "receipt.json"), JsonSerializer.Serialize(receipt, Json), timeout.Token);
             s.Agent.State = "Completed";
             if(structuredReview is not null) await File.WriteAllTextAsync(Path.Combine(folder,"review.json"),TagJson.Write(structuredReview),timeout.Token);
-            return new { receipt, review, structuredReview, diagram, path = $"artifacts/portal-agents/{id}" };
+            return new { receipt, review, structuredReview, diagram, draft, path = $"artifacts/portal-agents/{id}" };
         }
         catch (Exception e)
         {

@@ -73,6 +73,10 @@ Preview-only cannot be changed into deployment mid-run. The next run repeats Pre
 
 Publication occurs inside Deploy before the final workload recheck. If that recheck rejects drift, a Template Spec version may already have been published, but no workload apply is performed. An apply/runtime failure can leave partially created or updated resources; automatic rollback/deletion is not implemented. `deployment-result/receipt.json` reports Ready only after the existing workload verification succeeds. Re-run discovery/preview or follow the documented recovery process instead of bypassing failed checks.
 
+The portal displays saved Preview actions, including after a run completes; it does not yet render a fresh verified after-state. See the [deployment state and recovery design](plans/deployment-state-and-recovery.md) for the audited implementation, missing timeline and proposed per-workflow recovery. Existing Delete/Detach, ownership and drift guards also constrain any future restoration of an earlier release. ARM resource-group rollback-on-error is not a rollback switch for this subscription stack path.
+
+New Preview preparation writes an informational `recovery-policy.json` and adds **Recovery rules** to the uploaded README; the deployment coordinator annotates its result receipt with policy identity/hash and `Not assessed`. This snapshot is outside the nine-file approved input contract and cannot enable execution. See [the implemented rules and offline assessment](recovery-rules.md). Forward deployment gates are unchanged; there is no restore stage or new queue-time recovery option.
+
 ## Local verification
 
 ```powershell

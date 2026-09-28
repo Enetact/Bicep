@@ -11,9 +11,10 @@ function Get-ProductRequiredParameters([string]$Type) {
     return $keys
 }
 function Assert-ProductParameters($Target,$P) {
+    Assert-CustomTags (Get-ServiceParameter $P customTags)
     $type=Get-TargetWorkloadType $Target;$d=Get-WorkloadDefinition $type
     $keys=Get-ProductRequiredParameters $type
-    if(@($P.Keys|Where-Object {$_ -notin ($keys+@('releaseActivated','packageBlobName'))}).Count){throw 'Unsupported product parameter.'}
+    if(@($P.Keys|Where-Object {$_ -notin ($keys+@('releaseActivated','packageBlobName','customTags'))}).Count){throw 'Unsupported product parameter.'}
     foreach($k in $keys){if(!$P.Contains($k) -or $null -eq $P[$k].value -or [string]::IsNullOrWhiteSpace([string]$P[$k].value)){throw "Platform onboarding required: $k"}}
     if((ConvertTo-Canonical $P) -match 'REPLACE_|00000000-0000-0000-0000-000000000000'){throw 'Complete reviewed product onboarding settings.'}
     if($P.workload.value -cne $Target.workload -or $P.environmentName.value -cne $Target.environmentName -or $P.location.value -cnotin @('eastus2')){throw 'Product intent mismatch.'}

@@ -31,6 +31,10 @@ stages:
           - template: pipelines/templates/tagging-prepare.yml
             parameters:
               discoveryRunId: ${{ parameters.discoveryRunId }}
+          - pwsh: |
+              if ([int]$env:TAG_RUN -lt 1) { throw 'Select a positive saved Tags discovery run ID.' }
+            env:
+              TAG_RUN: ${{ parameters.discoveryRunId }}
           - task: DownloadPipelineArtifact@2
             inputs:
               buildType: specific
@@ -77,6 +81,8 @@ stages:
                           ./scripts/Invoke-TagWorkflow.ps1 -Mode apply -PlanPath '$(Pipeline.Workspace)/tag-preview/plan.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/tag-apply'
                       env:
                         TAG_APPROVED_STAGE: Apply
+                    - pwsh: Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/tag-apply/README.md'
+                      condition: succeededOrFailed()
                     - publish: $(Build.ArtifactStagingDirectory)/tag-apply
                       artifact: tag-apply
                       condition: always()
@@ -96,6 +102,8 @@ stages:
                   scriptLocation: inlineScript
                   inlineScript: |
                     ./scripts/Invoke-TagWorkflow.ps1 -Mode verify -PlanPath '$(Pipeline.Workspace)/tag-preview/plan.json' -OutputDirectory '$(Build.ArtifactStagingDirectory)/tag-verification'
+              - pwsh: Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/tag-verification/README.md'
+                condition: succeededOrFailed()
               - publish: $(Build.ArtifactStagingDirectory)/tag-verification
                 artifact: tag-verification
                 condition: always()

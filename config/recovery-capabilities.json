@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "executionEnabled": false,
+  "description": "Platform recovery rules. Offline assessment is not verified eligibility or approval. No restore executor is registered.",
+  "checks": {
+    "beforeCaptured": "Retain the observed before-state separately from the previous desired release.",
+    "qualifiedBaseline": "Select a product-verified release or verified before/apply tag receipts; Preview or pipeline success alone does not qualify.",
+    "artifactsRetained": "Retain the exact release template, parameters and package, or the before/apply tag receipts, for the recovery window.",
+    "integrityVerified": "Verify candidate hashes and original registered pipeline, repository, run and source provenance.",
+    "sameTarget": "Bind the candidate to the same tenant, subscription, target and stack where applicable.",
+    "coverageComplete": "Collect fresh required state; denied, partial or unknown reads block recovery.",
+    "ownershipVerified": "Restrict changes to owned resources and approved tag keys; preserve shared and unrelated state.",
+    "currentPolicyPassed": "Apply current security policy and supported adapter/schema versions to the older candidate.",
+    "compatibleChanges": "Qualify each resource/property change against its provider and product recovery contract.",
+    "credentialsCurrent": "Preserve approved identity and secret references; never implicitly restore old credentials.",
+    "freshPreview": "Produce a new current-to-candidate Preview bound to the recovery request and within its freshness limit.",
+    "noDrift": "Re-read and compare state under the protected target lock immediately before applying.",
+    "protectedApproval": "Use a separately approved recovery request and the registered protected target bindings.",
+    "verificationDefined": "Define after-state reconciliation and product verification, including partial and unknown outcomes.",
+    "packageCompatible": "Retain the exact prior application package and verify current security and state/schema compatibility.",
+    "processingImpactReviewed": "Review trigger/worker activation and downstream processing effects before restoring code.",
+    "tagKeysOwned": "Compensate only tag keys recorded as changed by this operation.",
+    "tagCurrentMatchesApplied": "Require each affected current tag value to match the value recorded after Apply; conflicts block compensation."
+  },
+  "policies": [
+    { "id": "blob-transfer", "name": "Blob copy", "mode": "ApplicationRestore", "summary": "Restore compatible infrastructure and the retained application package after a fresh recovery Preview.", "exclusions": ["Copied blobs and transfer-ledger history", "Replaying transfers or restoring credentials", "Deleting new storage or replacing identities"] },
+    { "id": "logic-app-event-grid", "name": "Event flow", "mode": "ApplicationRestore", "summary": "Restore compatible workflow configuration and package after reviewing trigger and connector effects.", "exclusions": ["Events already delivered and downstream actions", "Automatic event replay", "Deleting new stateful resources or restoring credentials"] },
+    { "id": "private-storage", "name": "Private Storage Workspace", "mode": "ConfigurationRestore", "summary": "Restore qualified mutable account configuration while preserving stored data and new resources.", "exclusions": ["Blob/file contents or deleted storage accounts", "Data-plane ACL recovery", "Irreversible settings and automatic resource deletion"] },
+    { "id": "key-vault", "name": "Key Vault", "mode": "ConfigurationRestore", "summary": "Restore qualified mutable vault configuration after identity and current policy checks.", "exclusions": ["Secret/key contents and old credential versions", "Reversing purge protection", "Deleted vault or identity recovery"] },
+    { "id": "observability", "name": "Observability", "mode": "ConfigurationRestore", "summary": "Restore qualified workbook and alert configuration while preserving the shared workspace.", "exclusions": ["Deleted or expired telemetry", "Changing the shared workspace or undoing retention side effects", "Recreating workspaces or recovering application data"] },
+    { "id": "http-functions", "name": "HTTP Functions API", "mode": "ApplicationRestore", "summary": "Restore compatible infrastructure and the exact retained application package; verify health and authentication.", "exclusions": ["External API side effects", "Incompatible data/schema changes", "Deleted resources and old credentials"] },
+    { "id": "service-bus-worker", "name": "Service Bus worker", "mode": "ApplicationRestore", "summary": "Restore compatible hosting, package and messaging configuration after reviewing processing effects.", "exclusions": ["Consumed messages, acknowledgements and external effects", "Queue recreation or automatic message replay", "Incompatible state/schema changes"] },
+    { "id": "tags-external", "name": "External-resource tags", "mode": "TagCompensation", "summary": "Plan per-key compensation using before, applied and current values; preserve unrelated tags.", "exclusions": ["Conflicting subsequent edits", "Replacing the entire tag dictionary", "Removal of newly introduced keys until a removal adapter is qualified"] },
+    { "id": "tags-source", "name": "Source-owned tags", "mode": "SourceRevert", "summary": "Revert reviewed source settings and use the workload's normal Preview/Deploy route.", "exclusions": ["Direct tag patches that bypass source ownership"] },
+    { "id": "network-ipam", "name": "Private network and IPAM", "mode": "ManualRecovery", "summary": "Reconcile resource ownership, dependencies and durable allocations with the platform owner.", "exclusions": ["Automatic subnet deletion or IPAM release", "Treating an apparently unused range as safe to release", "Assuming stack detach removes dependencies"] },
+    { "id": "pipeline-registration", "name": "ADO definition registration", "mode": "ManualRecovery", "summary": "Reconcile Created, Reused and Uncertain receipts before any separate administrative change.", "exclusions": ["Deleting reused definitions", "Automatically deleting definitions now used by runs or other users"] },
+    { "id": "discovery", "name": "Discovery and diagrams", "mode": "NotApplicable", "summary": "Read-only evidence can be refreshed; there is no workload mutation to restore.", "exclusions": ["Deleting source resources as an inverse of discovery"] },
+    { "id": "agent-review", "name": "Agent reviews", "mode": "NotApplicable", "summary": "Retain the review and receipt, or run another review; advice does not modify Azure.", "exclusions": ["Executing an agent-generated inverse operation"] },
+    { "id": "bicep-draft", "name": "Bicep source drafts", "mode": "NotApplicable", "summary": "Review, retain or discard the local draft through its normal source workflow.", "exclusions": ["Cloud recovery for an unqualified, undeployed draft"] }
+  ]
+}

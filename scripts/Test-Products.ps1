@@ -36,6 +36,10 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
         Check (!$intent.deploymentEnabled -and $intent.composition -ceq $d.composition)
     }
     Case "$type rejects cross-workload parameter path" {$bad=Clone $t;$bad.parameterFile='workloads/blob-transfer/environments/main.dev.bicepparam';Reject {Assert-ServiceTarget $bad $bad.workload dev -AllowDisabled}}
+    Case "$type accepts source custom tags and rejects platform overrides" {
+        $custom=Clone $p;$custom.customTags=@{value=@{'custom.team'='platform'}};Assert-ProductParameters $t $custom
+        $custom.customTags.value=@{Owner='override'};Reject {Assert-ProductParameters $t $custom}
+    }
     Case "$type rejects arbitrary executable/secret option" {$bad=Clone $p;$bad.scriptPath=@{value='injected'};Reject {Assert-ProductParameters $t $bad}}
     Case "$type rejects wrong workspace scope" {$bad=Clone $p;$bad.existingLogAnalyticsWorkspaceId.value=$bad.existingLogAnalyticsWorkspaceId.value.Replace($t.subscriptionId,'99999999-9999-9999-9999-999999999999');Reject {Assert-ProductParameters $t $bad}}
     $inv=@{schemaVersion=1;readOnly=$true;workloadType=$type;discoveryStatus='Complete';generatedUtc=[DateTimeOffset]::UtcNow.ToString('O');subscription=@{id=$t.subscriptionId};providers=@($d.providers|ForEach-Object {@{namespace=$_;registrationState='Registered'}});resources=@(@{id=$p.existingLogAnalyticsWorkspaceId.value;type='Microsoft.OperationalInsights/workspaces'});resourceQuery=@{status='Succeeded'};networkQuery=@{status='Succeeded'};privateDnsQuery=@{status='Succeeded'};networks=@();privateDnsZones=@();serviceConnections=@();serviceConnectionQuery=@{status='NotRequested'}}

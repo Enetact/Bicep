@@ -1,0 +1,598 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Source draft contracts, not deployment authorization",
+  "modules": [
+    {
+      "id": "compute-private-functions",
+      "path": "modules/compute/private-functions/main.bicep",
+      "sourceSha256": "f50a160c28373850b688d9624d9e5b355fc71c8012b31ff2841aed0202e00196",
+      "draftSelectable": true,
+      "parameters": {
+        "allowedClientApplications": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "defaultValue": []
+        },
+        "apiClientId": {
+          "type": "string",
+          "defaultValue": ""
+        },
+        "busName": {
+          "type": "string",
+          "defaultValue": ""
+        },
+        "identityClientId": {
+          "type": "string"
+        },
+        "identityId": {
+          "type": "string"
+        },
+        "integrationSubnetId": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "allowedValues": [
+            "http",
+            "worker"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "packageBlobName": {
+          "type": "string"
+        },
+        "storageName": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.Web/serverfarms",
+        "Microsoft.Web/sites",
+        "Microsoft.Web/sites/basicPublishingCredentialsPolicies",
+        "Microsoft.Web/sites/config"
+      ]
+    },
+    {
+      "id": "event-grid-event-subscription",
+      "path": "modules/event-grid/event-subscription/main.bicep",
+      "sourceSha256": "e935633192d43a41b46ab4a1fc2f8af92d746408f7cfefae497c9222933af731",
+      "draftSelectable": true,
+      "parameters": {
+        "deadLetterContainer": {
+          "type": "string"
+        },
+        "queueName": {
+          "type": "string"
+        },
+        "storageAccountId": {
+          "type": "string"
+        },
+        "topicName": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.EventGrid/topics/eventSubscriptions"
+      ]
+    },
+    {
+      "id": "event-grid-topic",
+      "path": "modules/event-grid/topic/main.bicep",
+      "sourceSha256": "32df7fd7b1af26830a57b8dd1e22a386b3d2e564f374778c135227196162d467",
+      "draftSelectable": true,
+      "parameters": {
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        }
+      },
+      "outputs": {
+        "endpoint": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "principalId": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.EventGrid/topics"
+      ]
+    },
+    {
+      "id": "logic-app-standard",
+      "path": "modules/logic-app/standard/main.bicep",
+      "sourceSha256": "1fae910988ef3eae64aa90066b68f971f907d0f51a365a136bef08b30bdbfd1d",
+      "draftSelectable": true,
+      "parameters": {
+        "eventStorageName": {
+          "type": "string"
+        },
+        "instrumentationConnectionString": {
+          "type": "string"
+        },
+        "integrationSubnetId": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "releaseActivated": {
+          "type": "bool"
+        },
+        "runtimeStorageName": {
+          "type": "string"
+        },
+        "skuName": {
+          "type": "string",
+          "defaultValue": "WS1",
+          "allowedValues": [
+            "WS1",
+            "WS2",
+            "WS3"
+          ]
+        },
+        "tags": {
+          "type": "object"
+        },
+        "topicId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "principalId": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Web/serverfarms",
+        "Microsoft.Web/sites",
+        "Microsoft.Web/sites/basicPublishingCredentialsPolicies"
+      ]
+    },
+    {
+      "id": "messaging-service-bus",
+      "path": "modules/messaging/service-bus/main.bicep",
+      "sourceSha256": "911d1900bc85398fbe45ea18d4064885aad5b046dcc5331981913f44b1673bd5",
+      "draftSelectable": true,
+      "parameters": {
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "senderPrincipalId": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workerPrincipalId": {
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.ServiceBus/namespaces",
+        "Microsoft.ServiceBus/namespaces/networkRuleSets",
+        "Microsoft.ServiceBus/namespaces/queues"
+      ]
+    },
+    {
+      "id": "monitoring-log-analytics",
+      "path": "modules/monitoring/log-analytics/main.bicep",
+      "sourceSha256": "e7863e1fb767cef987010d576395f16dc0003a5a8826fad2aa5e05e56a1e311e",
+      "draftSelectable": true,
+      "parameters": {
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.OperationalInsights/workspaces"
+      ]
+    },
+    {
+      "id": "monitoring-observability",
+      "path": "modules/monitoring/observability/main.bicep",
+      "sourceSha256": "4f8fc8da5d6fbecbc2a8ff4d11794e1665c4189b2c089076f76ae38af269b662",
+      "draftSelectable": true,
+      "parameters": {
+        "actionGroupIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minLength": 1
+        },
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "alertId": {
+          "type": "string"
+        },
+        "workbookId": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Insights/scheduledQueryRules",
+        "Microsoft.Insights/workbooks"
+      ]
+    },
+    {
+      "id": "network-ipam-reservation",
+      "path": "modules/network/ipam-reservation.bicep",
+      "sourceSha256": "fdf03b185b5ab97c244b0ef670229dd2f7d4a783f1c195aeca26eb0a8c102aee",
+      "draftSelectable": false,
+      "parameters": {
+        "addressCount": {
+          "type": "int",
+          "defaultValue": 256,
+          "allowedValues": [
+            256
+          ]
+        },
+        "allocationName": {
+          "type": "string"
+        },
+        "networkManagerName": {
+          "type": "string",
+          "metadata": {
+            "description": "Existing connectivity-owned Network Manager name."
+          }
+        },
+        "ownerDescription": {
+          "type": "string"
+        },
+        "poolName": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "addressPrefixes": {
+          "type": "array"
+        },
+        "allocationId": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Network/networkManagers/ipamPools/staticCidrs"
+      ]
+    },
+    {
+      "id": "network-private-dns-zone",
+      "path": "modules/network/private-dns-zone/main.bicep",
+      "sourceSha256": "25955436f187f99ec767f8995e5590c89a6af5cf19179f3878e4a6b9403e2c24",
+      "draftSelectable": true,
+      "parameters": {
+        "linkName": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        },
+        "virtualNetworkId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Network/privateDnsZones",
+        "Microsoft.Network/privateDnsZones/virtualNetworkLinks"
+      ]
+    },
+    {
+      "id": "network-private-endpoint",
+      "path": "modules/network/private-endpoint/main.bicep",
+      "sourceSha256": "bd73abc571b60f2bddc95f598c74ef3aab1f7c8f9569e59e129b3cadfba6cf99",
+      "draftSelectable": true,
+      "parameters": {
+        "groupIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minLength": 1,
+          "metadata": {
+            "description": "Private Link subresource group IDs supported by the target."
+          }
+        },
+        "location": {
+          "type": "string",
+          "metadata": {
+            "description": "Azure region of the endpoint subnet."
+          }
+        },
+        "name": {
+          "type": "string",
+          "metadata": {
+            "description": "Deterministic private endpoint resource name."
+          }
+        },
+        "privateDnsZoneIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minLength": 1,
+          "metadata": {
+            "description": "Existing private DNS zone resource IDs associated with the endpoint."
+          }
+        },
+        "subnetId": {
+          "type": "string",
+          "metadata": {
+            "description": "Approved private endpoint subnet resource ID."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "defaultValue": {},
+          "metadata": {
+            "description": "Resource ownership and classification tags."
+          }
+        },
+        "targetResourceId": {
+          "type": "string",
+          "metadata": {
+            "description": "Existing or workload-created target. This module never owns the subnet or DNS zones."
+          }
+        }
+      },
+      "outputs": {
+        "networkInterfaceIds": {
+          "type": "array"
+        },
+        "privateEndpointId": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Network/privateEndpoints",
+        "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
+      ]
+    },
+    {
+      "id": "network-workload-vnet",
+      "path": "modules/network/workload-vnet/main.bicep",
+      "sourceSha256": "40781425aa2db009b5ff862bb9140df12218338c893bbe060b0880f1f648cd60",
+      "draftSelectable": true,
+      "parameters": {
+        "addressPrefix": {
+          "type": "string"
+        },
+        "integrationSubnetPrefix": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "privateEndpointSubnetPrefix": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Network/networkSecurityGroups",
+        "Microsoft.Network/virtualNetworks"
+      ]
+    },
+    {
+      "id": "security-key-vault",
+      "path": "modules/security/key-vault/main.bicep",
+      "sourceSha256": "88a0c9a3a16e5a59c443fb16397538c8e3cb438aa2e56e595a0f28628125cf83",
+      "draftSelectable": true,
+      "parameters": {
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "metadata": {
+            "description": "Globally unique vault name."
+          }
+        },
+        "readerPrincipalId": {
+          "type": "string",
+          "metadata": {
+            "description": "Reviewed service principal allowed to read secrets; no secret values are deployed."
+          }
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.KeyVault/vaults"
+      ]
+    },
+    {
+      "id": "storage-storage-account",
+      "path": "modules/storage/storage-account/main.bicep",
+      "sourceSha256": "ec3d63ae453fd29f5a9ddf323e175ebf90d69489abe921feba94f30fb6dd0b66",
+      "draftSelectable": true,
+      "parameters": {
+        "containers": {
+          "type": "array",
+          "metadata": {
+            "description": "Private Blob containers to create."
+          }
+        },
+        "location": {
+          "type": "string",
+          "metadata": {
+            "description": "Azure region for the storage account."
+          }
+        },
+        "name": {
+          "type": "string",
+          "metadata": {
+            "description": "Globally unique storage account name supplied by the composition."
+          }
+        },
+        "queueNames": {
+          "type": "array",
+          "defaultValue": [],
+          "metadata": {
+            "description": "Storage work queues to create; empty creates no named work queues."
+          }
+        },
+        "skuName": {
+          "type": "string",
+          "allowedValues": [
+            "Standard_LRS",
+            "Standard_ZRS"
+          ],
+          "metadata": {
+            "description": "Approved replication SKU; environment files select the required durability."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Resource ownership and classification tags."
+          }
+        },
+        "workspaceId": {
+          "type": "string",
+          "metadata": {
+            "description": "Log Analytics workspace resource ID receiving Blob and Queue diagnostics."
+          }
+        }
+      },
+      "outputs": {
+        "blobEndpoint": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "queueEndpoint": {
+          "type": "string"
+        },
+        "tableEndpoint": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.Storage/storageAccounts",
+        "Microsoft.Storage/storageAccounts/blobServices",
+        "Microsoft.Storage/storageAccounts/blobServices/containers",
+        "Microsoft.Storage/storageAccounts/queueServices",
+        "Microsoft.Storage/storageAccounts/queueServices/queues",
+        "Microsoft.Storage/storageAccounts/tableServices"
+      ]
+    }
+  ]
+}

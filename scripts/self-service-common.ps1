@@ -112,7 +112,7 @@ function Assert-CustomTags($Tags) {
     if ($Tags -isnot [Collections.IDictionary] -or $Tags.Count -gt 8) { throw 'customTags must be a map of at most eight reviewed tags (DNS resources have smaller total limits).' }
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($key in $Tags.Keys) {
-        if (!$seen.Add($key) -or $key -cnotmatch '^(custom\.[A-Za-z][A-Za-z0-9_.-]{0,90}|criticality)$' -or $Tags[$key] -isnot [string] -or $Tags[$key].Length -gt 256 -or $Tags[$key] -match '[\x00-\x1f]|AccountKey=|SharedAccessSignature=|Bearer |-----BEGIN|[?&]sig=|eyJ[A-Za-z0-9_-]+\.|[^\s@]+@[^\s@]+\.[^\s@]+') { throw 'Unsupported, protected or sensitive custom tag. Use custom.<name> or criticality; owner/costCenter use their dedicated parameters.' }
+        if ($key -match 'secret|password|token|credential|private.?key' -or !$seen.Add($key) -or $key -cnotmatch '^(custom\.[A-Za-z][A-Za-z0-9_.-]{0,90}|criticality)$' -or $Tags[$key] -isnot [string] -or $Tags[$key].Length -gt 256 -or $Tags[$key] -match '[\x00-\x1f]|AccountKey=|SharedAccessSignature=|Bearer |-----BEGIN|[?&]sig=|eyJ[A-Za-z0-9_-]+\.|[^\s@]+@[^\s@]+\.[^\s@]+') { throw 'Unsupported, protected or sensitive custom tag. Use custom.<name> or criticality; owner/costCenter use their dedicated parameters.' }
     }
 }
 function Assert-ServiceParameters($Target, $Parameters) {

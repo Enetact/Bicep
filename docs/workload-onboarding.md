@@ -1,5 +1,7 @@
 # Adding and operating self-service workload products
 
+**AI-assisted source authoring:** [Design Bicep source draft](bicep-source-drafts.md) can produce main/stack/parameter files from local module contracts. Treat these as source proposals and complete the same registration, adapter, naming, ownership, test and platform qualification steps below. Production parameters are still resolved by the existing pipeline adapters.
+
 ## Current catalog and delivery status
 
 The catalog contains seven workload types: Blob copy, Event flow, Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. Each has four disabled environment profiles and dedicated Discover/Deploy YAML roots. The five additions are implemented in source; platform onboarding, price qualification, ADO definition registration and live Azure acceptance remain required. A menu or successful local compilation is not production acceptance.

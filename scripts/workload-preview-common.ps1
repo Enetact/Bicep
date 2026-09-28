@@ -2,6 +2,7 @@
 . "$PSScriptRoot/discovery-manifest-common.ps1"
 . "$PSScriptRoot/platform-contract.ps1"
 . "$PSScriptRoot/service-cost-common.ps1"
+. "$PSScriptRoot/recovery-common.ps1"
 function Get-PreviewParameters($Target,$Parameters,[string]$ReleaseId) {
     $p=$Parameters|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
     $type=Get-TargetWorkloadType $Target
@@ -16,6 +17,8 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
     $manifest=Read-DiscoveryManifest $DiscoveryDirectory $Target $Target.serviceConnection
     New-Item -ItemType Directory -Path $Directory -Force|Out-Null
     Write-ServiceJson $Target (Join-Path $Directory target.json)
+    # Informational recovery rules, not an approval artifact or proof of a retained baseline.
+    Write-ServiceJson (Get-RecoveryPolicy $type) (Join-Path $Directory recovery-policy.json)
     Invoke-Bicep -Arguments @('build',(Join-Path $root $definition.composition),'--outfile',(Join-Path $Directory main.json))
     Invoke-Bicep -Arguments @('build',(Join-Path $root $definition.stack),'--outfile',(Join-Path $Directory stack-template.json))
     Invoke-Bicep -Arguments @('build-params',(Resolve-ServicePath $root $Target.parameterFile),'--outfile',(Join-Path $Directory parameters.json))
@@ -123,6 +126,14 @@ function Write-WorkloadPreviewReadme([string]$Directory,[string]$Status,[string]
     New-Item -ItemType Directory -Path $Directory -Force|Out-Null
     $lines=@('# Bicep deployment preview','',"**Status: $(ConvertTo-PreviewCell $Status)**",'', 'No workload resources were deployed by this stage. The full release is evaluated, including the application host. Workflow/Function package contents are separate application changes, not ARM property changes.','', 'This pipeline uses Deployment Stacks. Preview validates the compiled Bicep and creates a temporary Azure stack What-If result, then requests its deletion. It does not publish a Template Spec or apply the workload stack. Only preview metadata is written to Azure.','')
     if($ErrorText){$lines+=@('## Blocker','', (ConvertTo-PreviewCell $ErrorText),'','Do not interpret a failed or incomplete preview as zero changes. Deploy is blocked; correct the reported prerequisites or policy findings and rerun.','')}
+    if(Test-Path (Join-Path $Directory recovery-policy.json)){
+        $recovery=Get-Content (Join-Path $Directory recovery-policy.json) -Raw|ConvertFrom-Json -AsHashtable
+        $lines+=@('## Recovery rules','', (ConvertTo-PreviewCell $recovery.policy.summary),'','Recovery eligibility has not been assessed. No restore executor is registered. These rules do not guarantee that this deployment can be undone.','', '| Excluded from this recovery policy |','|---|')
+        foreach($exclusion in $recovery.policy.exclusions){$lines+='| '+(ConvertTo-PreviewCell $exclusion)+' |'}
+        $lines+=@('','Required checks (all must be independently verified before any future recovery execution):','')
+        foreach($check in $recovery.checks){$lines+='- '+(ConvertTo-PreviewCell $check.description)}
+        $lines+=@('','See recovery-policy.json for policy identity and catalog hash. A fresh recovery Preview and protected approval are required; the forward Preview is not a restore plan.','')
+    }
     if(Test-Path (Join-Path $Directory target.json)){$t=Get-Content (Join-Path $Directory target.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Workload: $(ConvertTo-PreviewCell (Get-TargetWorkloadType $t)) / $(ConvertTo-PreviewCell $t.workload) / $(ConvertTo-PreviewCell $t.environmentName).","Subscription: $(ConvertTo-PreviewCell $t.subscriptionId). Resource group: $(ConvertTo-PreviewCell $t.resourceGroup).","Deployment enabled: $($t.enabled). Disabled targets can be previewed but cannot deploy.",'')}
     if(Test-Path (Join-Path $Directory cost-estimate.json)){$cost=Get-Content (Join-Path $Directory cost-estimate.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Cost status: $(ConvertTo-PreviewCell $cost.status). Fixed monthly subtotal USD: $(ConvertTo-PreviewCell $cost['fixedMonthlySubtotalUsd']); usage is additional. See cost-estimate.json.",'')}
     $onboardingPath=Join-Path $Directory onboarding-requirements.json
@@ -175,6 +186,8 @@ function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$B
         if($env:BUILD_SOURCEBRANCH -cne 'refs/heads/main' -or $env:BUILD_REASON -cne 'Manual'){throw 'Deploy requires a manually queued protected main run.'}
         $bundle=Read-ServiceBundle $BundleDirectory
         $target=$bundle.target
+        $policy=Get-RecoveryPolicy (Get-TargetWorkloadType $target)
+        $receipt.recovery=@{policyId=$policy.policy.id;mode=$policy.policy.mode;catalogSha256=$policy.catalogSha256;assessmentStatus='Not assessed';canExecute=$false;executorRegistered=$false}
         if($target.serviceConnection -cne $BoundServiceConnection -or $target.deploymentEnvironment -cne $BoundEnvironment -or $target.agentPool -cne $BoundAgentPool){throw 'Deployment protected resource binding mismatch.'}
         $approved=Assert-PreviewMatchesBundle $PreviewDirectory $bundle
         $preview=Read-WorkloadPreviewInputs $PreviewDirectory

@@ -12,6 +12,7 @@ const server=createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'");
   const route=req.url.split('?')[0];let result;
   const basic={'/api/bootstrap':bootstrap,'/api/auth':{state:'Connected',account:'LOCAL TEST FIXTURE — no cloud connection',connected:['ado']},
+    '/api/tags/config':{profile:'Fixture',enabled:false,note:'Fixture only'},
     '/api/agent/status':{installed:false,state:'Fixture',provider:{ready:false,state:'Not connected'},workflows:[]},
     '/api/network/allocation':{configured:false,enabled:false,note:'Fixture only'},'/api/pipeline-setup/catalog':catalog};
   if(route in basic)result=basic[route];
@@ -27,7 +28,7 @@ const server=createServer(async(req,res)=>{
     for(const row of pending)row.status='Existing';pending=null;
   }
   if(result){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));return;}
-  const files={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css','/agents.mjs':'agents.mjs','/topology.mjs':'topology.mjs','/network.mjs':'network.mjs','/pipeline-setup.mjs':'pipeline-setup.mjs'};
+  const files={'/':'index.html','/app.js':'app.js','/styles.css':'styles.css','/agents.mjs':'agents.mjs','/topology.mjs':'topology.mjs','/network.mjs':'network.mjs','/pipeline-setup.mjs':'pipeline-setup.mjs','/tagging.mjs':'tagging.mjs'};
   if(!(route in files)){res.writeHead(404);res.end('Fixture route unavailable.');return;}
   const file=files[route];res.setHeader('Content-Type',file.endsWith('.html')?'text/html':file.endsWith('.css')?'text/css':'text/javascript');res.end(await readFile(new URL('../../src/SelfService.Portal/wwwroot/'+file,import.meta.url)));
 });

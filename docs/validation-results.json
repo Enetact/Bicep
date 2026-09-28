@@ -1,4 +1,82 @@
 {
+  "recoveryPolicyImplementation": {
+    "date": "2026-09-27",
+    "status": "Rules, offline assessment and policy UI implemented locally; no recovery executor",
+    "guide": "docs/recovery-rules.md",
+    "policies": 14,
+    "ruleContracts": 54,
+    "rulesReceipt": "artifacts/recovery-tests/845ab2849ba149fc81200734880b9eb1/results.json",
+    "previewContracts": 22,
+    "previewReceipt": "artifacts/preview-tests/6a70c9d485ef4bb5a7a781196be52886/results.json",
+    "backendPassed": 186,
+    "backendSkipped": 1,
+    "backendReceipt": "artifacts/test-results/portal-recovery.trx",
+    "nodeRecoveryChecks": 4,
+    "pipelineContracts": 133,
+    "yamlFiles": 35,
+    "localHttpChecks": 34,
+    "browser": "Actual source workload policy and all-workflow menu; network/IPAM manual-review selection",
+    "testHostStopped": true,
+    "existingPortalRestarted": false,
+    "newDistributionPackages": false,
+    "liveAzureAcceptance": false,
+    "adoWrites": false,
+    "executionAuthorized": false
+  },
+  "deploymentStateRecoveryAudit": {
+    "date": "2026-09-27",
+    "status": "Source audit and recovery design; no new runtime implementation",
+    "plan": "docs/plans/deployment-state-and-recovery.md",
+    "previewContracts": 22,
+    "previewReceipt": "artifacts/preview-tests/f55f1990bfa444e5a72adff5ca8c9629/results.json",
+    "pipelineContracts": 133,
+    "yamlFiles": 35,
+    "azureCalls": "mocked",
+    "adoServerExpansion": false,
+    "liveAcceptance": false,
+    "verifiedAfterDiagramImplemented": false,
+    "rollbackImplemented": false
+  },
+  "tagGovernanceImplementation": {
+    "date": "2026-09-27",
+    "status": "Implemented locally; live acceptance pending; Apply disabled",
+    "guide": "docs/tag-governance.md",
+    "plan": "docs/plans/tagging-self-service.md",
+    "skill": "platform-tagging-review",
+    "authoringSkill": "platform-workflow-builder",
+    "backend": {
+      "passed": 168,
+      "failed": 0,
+      "skipped": 1,
+      "receipt": "artifacts/test-results/portal-tagging-final.trx"
+    },
+    "nodeChecks": 10,
+    "pipelineContracts": 133,
+    "yamlFiles": 35,
+    "productContracts": 96,
+    "productFunctionTests": 10,
+    "logicContracts": 50,
+    "platformContracts": 37,
+    "stackContracts": 34,
+    "compiledTagTemplates": 14,
+    "customTagChecks": 5,
+    "skillValidation": "Both passed official quick_validate.py",
+    "browser": "Real source page and synthetic 27-resource table/matrix/edit/agent handoff; no cloud/model calls",
+    "packages": "artifacts/portal-packages/20260927-174324",
+    "profileEnabled": false,
+    "liveAzure": false,
+    "liveCodexInference": false,
+    "adoWrites": false,
+    "githubWrites": false,
+    "nativeX64Hardware": false,
+    "packageChecks": {
+      "perArchitectureHttp": 33,
+      "perArchitectureAhp": 5,
+      "arm64": "Native local pass",
+      "x64": "Local pass under ARM64 emulation",
+      "nativeX64Hardware": false
+    }
+  },
   "agentWorkflowStandardReview": {
     "date": "2026-09-27",
     "status": "Source-audited documentation and authoring template",
@@ -17,7 +95,10 @@
     "status": "Researched plan only",
     "plan": "docs/plans/tagging-self-service.md",
     "proposedSkill": "platform-tagging-review",
-    "proposedPipelineRoots": ["azure-pipelines-tags-discover.yml", "azure-pipelines-tags.yml"],
+    "proposedPipelineRoots": [
+      "azure-pipelines-tags-discover.yml",
+      "azure-pipelines-tags.yml"
+    ],
     "implementationDelivered": false,
     "runtimeTestsPerformed": false,
     "liveAzureActionsPerformed": false,
@@ -49,7 +130,9 @@
       "repository": "Enetact/Bicep",
       "mainCommit": "bab03bf3c93745f61be9a69e6bca4d9a6a518fc3",
       "matchingRootYamlFiles": 17,
-      "differentRootYamlFiles": ["azure-pipelines-network.yml"]
+      "differentRootYamlFiles": [
+        "azure-pipelines-network.yml"
+      ]
     },
     "browserEvidence": "artifacts/pipeline-registration-ui.png",
     "browserRegistrationOutcome": "Synthetic localhost fixture only; stopped after verification",
@@ -696,5 +779,30 @@
     "automaticWorkloadBinding": false,
     "generalReservationRelease": false,
     "manualRunbook": "docs/network-discovery-and-diagrams.md"
+  },
+  "bicepSourceDrafts": {
+    "date": "2026-09-27",
+    "status": "Source draft workflow implemented locally; live acceptance pending",
+    "guide": "docs/bicep-source-drafts.md",
+    "moduleAudit": "docs/plans/bicep-composition-and-module-audit.md",
+    "moduleContracts": 13,
+    "selectableModules": 12,
+    "generatedTemplatesCompiled": 24,
+    "resolvedParameterDataChecks": 1,
+    "backendPassed": 185,
+    "backendSkipped": 1,
+    "draftContracts": 17,
+    "httpChecks": 33,
+    "ahpChecks": 5,
+    "httpEvidence": "artifacts/bicep-draft-portal/package-test.json",
+    "backendEvidence": "artifacts/test-results/portal-bicep-draft.trx",
+    "draftEvidence": "artifacts/test-results/bicep-draft-final.trx",
+    "compilationEvidence": "artifacts/bicep-draft-tests/results.json",
+    "skillValidated": true,
+    "liveModelCalls": false,
+    "azureDeployments": false,
+    "adoRuns": false,
+    "existingPortalRestarted": false,
+    "windowsDistributionPackagesRebuilt": false
   }
 }

@@ -15,6 +15,7 @@ Copy this document into a capability design and replace every placeholder. This 
 | Provider policy | Existing `AgentPolicy`: GPT-6 Astra / High / Standard; no new provider configuration |
 | UI outputs | `<table, matrix, diagram, report>` and validated result contract |
 | Action adapter | `<typed request, pipeline names/paths, protected profile>` or None |
+| Recovery policy | `<registered policy ID, mode, retained evidence, exclusions and unsupported actions>`; see [executable recovery rules](../recovery-rules.md). No generic inverse operation. |
 | Current acceptance evidence | `<dated source/tests/live receipts>` or Not tested |
 
 ## User journey
