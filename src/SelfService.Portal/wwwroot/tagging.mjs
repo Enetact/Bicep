@@ -1,11 +1,11 @@
 // Resource data and agent output are always rendered as text, never HTML.
-export const csvCell = value => `"${String(value ?? '').replace(/^[=+\-@\t\r]/, "'$&").replaceAll('"', '""')}"`;
+export const csvCell = value => { let text = String(value ?? ''); if (/^\s*[=+\-@]|^[\t\r\n]/.test(text)) text = "'" + text; return `"${text.replaceAll('"', '""')}"`; };
 export function setupTagging({ api, data, notice, page }) {
   const $ = id => document.getElementById(id), node = (tag, text) => { const n = document.createElement(tag); if (text != null) n.textContent = text; return n; };
   let report, draft, ticket, pageIndex = 0, edits = [], selected = new Set(), controller;
   const save = (value, name, type = 'application/json') => { const url = URL.createObjectURL(new Blob([value], { type })), a = node('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   const invalidate = () => { draft = null; ticket = null; $('tag-confirm').hidden = true; $('tag-draft-result').textContent = ''; };
-  function action(id, fn) { $(id).addEventListener('click', async () => { $(id).disabled = true; try { await fn(); } catch(e) { notice(e.message, true); } finally { $(id).disabled = false; } }); }
+  function action(id, fn) { $(id).addEventListener('click', async () => { $(id).disabled = true; try { await fn(); } catch(e) { notice(e.message, true); } finally { $(id).disabled = false; if(['tag-prev','tag-next'].includes(id))render(); } }); }
   function show(value) { report = value; edits = []; selected.clear(); pageIndex = 0; invalidate(); $('tag-result').hidden = false; $('tag-coverage').textContent = JSON.stringify(value.inventory.coverage, null, 2); $('tag-evidence').textContent = `${value.inventory.source} · ${value.inventory.observedUtc} · ${value.inventory.resources.length} visible resources · ${value.findings.length} findings. Evidence expires after 30 minutes.`; render(); renderEdits(); }
   const filtered = () => (report?.inventory.resources ?? []).filter(r => `${r.name} ${r.id} ${r.type} ${r.resourceGroup} ${JSON.stringify(r.tags)}`.toLowerCase().includes($('tag-search').value.toLowerCase()) && (!$('tag-state').value || r.tagState === $('tag-state').value));
   function render() {
@@ -47,5 +47,6 @@ export function setupTagging({ api, data, notice, page }) {
   action('tag-confirm', async () => { const t=ticket; ticket=null; $('tag-confirm').hidden=true; if(!t) throw new Error('Review the request first.'); const result=await api(`tags/pipeline/queue/${t}`,{}); const link=$('tag-run-link'); link.href=result.url; link.textContent=`Open tagging run ${result.id} in ADO`; link.hidden=false; });
   action('tag-load-results', async () => { const result=await api(`tags/results/${Number($('tag-result-run').value)}/${$('tag-result-kind').value}`); $('tag-saved-results').textContent=JSON.stringify(result,null,2); });
   $('tag-operation').addEventListener('change',invalidate); $('tag-subscription').addEventListener('change',invalidate);
+  window.addEventListener('platform-disconnected', () => { controller?.abort(); report=null; edits=[]; selected.clear(); invalidate(); $('tag-result').hidden=true; $('tag-table').replaceChildren(); $('tag-coverage').textContent=''; $('tag-saved-results').textContent=''; $('tag-queue-review').textContent=''; $('tag-run-link').hidden=true; renderEdits(); });
   api('tags/config').then(c => { $('tag-profile-status').textContent = `${c.profile} · ${c.enabled ? 'Apply enabled subject to protected ADO approval' : 'Apply disabled pending platform qualification'}. ${c.note}`; }).catch(e => notice(e.message,true));
 }

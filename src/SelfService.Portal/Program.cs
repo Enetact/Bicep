@@ -70,6 +70,7 @@ app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIden
 app.MapPost("/api/cancel-login", (HttpContext c) => { try { Session(c).Login?.Cancel(); } catch (ObjectDisposedException) { } return Results.Ok(); });
 app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { var s = Session(c); await identity.SignOut(s); await s.Agent.DisposeAsync(); return Results.Ok(); });
 app.MapGet("/api/skills/{id}", (string id, Catalog catalog) => catalog.Skills.SingleOrDefault(s => s.Id == id) ?? throw new PortalException("Unknown skill.", 404));
+app.MapGet("/api/recovery/policies", (Catalog catalog) => catalog.RecoveryPolicies);
 app.MapGet("/api/subscriptions", async (HttpContext c, AdoGateway ado) => await ado.Subscriptions(Session(c)));
 app.MapGet("/api/discovery/{product}", async (HttpContext c, string product, AdoGateway ado) => await ado.DiscoveryRuns(Session(c), product));
 app.MapPost("/api/review", async (HttpContext c, RunRequest request, Catalog catalog, AdoGateway ado) =>

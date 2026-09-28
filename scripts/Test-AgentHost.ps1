@@ -31,7 +31,7 @@ try{
     $r=Invoke-AgentRpc 2 createSession @{channel=$channel;provider='codex'}
     if($r.error){throw 'AHP session creation failed.'}
     $r=Invoke-AgentRpc 3 subscribe @{channel=$channel}
-    if($r.result.snapshot.state.platformStudio.workflows.Count -ne 4){throw 'AHP workflow readiness projection failed.'}
+    if($r.result.snapshot.state.platformStudio.workflows.Count -ne 6){throw 'AHP workflow readiness projection failed.'}
     $r=Invoke-AgentRpc 4 subscribe @{channel='ahp-session:/'+[guid]::NewGuid().ToString()}
     if(!$r.error){throw 'Cross-session channel was not rejected.'}
     $r=Invoke-AgentRpc 5 dispatchAction @{channel=$channel;action=@{type='chat/turnStarted'}}

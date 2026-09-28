@@ -1,5 +1,10 @@
 # Pipeline flow and refactor
 
+**Recovery policy evidence:** workload Preview now publishes `recovery-policy.json` and an explanatory summary section; the deployment coordinator annotates its final receipt after resolving the target policy. Eligibility remains `Not assessed`, with no recovery executor. [Recovery rules](recovery-rules.md) describes the offline rule checks and portal views. No recovery YAML or queue-time option is registered.
+
+**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+
+
 **Register the suite:** [ADO setup](ado-pipeline-registration.md) creates missing root entry-point definitions from the portal after review. Registration itself does not execute any of the stages below.
 
 The separate [AVNM network allocation flow](network-discovery-and-diagrams.md) uses `azure-pipelines-network.yml`, registered as **Network - AVNM allocation**. Its manual menu defaults to read-only Plan. Reservation requires the protected `platform-network-allocation` environment; the optional create path adds exact-prefix PreviewNetwork and separately approved ApplyNetwork stages. It publishes `network-plan`, `network-reservation`, `network-preview` and `network-binding`. These are connectivity evidence, not substitutes for workload discovery manifests or deployment approval. Existing workload pipelines below retain their own flow.

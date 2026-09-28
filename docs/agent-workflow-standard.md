@@ -1,6 +1,8 @@
 # Standard for evidence-based self-service agent workflows
 
-**Version 1 design standard — 27 September 2026.** This documents the repeated pattern in the current source and sets the contract for new capabilities. The four existing agent reviews are implemented; the shared descriptor, structured recommendation contract and recommendation-to-draft handoff described below still require implementation. The [tagging plan](plans/tagging-self-service.md) is the first planned consumer. Use the [copyable workflow blueprint](templates/agent-workflow-blueprint.md) for subsequent skills.
+**Bicep source-draft increment:** the sixth typed workflow uses a domain-specific structured composition contract and deterministic source emitter. It shares the existing runtime/skill/evidence boundary, but its output is an unqualified source archive, not a deployment request or the tagging recommendation schema. See [the source-draft guide](bicep-source-drafts.md) and [module/resolver roadmap](plans/bicep-composition-and-module-audit.md).
+
+**Version 1 implementation standard — 27 September 2026.** Six typed review/draft definitions share the existing AHP/Codex/MCP runtime. `WorkflowReviews` provides the code-allowlisted registry and structured advice envelope; tagging is the first validated recommendation-to-draft consumer. The four earlier reviews retain their Markdown behavior. A universal evidence resolver/plugin system and their migration remain future work. Use the [builder skill](../.agents/skills/platform-workflow-builder/SKILL.md), [blueprint](templates/agent-workflow-blueprint.md) and [tagging implementation](tag-governance.md).
 
 ## The common experience
 
@@ -36,7 +38,7 @@ Azure browser sign-in authorizes Azure reads; ADO browser sign-in authorizes ADO
 | Saved Preview review (`preview`) | Bounded ADO Preview projection matching product/environment/region; `platform-change-review` | Advisory change explanation | Not a full bundle/ownership/approval audit. No model-driven Apply. |
 | Network discovery and AVNM operations | `NetworkDiscovery`, `NetworkAssessment`, `NetworkPipeline`; separate network YAML | Deterministic inventory/assessment; explicit agent handoff; separately reviewed allocation request | Good overall pattern, but the allocation request is independently entered. It is not generated from, or authorized by, the agent's findings. |
 | Workload delivery | Dedicated Discover and Deploy roots, typed request/bundle and shared templates | Saved discovery, What-If Preview, governed deployment | Reuse delivery boundaries. AI is not required by these pipelines. |
-| Tagging (`tagging`, proposed) | Saved subscription tag inventory + deterministic analysis; planned `platform-tagging-review` | Matrix, validated suggestions, custom-tag draft, ADO tag Preview/Apply or source-owned workload route | New domain adapter and structured draft handoff required. No tagging workflow is registered yet. |
+| Tagging (`tagging`) | Saved subscription tag inventory + deterministic analysis; `platform-tagging-review` | Matrix, validated JSON advice, editable draft, ADO Preview/Apply/Verify or source proposal | Shared core/CLI implemented; Apply disabled until platform qualification. Live acceptance pending. |
 
 Bulk ADO registration is an administrative setup operation, not an AI remediation workflow. The 42 Microsoft skill cards also do not represent 42 executable agents. A `SKILL.md` appearing in the library is distinct from registering an evidence adapter, agent workflow and pipeline action.
 
@@ -105,7 +107,7 @@ sequenceDiagram
 
 This is the target reusable sequence. Existing agent reviews use the same model/MCP core, but may collect evidence inside Run; their structured recommendation/draft arrows are not implemented.
 
-## Reusable contracts to implement
+## Reusable contracts and domain implementation
 
 Use a code-allowlisted descriptor with versioned data, not arbitrary executable handlers or API URLs supplied by a skill. The blueprint defines the fields. A descriptor alone cannot enable a workflow; its registered adapter and validation must exist.
 
@@ -120,7 +122,7 @@ Use a code-allowlisted descriptor with versioned data, not arbitrary executable 
 | Review receipt | Host-assigned run ID, workflow/skill versions, input/projection digests, requested and accepted provider settings, tool-call audit, times, terminal state and output validation. Capture actual usage only when available; unknown usage stays unknown. |
 | Execution receipt | Independent ADO producer/definition/run/stage and plan digests, actor/approval references where available, per-item outcomes and verification evidence. Never reuse an agent receipt as execution proof. |
 
-The shared review contract is a planned addition. Current `review.md` is prose, not schema-validated `platform.agent-review/v1`. Mermaid has a separate evidence/grammar validator. A Completed receipt can therefore coexist with a Rejected diagram; it does not prove every assertion in the prose.
+The shared `WorkflowReview` envelope and tagging validator implement `platform.agent-review/v1`; tagging saves `review.json`. Other workflows still return advisory prose in `review.md`. Mermaid has a separate evidence/grammar validator. A Completed receipt can therefore coexist with a Rejected diagram; it does not prove every assertion in the prose.
 
 Common validators check structure, allowed resource IDs, reference existence, scope, maximum sizes and allowed operations. Domain validators check meaning: tag key/value rules, network constraints, cost-evidence dates or deployment ownership. Model-supplied confidence is explanatory only; it cannot bypass missing evidence, protected fields or approvals. Rejected JSON is retained safely as advisory text or rejected outright; it never silently becomes an executable draft.
 
@@ -147,7 +149,7 @@ Queue/write timeouts can have unknown outcomes. Reconcile against the original r
 1. Copy [the blueprint](templates/agent-workflow-blueprint.md) into the capability's design document. Fill scope, inputs, evidence limits, outputs, ownership and non-goals before adding registration.
 2. Implement the deterministic evidence/assessment adapter and tests. Define separate discovery principal versus execution principal; preserve unknown coverage. Prove useful behavior with no model connected.
 3. Add the project skill under `.agents/skills/<skill-id>/SKILL.md` using the skill-authoring workflow. Keep vendored Microsoft skills unchanged. Add focused references/examples only. A library card alone is not implementation.
-4. Register the typed descriptor/adapter and workflow. Until extraction exists, modify `AgentWorkflows.Definitions`, `AgentRequest`, evidence dispatch and frontend scope handling explicitly; adding only a row is insufficient. Add `platform.agent-review/v1` validation before any suggestion becomes a draft.
+4. Register the typed descriptor/adapter and workflow. Modify `WorkflowReviews.Definitions`, `AgentRequest`, domain evidence dispatch and frontend scope handling explicitly; adding only a row is insufficient. Add `platform.agent-review/v1` validation before any suggestion becomes a draft.
 5. Reuse `AgentHostChannel`, `CodexAgentRuntime`, `AgentPolicy` and `AgentMcpBridge`. Test AHP status and HTTP fallback. Do not add cloud writes or queue tools to the MCP bridge.
 6. Build the appropriate visual/editor and an explicit **Use selected recommendations** action. Domain validation runs again after every user edit. Analysis-only capabilities omit change controls.
 7. If changes are supported, implement protected Preview/Apply/Verify adapters and their saved-evidence validation. Add manual roots to `config/pipeline-registration.json`, generation/contract checks and packages together. ADO registration does not configure permission/check policies.
@@ -166,15 +168,17 @@ Required test groups for every new workflow:
 
 Live Azure/Codex/ADO acceptance must be recorded per capability. Existing local networking checks cannot qualify tagging or another new skill.
 
-## Adoption order
+## Adoption status
 
-- **W0 — this delivery:** source audit, shared design standard and blueprint. No runtime registrations or behavior changes.
-- **W1 — shared typed foundation:** descriptor/readiness model, reusable evidence reference/projection contracts and resolver. Preserve existing workflow IDs and behavior through compatibility tests; avoid requiring a full AHP redesign.
-- **W2 — structured advice:** validated shared review envelope, domain recommendation schemas, safe result UI and explicit draft creation. Keep legacy Markdown reviews supported and accurately labeled while migrating them.
-- **W3 — tagging pilot:** implement tagging T0–T3 against W1/W2, then its protected write/source-ownership and live acceptance phases. Discovery can proceed before draft handoff exists; never expose an unfinished Apply route.
-- **W4 — migrate and extend:** qualify the existing network/workload/Preview adapters against the standard; add future cost, policy, identity or lifecycle skills through the same blueprint. Network resource creation remains governed by its AVNM profile and independent connectivity acceptance.
+**Recovery policy extension — implemented locally:** action-capable adapters declare their policy and evidence requirements in the [recovery rules layer](recovery-rules.md), including manual/source-owned/not-applicable outcomes. The offline assessor, portal policy views and pipeline annotations are implemented; trusted retained-evidence resolution and restore execution are not. Follow the [deployment state and recovery design](plans/deployment-state-and-recovery.md): retain observed before separately from previous qualified desired state; capture after even on partial failure; plan recovery through a fresh protected Preview/Apply/Verify path. Agent advice, diagrams, caller assertions and old What-If results cannot authorize or synthesize an executable inverse operation.
 
-W1/W2 are proposed refactoring work, not prerequisites already satisfied by these documents. Track each workflow's migrated contracts and acceptance evidence rather than declaring the entire suite standardized in code.
+- **W0 completed:** source audit, standard, blueprint and reusable builder skill.
+- **W1 partially extracted:** shared code-allowlisted registry; tagging has typed inventory/reference contracts. A generalized evidence resolver/readiness framework remains future refactoring.
+- **W2 implemented for tagging:** validated structured review envelope, known resource/finding references, safe display and explicit editable draft creation. The four legacy Markdown workflows retain their contracts.
+- **W3 source delivered:** shared tagging collector/rules, UI, skill, source proposals and manual pipelines. Apply remains disabled. Live Azure/Codex/ADO acceptance is required.
+- **W4 future migration:** qualify network/workload/Preview adapters against the structured standard; extend to cost, policy, identity or lifecycle operations through the same blueprint.
+
+Track per-capability contracts and evidence. A shared runtime and documentation standard do not imply all existing workflows have structured drafts or write authorization.
 
 ## Source references reviewed
 

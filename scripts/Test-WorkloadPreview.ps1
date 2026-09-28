@@ -192,6 +192,11 @@ Case 'Prepare compiles freezes discovery and full release without Azure access' 
     New-WorkloadPreviewInputs $target (Join-Path $dir discovery) $folder '42'
     $prepared=Read-WorkloadPreviewInputs $folder
     Check ($prepared.receipt.files.Count -eq 9 -and $prepared.receipt.releaseId -eq '42')
+    $policy=Get-Content (Join-Path $folder recovery-policy.json) -Raw|ConvertFrom-Json -AsHashtable
+    Check ($policy.policy.id -ceq 'blob-transfer' -and !$policy.executionEnabled -and $policy.assessmentStatus -ceq 'Not assessed')
+    Write-WorkloadPreviewReadme $folder 'Prepared'
+    $readme=Get-Content (Join-Path $folder README.md) -Raw
+    Check ($readme.Contains('Recovery rules') -and $readme.Contains('No restore executor is registered'))
     Check ($script:calls.Count -eq 0)
 }
 # Exercise the actual Deploy coordinator with mocked infrastructure/application boundaries.
@@ -210,6 +215,7 @@ Case 'Deploy rechecks then applies Foundation and Release in order' {
     Invoke-PreviewedWorkloadDeployment $dir $dir $folder $target.serviceConnection $target.deploymentEnvironment $target.agentPool
     Check (($script:sequence -join ',') -eq 'Recheck,PlanFoundation,ApplyFoundation,PlanRelease,ApplyRelease')
     $r=Get-Content (Join-Path $folder receipt.json) -Raw|ConvertFrom-Json -AsHashtable;Check $r.ready
+    Check ($r.recovery.policyId -ceq 'blob-transfer' -and !$r.recovery.canExecute -and $r.recovery.assessmentStatus -ceq 'Not assessed')
 }
 Case 'drift aborts before Foundation or Release writes' {
     $script:sequence.Clear();$script:drift=$true

@@ -1,6 +1,29 @@
 # Tag discovery, analysis and governed updates
 
-**Status: researched implementation plan, 27 September 2026. No tagging skill, UI, pipeline or tag write is delivered by this document.** Existing seven workloads, five project skills, four agent reviews and 18 pipeline roots remain unchanged. This is a platform operations capability across resources, not an eighth workload that owns those resources.
+**Delivery review — 27 September 2026.** The complete v1 discovery → analysis → optional agent advice → editable draft → Preview → protected Apply → verification path is implemented in source. Writes remain disabled pending platform onboarding and live acceptance. The operational authority is [the implementation guide](../tag-governance.md); source/verification details below supersede the original researched specification retained afterward.
+
+## Delivery and gap disposition
+
+| Phase | Current implementation | Remaining acceptance / refinement |
+|---|---|---|
+| T0 | Shared .NET contracts/rules, canonical hashes, support allowlist, disabled profile, exact ownership mappings, protected keys and strict JSON. | Platform ownership/type/governance qualification; broaden provider support only with evidence. No general compliance certification. |
+| T1 | Explicit subscription selector; fixed paginated ARG Resources query; separate ARM groups/subscription tags; assignments/definitions/locks fingerprint; coverage artifact. | Live Azure collection and broad-estate load qualification. No provider-child completeness claim or silent ARM fallback after failed ARG. |
+| T2 | Table/matrix/key counts, paging/search, explicit selection, custom editor, safe exports, scoped tagging skill, strict advice validator and selection into drafts. | Live Codex review. Rich multi-column filtering, user-picked matrix columns and organization-specific alias/enumeration rules are future enhancements. |
+| T3 | Private ADO/source/run checks, bounded base64url request, direct ARM Preview, Extensions README and saved-result loader. | Actual ADO YAML server expansion, transport limits and artifact acceptance. Each Preview-and-apply run produces its own reviewed plan; no implicit approval of an older run. |
+| T4 | Qualified generic Merge path, protected deployment environment, expiry/drift checks, atomic local intent/receipt saves, readback, stop-on-unknown, independent Verify. | Configure real environment checks/lock and dedicated least-privilege identities; live provider qualification. No atomic compare-and-swap, automatic retry or rollback. |
+| T5 | Seven compositions/wrappers accept source `customTags`; all parameter adapters validate protected values; target override proposals feed the existing workload pipeline. | Real workload What-If and two-redeploy preservation test. Shared/external resources are not adopted. Custom tags remain reviewed target configuration; workload queue intent stays four fields. |
+| T6 | Local backend, contract, Bicep and browser verification recorded separately in validation history; Windows packages checked separately. | Operator-owned Azure/Codex/ADO acceptance and native x64 hardware qualification. No live tag write was performed by this task. |
+
+Current source placement consolidates the planned adapters into `src/SelfService.Tagging/{Contracts,AzureTags}.cs`, `src/SelfService.Tagging.Tool/Program.cs`, `src/SelfService.Portal/{TaggingService,WorkflowReview}.cs`, `wwwroot/tagging.mjs`, `scripts/Invoke-TagWorkflow.ps1`, `scripts/Assert-TagPipelineContext.ps1` and `pipelines/templates/tagging-prepare.yml`. The shared portal test project tests the core and HTTP adapter. Profile, support and rule configuration are deliberately small: `config/tag-governance.json` plus the versioned code allowlist; there is no unused profile folder or speculative plugin loader.
+
+The two roots are registered in ADO setup, bringing the catalog to **20 roots**. The tagging increment brought the project to **seven local skills and five model review workflows**; the subsequent [Bicep draft increment](../bicep-source-drafts.md) adds one skill and one workflow. The new [workflow-builder skill](../../.agents/skills/platform-workflow-builder/SKILL.md) and updated [standard](../agent-workflow-standard.md) define the repeatable pattern. The four older reviews retain their Markdown contracts; generalized evidence resolution, caching and migration remain future work.
+
+Governance review is explicitly operator-owned. Definition/assignment/lock fingerprints detect captured changes but do not fully evaluate Policy, exemptions, inherited deny assignments or automation effects. Such unknowns must be resolved before allowlisting a writer scope. Masking is heuristic; apply artifact access/retention controls. Live acceptance is a release gate, not a missing automatic-approval bypass.
+
+## Original researched specification (historical design baseline)
+
+The remaining sections preserve the pre-implementation design and research, including proposed alternatives and enhancement ideas. Their future-tense names/paths and broader UX ideas are **not current implementation claims**; use the delivery table and guide above for the actual v1 contract.
+
 
 ## Intended experience
 

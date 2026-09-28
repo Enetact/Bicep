@@ -3,6 +3,7 @@ import { setupAgents } from './agents.mjs';
 import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
+import { renderRecovery } from './recovery.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
 let data, chosen, auth = { connected: [] }, ticket, reviewedProduct, loginTimer, runTimer;
@@ -10,6 +11,7 @@ let discoverySkill, discoveryBusy = false, discoveryReport;
 const runs = [], diagramUrls = [];
 let selectionVersion = 0;
 let refreshAgents;
+let recoveryCatalog;
 function clearPreview() { selectionVersion++; $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
@@ -52,6 +54,7 @@ function showProduct(product) {
 function selectionChanged() {
   if (!chosen) return;
   clearPreview(); drawProposal();
+  renderRecovery($('workload-recovery'), recoveryCatalog, chosen.type);
   const t = chosen.targets.find(t => t.environment === $('environment').value);
   $('target-status').textContent = t.enabled ? 'Deployment enabled' : 'Preview available · deployment disabled';
   $('target-details').textContent = `${t.subscription} · ${t.network} · ${t.workload} / ${t.environment}`;
@@ -82,7 +85,7 @@ async function refreshAuth() {
 }
 for (const audience of ['ado', 'azure']) action('connect-' + audience, async () => { await api('auth/' + audience, {}); await refreshAuth(); if (!loginTimer && auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => { clearInterval(loginTimer); notice(e.message, true); }), 2000); });
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
-action('disconnect', async () => { await api('disconnect', {}); await refreshAuth(); });
+action('disconnect', async () => { await api('disconnect', {}); window.dispatchEvent(new Event('platform-disconnected')); await refreshAuth(); });
 action('subscriptions', async () => { const subscriptions = await api('subscriptions'); $('subscription-list').replaceChildren(...subscriptions.map(s => make('p', `${s.name} · ${s.state}`))); if (!subscriptions.length) $('subscription-list').textContent = 'No registered subscriptions are visible to this account.'; });
 function openSkillDiscovery(skill) {
   if (discoveryBusy) { notice('Wait for the current discovery to finish.'); return; }
@@ -194,5 +197,12 @@ try {
   setupNetwork({ api, data, notice, page });
   setupTagging({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
+  try {
+    recoveryCatalog = await api('recovery/policies');
+    options($('recovery-workflow'), recoveryCatalog.policies, p => p.name);
+    const draw = () => renderRecovery($('recovery-rules'), recoveryCatalog, $('recovery-workflow').value);
+    $('recovery-workflow').addEventListener('change', draw); draw();
+    if (chosen) renderRecovery($('workload-recovery'), recoveryCatalog, chosen.type);
+  } catch { $('recovery-rules').textContent = 'Recovery rules unavailable. No restore operation is available.'; }
   await refreshAuth(); if (auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => notice(e.message, true)), 2000);
 } catch (e) { notice(e.message, true); }

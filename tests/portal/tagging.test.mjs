@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
-import YAML from 'yaml';
+import { createRequire } from 'node:module';
+const YAML = createRequire(new URL('../infrastructure/package.json', import.meta.url))('yaml');
 import { csvCell } from '../../src/SelfService.Portal/wwwroot/tagging.mjs';
 test('Tag CSV prevents formula execution and quotes values',()=>{for(const v of ['=1+1','+SUM(A1)','-2+3','@cmd','\t=1'])assert.ok(csvCell(v).startsWith('"\''));assert.equal(csvCell('quoted "tag"'),'"quoted ""tag"""');});
 test('Tag roots have manual defaults and an approval environment',()=>{

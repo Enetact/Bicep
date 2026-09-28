@@ -1,5 +1,7 @@
 # Reusable resource modules
 
+The [compiler-derived module contracts](../config/bicep-module-contracts.json) inventory all 13 shared Bicep files. The [source-draft workflow](../docs/bicep-source-drafts.md) can compose 12; IPAM reservation stays in its separate governed workflow. The [module audit](../docs/plans/bicep-composition-and-module-audit.md) lists current fixed settings, missing identity/access/DNS-link/monitoring modules and parameterization priorities. These planned additions are not implemented merely by appearing in the audit. Run `./scripts/Update-BicepModuleContracts.ps1 -Check` after module changes.
+
 The five-product expansion also adds [Key Vault](security/key-vault/README.md), [Service Bus](messaging/service-bus/README.md), [Observability](monitoring/observability/README.md) and [private Functions hosting](compute/private-functions/README.md). Together with the existing modules these compose seven registered offerings. Shared networking/DNS/workspaces remain externally owned; [onboarding](../docs/workload-onboarding.md) documents limits and acceptance.
 
 These modules compose the [registered products](../docs/self-service-catalog.md). They are not independently selectable catalog items; new products require adapter, configuration, test and readiness work described in the [expansion plan](../docs/self-service-expansion-plan.md).

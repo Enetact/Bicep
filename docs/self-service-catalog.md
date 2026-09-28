@@ -1,8 +1,15 @@
 # Self-service catalog and how it works
 
-**Proposed operations workflow:** [Tag governance](plans/tagging-self-service.md) would discover a subscription's visible resources/tags, show resource and tag views, analyze recommendations, and apply reviewed custom-tag changes through ADO. It is not a workload offering or an implemented skill/pipeline yet.
+**Lifecycle boundary:** saved What-If diagrams and deployment verification receipts exist; a durable before/after timeline and rollback buttons do not. The [deployment state and recovery plan](plans/deployment-state-and-recovery.md) maps each product and operations workflow to eligible configuration restoration, compensation or manual recovery. It adds no catalog offering or pipeline yet.
 
-**Pipeline registration:** use the portal **ADO setup** menu for all 18 root entry points, including the fourteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
+The [recovery rules layer](recovery-rules.md) now implements that policy mapping, an offline assessor and portal policy views for fourteen workflows. Preview/Deploy evidence includes the policy identity without claiming recoverability. No restore offering, new pipeline or execution permission is registered.
+
+**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+
+
+**Operations workflow:** [Tag governance](tag-governance.md) discovers visible subscription tags, provides deterministic checks and optional structured agent advice, and prepares reviewed ADO or source-owned changes. It is separate from the seven deployment products.
+
+**Pipeline registration:** use the portal **ADO setup** menu for all 20 root entry points, including the fourteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
 
 **Network capability update, 27 September 2026:** Network discovery is a separate portal workspace with registered/selected/management-group/accessible-tenant scopes and an AVNM allocation request menu. Agent Mermaid can now render after evidence/grammar validation. The separate `azure-pipelines-network.yml` does not add a workload product or enable any of the 28 targets. See [contracts and tests](network-discovery-and-diagrams.md).
 
@@ -12,7 +19,7 @@ Source review: **27 September 2026**. Seven workload types and 28 environment ta
 
 ## What a developer can request
 
-The [Agent workflows menu](agent-workflows.md) adds four advisory reviews: resource visualization, private-network evidence, workload configuration and saved Preview changes. Codex ChatGPT authentication enables model access; Azure/ADO authentication separately enables the required evidence readers. These are scoped MCP-backed reviews, not additional deployment products or permissions.
+The [Agent workflows menu](agent-workflows.md) adds six review/draft workflows: resource visualization, private-network evidence, workload configuration, saved Preview changes, tag governance and [Bicep source design](bicep-source-drafts.md). Codex ChatGPT authentication enables model access; Azure/ADO authentication separately enables the required evidence readers. These are scoped MCP-backed reviews, not additional deployment products or permissions.
 
 The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The original two workload routes retain their ADO manifest contracts; five additional products use typed discovery v2.
 

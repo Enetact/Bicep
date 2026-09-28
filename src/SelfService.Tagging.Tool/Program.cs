@@ -14,7 +14,7 @@ try
     using var timeout=new CancellationTokenSource(TimeSpan.FromMinutes(15));var ct=timeout.Token;
     async Task Save<T>(string name,T value){var path=Path.Combine(output,name);var temporary=path+".pending";await File.WriteAllTextAsync(temporary,TagJson.Write(value),CancellationToken.None);File.Move(temporary,path,true);}
     async Task Summary(TagReceipt receipt)=>await File.WriteAllTextAsync(Path.Combine(output,"README.md"),$"# Tag {verb} receipt\n\nState: {receipt.State}. Plan: `{receipt.PlanDigest}`.\n\n"+string.Join("\n",receipt.Results.Select(r=>$"- {r.ResourceId}: {r.State}. {r.Detail}")),CancellationToken.None);
-    string Cell(string? x)=>System.Net.WebUtility.HtmlEncode(x??"(missing)").Replace("|","&#124;").Replace("\r"," ").Replace("\n"," ");
+    string Cell(string? x){var safe=System.Net.WebUtility.HtmlEncode(x??"(missing)").Replace("|","&#124;").Replace("\r"," ").Replace("\n"," ");return System.Text.RegularExpressions.Regex.Replace(safe,@"([\\`*_{}\[\]()!~])",@"\$1");}
     if(verb=="discover"){
         var x=await azure.Discover(p,"ADO service connection",ct);
         x=TagRules.Seal(x with{RunId=int.TryParse(Environment.GetEnvironmentVariable("BUILD_BUILDID"),out var run)?run:null,SourceCommit=Environment.GetEnvironmentVariable("BUILD_SOURCEVERSION")});

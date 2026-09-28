@@ -12,7 +12,8 @@ public static class WorkflowReviews
         new("network","Private network evidence review","azure--azure-resource-visualizer","azure","resource-group","Configured network evidence only. Partial visibility, free IPs and effective routing remain unknown."),
         new("workload","Workload configuration advisor","platform-request-design",null,"workload","Proposed catalog configuration. Advisory Markdown; no automatic draft or pipeline queue."),
         new("preview","Saved Preview change review","platform-change-review","ado","preview","Bounded saved Preview projection. Does not prove full bundle integrity or approval."),
-        new("tagging","Tag governance review","platform-tagging-review","azure","tag-evidence","Selected saved tag evidence. Structured advice validated against rules and resource IDs. Explicit selection creates an editable draft; no agent write tools.")
+        new("tagging","Tag governance review","platform-tagging-review","azure","tag-evidence","Selected saved tag evidence. Structured advice validated against rules and resource IDs. Explicit selection creates an editable draft; no agent write tools."),
+        new("bicep-draft","Design Bicep source draft","platform-bicep-composition","azure","composition","Saved network discovery plus selected workload context and allowlisted target overrides. Generates local module-based source drafts; compile and qualify before registration. No pipeline queue, deployment or IPAM reservation.")
     ];
     public static WorkflowReview Tags(string output,TagInventory inventory,TagProfile profile)
     {

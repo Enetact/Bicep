@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "recovery-candidate",
+  "workflow": "private-storage",
+  "outcome": "Unknown",
+  "targetScope": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/example",
+  "checks": {},
+  "changes": [
+    {
+      "resourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/example/providers/Microsoft.Storage/storageAccounts/example",
+      "action": "Modify",
+      "certainty": "Definite",
+      "impact": "MutableConfiguration"
+    }
+  ]
+}

@@ -14,13 +14,20 @@ assert.equal(bootstrap.configured, false, 'Run smoke tests against an unconfigur
 const headers = { cookie, origin: base, 'x-portal-csrf': bootstrap.csrf, 'content-type': 'application/json' };
 const post = (path, data, extra = {}) => fetch(base + '/api/' + path, { method: 'POST', headers: { ...headers, ...extra }, body: JSON.stringify(data) });
 await test('Session cookie and restrictive response headers', () => { assert.match(response.headers.get('set-cookie'), /httponly/i); assert.match(response.headers.get('set-cookie'), /samesite=strict/i); assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/); assert.equal(response.headers.get('access-control-allow-origin'), null); });
-await test('Catalog and complete skill API', async () => { assert.equal(bootstrap.products.length, 7); assert.equal(bootstrap.skills.length, 49); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
+await test('Catalog and complete skill API', async () => { assert.equal(bootstrap.products.length, 7); assert.equal(bootstrap.skills.length, 50); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
 await test('Every product has a served conceptual topology', () => assert.deepEqual(Object.keys(bootstrap.topologies.products).sort(), bootstrap.products.map(p => p.id).sort()));
 await test('Diagram module and connected panels are served', async () => {
   const module = await fetch(base + '/topology.mjs'); assert.equal(module.status, 200); assert.match(module.headers.get('content-type'), /javascript/);
   const html = await fetch(base + '/').then(r => r.text()); for (const id of ['observed-diagram','workload-diagram','preview-diagram','load-preview']) assert.ok(html.includes(`id="${id}"`));
 });
 await test('Unauthenticated Preview artifact read fails closed', async () => assert.equal((await fetch(base + '/api/preview/storage/44', { headers })).status, 401));
+await test('Recovery policy UI and read-only API cover all workflows without execution', async () => {
+  const rules = await fetch(base + '/api/recovery/policies', { headers }).then(r => r.json());
+  assert.equal(rules.executionEnabled, false); assert.equal(rules.policies.length, 14);
+  const html = await fetch(base + '/').then(r => r.text());
+  for (const id of ['workload-recovery','recovery-workflow','recovery-rules']) assert.ok(html.includes(`id="${id}"`));
+  assert.equal((await fetch(base + '/recovery.mjs')).status, 200);
+});
 await test('Network workspace and validated-agent diagram controls are real app assets', async () => {
   const html=await fetch(base+'/').then(r=>r.text()); for(const id of ['network-mode','network-run','network-agent','agent-diagram','agent-mermaid','agent-receipt-download']) assert.ok(html.includes(`id="${id}"`));
   assert.equal((await fetch(base+'/network.mjs')).status,200);
@@ -32,7 +39,7 @@ await test('Expanded discovery cannot run without configured identity', async ()
 await test('Agent readiness is explicit and no workflow starts on authentication checks', async () => {
   const s = await fetch(base + '/api/agent/status', { headers }).then(r => r.json());
   assert.equal(s.provider.ready, false); assert.equal(s.provider.model, 'gpt-6-astra'); assert.equal(s.provider.effort, 'high'); assert.equal(s.provider.speed, 'Standard');
-  assert.equal(s.workflows.length, 5); assert.ok(s.workflows.every(w => !w.ready));
+  assert.equal(s.workflows.length, 6); assert.ok(s.workflows.every(w => !w.ready));
 });
 await test('Agent menu and module are served', async () => { assert.equal((await fetch(base + '/agents.mjs')).status, 200); assert.match(await fetch(base + '/').then(r => r.text()), /id="agent-run"/); });
 await test('Agent connection requires CSRF', async () => assert.equal((await post('agent/connect', {}, { 'x-portal-csrf': '' })).status, 403));
@@ -59,6 +66,10 @@ await test('Registration catalog covers all 20 root pipelines', async () => { co
 await test('Registration inventory requires ADO identity', async () => assert.equal((await fetch(base + '/api/pipeline-setup/inventory', {headers})).status,401));
 await test('Unissued registration ticket cannot create', async () => assert.equal((await post('pipeline-setup/apply/not-issued',{})).status,409));
 await test('Disconnect returns clean state', async () => { assert.equal((await post('disconnect', {})).status, 200); const s = await fetch(base + '/api/auth', { headers }).then(r => r.json()); assert.deepEqual(s.connected, []); });
+await test('Tagging configuration does not enable writes', async () => { const c=await fetch(base+'/api/tags/config',{headers}).then(r=>r.json()); assert.equal(c.enabled,false);assert.equal(c.workflow,'tagging'); });
+await test('Tag evidence is isolated from unauthenticated sessions', async () => {const r=await fetch(base+'/api/tags/evidence/unknown',{headers});assert.equal(r.status,401);});
+await test('Tag drafts require a connected evidence owner', async () => {const r=await post('tags/drafts',{evidenceId:'unknown',edits:[]});assert.equal(r.status,401);});
+await test('Tag queue rejects unissued tickets', async () => {const r=await post('tags/pipeline/queue/unissued',{});assert.equal(r.status,409);});
 fs.mkdirSync('artifacts/portal-tests', { recursive: true });
 fs.writeFileSync('artifacts/portal-tests/http-smoke.json', JSON.stringify({ timestamp: new Date().toISOString(), architecture: bootstrap.architecture, liveAzure: false, results }, null, 2));
 console.log(`PASS: ${results.length} real local HTTP checks (${bootstrap.architecture}); no Azure/ADO calls.`);

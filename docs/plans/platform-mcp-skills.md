@@ -1,5 +1,8 @@
 # Platform skills and MCP capability design
 
+**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](../tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+
+
 **Common workflow standard, 27 September 2026:** apply the [source-audited lifecycle and contracts](../agent-workflow-standard.md) and [new-workflow blueprint](../templates/agent-workflow-blueprint.md) when implementing these skills. Reuse current AHP/Codex/MCP infrastructure; richer proposed tools below are not prerequisites for adding an evidence-review skill. Structured recommendation/draft integration remains an explicit implementation step.
 
 **Tagging extension proposal, 27 September 2026:** [Tag governance](tagging-self-service.md) adds a proposed `platform-tagging-review` skill alongside this original twelve-skill design. It will use the implemented read-only `platform_evidence` / `platform_skill` bridge with validated tagging evidence, not a model-callable tag writer. Deterministic checks and protected ADO execution own changes. The skill is not installed or bound yet; current implemented counts are unchanged.

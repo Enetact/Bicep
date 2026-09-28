@@ -1,6 +1,12 @@
 # Documentation index
 
-- [Bulk ADO pipeline registration](ado-pipeline-registration.md): register the 18 root entry points from the portal, with source checks, conflict detection and no runs.
+- [AI-assisted Bicep source drafts](bicep-source-drafts.md): connected Codex workflow, module contracts, generated parameters, source downloads and qualification boundary.
+- [Bicep composition/module audit](plans/bicep-composition-and-module-audit.md): all 13 modules, parameter provenance, prioritized additions and implementation phases.
+
+**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+
+
+- [Bulk ADO pipeline registration](ado-pipeline-registration.md): register the 20 root entry points from the portal, with source checks, conflict detection and no runs.
 
 - [Network discovery, validated agent diagrams and AVNM IPAM](network-discovery-and-diagrams.md): implemented scope/diagram/allocation flows, platform setup and ordered manual tests.
 
@@ -22,6 +28,8 @@ Reviewed 27 September 2026. Start with the [repository README](../README.md), [c
 | Register definitions, configure permissions and queue runs | [Developer/platform self-service](self-service.md) |
 | YAML jobs and artifact handoffs | [Pipeline flow](pipeline-flow.md) |
 | Preview only and its README/What-If | [Deployment preview](deployment-preview.md) |
+| Before/What-If/after evidence gaps and qualified rollback design | [Deployment state and recovery — proposed](plans/deployment-state-and-recovery.md) |
+| Implemented recovery policies, portal views and offline rule assessment | [Recovery rules](recovery-rules.md) |
 | Subscription inventory, static dropdowns and registration | [Discovery and naming](subscription-discovery.md) |
 | Saved-discovery coverage, topology and local skill workflows | [Offline analysis guide](self-service-analysis.md) |
 | Delivered enhancement increments and remaining gates | [Implementation progress](plans/implementation-progress.md) |
@@ -29,7 +37,7 @@ Reviewed 27 September 2026. Start with the [repository README](../README.md), [c
 | Template Specs, stack ownership and permissions | [Deployment Stacks runbook](deployment-stacks-upgrade.md) |
 | Reference prices, exclusions and freshness | [Cost guide](self-service-costs.md) |
 | Future products and platform improvements | [Expansion plan — proposed](self-service-expansion-plan.md) |
-| Subscription tag discovery, resource/tag matrix, skill advice and governed updates | [Tag governance implementation plan — proposed](plans/tagging-self-service.md) |
+| Subscription tag discovery, resource/tag matrix, skill advice and governed updates | [Tag governance guide](tag-governance.md) · [delivery and acceptance plan](plans/tagging-self-service.md) |
 | Implementation order, approval stages and final acceptance gates | [Enhanced self-service readiness review — proposed](plans/enhanced-self-service-validation.md) |
 | Automatic network/subnet planning, IPAM and AI assistance | [Private networking design — proposed](plans/private-networking-self-service.md) |
 | Microsoft Azure skills for discovery, diagrams and assessment | [Azure skills assessment and adoption plan — proposed](azure-skills-assessment.md) |

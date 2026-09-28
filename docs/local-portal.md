@@ -1,5 +1,12 @@
 # Platform Studio: local Windows self-service portal
 
+**Recovery policies:** configure a workload and expand its recovery rules, or select a workflow under Pipeline activity → Recovery policies. These views work without sign-in and expose exclusions/requirements only; they do not assess a saved run or execute a restore. [Recovery rules](recovery-rules.md) also documents the offline source-checkout assessor. Rebuild/restart older portal processes and packages to load this increment.
+
+**New source-draft action:** Agent workflows → Design Bicep source draft consumes a fresh Network discovery handoff and selected workload context. It downloads Bicep/modules/parameters/receipts, with missing values explicit. It cannot queue or deploy; see [operation and limits](bicep-source-drafts.md). Previously packaged binaries must be rebuilt to include this capability.
+
+**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+
+
 **ADO setup:** connects the existing ADO browser identity to a reviewed registration workflow for all root pipeline YAML files. It creates missing definitions without queuing runs or changing GitHub source/permissions. See [registration guide and public-repo boundaries](ado-pipeline-registration.md).
 
 **Network delivery update:** the portal now includes Network discovery, evidence-bound agent diagram rendering and reviewed AVNM pipeline submission. Setup for the real pool, protected pipeline and manual acceptance is in [the network runbook](network-discovery-and-diagrams.md). These capabilities are implemented; live cloud/model acceptance remains pending.
@@ -17,7 +24,7 @@ The portal adds a browser workspace to the seven registered ADO workload routes.
 - Recent successful main discovery picker; review verifies the definition, YAML path, repository, age and selected instance/environment. Pipeline-side manifest/hash/provenance checks remain authoritative.
 - Browser Microsoft sign-in for separate Azure and ADO audiences, consent/MFA on Microsoft pages, themed return page, waiting/completion/cancellation/error states, and local disconnect.
 - Registered-subscription access check; it does not expand the deployment catalog based on everything a user can access.
-- Five project-local skills read from `.agents/skills`, plus [42 Microsoft Azure skill definitions](azure-skill-discovery.md) and supporting files bundled under `vendor/azure-skills`. The library displays guidance as text; four bounded [Codex agent workflows](agent-workflows.md) have separate readiness and Run controls.
+- Eight project-local skills read from `.agents/skills`, plus [42 Microsoft Azure skill definitions](azure-skill-discovery.md) and supporting files bundled under `vendor/azure-skills`. The library displays guidance as text; six bounded [Codex agent workflows](agent-workflows.md) have separate readiness and Run controls.
 - Microsoft skill cards show **No pipeline associated yet**. A separate Azure browser-authenticated read-only inventory adapter collects approved subscription metadata, with service views and a networking profile. These are supporting facts, not full execution of each upstream workflow.
 - Saved discovery analysis invoking the existing deterministic analyzer and displaying its Markdown-as-text and containment diagrams. No model or Azure connection is required.
 - [Connected diagrams](portal-diagrams.md): inline visible-resource topology, proposed component diagrams for all seven workload configurations, same-subscription inventory comparison and a guarded reader for saved ADO Preview changes. Search, pagination, full-name details and SVG export are included.

@@ -16,6 +16,16 @@ public sealed class PortalTests
     }
     static PortalOptions Options() => new() { RepositoryRoot = Root() };
     static RunRequest Request(string op = "preview") => new("blobcopy", "dev", "eastus2", op, 91);
+    [Fact] public void RecoveryMetadataCoversProductsWithoutAuthorizingExecution()
+    {
+        var catalog = new Catalog(Options()); var rules = catalog.RecoveryPolicies;
+        Assert.False(rules.GetProperty("executionEnabled").GetBoolean());
+        var ids = rules.GetProperty("policies").EnumerateArray().Select(p => p.GetProperty("id").GetString()).ToArray();
+        Assert.Equal(14, ids.Length);
+        Assert.All(catalog.Products, p => Assert.Contains(p.Type, ids));
+        Assert.DoesNotContain("rollback-on-error", rules.GetRawText());
+        Assert.Throws<PortalException>(() => catalog.Validate(Request("restore")));
+    }
     [Fact] public void CatalogReflectsActualTargetsAndMenuCosts()
     {
         var catalog = new Catalog(Options()); Assert.Equal(7, catalog.Products.Length);

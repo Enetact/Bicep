@@ -1,14 +1,16 @@
 # Platform Studio — Azure developer self-service
 
-**Pipeline setup:** the portal now has **ADO setup** to inventory and register all 18 pipeline entry points in one reviewed batch. Existing definitions are preserved, exact GitHub main YAML is checked, and no runs, source edits or permission changes are requested. See [registration and public-repo safety](docs/ado-pipeline-registration.md).
+**AI-assisted Bicep source drafts:** choose **Design Bicep source draft** in Agent workflows after handing off Network discovery. Codex proposes a composition using local module contracts; the host generates reviewable Bicep, parameter files, a stack wrapper and receipts. Missing settings remain explicit required inputs. Drafts cannot deploy until reviewed and qualified. See [the draft guide](docs/bicep-source-drafts.md) and [module audit and expansion priorities](docs/plans/bicep-composition-and-module-audit.md).
 
-**Planned: Tag governance.** Subscription discovery, a resource/tag matrix, deterministic checks, optional skill advice, custom-tag drafts and protected ADO Preview/Apply are specified in the [tagging implementation plan](docs/plans/tagging-self-service.md). This is a researched design; the tagging UI, skill and pipelines are not implemented yet.
+**Pipeline setup:** the portal now has **ADO setup** to inventory and register all 20 pipeline entry points in one reviewed batch. Existing definitions are preserved, exact GitHub main YAML is checked, and no runs, source edits or permission changes are requested. See [registration and public-repo safety](docs/ado-pipeline-registration.md).
 
-**Reusable agent workflow:** new capabilities follow the [shared workflow standard](docs/agent-workflow-standard.md) and [copyable blueprint](docs/templates/agent-workflow-blueprint.md): discover evidence, run deterministic checks, request optional Codex analysis through the existing AHP/MCP integration, review recommendations, and use protected ADO execution where supported. The standard distinguishes existing runtime behavior from the planned structured-advice/draft extensions.
+**Tag governance is implemented locally:** subscription discovery, resource/tag tables and a matrix, deterministic checks, optional structured Codex advice, custom-tag drafts, and manual ADO Preview/Apply/Verify. **Apply remains disabled until platform qualification; live Azure/ADO/Codex acceptance is outstanding.** Start with [the user and operator guide](docs/tag-governance.md) and [implementation gates](docs/plans/tagging-self-service.md).
+
+**Reusable agent workflow:** new capabilities follow the [shared workflow standard](docs/agent-workflow-standard.md) and [copyable blueprint](docs/templates/agent-workflow-blueprint.md): discover evidence, run deterministic checks, request optional Codex analysis through the existing AHP/MCP integration, review recommendations, and use protected ADO execution where supported. The tagging workflow implements structured advice and explicit draft selection; the four earlier reviews retain advisory Markdown. Use the [platform-workflow-builder skill](.agents/skills/platform-workflow-builder/SKILL.md) to build another capability with this pattern.
 
 A local Windows portal and governed Azure DevOps delivery platform for discovering Azure resources, designing workload stacks, reviewing changes and deploying approved infrastructure. Reusable Bicep modules, versioned Template Specs and Deployment Stacks connect the developer experience to the same reviewed delivery flow.
 
-**Seven workload offerings · 14 dedicated pipeline menus · 42 bundled Microsoft skill definitions · Five project skills · Four Codex agent reviews · Windows ARM64 and x64**
+**Seven workload offerings · 14 dedicated pipeline menus · 42 bundled Microsoft skill definitions · Eight project skills · Six Codex workflows · Windows ARM64 and x64**
 
 **Current status — 27 September 2026:** the suite is implemented in source with recorded local verification. All **28 environment targets remain disabled for deployment** pending platform onboarding and acceptance. Successful discovery or a local test does not establish a successful Azure deployment. See [current status](docs/completion-status.md) and [dated verification evidence](docs/validation.md).
 
@@ -21,9 +23,11 @@ A local Windows portal and governed Azure DevOps delivery platform for discoveri
 | **Platform Studio** | Workload configuration, resource/dependency/cost descriptions, skills library, connection status, pipeline request review and run tracking. | Single-user localhost website; Azure provisioning runs in ADO. |
 | **Workload delivery** | Dedicated Discover and Deploy menus for seven products and dev/QA/UAT/prod profiles. | Preview is the default; deployment requires an enabled, onboarded target. |
 | **Resource discovery** | Read-only service inventory plus registered, selected, management-group and accessible-tenant network scans. | Browser identity and configured-tenant filtering; explicit partial coverage, with bounded scan limits. |
+| **Tag governance** | Subscription tag discovery, matrix, deterministic findings, optional structured Codex advice and editable drafts. | Manual tag Preview/Apply/Verify; source-owned target proposals; Apply disabled until qualification. |
 | **Analysis and diagrams** | Saved-inventory coverage reports, existing topology, proposed workload components and saved Preview resource changes. | Deterministic reports remain usable without a model; observed, proposed and planned changes are labeled separately. |
 | **Skills library** | Pinned Microsoft Azure instructions and supporting references, plus project-specific review and documentation skills. | Microsoft cards say **No pipeline associated yet**; inventory collection does not execute every upstream skill. |
-| **Codex agents** | Resource visualization, private-network review, workload advice and saved Preview review. | Four explicit, read-only workflows using GPT-6 Astra / High / Standard and a scoped MCP evidence bridge. |
+| **Codex agents** | Resource visualization, private-network review, workload advice, saved Preview review, tag advice and Bicep source drafts. | Six explicit workflows using GPT-6 Astra / High / Standard and a scoped MCP evidence bridge; no model deployment tools. |
+| **Bicep source design** | New compositions from 12 selectable shared modules, typed bindings, required-input markers and main/stack source downloads. | Source drafts only; 13 modules audited, including the separately governed IPAM reservation. Compile, review and qualify before registration. |
 | **Delivery governance** | Discovery provenance, frozen bundles, hashes, drift checks, scoped ownership, Template Spec publication and Deployment Stack application. | ADO permissions, approvals, private agents and Azure acceptance require platform setup. |
 | **Local development** | Real Blob copy Functions/Azurite runtime; portal lifecycle, tests and portable Windows packages. | Local emulation does not reproduce Azure identity, networking or hosted Event flow execution. |
 
@@ -87,7 +91,7 @@ Stop it before setup, rebuilding or packaging. The lifecycle scripts verify proc
 |---|---|---|
 | **Azure** | Visible-resource discovery, inventory diagrams and Azure evidence for agent reviews. | Separate portal Entra public-client registration and user read access to the selected subscription. |
 | **Azure DevOps** | Discovery-run selection, reviewed pipeline submission, status and saved Preview reading. | Portal Entra registration with delegated ADO access, project membership and authorized pipeline definitions. |
-| **Codex** | The four model-assisted review actions. | Compatible native Codex executable and the portal's separate ChatGPT browser sign-in; account access to the fixed model settings. |
+| **Codex** | Six model-assisted review/draft actions. | Compatible native Codex executable and the portal's separate ChatGPT browser sign-in; account access to the fixed model settings. |
 
 Follow [Microsoft browser sign-in setup](docs/local-portal.md#configure-microsoft-browser-sign-in) to create the portal registration. Its client ID is **not** the deployment service connection's application ID. After registration, configure both identifiers together:
 
@@ -138,6 +142,10 @@ All entrypoints are manual. Push, PR and discovery-completion triggers are disab
 3. **Preview only:** leave this default selected. Stage **Preview** verifies evidence and inputs, compiles Bicep, and performs Azure validation/What-If. Read **Summary / Extensions** or `deployment-preview/README.md` for resource and property changes, blockers and costs. Native stack What-If uses temporary metadata with cleanup; it does not apply workload resources.
 4. **Preview and deploy:** after platform enablement, queue a new run with this mode. A fresh Preview precedes stage **Deploy**, which qualifies the release bundle, publishes a versioned Template Spec, rechecks drift and applies the Deployment Stack through the relevant adapter. Application workloads use Foundation/package/Release sequencing; infrastructure-only products have no application ZIP.
 5. **Verify the result:** inspect `deployment-result/receipt.json` and product smoke/configuration evidence. `InfrastructureReady` covers infrastructure checks; runtime `Ready` requires its smoke checks. Neither replaces the broader product acceptance checklist. Failures can leave resources; automatic rollback is not implemented.
+
+**Deployment timeline and recovery:** Before/configuration diagrams, conceptual proposals and saved Azure What-If diagrams are implemented. A completed portal run currently reloads its **Preview**, not a newly observed final-state diagram. Persisted run-bound before/after comparison and a **Plan rollback → Preview recovery → protected Apply → Verify** experience are planned in the [deployment state and recovery design](docs/plans/deployment-state-and-recovery.md). Recovery must use a retained qualified release or workflow-specific compensation; Bicep cannot universally undo data loss or delivered events. No rollback button or recovery pipeline is implemented yet.
+
+**Recovery rules are now executable:** fourteen policies cover all workloads and operations workflows. View the selected product's **Recovery rules for this workload**, or **Pipeline activity → Recovery policies**. New Preview summaries/artifacts and deployment receipts identify the applicable policy. The [offline recovery assessor](docs/recovery-rules.md) blocks missing checks, uncertain outcomes, drift assertions and unsupported actions; even satisfied caller-supplied checks remain unverified and cannot authorize a restore. The trusted retained-release reader, before/after timeline and recovery executor remain planned. No resource-group rollback-on-error mechanism is used.
 
 ADO dropdowns are generated from reviewed catalog configuration; a discovery artifact does not add new queue-time fields midway through a run. Separate workload menus show only the selected product's resource/dependency descriptions. Pipeline approval checks, locks, service connections and private agent connectivity must be configured externally. Contributor permissions alone do not grant permission to create RBAC assignments.
 
@@ -199,7 +207,7 @@ Start with the [implementation and manual test runbook](docs/network-discovery-a
 
 ## Codex agent workflows
 
-The **Agent workflows** menu runs four bounded advisory workflows. The provider policy is fixed to **GPT-6 Astra**, **High** reasoning and **Standard** speed (`gpt-6-astra` / `high` / `default`). Unsupported settings block execution; there is no alternative-model or API-key fallback.
+The **Agent workflows** menu runs six bounded review/draft workflows. The provider policy is fixed to **GPT-6 Astra**, **High** reasoning and **Standard** speed (`gpt-6-astra` / `high` / `default`). Unsupported settings block execution; there is no alternative-model or API-key fallback.
 
 | Workflow | Evidence | Required connections |
 |---|---|---|
@@ -207,6 +215,8 @@ The **Agent workflows** menu runs four bounded advisory workflows. The provider 
 | Private network evidence review | Selected resource-group network inventory and coverage limits. | Codex + Azure |
 | Workload configuration advisor | Registered product, environment, approved region and proposed topology. | Codex |
 | Saved Preview change review | Matching workload/environment/region and bounded saved Preview resource actions. | Codex + ADO |
+| Tag governance review | Selected saved resource/tag evidence, deterministic findings and editable advice. | Codex + Azure |
+| Design Bicep source draft | Current browser's network discovery, selected workload context, module contracts and approved target overrides. | Codex + Azure |
 
 On **Run**, the application collects evidence, freezes the snapshot and exposes only `platform_evidence` and `platform_skill` through the in-process MCP bridge. Codex receives the selected metadata and pinned skill, then returns an advisory review. Evidence, completed review and terminal receipt are saved under ignored `artifacts/portal-agents/<id>/`.
 
@@ -218,7 +228,17 @@ The [agent guide](docs/agent-workflows.md) documents methods, limits, cancellati
 
 The [pinned Microsoft Azure Skills bundle](vendor/azure-skills/bundle.json) contains **42 skill definitions across 944 vendored source files**, with licenses and hashes. Browse/read these offline in **Skills library**. Each Microsoft card explicitly states **No pipeline associated yet**; its discovery action supplies supporting inventory rather than the full upstream automation.
 
-Five project skills live under [.agents/skills](.agents/skills): discovery audit, topology reporting, request design, change review and documentation maintenance. Only the four typed agent workflows above are wired to model execution. The documentation skill maintains capability/status guides when development changes; it is not a background watcher. See [skill discovery guide](docs/azure-skill-discovery.md) and [documentation maintenance](docs/README.md#maintaining-these-guides-with-codex).
+Eight project skills live under [.agents/skills](.agents/skills): discovery audit, topology reporting, request design, change review, documentation maintenance, tagging review, repeatable workflow authoring and Bicep composition. Six typed agent workflows are wired to model execution; the builder skill guides development and does not grant runtime capabilities. The documentation skill maintains capability/status guides when development changes; it is not a background watcher. See [skill discovery guide](docs/azure-skill-discovery.md) and [documentation maintenance](docs/README.md#maintaining-these-guides-with-codex).
+
+## Tag governance and repeatable workflows
+
+Open **Tag governance** to select an accessible subscription and discover visible tags. The portal shows resource rows, a tag matrix, findings and explicit coverage. Choose resources and enter `custom.<name>` tags, or explicitly run **Tag governance review** with Codex and select its validated suggestions into a draft. Deterministic analysis works without a model.
+
+The manual [Discover - Tags](azure-pipelines-tags-discover.yml) pipeline publishes saved evidence. [Tags - Preview and Apply](azure-pipelines-tags.yml) defaults to **Preview only**, publishes an Extensions README with exact tag deltas, and optionally enters protected Apply and Verify. These two entries bring the ADO setup catalog to **20 roots**. They require a private ADO project; discovered inventories and requests are not published to the public GitHub repository.
+
+External resources require exact ownership/type registration; unknown resources stay blocked. Bicep-owned resources produce target configuration proposals for the existing workload Preview/Deploy path. All seven compositions and wrappers now carry reviewed `customTags`; platform keys retain priority. The portal never directly writes tags or changes GitHub.
+
+See [setup, methods, limits and manual acceptance](docs/tag-governance.md). For another capability, invoke **platform-workflow-builder**: scope → evidence → deterministic checks → optional validated advice → user draft → Preview → protected execution → verification. It reuses the existing AHP coordination, Codex policy and read-only MCP bridge.
 
 ## Run Blob copy locally without Azure
 
@@ -263,7 +283,7 @@ self-service/targets/        Reviewed environment/region/protected-resource bind
 pipelines/                   Shared Discover, Preview, Deploy and adapter templates
 azure-pipelines-*.yml        Generated workload-specific entrypoints and compatibility routes
 scripts/                    Lifecycle, analysis, build, discovery, deployment and verification
-.agents/skills/              Five project skill definitions
+.agents/skills/              Eight project skill definitions
 vendor/azure-skills/         Pinned Microsoft instructions, references, licenses and hashes
 tests/                      Unit/integration/contract tests and explicit synthetic fixtures
 docs/                       Setup, methods, operations, evidence and expansion plans
@@ -296,7 +316,11 @@ Publishing produces self-contained `win-arm64.zip` and `win-x64.zip` under `arti
 
 The wider infrastructure/runtime regression entry is `./scripts/Test-Project.ps1`; use the [validation guide](docs/validation.md) and [workload onboarding checks](docs/workload-onboarding.md) for tooling and integration prerequisites. After intentional source/documentation edits, regenerate `MANIFEST.sha256` with `./scripts/Update-Manifest.ps1`, then run its `-Check` mode. Do not regenerate it merely to conceal unexpected drift.
 
-**Recorded evidence, not tests rerun by this README update:** the 27 September agent increment records 85 backend tests, six diagram tests, 944 vendored file hashes, and 24 HTTP plus five AHP checks for each Windows package. ARM64 ran natively; x64 ran under ARM emulation. Earlier product verification compiled all seven workload compositions/wrappers and environment files and checked the pipeline contracts. Native x64 hardware, live model/provider acceptance and full Azure deployment/private-network acceptance remain outstanding. See [validation history](docs/validation.md) and [machine-readable evidence](docs/validation-results.json).
+**Latest tagging verification (27 September 2026):** 168 backend tests passed (one native-provider test skipped), 133 pipeline/infrastructure contracts passed, and all 14 compositions/wrappers compiled. Both final Windows packages passed 33 HTTP and five AHP checks each; x64 ran under ARM emulation. Browser checks used clearly labeled synthetic evidence. Live Azure/Codex/ADO acceptance remains outstanding. See [tagging validation](docs/validation.md#tag-governance-and-repeatable-workflow-delivery--27-september-2026).
+
+**Subsequent Bicep draft verification:** 185 backend tests passed (one skipped), including 17 draft tests; 13 module contracts checked; 24 emitted main/stack drafts compiled; one filled-parameter literal-data check passed. An isolated ARM64 publish passed 33 HTTP and five AHP checks. This did not replace the running portal or the earlier distribution packages. See [draft validation](docs/validation.md#bicep-composition-source-drafts-27-september-2026) and [manual test steps](docs/bicep-source-drafts.md).
+
+**Earlier agent increment evidence:** the 27 September agent increment records 85 backend tests, six diagram tests, 944 vendored file hashes, and 24 HTTP plus five AHP checks for each Windows package. ARM64 ran natively; x64 ran under ARM emulation. Earlier product verification compiled all seven workload compositions/wrappers and environment files and checked the pipeline contracts. Native x64 hardware, live model/provider acceptance and full Azure deployment/private-network acceptance remain outstanding. See [validation history](docs/validation.md) and [machine-readable evidence](docs/validation-results.json).
 
 ## Documentation and expansion
 
