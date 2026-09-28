@@ -1,5 +1,7 @@
 # Tag governance: discovery, advice and reviewed changes
 
+[Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
+
 Implemented in source on 27 September 2026. The portal, shared deterministic engine, tagging skill, two manual pipelines and source-tag propagation are connected. **Live Azure/Codex/ADO acceptance is still required. Apply is disabled in the checked-in profile, with no registered external resources or qualified writer types.** No cloud resources or permissions were changed during implementation.
 
 ## Start and use it

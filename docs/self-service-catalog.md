@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+[Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
+
 **Lifecycle boundary:** saved What-If diagrams and deployment verification receipts exist; a durable before/after timeline and rollback buttons do not. The [deployment state and recovery plan](plans/deployment-state-and-recovery.md) maps each product and operations workflow to eligible configuration restoration, compensation or manual recovery. It adds no catalog offering or pipeline yet.
 
 The [recovery rules layer](recovery-rules.md) now implements that policy mapping, an offline assessor and portal policy views for fourteen workflows. Preview/Deploy evidence includes the policy identity without claiming recoverability. No restore offering, new pipeline or execution permission is registered.

@@ -1,5 +1,7 @@
 # Developer self-service deployment
 
+[Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
+
 **Registration shortcut:** use **ADO setup** in Platform Studio to register all missing entry points together. The manual registration instructions below remain an alternative. Matching definitions are reused; conflicts require deliberate reconciliation. See [bulk registration](ado-pipeline-registration.md).
 
 **Additional workload menus:** the [seven-offering onboarding guide](workload-onboarding.md) adds Storage, Key Vault, Observability, HTTP Functions API and Service Bus worker. Their dedicated Discover/Deploy roots share the existing Preview/Deploy controls. The Blob copy and Event flow settings documented below remain scoped to those original adapters; they are not requirements for the new products.

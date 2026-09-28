@@ -1,5 +1,7 @@
 # Self-service expansion and enhancement plan
 
+[Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
+
 **Recovery policy increment delivered:** R2 now has [fourteen policies, offline rule checks and portal explanations](recovery-rules.md), with Preview and receipt annotations. This is partial R2 delivery: no verified historical-release eligibility or protected executor exists, and R1's durable before/after evidence remains required. No automatic rollback or Azure resource-group rollback-on-error was added.
 
 **Deployment lifecycle next increment:** [the state and recovery plan](plans/deployment-state-and-recovery.md) sequences R1 run-bound before/after evidence, R2 recovery eligibility, R3 a protected configuration-restoration pilot and R4 per-product adapters. Current Preview and readiness receipts remain the implemented boundary. The new timeline and recovery actions are proposed; restoration excludes data/external side effects and cannot bypass Delete/Detach, ownership or drift guards.

@@ -1,5 +1,7 @@
 # Platform recovery rules
 
+[Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
+
 **Implemented locally, 27 September 2026:** fourteen policies, a deterministic offline assessor, workload/operations policy views and pipeline evidence annotations. This is our platform's recovery policy layer. It uses no Azure resource-group rollback-on-error mechanism.
 
 **Execution boundary:** there is no restore executor or recovery pipeline yet. Offline checks consume caller-supplied assertions and cannot verify Azure state, historical artifacts, approval or ownership. Even `ChecksSatisfiedUnverified` always has `canExecute: false`. Do not use this command's exit code or a diagram as an Apply gate. Run-bound before/after collection, retained-release verification and the protected restore path remain [planned](plans/deployment-state-and-recovery.md).

@@ -1,5 +1,7 @@
 # Authenticated Codex agent workflows
 
+[Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
+
 **Extension standard:** follow [the shared workflow standard](agent-workflow-standard.md), [blueprint](templates/agent-workflow-blueprint.md) and [workflow-builder skill](../.agents/skills/platform-workflow-builder/SKILL.md). Tagging implements validated structured recommendations and explicit advice-to-draft selection. The four earlier reviews remain advisory Markdown. AHP coordinates readiness; the typed API starts model execution.
 
 Implemented locally on 27 September 2026. Platform Studio now connects a browser-owned agent host, Codex inference and an in-process MCP evidence server. **Live ChatGPT login, Astra inference, Azure collection and ADO Preview review remain unverified.** The native Codex startup/account/MCP handshake and local contract tests are verified; those checks made no model calls.

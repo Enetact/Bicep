@@ -1,5 +1,7 @@
 # Platform Studio: local Windows self-service portal
 
+[Wiki home](README.md) · [Getting started](getting-started.md) · [Status](completion-status.md)
+
 **Recovery policies:** configure a workload and expand its recovery rules, or select a workflow under Pipeline activity → Recovery policies. These views work without sign-in and expose exclusions/requirements only; they do not assess a saved run or execute a restore. [Recovery rules](recovery-rules.md) also documents the offline source-checkout assessor. Rebuild/restart older portal processes and packages to load this increment.
 
 **New source-draft action:** Agent workflows → Design Bicep source draft consumes a fresh Network discovery handoff and selected workload context. It downloads Bicep/modules/parameters/receipts, with missing values explicit. It cannot queue or deploy; see [operation and limits](bicep-source-drafts.md). Previously packaged binaries must be rebuilt to include this capability.
