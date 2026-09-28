@@ -1,5 +1,7 @@
 # AI-assisted Bicep source drafts
 
+[Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
+
 ## Current behavior
 
 Platform Studio now has **Design Bicep source draft** under **Agent workflows**. It uses the existing AHP coordination, GPT-6 Astra / High / Standard runtime and scoped MCP evidence bridge. The model proposes a structured module composition; deterministic C# generates Bicep, parameter files, a subscription wrapper, copied local modules and receipts. **All generated output is an unqualified source draft.** This feature cannot queue ADO, publish Template Specs, enable targets, create resources or reserve addresses.

@@ -486,3 +486,11 @@ Local evidence for this increment:
 - Repository hygiene: 15 ignore probes, no tracked ignored files; source and skills remain eligible for Git. No credential or inventory publication occurred. This check is not a general secret-scanner clearance.
 
 Live Azure collection, model inference, actual ADO approvals/transport/artifacts, a controlled Merge with preservation, and two workload redeploys remain manual acceptance. `config/tag-governance.json` retains `enabled: false`, empty external IDs/types and unreviewed governance. The public repo contains implementation/configuration only; generated evidence remains ignored. See [manual acceptance and limits](tag-governance.md).
+
+## Repository wiki consolidation — 27 September 2026
+
+Documentation-only review: the root README is now a concise landing page, with a task-based [wiki home](README.md), [getting-started guide](getting-started.md), [platform overview](platform-overview.md) and [workload catalog](workload-catalog.md). Current readiness is consolidated in [implementation status](completion-status.md); earlier validation records remain historical evidence.
+
+- Checked local Markdown links, heading anchors and balanced code fences across the changed guides. Source/configuration counts and the machine-readable documentation review were refreshed from this checkout.
+- Kept implementation, local verification, observed ADO runs and outstanding Azure acceptance distinct. Resource Visualizer, scope/coverage limits and the recovery policy versus executor boundary remain documented.
+- No runtime tests, service restarts, Azure calls, ADO writes, target enablement or package rebuilds were performed for this documentation change. Earlier test results do not represent a new full-suite run.

@@ -1,5 +1,7 @@
 # Network discovery, validated agent diagrams and AVNM allocation
 
+[Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
+
 Source implementation: 27 September 2026. This guide is the current delivery contract and manual test runbook for [the implementation plan](plans/network-diagram-delivery.md). Azure/Codex/ADO acceptance is separate from local tests. No production target or allocation profile was enabled by this implementation.
 
 ## What you can test now

@@ -1,81 +1,60 @@
-# Current implementation and verification status
+# Implementation and verification status
 
-**Recovery rules increment, 27 September 2026:** fourteen workflow policies, an executable offline assessment, selected-workload/all-workflow portal policy views, Preview policy summaries and deployment receipt annotations are implemented. This supersedes the preceding audit's absence of a policy UI only. The assessor accepts unverified assertions and always denies execution; trusted baseline acquisition, after-state diagrams and actual recovery remain unimplemented. See [current rules and exact commands](recovery-rules.md).
+[Wiki home](README.md) · [Overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Validation history](validation.md)
 
-**Deployment state/recovery audit, 27 September 2026:** source and targeted checks confirm stack validation/What-If, saved Preview rendering and product result receipts. The portal does not yet capture/render a run-bound verified after-state; it reloads Preview on completion. Rollback execution is absent. The [recovery design](plans/deployment-state-and-recovery.md) defines the missing timeline, retained qualified baselines and per-workflow recovery gates. Existing checks re-run: 22 mocked Preview contracts and 133 pipeline contracts passed; no live Azure/ADO validation or new recovery runtime was performed.
+**Source/configuration reviewed: 27 September 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. Documentation consolidation does not rerun those tests or establish new cloud acceptance.
 
-**Bicep source drafts:** a sixth Codex workflow generates reviewed-module compositions, parameter files and a subscription wrapper into ignored artifacts. The compiler-derived catalog covers 13 modules; 12 are selectable. Drafts require compilation, platform review and workload qualification. Live Azure/Codex acceptance remains pending. See [source drafts](bicep-source-drafts.md) and [the module audit](plans/bicep-composition-and-module-audit.md).
+## Current inventory
 
-**Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
+| Item | Checked-in state |
+|---|---|
+| Workloads | Seven types and named instances. |
+| Environment targets | 28 registered; **zero enabled**. |
+| Pipeline entry points | 20 manual roots, including 14 dedicated workload menus. |
+| Skill definitions | 42 Microsoft Azure skills and eight project skills. |
+| Agent workflows | Six explicitly invoked reviews/drafts. |
+| Recovery policies | Fourteen policies; execution unavailable. |
+| Tag Apply / AVNM allocation | Both profiles disabled. |
 
+## Capability matrix
 
-**Agent workflow standard, 27 September 2026 — documentation delivered:** traced current AHP coordination, typed agent API, MCP tools, provider runtime and independent network/ADO handoff. Added the [standard](agent-workflow-standard.md) and [copyable blueprint](templates/agent-workflow-blueprint.md), including current gaps and adoption phases. Structured recommendation envelopes, shared runtime extraction and tagging integration remain proposed; no new executable agent or skill is registered.
-
-**Tagging plan, 27 September 2026 — proposed only:** researched the subscription selector, inventory/tag matrix, deterministic analyzer, new review skill, custom tags and protected ADO Preview/Apply route. See [design, file placement and acceptance phases](plans/tagging-self-service.md). This adds no runtime capability or registered pipeline; the existing counts remain unchanged.
-
-**ADO registration increment, 27 September 2026:** the portal can inventory/review/create all missing root pipeline definitions using an existing GitHub repository connection. Source and local contract tests are implemented; authenticated ADO creation remains a manual acceptance step. No existing pipelines, source or permissions were changed. See [registration contract](ado-pipeline-registration.md).
-
-**Network/diagram delivery, 27 September 2026:** evidence-bound Mermaid validation and image-only rendering, broader tenant/management-group network collection, deterministic configuration findings and a reviewed portal-to-ADO AVNM reservation/create-only spoke flow are implemented. The AVNM profile and all workload targets remain disabled. Live provider acceptance, effective connectivity, general IPAM lifecycle and automatic workload binding remain open. See [delivery and manual tests](network-discovery-and-diagrams.md).
-
-**Codex agent increment, 27 September 2026:** four bounded read-only reviews, isolated ChatGPT sign-in, GPT-6 Astra/High/Standard policy, MCP evidence tools and an experimental AHP coordination profile are implemented. Local backend, native Codex startup, HTTP and AHP checks passed; live authentication/model/provider acceptance remains pending. This is not a fully conformant AHP host, general Azure MCP server or autonomous deployment agent. See [workflow contracts and remaining gates](agent-workflows.md).
-
-**Five-product expansion, 27 September 2026:** all five requested source offerings, reusable modules, typed release/bundle path, dedicated pipeline menus and portal cards are implemented. The catalog now has seven products, 28 disabled targets and fourteen dedicated YAML roots. Onboarding values, complete price snapshots, ADO definition registration, live Azure/provider/private-network acceptance and product-specific operational drills remain outstanding. See [onboarding and readiness boundaries](workload-onboarding.md).
-
-Reviewed from local source on **27 September 2026**. This is the current summary; [validation evidence](validation.md) preserves dated results. A source/documentation review does not refresh cloud acceptance or rerun historical runtime tests.
-
-## Available now
-
-**Connected portal diagrams, 27 September 2026:** visible-resource discovery renders observed/configured topology; all seven workload configurations render proposed components; a guarded ADO artifact reader displays saved Preview actions. The portal can compare the current same-subscription discovery with the proposal. Local checks passed: 66 backend tests, six topology tests and 17 HTTP checks. Browser checks covered the real configuration view and synthetic discovery/blocked Preview transitions. Live Azure/ADO artifact compatibility remains unverified; no additional target is enabled. See [diagram workflow and limits](portal-diagrams.md).
-
-The portal now bundles **42 Microsoft Azure skill definitions** plus eight project skills and provides read-only Azure browser-authenticated resource discovery, including network configuration inventory. Each Microsoft skill is explicitly marked **No pipeline associated yet**. This is supporting inventory, not full agent execution or automatic IPAM/planning. Targeted verification: 41 backend tests, 14 local HTTP checks and integrity checks for all 944 vendored source files. Live Azure identity/collection acceptance remains pending. See [scope and limitations](azure-skill-discovery.md).
-
-The [local portal](local-portal.md) adds a Windows ARM64/x64 website, project skill library, saved-inventory analysis, browser-authentication implementation and guarded ADO queue/status integration. Its earlier baseline on 27 September passed 24 backend tests and 13 HTTP checks per package; the skill-library increment above supersedes those test counts. ARM64 ran natively; x64 ran under Windows ARM emulation. Live sign-in/consent and ADO execution require registration and remain unverified. That baseline preceded the bounded Codex/MCP review increment documented above; the enterprise MCP facade remains proposed.
-
-Seven workload types and named instances, four environments each and **28 disabled targets**. Fourteen dedicated ADO menus share discovery/deployment implementation. The generic pair remains for compatibility. See the [catalog and method map](self-service-catalog.md).
-
-| Capability | Implementation | Verification and remaining boundary |
+| Capability | Implementation | Verification boundary / remaining work |
 |---|---|---|
-| Blob dispatcher, queue worker, ledger and recovery timers | Implemented | Recorded real Functions/Azurite smoke and recovery from 17 September. No new runtime run in this audit. Azure runtime/network/identity acceptance remains outstanding in reviewed evidence. |
-| Local install/run/test/stop/reset | Implemented for Blob copy | Local lifecycle evidence exists; not every clean-machine installation branch or architecture is verified. Event flow has no equivalent local end-to-end runtime. |
-| Workload-specific menus | Implemented | Generated YAML and local routing tests; supplied ADO discovery and Preview-preparation logs. Every live menu/authorization branch has not been certified. |
-| Scoped discovery and saved-run handoff | Implemented | Supplied Preview run 23 verified discovery run 21. Local coverage includes DNS fallback, empty/failed queries, hashes, provenance and freshness. This does not prove deploy permissions. |
-| Saved-discovery analysis, diagrams and four project review skills | Implemented locally | Two compatibility readers, versioned output schema and pure Markdown/Mermaid/static SVG renderer; shared Discover report step authored. No authenticated ADO/live Azure proof from the offline report; server rendering acceptance pending. See [analysis guide](self-service-analysis.md). |
-| Event flow prerequisites | Implemented | Create / Reuse / Manage / Blocked, names, CIDR checks, selected shared IDs, ownership and live-recheck hooks. Latest targeted evidence: 26 cases on 19 September. Actual Azure creation/reuse not established. |
-| Hosted Preview stage | Implemented | Disabled targets can consume discovery and preview complete inputs. Run 23 stopped at five onboarding settings before Azure What-If. Later local dev settings resolve them; successful subsequent Azure What-If has not been supplied. |
-| Protected Deploy stage | Implemented | BuildBundle → PublishTemplateSpec → ApplyStack, with frozen inputs, drift checks and Foundation/Release. All targets disabled; no successful live Ready receipt established. |
-| Template Specs / Deployment Stacks | Implemented | Local compilation and mocked lifecycle tests. Live publication, deny permissions and stack acceptance still needed. |
-| Event flow runtime and package | Implemented | Package/schema/workflow contracts and Bicep compile locally. Hosted execution, Event Grid delivery, SCM indexing, RBAC propagation and smoke need Azure acceptance. |
-| Event flow dev tags, identity and exceptions | Configured, dev only | Operator identity/generated labels and [authorization record](reviews/eventflow-dev-exceptions.md). Local onboarding passes with resolved discovery; effective permissions and higher-environment approvals are separate. |
-| Reference costs and frozen reports | Implemented | Dated September price snapshots, freshness checks, exclusions and owned DNS charges. No live billing integration, enforced budget or reactive menu total. |
-| Private agents, routing and ADO checks | External platform setup | Supplied runs used hosted agents and authenticated discovery. Private routes, production rights, checks and agent availability are not established by that evidence. |
-| Shared workspace / hub resolver reuse | Supported Blob copy configuration | Azure acceptance pending. Event flow requires its supported same-region VNet/Azure-provided DNS topology; do not assume the adapters share resolver capabilities. |
-| Same application artifact promoted across environments | Not implemented | Identical infrastructure may reuse a Template Spec version. Each environment run currently builds its application again. |
-| Five additional workload types | Implemented in source | Storage, Key Vault, Observability, HTTP Functions and Service Bus worker use a typed product adapter. All profiles disabled; pricing, platform setup and live acceptance remain required. JSON alone cannot register arbitrary applications. See [onboarding](workload-onboarding.md). |
-| Enterprise network analyzer, dynamic IPAM allocation and AI assistance | Planned | Current discovery and fixed-CIDR prerequisite checks are implemented; coverage-aware topology analysis, allocation transactions and AI assistance are not. See the [networking design](plans/private-networking-self-service.md). |
-| Drift/TTL/adoption/deletion menus and automatic rollback | Not implemented | Existing preview and operator recovery safeguards are not a general operations catalog. Failures can leave resources. |
-| Policy assignments, module registry, AVM migration | Partial/deferred | Separate Policy-definition/registry templates exist; workload flow uses local modules. Assignments/publication/migration are not delivered by it. |
+| Local portal and Windows packages | Implemented | Local backend/HTTP/browser evidence exists. Packages predate some source increments; rebuild to include current code. Native x64 hardware acceptance is outstanding. |
+| Microsoft browser authentication and ADO integration | Implemented | Separate audience/session controls and local tests; registration, consent and authenticated live workflows need acceptance. |
+| ADO definition registration | Implemented | Reviewed create/reuse/conflict logic for all roots. Local contracts do not establish live registration or permission setup. |
+| Seven workload menus/compositions | Implemented | Local YAML routing, Bicep and product checks recorded. Shared dependencies, complete pricing and per-target Azure acceptance remain required. |
+| Discovery and saved-run handoff | Implemented | Local coverage/failure/provenance tests and supplied ADO evidence. Discovery does not establish deploy permissions. |
+| Event flow prerequisite resolution | Implemented | Create / Reuse / Manage / Blocked rules and local recheck tests; actual Azure creation/reuse remains unaccepted. |
+| Preview stage and diagrams | Implemented | Azure stack validation/What-If path and guarded artifact reader; local mocked contracts pass. Successful live What-If is not established by the reviewed records. |
+| Template Specs and Deployment Stacks | Implemented | Frozen bundles, ownership, drift checks and publication/apply paths tested locally. Real publication, deny permissions, private agents and workload readiness remain required. |
+| Network discovery and agent Mermaid | Implemented | Broader visible scopes, deterministic checks, evidence/grammar validation and image-only rendering tested locally. Effective connectivity and complete tenant visibility are not inferred. |
+| AVNM IPAM/network delivery | Implemented, profile disabled | Bounded retained-reservation/create-only flow and local contracts. Live pool/provider acceptance, general lifecycle and automatic workload binding remain open. |
+| Codex/AHP/MCP workflows | Implemented | Native startup/account/MCP handshake and local contracts recorded; live sign-in/inference acceptance outstanding. AHP is coordination-only, not a general host. |
+| Tag governance | Implemented, Apply disabled | Shared collector/rules, structured advice, drafts and protected pipeline source tested locally. Ownership/type qualification and live change verification remain required. |
+| AI-assisted Bicep drafts | Implemented | Typed module bindings and emitted source compiled locally. Drafts remain unqualified; production parameter resolution and admission are incomplete. |
+| Recovery rules and policy UI | Implemented | Offline assessor and policy annotations tested; caller assertions remain unverified and never authorize execution. |
+| Durable before/after timeline and restore execution | Planned | Completed portal runs reload Preview. Trusted retained-release reader, verified final diagram and protected restore executor are absent. |
+| Blob copy local runtime | Implemented | Recorded real Functions/Azurite transfer and recovery evidence. Not every clean-machine/architecture installation path is qualified; Azure runtime acceptance remains outstanding. |
+| Event flow and starter application runtimes | Implemented | Source/package/compile contracts recorded. Hosted triggers, delivery, private access, identity propagation and product smoke need Azure acceptance. |
+| Cost estimates | Implemented with gaps | Dated references, freshness rules and exclusions exist. Newer products explicitly lack complete estimates; no live billing or enforced budget integration. |
 
-## Evidence levels
+## How to read the evidence
 
-- **Implemented:** entrypoints/contracts exist and were traced.
-- **Locally verified:** identified tests/compilations passed on their recorded dates, often with Azure mocks.
-- **Observed in ADO:** supplied logs establish only steps actually reached.
-- **Azure accepted:** requires retained real preview/apply/readiness evidence; a full successful deployment is not established here.
-- **Planned:** proposal only, not a shipped menu or module.
+**Implemented** means the source path exists and has been traced. **Locally verified** means recorded checks passed, often with mocked Azure responses. **Observed in ADO** means supplied logs establish only the steps reached. **Azure accepted** requires retained real Preview/apply/readiness evidence. **Planned** is not a shipped feature or deployment authorization.
 
-The latest complete local project run on **27 September 2026** passed 91 new product contracts, 10 ProductFunctions tests, 46 portal tests, 131 pipeline/infrastructure checks across 31 YAML files, and the existing tooling, analysis, discovery, governance and original workload suites. Blob transfer tests passed 18 cases with 15 opt-in emulator cases skipped. All seven workload compositions/wrappers and environment files compiled; the operator build and both Function dependency advisory checks passed. Both Windows packages passed 14 local HTTP checks each. See [dated evidence](validation.md#five-workload-expansion-27-september-2026); Azure and ADO acceptance remain unverified. Earlier results remain historical.
+Supplied Preview run 23 verified discovery run 21, then stopped at onboarding settings before Azure What-If. Later local settings/tests do not prove that a subsequent Azure run succeeded. No full successful Azure workload deployment is established by the reviewed evidence.
 
-## Next acceptance sequence
+The latest recovery increment records 54 rule checks, 22 mocked Preview checks, 186 backend passes with one optional skip, four Node recovery-view checks, 133 pipeline checks and 34 local HTTP checks. These are **historical recorded results**, not a new test run performed by this documentation review. See [recovery validation](validation.md#recovery-policy-implementation-27-september-2026).
 
-1. Review target prerequisites, costs and authorization. Dev's generated cost-center label is not a verified finance-system code. Blob copy needs its real destination/topology.
-2. Confirm ADO permissions, identity scope, providers and quotas. Run matching Discover on `main`; repeat after target/policy selection changes, including Event flow enablement changes.
-3. Run dedicated Deploy in **Preview only** and retain successful Azure validation/What-If. Resolve blockers without treating missing evidence as zero changes.
-4. Establish private agents/routes and protected environments/checks. Enable only the chosen dev target, regenerate catalog/manifest, rerun discovery and queue **Preview and deploy**.
-5. Retain a Ready receipt and independently verify recovery/alerts/runtime behavior. Qualify higher environments separately. Add immutable application promotion before release policy requires it.
+Earlier full-project runs, architecture-specific package checks, Bicep draft compilation and real emulator runs remain in [validation history](validation.md). Read the record for the capability and revision being assessed; a later targeted pass does not replace a full-suite run. Artifacts may live locally or in ADO rather than in the public repository.
 
-Implementation, local verification, onboarding and production acceptance are distinct milestones. Historical artifacts are local or ADO evidence, not automatically present in a clone. See the [documentation index](README.md).
+## Acceptance before enabling a target
 
+1. Review product prerequisites, ownership, costs and authorization. Generated dev labels are not validated finance-system values; Blob copy needs its actual destination/topology.
+2. Confirm identities, service connections, providers, permissions and quotas. Run matching Discover on `main` after the reviewed configuration is in place.
+3. Run **Preview only** and retain successful Azure validation/What-If. Resolve unknown or failed evidence as blockers.
+4. Configure private-agent connectivity, protected environment approvals and exclusive locks. Enable only the reviewed target, regenerate catalog/manifest and refresh discovery.
+5. Run **Preview and deploy**, retain the product result and independently test private access, alerts and runtime behavior. Qualify other environments separately.
 
-## Tagging local acceptance boundary
-
-Tag governance is implemented as the fifth agent review and two additional manual pipeline entries (20 roots total). Seven project skills now include the tagging reviewer and repeatable workflow builder. Current targeted verification passed 168 backend tests (one native-provider test skipped), 133 infrastructure/pipeline contracts and compilation of all 14 tag-bearing compositions/wrappers. The [tagging guide](tag-governance.md) is the operator contract; [dated results](validation.md#tag-governance-and-repeatable-workflow-delivery--27-september-2026) distinguish fixtures from cloud evidence. Live Azure/Codex/ADO acceptance and protected profile enablement remain outstanding; no deployment targets were enabled.
+Recovery execution, immutable application promotion and wider network lifecycle are separate roadmap work. Existing policies or dev exception records do not grant production approval. Start with [workload onboarding](workload-onboarding.md), [security/RBAC](security-and-rbac.md) and [the expansion plan](self-service-expansion-plan.md).

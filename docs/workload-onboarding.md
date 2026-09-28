@@ -1,5 +1,7 @@
 # Adding and operating self-service workload products
 
+[Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
+
 **AI-assisted source authoring:** [Design Bicep source draft](bicep-source-drafts.md) can produce main/stack/parameter files from local module contracts. Treat these as source proposals and complete the same registration, adapter, naming, ownership, test and platform qualification steps below. Production parameters are still resolved by the existing pipeline adapters.
 
 ## Current catalog and delivery status

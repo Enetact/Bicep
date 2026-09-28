@@ -1,4 +1,24 @@
 {
+  "currentDocumentationReview": {
+    "date": "2026-09-27",
+    "kind": "repository-wiki-consolidation",
+    "scope": "README landing page, repository wiki navigation, capability and workload guides, consolidated current status. Documentation only.",
+    "workloadTypes": ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker"],
+    "registeredTargets": 28,
+    "enabledTargets": 0,
+    "rootPipelines": 20,
+    "dedicatedMenuFiles": 14,
+    "azureSkillDefinitions": 42,
+    "projectSkills": 8,
+    "agentWorkflows": 6,
+    "recoveryPolicies": 14,
+    "newRuntimeTestsPerformed": false,
+    "azureCallsPerformed": false,
+    "adoWritesPerformed": false,
+    "successfulAzureWorkloadDeploymentEstablished": false,
+    "previousReview": "fiveProductDocumentationReview",
+    "latestRuntimeEvidence": "recoveryPolicyImplementation"
+  },
   "recoveryPolicyImplementation": {
     "date": "2026-09-27",
     "status": "Rules, offline assessment and policy UI implemented locally; no recovery executor",
@@ -143,7 +163,7 @@
     "permissionsChanged": false,
     "remainingAcceptance": "Browser ADO sign-in, real inventory/review/create/read-back and resource authorization validation"
   },
-  "currentDocumentationReview": {
+  "fiveProductDocumentationReview": {
     "date": "2026-09-27",
     "kind": "five-product-source-implementation-and-local-qualification",
     "scope": "Seven workload types. Local source/test evidence; no live Azure acceptance.",
