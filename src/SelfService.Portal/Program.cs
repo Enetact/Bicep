@@ -24,6 +24,9 @@ builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("S
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
+builder.Services.AddTransient<OperationsService>();
+builder.Services.AddHttpClient<PrivateDnsReader>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<NetworkPipeline>();
 builder.Services.AddHttpClient<TaggingService>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
@@ -56,6 +59,7 @@ app.Use(async (context, next) =>
     }
     catch (PortalException e) { context.Response.StatusCode = e.Status; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (SelfService.Tagging.TagException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
+    catch (SelfService.Operations.OperationsException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (Exception) { context.Response.StatusCode = 500; await context.Response.WriteAsJsonAsync(new { error = "Operation could not complete. For a queue request, check ADO runs before retrying; it may have been accepted." }); }
 });
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
@@ -117,6 +121,14 @@ app.MapPost("/api/network/discover", async (NetworkScopeRequest request, Network
     var s = Session(c); if (!await s.NetworkGate.WaitAsync(0)) throw new PortalException("A network scan is already active in this browser.", 409);
     try { return await network.Discover(s, request, c.RequestAborted); } finally { s.NetworkGate.Release(); }
 });
+app.MapGet("/api/operations/catalog", () => SelfService.Operations.OperationsRegistry.Catalog);
+app.MapGet("/api/operations/scopes", (HttpContext c, OperationsService service) => service.Scopes(Session(c), c.RequestAborted));
+app.MapGet("/api/operations/evidence", (HttpContext c, OperationsService service) => service.List(Session(c)));
+app.MapGet("/api/operations/evidence/{id}", (HttpContext c, string id) => OperationsService.Evidence(Session(c), id, false));
+app.MapPost("/api/operations/collect", (HttpContext c, OperationsCollectRequest request, OperationsService service) => service.Collect(Session(c), request, c.RequestAborted));
+app.MapPost("/api/operations/assess", (HttpContext c, OperationsAssessRequest request, OperationsService service) => service.Assess(Session(c), request, c.RequestAborted));
+app.MapPost("/api/operations/proposals", (HttpContext c, OperationsDraftRequest request, OperationsService service) => service.Draft(Session(c), request, c.RequestAborted));
+app.MapPost("/api/operations/proposals/{id}/preview", (HttpContext c, string id) => OperationsService.Preview(Session(c), id));
 app.MapGet("/api/agent/status", async (HttpContext c, AgentWorkflows agents) => await agents.Status(Session(c), c.RequestAborted));
 app.MapGet("/api/agent/ahp", async (HttpContext c, AgentWorkflows agents) => await AgentHostChannel.Handle(c, Session(c), agents, options));
 app.MapPost("/api/agent/connect", async (HttpContext c, AgentWorkflows agents) => await agents.Connect(Session(c), c.RequestAborted));

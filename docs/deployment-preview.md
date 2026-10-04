@@ -1,5 +1,7 @@
 # Bicep Preview and Deploy
 
+**Nested evidence update, 4 October 2026:** the dedicated Deploy path now captures reviewed nested ARM properties and child-resource configurations. Unresolved desired expressions and incomplete probes block qualification; the retained before-state fingerprint is rechecked before Apply. Old approvals require a new Preview. See [coverage, limits and manual acceptance](nested-iac-evidence.md).
+
 **4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
 
 

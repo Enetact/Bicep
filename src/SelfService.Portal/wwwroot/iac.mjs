@@ -21,6 +21,16 @@ export function renderIac(container,report) {
   container.replaceChildren();
   container.append(element('h3','Before → What-If → observed after'));
   container.append(element('p',`Microsoft Azure MCP ${report.collector.version} · pipeline identity · run ${report.provenance.runId} · ${report.provenance.sourceCommit}. Hash-checked evidence; no deployment authorization.`));
+  const qualification=report.qualification;
+  container.append(element('p',qualification?`Nested evidence: ${qualification.status} · ${qualification.profile}. Live values do not resolve desired deployment expressions.`:'Legacy evidence: nested property qualification was not captured. Run a new Preview.'));
+  for(const blocker of qualification?.blockers??[])container.append(element('p',`${blocker.code} · ${blocker.resourceId??'Deployment coverage'}`));
+  const coverage=element('details'),coverageTitle=element('summary','Nested property and child-probe coverage');coverage.append(coverageTitle);
+  for(const probe of report.probes??[])coverage.append(element('p',`${probe.phase} · GET ${probe.id} · API ${probe.apiVersion} · ${probe.status} · ${probe.observedUtc}`));
+  for(const phase of ['before','planned','after'])for(const r of report[phase]?.resources??[]) {
+    const gaps=(r.propertyCoverage??[]).filter(p=>p.status!=='Observed');
+    if(gaps.length)coverage.append(element('p',`${phase} · ${r.id}: ${gaps.map(p=>`${p.path} (${p.status})`).join('; ')}`));
+  }
+  container.append(coverage);
   const controls=element('div'),diagram=element('div'),stateText=element('p'),review=element('button','Review this phase with Codex'),body=element('div');
   diagram.className='topology';stateText.setAttribute('role','status');let selected='planned';
   function show(phase){

@@ -199,11 +199,11 @@ Case 'Prepare compiles freezes discovery and full release without Azure access' 
     Check ($readme.Contains('Recovery rules') -and $readme.Contains('No restore executor is registered'))
     Check ($script:calls.Count -eq 0)
 }
-$script:iacCalls=[Collections.Generic.List[string]]::new();$script:iacAfterFailure=$false
+$script:iacCalls=[Collections.Generic.List[string]]::new();$script:iacAfterFailure=$false;$script:iacFingerprint=('a'*64);$script:iacQualified=$true
 function Invoke-WorkloadIacEvidence([string]$Action,[string]$Directory,[string]$InputDirectory='',[string]$WhatIfPath='') {
     $script:iacCalls.Add($Action)
     if($Action -eq 'after' -and $script:iacAfterFailure){throw 'After read failed'}
-    Write-ServiceJson @{testOnly=$true} (Join-Path $Directory analysis.json)
+    Write-ServiceJson @{testOnly=$true;qualification=@{status=$(if($script:iacQualified){'QualifiedProjection'}else{'Blocked'});beforeFingerprint=$script:iacFingerprint}} (Join-Path $Directory analysis.json)
 }
 Case 'live IaC hooks capture before and plan even when governance blocks What-If' {
     $script:iacCalls.Clear();$script:previewMode='potential'
@@ -211,6 +211,16 @@ Case 'live IaC hooks capture before and plan even when governance blocks What-If
     finally{$script:previewMode='ok'}
 }
 # Exercise the actual Deploy coordinator with mocked infrastructure/application boundaries.
+Case 'nested observation fingerprint changes invalidate unchanged What-If approval' {
+    $a=Invoke-WorkloadInfrastructurePreview $script:previewBundle (Join-Path $root nested-one) -CaptureIac
+    $script:iacFingerprint=('b'*64)
+    try{$b=Invoke-WorkloadInfrastructurePreview $script:previewBundle (Join-Path $root nested-two) -CaptureIac;Reject {Assert-PreviewFingerprint $a $b} 'drifted'}finally{$script:iacFingerprint=('a'*64)}
+}
+Case 'blocked nested coverage never publishes a deployable preview' {
+    $script:iacQualified=$false;$folder=Join-Path $root nested-blocked
+    try{Reject {Invoke-WorkloadInfrastructurePreview $script:previewBundle $folder -CaptureIac} 'qualification';Check (!(Test-Path (Join-Path $folder preview-plan.json)))}finally{$script:iacQualified=$true}
+}
+$script:approved.iacFingerprint=('a'*64)
 $script:sequence=[Collections.Generic.List[string]]::new();$script:drift=$false;$script:releaseFails=$false
 function Read-ServiceBundle([string]$Directory){return $bundle}
 function Read-WorkloadPreviewInputs([string]$Directory){return $script:previewBundle}

@@ -26,7 +26,7 @@ test('projection drops credentials, tags, expressions and arbitrary property bod
 });
 for(const bad of [id.replace('rg-test','rg-other'),id+'?secret',id+'#fragment',id+'/../else',id+'%2fother'])test('scope rejects '+bad,()=>assert.throws(()=>assertId(bad,target)));
 test('real adapter contract uses only scoped read tools and direct reads',async()=>{
-  const t=transports(),r=await collect(input,t);assert.equal(r.inventoryStatus,'Listed');assert.equal(r.resources.length,2);assert.deepEqual(t.calls.map(c=>c.name),['group_list','group_resource_list']);
+  const t=transports(),r=await collect(input,t);assert.equal(r.inventoryStatus,'Listed');assert.equal(r.resources.length,4);assert.deepEqual(t.calls.map(c=>c.name),['group_list','group_resource_list']);
   assert.ok(t.calls.every(c=>c.arguments.subscription===target.subscriptionId&&c.arguments.tenant===input.tenantId));assert.ok(!JSON.stringify(r).includes('SECRET'));
 });
 test('confirmed absent group is not confused with permission denial',async()=>{
@@ -44,8 +44,8 @@ test('after explicitly reads a child missing from generic inventory',async()=>{
   const child=id+'/blobServices/default',t=transports();const r=await collect({...input,apiVersions:{...apiVersions,'microsoft.storage/storageaccounts/blobservices':'2023-05-01'},expected:[{id:child}]},t);
   assert.equal(r.resources.find(r=>r.id===child).status,'Observed');
 });
-test('unsupported API version is visible, not silently interpreted as absent',async()=>{
-  const r=await collect({...input,apiVersions:{}},transports());assert.equal(r.resources.find(r=>r.id===id).status,'NotAssessed');
+test('reviewed profile supplies a pinned fallback API when template omits an inventoried type',async()=>{
+  const r=await collect({...input,apiVersions:{}},transports());assert.equal(r.resources.find(r=>r.id===id).status,'Observed');assert.equal(r.resources.find(r=>r.id===id).apiVersion,'2023-05-01');
 });
 test('plan rejects missing, duplicate or foreign resources and preserves uncertainty',()=>{
   assert.throws(()=>planned({},target));const p=raw();p.properties.changes.resourceChanges.push(p.properties.changes.resourceChanges[0]);assert.throws(()=>planned(p,target));

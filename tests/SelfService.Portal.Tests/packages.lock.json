@@ -196,11 +196,15 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "selfservice.operations": {
+        "type": "Project"
+      },
       "selfservice.portal": {
         "type": "Project",
         "dependencies": {
           "Microsoft.Identity.Client": "[4.90.1, )",
           "ModelContextProtocol": "[2.2.0, )",
+          "SelfService.Operations": "[1.0.0, )",
           "SelfService.Tagging": "[1.0.0, )"
         }
       },

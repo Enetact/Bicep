@@ -1,4 +1,55 @@
 {
+  "nestedIacEvidence20261004": {
+    "date": "2026-10-04",
+    "guide": "docs/nested-iac-evidence.md",
+    "profile": "nested-arm/v1",
+    "backendTests": { "passed": 246, "skipped": 1, "failed": 0 },
+    "nodeIacAndRendererTests": 36,
+    "mockedPreviewContracts": 29,
+    "pipelineContracts": 169,
+    "yamlFiles": 42,
+    "installedMcpReadOnlyHandshake": true,
+    "actualPowerShellNodeWrapperTest": true,
+    "actualReleaseAppRebuiltAndRestarted": true,
+    "actualAppHttpChecks": 38,
+    "actualAppAhpChecks": 7,
+    "azureCallsPerformed": false,
+    "adoWritesPerformed": false,
+    "modelInferencePerformed": false,
+    "portablePackagesRebuilt": false,
+    "evidence": ["tests/SelfService.Portal.Tests/TestResults/nested-evidence.trx", "artifacts/preview-tests/b428301e1ff8489f994d630e3a63baf4/results.json", "artifacts/portal-tests/http-smoke.json"],
+    "liveAcceptance": "Outstanding: collect an approved existing resource set, review a new Preview artifact and explicitly run Codex."
+  },
+  "operationsSuiteIncrement20261004": {
+    "date": "2026-10-04",
+    "scope": "First O0-O1 source increment; not full phase acceptance or O2-O6 implementation",
+    "guide": "docs/operations-workflows.md",
+    "plan": "docs/plans/operations-workflow-suite.md",
+    "dynamicAuthenticatedTenantAndSubscriptionSelection": true,
+    "backendTests": { "passed": 236, "skipped": 1, "failed": 0 },
+    "nodeDnsTopologyTests": 1,
+    "offlineCliWrapperRoundtrip": "Passed with synthetic evidence",
+    "actualReleaseAppRebuiltAndRestarted": true,
+    "actualAppHttpChecks": 38,
+    "actualAppAhpChecks": 7,
+    "browserControlsAndUnauthenticatedGuardVerified": true,
+    "activeAgentPolicy": { "model": "gpt-6.1-sol", "reasoning": "ultra", "serviceTier": "default" },
+    "agentWorkflows": 9,
+    "skills": { "microsoft": 42, "project": 10 },
+    "azureCallsPerformed": false,
+    "modelInferencePerformed": false,
+    "adoWritesPerformed": false,
+    "cloudExecutionImplemented": false,
+    "acceptedBaselineStoreImplemented": false,
+    "portablePackagesRebuilt": false,
+    "evidence": [
+      "tests/SelfService.Portal.Tests/TestResults/operations-portal.trx",
+      "artifacts/operations-build/cli-assessment.json",
+      "artifacts/operations-build/portal-dns-drift.jpg",
+      "artifacts/portal-tests/http-smoke.json"
+    ],
+    "manualAcceptance": "Reconnect Azure and Codex after restart; run the guide's live acceptance sequence."
+  },
   "currentDocumentationReview": {
     "date": "2026-10-04",
     "kind": "private-data-platform-implementation",
@@ -1022,5 +1073,21 @@
     "artifacts/codex-61/schema/"
   ],
   "guide": "docs/agent-workflows.md"
-}
+},
+  "codexRuntimeReadinessFix20261004": {
+    "date": "2026-10-04",
+    "cause": "Nested npm Codex 0.153.2 shadowed native Codex 0.160.0 on PATH",
+    "activeRuntime": "0.160.0",
+    "actualReleaseAppRebuiltAndRestarted": true,
+    "focusedAgentTests": { "passed": 27, "skipped": 1, "failed": 0 },
+    "actualAppHttpChecks": 35,
+    "actualAppAhpChecks": 7,
+    "newPortalSessionChatGptAuthVerified": true,
+    "liveModelCatalogVerified": "gpt-6.1-sol / ultra",
+    "browserConnectionFlowVerified": true,
+    "userSignedInPanelIndependentlyCaptured": false,
+    "modelInferencePerformed": false,
+    "azureOrAdoCallsPerformed": false,
+    "evidence": ["artifacts/codex-readiness/auth-verification.json", "artifacts/portal-tests/http-smoke.json"]
+  }
 }

@@ -14,7 +14,9 @@ public static class WorkflowReviews
         new("iac","Before / What-If / after IaC review","azure--azure-resource-visualizer","ado","iac","Live Azure MCP evidence captured by the pipeline, bound to its run and commit. Selected phase only; Codex interpretation cannot establish omitted state, approve changes or restore resources."),
         new("preview","Saved Preview change review","platform-change-review","ado","preview","Bounded saved Preview projection. Does not prove full bundle integrity or approval."),
         new("tagging","Tag governance review","platform-tagging-review","azure","tag-evidence","Selected saved tag evidence. Structured advice validated against rules and resource IDs. Explicit selection creates an editable draft; no agent write tools."),
-        new("bicep-draft","Design Bicep source draft","platform-bicep-composition","azure","composition","Saved network discovery plus selected workload context and allowlisted target overrides. Generates local module-based source drafts; compile and qualify before registration. No pipeline queue, deployment or IPAM reservation.")
+        new("bicep-draft","Design Bicep source draft","platform-bicep-composition","azure","composition","Saved network discovery plus selected workload context and allowlisted target overrides. Generates local module-based source drafts; compile and qualify before registration. No pipeline queue, deployment or IPAM reservation."),
+        new("private-dns","Private DNS analysis review","platform-private-dns-review","azure","operations","Saved DNS assessment with bounded configuration evidence. Structured advisory proposals only; migration and Azure writes are unavailable."),
+        new("drift","DNS drift and desired-change review","platform-drift-review","azure","operations","Three-way DNS property comparison. Local reference is not an accepted deployment baseline. No remediation or deployment authorization.")
     ];
     public static WorkflowReview Tags(string output,TagInventory inventory,TagProfile profile)
     {

@@ -1,5 +1,7 @@
 # Bicep repository structure and authoring conventions
 
+**Operations source increment — 4 October 2026:** `src/SelfService.Operations/` owns typed contracts and deterministic DNS/drift rules; `src/SelfService.Operations.Cli/` and `scripts/operations/Analyze-Operations.ps1` reuse them offline. `src/SelfService.Portal/Operations/` owns authorized collection and session orchestration; `wwwroot/operations.mjs` owns the view. Two project skills provide bounded review instructions through the existing AHP/Codex runtime. Generated evidence stays in ignored `artifacts/portal-operations/`. Future domain/profile/pipeline folders are not created as placeholders. See [the guide](operations-workflows.md).
+
 **4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
 
 

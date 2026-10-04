@@ -13,8 +13,8 @@
 | Workloads | Nine types and named instances. |
 | Environment targets | 36 registered; **zero enabled**. |
 | Pipeline entry points | 25 manual roots, including 18 dedicated workload menus. |
-| Skill definitions | 42 Microsoft Azure skills and eight project skills. |
-| Agent workflows | Seven explicitly invoked reviews/drafts. |
+| Skill definitions | 42 Microsoft Azure skills and ten project skills. |
+| Agent workflows | Nine explicitly invoked reviews/drafts. |
 | Recovery policies | Seventeen policies; execution unavailable. |
 | Tag Apply / AVNM allocation | Both profiles disabled. |
 | Helm application profiles | Four configured examples; zero enabled. |
@@ -35,11 +35,12 @@
 | Template Specs and Deployment Stacks | Implemented | Frozen bundles, ownership, drift checks and publication/apply paths tested locally. Real publication, deny permissions, private agents and workload readiness remain required. |
 | Network discovery and agent Mermaid | Implemented | Broader visible scopes, deterministic checks, evidence/grammar validation and image-only rendering tested locally. Effective connectivity and complete tenant visibility are not inferred. |
 | AVNM IPAM/network delivery | Implemented, profile disabled | Bounded retained-reservation/create-only flow and local contracts. Live pool/provider acceptance, general lifecycle and automatic workload binding remain open. |
-| Codex/AHP/MCP workflows | Implemented | Native startup/account/MCP handshake and local contracts recorded; live sign-in/inference acceptance outstanding. AHP is coordination-only, not a general host. |
+| Codex/AHP/MCP workflows | Implemented; live sign-in/catalog verified | Rebuilt portal's ChatGPT authentication and GPT-6.1 Sol/Ultra catalog verified on Codex 0.160.0 (4 October). Completed inference and cloud-backed review acceptance remain outstanding. AHP is coordination-only, not a general host. |
+| DNS/drift operations pilot | Implemented; locally verified | Dynamic authenticated subscription picker, bounded ARM evidence, deterministic rules/matrices/graph, local-reference comparisons, two structured Codex handlers and editable proposal previews. Live domain acceptance, accepted baselines and cloud execution are outstanding. [Guide](operations-workflows.md). |
 | Tag governance | Implemented, Apply disabled | Shared collector/rules, structured advice, drafts and protected pipeline source tested locally. Ownership/type qualification and live change verification remain required. |
 | AI-assisted Bicep drafts | Implemented | Typed module bindings and emitted source compiled locally. Drafts remain unqualified; production parameter resolution and admission are incomplete. |
 | Recovery rules and policy UI | Implemented | Offline assessor and policy annotations tested; caller assertions remain unverified and never authorize execution. |
-| Before/What-If/after IaC comparison | Implemented; locally verified | Pipeline Microsoft Azure MCP + ARM captures, hash-bound portal reader, existing-only Bicep inventory and explicit Codex visualizer review. See [coverage and acceptance](agentic-iac.md). No live acceptance claimed. |
+| Before/What-If/after IaC comparison | Implemented; locally verified | Pipeline Microsoft Azure MCP + nested ARM/child probes, profile coverage gates, before-state drift fingerprint, hash-bound portal reader and Codex review. See [nested coverage](nested-iac-evidence.md) and [workflow](agentic-iac.md). No live acceptance claimed. |
 | Durable retained-release store and restore execution | Planned | ADO artifact retention is used for the new phase history. No universal final-state proof, backup or protected restore executor. |
 | Blob copy local runtime | Implemented | Recorded real Functions/Azurite transfer and recovery evidence. Not every clean-machine/architecture installation path is qualified; Azure runtime acceptance remains outstanding. |
 | Event flow and starter application runtimes | Implemented | Source/package/compile contracts recorded. Hosted triggers, delivery, private access, identity propagation and product smoke need Azure acceptance. |

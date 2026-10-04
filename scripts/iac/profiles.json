@@ -1,0 +1,231 @@
+{
+  "version": "nested-arm/v1",
+  "scalars": [
+    "location",
+    "kind",
+    "sku.name",
+    "sku.tier",
+    "sku.capacity",
+    "identity.type",
+    "properties.publicNetworkAccess",
+    "properties.allowBlobPublicAccess",
+    "properties.allowSharedKeyAccess",
+    "properties.minimumTlsVersion",
+    "properties.supportsHttpsTrafficOnly",
+    "properties.enableRbacAuthorization",
+    "properties.enablePurgeProtection",
+    "properties.softDeleteRetentionInDays",
+    "properties.httpsOnly",
+    "properties.reserved",
+    "properties.virtualNetworkSubnetId",
+    "properties.subnet.id",
+    "properties.networkSecurityGroup.id",
+    "properties.routeTable.id",
+    "properties.virtualNetwork.id",
+    "properties.privateLinkServiceId",
+    "properties.apiServerAccessProfile.enablePrivateCluster",
+    "properties.disableLocalAccounts",
+    "properties.oidcIssuerProfile.enabled",
+    "properties.securityProfile.workloadIdentity.enabled"
+  ],
+  "types": {
+    "microsoft.network/virtualnetworks": {
+      "apiVersion": "2025-09-01",
+      "paths": [
+        "properties.addressSpace.addressPrefixes.*",
+        "properties.dhcpOptions.dnsServers.*",
+        "properties.subnets.*.name",
+        "properties.subnets.*.id",
+        "properties.subnets.*.properties.addressPrefix",
+        "properties.subnets.*.properties.networkSecurityGroup.id",
+        "properties.subnets.*.properties.routeTable.id"
+      ],
+      "children": [
+        {
+          "suffix": "subnets",
+          "type": "microsoft.network/virtualnetworks/subnets",
+          "list": true
+        }
+      ]
+    },
+    "microsoft.network/virtualnetworks/subnets": {
+      "apiVersion": "2025-09-01",
+      "paths": [
+        "properties.addressPrefix",
+        "properties.addressPrefixes.*",
+        "properties.privateEndpointNetworkPolicies",
+        "properties.privateLinkServiceNetworkPolicies",
+        "properties.delegations.*.name",
+        "properties.delegations.*.properties.serviceName",
+        "properties.serviceEndpoints.*.service",
+        "properties.serviceEndpoints.*.locations.*",
+        "properties.natGateway.id"
+      ]
+    },
+    "microsoft.network/privateendpoints": {
+      "apiVersion": "2025-09-01",
+      "paths": [
+        "properties.privateLinkServiceConnections.*.name",
+        "properties.privateLinkServiceConnections.*.properties.privateLinkServiceId",
+        "properties.privateLinkServiceConnections.*.properties.groupIds.*",
+        "properties.privateLinkServiceConnections.*.properties.privateLinkServiceConnectionState.status",
+        "properties.customDnsConfigs.*.fqdn",
+        "properties.customDnsConfigs.*.ipAddresses.*"
+      ],
+      "children": [
+        {
+          "suffix": "privateDnsZoneGroups",
+          "type": "microsoft.network/privateendpoints/privatednszonegroups",
+          "list": true
+        }
+      ]
+    },
+    "microsoft.network/privateendpoints/privatednszonegroups": {
+      "apiVersion": "2025-09-01",
+      "paths": [
+        "properties.privateDnsZoneConfigs.*.name",
+        "properties.privateDnsZoneConfigs.*.properties.privateDnsZoneId"
+      ]
+    },
+    "microsoft.storage/storageaccounts": {
+      "apiVersion": "2023-05-01",
+      "paths": [
+        "properties.networkAcls.defaultAction",
+        "properties.networkAcls.bypass",
+        "properties.networkAcls.virtualNetworkRules.*.id",
+        "properties.networkAcls.virtualNetworkRules.*.action",
+        "properties.networkAcls.ipRules.*.value",
+        "properties.networkAcls.ipRules.*.action"
+      ],
+      "children": [
+        {
+          "suffix": "blobServices/default",
+          "type": "microsoft.storage/storageaccounts/blobservices",
+          "list": false
+        },
+        {
+          "suffix": "queueServices/default",
+          "type": "microsoft.storage/storageaccounts/queueservices",
+          "list": false
+        }
+      ]
+    },
+    "microsoft.storage/storageaccounts/blobservices": {
+      "apiVersion": "2023-05-01",
+      "paths": [
+        "properties.isVersioningEnabled",
+        "properties.deleteRetentionPolicy.enabled",
+        "properties.deleteRetentionPolicy.days",
+        "properties.containerDeleteRetentionPolicy.enabled",
+        "properties.containerDeleteRetentionPolicy.days",
+        "properties.changeFeed.enabled",
+        "properties.changeFeed.retentionInDays"
+      ]
+    },
+    "microsoft.storage/storageaccounts/queueservices": {
+      "apiVersion": "2023-05-01",
+      "paths": []
+    },
+    "microsoft.web/sites": {
+      "apiVersion": "2024-11-01",
+      "paths": [
+        "properties.vnetRouteAllEnabled",
+        "properties.siteConfig.minTlsVersion",
+        "properties.siteConfig.ftpsState",
+        "properties.siteConfig.vnetRouteAllEnabled"
+      ],
+      "children": [
+        {
+          "suffix": "config/web",
+          "type": "microsoft.web/sites/config",
+          "list": false
+        }
+      ]
+    },
+    "microsoft.web/sites/config": {
+      "apiVersion": "2024-11-01",
+      "paths": [
+        "properties.minTlsVersion",
+        "properties.scmMinTlsVersion",
+        "properties.ftpsState",
+        "properties.vnetRouteAllEnabled",
+        "properties.alwaysOn",
+        "properties.http20Enabled"
+      ]
+    },
+    "microsoft.containerservice/managedclusters": {
+      "apiVersion": "2025-05-01",
+      "paths": [
+        "properties.kubernetesVersion",
+        "properties.apiServerAccessProfile.authorizedIPRanges.*",
+        "properties.networkProfile.networkPlugin",
+        "properties.networkProfile.networkPolicy",
+        "properties.networkProfile.outboundType",
+        "properties.networkProfile.serviceCidr",
+        "properties.networkProfile.dnsServiceIP"
+      ],
+      "children": [
+        {
+          "suffix": "agentPools",
+          "type": "microsoft.containerservice/managedclusters/agentpools",
+          "list": true
+        }
+      ]
+    },
+    "microsoft.containerservice/managedclusters/agentpools": {
+      "apiVersion": "2025-05-01",
+      "paths": [
+        "properties.count",
+        "properties.vmSize",
+        "properties.mode",
+        "properties.osType",
+        "properties.osSKU",
+        "properties.vnetSubnetID",
+        "properties.enableAutoScaling",
+        "properties.minCount",
+        "properties.maxCount",
+        "properties.orchestratorVersion",
+        "properties.upgradeSettings.maxSurge"
+      ]
+    },
+    "microsoft.datafactory/factories": {
+      "apiVersion": "2018-06-01",
+      "paths": [],
+      "children": [
+        {
+          "suffix": "managedVirtualNetworks/default/managedPrivateEndpoints",
+          "type": "microsoft.datafactory/factories/managedvirtualnetworks/managedprivateendpoints",
+          "list": true
+        }
+      ]
+    },
+    "microsoft.datafactory/factories/managedvirtualnetworks/managedprivateendpoints": {
+      "apiVersion": "2018-06-01",
+      "paths": [
+        "properties.privateLinkResourceId",
+        "properties.groupId",
+        "properties.connectionState.status",
+        "properties.fqdns.*"
+      ]
+    },
+    "microsoft.keyvault/vaults": {
+      "apiVersion": "2023-07-01",
+      "paths": [
+        "properties.networkAcls.defaultAction",
+        "properties.networkAcls.bypass",
+        "properties.networkAcls.virtualNetworkRules.*.id",
+        "properties.networkAcls.ipRules.*.value"
+      ]
+    },
+    "microsoft.databricks/workspaces": {
+      "apiVersion": "2026-01-01",
+      "paths": [
+        "properties.requiredNsgRules",
+        "properties.parameters.enableNoPublicIp.value",
+        "properties.parameters.customVirtualNetworkId.value",
+        "properties.parameters.customPublicSubnetName.value",
+        "properties.parameters.customPrivateSubnetName.value"
+      ]
+    }
+  }
+}

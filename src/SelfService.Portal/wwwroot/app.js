@@ -1,6 +1,7 @@
 import { renderIac } from './iac.mjs';
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
+import { setupOperations } from './operations.mjs';
 import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
@@ -40,8 +41,8 @@ async function loadPreview(product, runId) {
     $('preview-message').textContent = `Saved evidence from run ${runId}. Compare with the proposed components above; this does not confirm deployment.`;
   } catch (e) { if (version === selectionVersion) $('preview-message').textContent = `Preview unavailable: ${e.message}`; }
 }
-async function api(path, body) {
-  const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body) });
+async function api(path, body, signal) {
+  const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
   const text = await res.text(); const result = text ? JSON.parse(text) : {};
   if (!res.ok) throw new Error(result.error ?? `Request failed (${res.status}).`); return result;
 }
@@ -218,6 +219,7 @@ try {
   refreshAgents = setupAgents({ api, data, notice });
   setupNetwork({ api, data, notice, page });
   setupTagging({ api, data, notice, page });
+  setupOperations({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
   try {
     recoveryCatalog = await api('recovery/policies');

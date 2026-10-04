@@ -93,5 +93,19 @@ public sealed class BicepDraftTests
         var context = BicepDrafts.Context(Root, catalog, session, request);
         Assert.Equal("Partial", context.DiscoveryStatus); Assert.Empty(context.Resources);
         Assert.Equal("eastus2", context.Settings["location"].GetString());
+        Assert.Equal("Partial",context.NestedEvidence!.Value.GetProperty("status").GetString());
+    }
+    [Fact] public void DraftReadsProjectedNestedSubnetWithoutTurningObservationIntoSettings()
+    {
+        var catalog=new Catalog(new(){RepositoryRoot=Root});using var session=new BrowserSession(new());
+        var sub=catalog.Products.Single(p=>p.Id=="storage").Targets.First().SubscriptionId;
+        var parent=$"/subscriptions/{sub}/resourceGroups/shared/providers/Microsoft.Network/virtualNetworks/shared";
+        var subnet=parent+"/subnets/apps";
+        session.NetworkReports["snapshot"]=J(new{id="snapshot",generatedUtc=DateTimeOffset.UtcNow,reports=new[]{new{subscriptionId=sub,status="Partial",collections=new[]{new{resources=new[]{new{id=parent,type="Microsoft.Network/virtualNetworks",subnets=new[]{new{id=subnet,configured=new{addressPrefix="10.0.0.0/24"},occupancy="Unknown"}}}}}}}}});
+        var request=new AgentRequest("bicep-draft",null,null,"storage","dev","eastus2",null,"snapshot",DraftGoal:"A private workspace");
+        var context=BicepDrafts.Context(Root,catalog,session,request);
+        Assert.Contains(context.Resources,r=>r.Id==subnet&&r.Type=="Microsoft.Network/virtualNetworks/subnets");
+        Assert.Contains("10.0.0.0/24",context.NestedEvidence.ToString());
+        Assert.DoesNotContain(context.Settings.Keys,k=>k=="addressPrefix");
     }
 }

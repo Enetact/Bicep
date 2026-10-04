@@ -15,14 +15,17 @@ Platform Studio is a local Windows web application for discovering Azure resourc
 |---|---|
 | **Configure workloads** | Nine offerings with dedicated resource, dependency and cost descriptions; separate Discover and Deploy menus. |
 | **Discover and visualize** | Resource and network inventory, explicit collection coverage, observed topology, proposed components and saved Azure What-If diagrams. |
-| **Compare live IaC state** | Shared Azure MCP before/What-If/after captures, property comparison, existing-resource Bicep snapshots and phase-specific Codex visualizer reviews. [Workflow and manual acceptance](docs/agentic-iac.md). |
-| **Review with AI** | Seven Codex review/draft workflows using scoped evidence and pinned skills; deterministic checks remain usable without a model. |
+| **Compare live IaC state** | Shared Azure MCP before/What-If/after captures, [nested property/child probes and coverage gates](docs/nested-iac-evidence.md), existing-resource Bicep snapshots and phase-specific Codex visualizer reviews. [Workflow and manual acceptance](docs/agentic-iac.md). |
+| **Review with AI** | Nine Codex review/draft workflows using scoped evidence and pinned skills; deterministic checks remain usable without a model. |
+| **Analyze Private DNS and drift** | Dynamic Azure subscription picker, DNS records/coverage matrix, configured graph, explicit reference/observed/desired comparisons and editable analysis proposals. [Implemented scope and acceptance](docs/operations-workflows.md). |
 | **Design Bicep** | Compose reviewable source drafts from local module contracts, with explicit required settings and qualification before deployment. |
 | **Govern tags** | Subscription resource/tag views, deterministic findings, editable drafts and a protected ADO change path. |
 | **Deliver through ADO** | Reviewed pipeline registration, saved discovery, Preview summaries, immutable bundle checks, Template Spec publication and stack deployment. |
 | **Assess recovery rules** | Seventeen workflow policies, portal explanations and an offline assessor. Restore execution is not implemented. |
 
 Explore the [platform overview](docs/platform-overview.md) for architecture, identity boundaries, skills and current limitations.
+
+**Phased implementation:** [the operations workflow plan](docs/plans/operations-workflow-suite.md) now has an O0–O1 DNS/drift analysis pilot. Live acceptance and accepted deployment baselines remain open. Access review, private diagnostics, data promotion, AKS maintenance, pipeline analysis and qualified DNS/drift execution are subsequent phases, not enabled actions.
 
 Agent workflows use **GPT-6.1 Sol (`gpt-6.1-sol`), Ultra reasoning and Standard speed** through the existing AHP coordination and Codex app-server integration. The connected account must advertise the requested model and effort; execution blocks if the provider substitutes settings. See [agent setup and acceptance](docs/agent-workflows.md).
 

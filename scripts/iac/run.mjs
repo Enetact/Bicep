@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { schema, sha, json, planned, compare, bicep, versions, scopeOf } from './core.mjs';
 import { connectMcp, collect, completeBefore } from './azure.mjs';
+import { qualify,inspectTemplate } from './qualification.mjs';
 
 const [action, directory, source, whatIf] = process.argv.slice(2);
 const read = async file => JSON.parse(await fs.readFile(file,'utf8'));
@@ -20,7 +21,7 @@ if(action === 'qualify') {
         pipelineId:process.env.SYSTEM_DEFINITIONID ?? '',repositoryId:process.env.BUILD_REPOSITORY_ID ?? '',
         inputSha256:sha(await fs.readFile(path.join(source,'preview-inputs.json'))),templateSha256:sha(await fs.readFile(path.join(source,'stack-template.json')))},
       collector:{name:'Microsoft Azure MCP',version:'2.0.5',credential:'AzureCliCredential',readOnly:true},
-      apiVersions:versions(await read(path.join(source,'stack-template.json'))),before:null,planned:null,after:null,comparison:[],deploymentAuthorized:false,
+      apiVersions:versions(await read(path.join(source,'stack-template.json'))),templateInspection:inspectTemplate(await read(path.join(source,'stack-template.json'))),before:null,planned:null,after:null,comparison:[],deploymentAuthorized:false,
       limitations:['Not a restore plan. Existing-only Bicep is an identity inventory, not reconstructed configuration.', 'After is a fresh observation, never synthesized from What-If. Projected matches are not full resource or application acceptance.']};
   }else report=await read(path.join(directory,'analysis.json'));
   if(report.schema!==schema)throw Error('Unsupported IaC evidence schema.');
@@ -54,13 +55,19 @@ if(action === 'qualify') {
       if(report[action].inventoryStatus==='Partial')failure='Live inventory was partial. Review analysis.json; no absence or final success inferred.';
     }
   }catch{failure='IaC analysis failed. Review pipeline diagnostics and tool qualification; absent resources are not inferred.';}
+  if(action!=='before'){
+    report.qualification=qualify(report);
+    if(report.qualification.status==='Blocked')failure??='Nested evidence or desired-state coverage is incomplete. Review qualification blockers; no substitution of live values authorizes deployment.';
+  }
   report.updatedUtc=new Date().toISOString();
   if(failure)report.issue=failure;else delete report.issue;
   const files={'analysis.json':json(report)};
   for(const phase of ['before','after'])if(report[phase])files[phase+'.bicep']=bicep(report[phase],report.scope);
   files['README.md']=['# Agentic IaC evidence','',`Run ${report.provenance.runId} · ${report.provenance.product} / ${report.provenance.environment}`,'',
     `Before: ${report.before?.inventoryStatus ?? 'Unavailable'}. What-If: ${report.planned?.status ?? 'Not captured'}. After: ${report.after?.inventoryStatus ?? 'Not collected; deployment is not confirmed'}.`,
-    '',failure ?? '', '', '| Resource | Action | Observed comparison |','|---|---|---|',
+    '',failure ?? '', '', `Nested evidence qualification: ${report.qualification?.status??'Awaiting What-If'}.`,
+    ...(report.qualification?.blockers??[]).map(b=>`- ${b.code}: ${(b.resourceId??'Deployment coverage').replace(/[|<>\r\n]/g,'_')}`),
+    '', '| Resource | Action | Observed comparison |','|---|---|---|',
     ...(report.planned?.resources ?? []).map(r=>`| ${r.id.replace(/[|<>\r\n]/g,'_')} | ${r.action} | ${report.comparison.find(c=>c.id===r.id)?.status ?? 'Awaiting observation'} |`),'',...report.limitations.map(l=>'- '+l),''].join('\n');
   for(const [file,content]of Object.entries(files))await fs.writeFile(path.join(directory,file),content);
   await fs.writeFile(path.join(directory,'receipt.json'),json({schema:'platform.iac-receipt/v1',provenance:report.provenance,

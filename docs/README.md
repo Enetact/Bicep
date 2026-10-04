@@ -13,8 +13,10 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Understand the suite | [Platform overview](platform-overview.md) → [Current status](completion-status.md) |
 | Preview or deploy a workload | [Workload catalog](workload-catalog.md) → [ADO onboarding](self-service.md) → [Preview](deployment-preview.md) |
 | Compare live infrastructure before and after a deployment | [Shared agentic IaC workflow](agentic-iac.md) |
+| Inspect nested properties and unresolved What-If evidence | [Nested discovery and qualification](nested-iac-evidence.md) |
 | Discover networks and explain topology | [Network discovery](network-discovery-and-diagrams.md) → [Diagrams](portal-diagrams.md) → [Agent workflows](agent-workflows.md) |
 | Analyze or change tags | [Tag governance](tag-governance.md) → [Permissions](security-and-rbac.md) |
+| Analyze DNS and compare observed/desired properties | [DNS and drift workspace](operations-workflows.md) → [Phased operations plan](plans/operations-workflow-suite.md) |
 | Understand recovery | [Recovery rules](recovery-rules.md) → [State and recovery plan](plans/deployment-state-and-recovery.md) |
 | Add a workload or skill | [Source conventions](repository-structure.md) → [Workflow standard](agent-workflow-standard.md) → [Blueprint](templates/agent-workflow-blueprint.md) |
 
@@ -82,6 +84,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | [Reusable modules](../modules/README.md) | Shared Bicep contracts and module-specific documentation. |
 | [Workflow standard](agent-workflow-standard.md) and [blueprint](templates/agent-workflow-blueprint.md) | Repeatable evidence → assessment → optional AI → reviewed draft → governed execution. |
 | [Expansion roadmap](self-service-expansion-plan.md) | Future capabilities and delivery priorities. |
+| [Operations and drift workflow suite](plans/operations-workflow-suite.md) | Proposed Private DNS consolidation, identity/access, private diagnostics, data release promotion, AKS maintenance, pipeline analysis and three-way drift; shared contracts and phased acceptance. |
 | [Readiness and validation plan](plans/enhanced-self-service-validation.md) | Cross-cutting acceptance gates and rollout sequencing. |
 | [Bicep composition and module audit](plans/bicep-composition-and-module-audit.md) | Module gaps, parameter authority and source qualification. |
 | [Private networking design](plans/private-networking-self-service.md) | Complex network self-service, deterministic checks and allocation authority. |

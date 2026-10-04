@@ -1,3 +1,5 @@
+import { project, projection, isProjectedPath, unresolvedCount } from './projection.mjs';
+export { project } from './projection.mjs';
 import { createHash } from 'node:crypto';
 
 // Shared, deterministic evidence rules. No model output, parameter values or write operations.
@@ -5,14 +7,6 @@ export const schema = 'platform.iac-analysis/v1';
 export const sha = data => createHash('sha256').update(data).digest('hex');
 export const json = value => JSON.stringify(value, null, 2) + '\n';
 export const limits = { resources: 500, bytes: 4 * 1024 * 1024 };
-const paths = ['location','kind','sku.name','sku.tier','sku.capacity','identity.type',
-  'properties.publicNetworkAccess','properties.allowBlobPublicAccess','properties.allowSharedKeyAccess',
-  'properties.minimumTlsVersion','properties.supportsHttpsTrafficOnly','properties.enableRbacAuthorization',
-  'properties.enablePurgeProtection','properties.softDeleteRetentionInDays','properties.httpsOnly',
-  'properties.reserved','properties.virtualNetworkSubnetId','properties.subnet.id','properties.networkSecurityGroup.id',
-  'properties.routeTable.id','properties.virtualNetwork.id','properties.privateLinkServiceId',
-  'properties.apiServerAccessProfile.enablePrivateCluster','properties.disableLocalAccounts',
-  'properties.oidcIssuerProfile.enabled','properties.securityProfile.workloadIdentity.enabled'];
 export function scopeOf(target) {
   if (!/^[a-f0-9-]{36}$/i.test(target.subscriptionId) || !/^[\w.()-]{1,90}$/.test(target.resourceGroup)) throw Error('Invalid IaC subscription/resource-group scope.');
   return `/subscriptions/${target.subscriptionId}/resourceGroups/${target.resourceGroup}`;
@@ -30,16 +24,6 @@ export function assertPlannedId(id,target) {
   if(typeof id!=='string'||id.length>2048||/[?#%\\\r\n]/.test(id)||id.includes('..')||
     !id.toLowerCase().startsWith(`/subscriptions/${target.subscriptionId}/`.toLowerCase()))throw Error('What-If resource is outside the selected subscription.');
   return id;
-}
-export function project(resource) {
-  const config = {};
-  for (const path of paths) {
-    const value = path.split('.').reduce((v, p) => v?.[p], resource);
-    // Never retain expressions, arbitrary objects, tags, app settings, outputs or credentials.
-    if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)) ||
-        (typeof value === 'string' && value.length <= 2048 && !/[\[\]${}\r\n]/.test(value))) config[path] = value;
-  }
-  return config;
 }
 export function resourceType(id) {
   const bits = id.split('/'), provider = bits.findLastIndex(v => v.toLowerCase() === 'providers');
@@ -64,16 +48,18 @@ export function planned(raw, target) {
     if (ids.has(key)) throw Error('Duplicate What-If resource.'); ids.add(key);
     const action = ['Create','Modify','Delete','NoChange','Ignore','Deploy','Unsupported','Detach'].find(x => x.toLowerCase() === String(c.changeType).toLowerCase()) ?? 'Unknown';
     const configuration = c.resourceConfigurationChanges ?? c;
+    const unresolvedExpressions=unresolvedCount(configuration.after??{})+unresolvedCount(configuration.delta??[]);
     return { id, type: resourceType(id), action, certainty: c.changeCertainty ?? 'unknown',
-      config: project(configuration.after ?? {}), changedPaths: flatten(configuration.delta ?? []),
-      status: ['Ignore','Unsupported','Deploy','Unknown','Detach'].includes(action) ? 'Unresolved' : 'Predicted' };
+      ...projection(configuration.after ?? {},resourceType(id)), changedPaths: flatten(configuration.delta ?? []),unresolvedExpressions,
+      status: unresolvedExpressions||['Ignore','Unsupported','Deploy','Unknown','Detach'].includes(action) ? 'Unresolved' : 'Predicted' };
   });
-  return { status: (p?.provisioningState ?? raw.status) === 'Succeeded' ? 'Succeeded' : 'Incomplete', resources,
-    coverage: 'Azure What-If prediction, not observed final state. Only allowlisted scalar properties retained; omitted properties and diagnostics require review in the original artifact.' };
+  const diagnostics=[...(p?.diagnostics??[]),...(raw.diagnostics??[])].length;
+  return { status: (p?.provisioningState ?? raw.status) === 'Succeeded' && !diagnostics ? 'Succeeded' : 'Incomplete', resources,diagnosticCount:diagnostics,
+    coverage: 'Azure What-If prediction, not observed final state. Profile nested leaves and explicit array counts are retained. Unresolved expressions are not replaced by current values; diagnostics may indicate omitted modules.' };
 }
 function flatten(deltas, prefix = '', depth = 0) {
   if (depth > 20 || !Array.isArray(deltas) || deltas.length > 1000) throw Error('What-If property deltas exceed limits.');
-  return deltas.flatMap(d => { const p = prefix + String(d.path ?? ''); return [paths.includes(p) ? p : 'Unprojected property', ...flatten(d.children ?? [], p + '.', depth + 1)]; }).filter((v, i, a) => a.indexOf(v) === i);
+  return deltas.flatMap(d => { const p = prefix + String(d.path ?? ''); return [isProjectedPath(p) ? p : 'Unprojected property', ...flatten(d.children ?? [], p + '.', depth + 1)]; }).filter((v, i, a) => a.indexOf(v) === i);
 }
 export function compare(plan, after) {
   return plan.resources.map(expected => {
@@ -89,6 +75,7 @@ export function compare(plan, after) {
         status = mismatches.length ? 'Mismatch' : checked.length ? (unknown.length ? 'Partial projected match' : 'Projected properties match') : 'Observed existence only';
       }
     }
+    if(expected.status==='Unresolved')unknown.push(...Object.keys(expected.config));
     return { id: expected.id, action: expected.action, status, checkedPaths: checked, mismatchPaths: mismatches, unknownPaths: unknown,
       unverified: 'All omitted properties, data-plane behavior, network reachability and application readiness remain outside this comparison.' };
   });

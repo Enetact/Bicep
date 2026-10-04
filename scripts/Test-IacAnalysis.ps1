@@ -7,7 +7,7 @@ if(!$SkipRestore){
     & npm ci --prefix (Join-Path $PSScriptRoot iac) --ignore-scripts --no-audit --no-fund
     if($LASTEXITCODE -ne 0){throw 'IaC dependency restore failed.'}
 }
-& node --test (Join-Path $root 'tests/iac/core.test.mjs')
+& node --test (Join-Path $root 'tests/iac/core.test.mjs') (Join-Path $root 'tests/iac/nested.test.mjs') (Join-Path $root 'tests/iac/ui.test.mjs')
 if($LASTEXITCODE -ne 0){throw 'IaC evidence tests failed.'}
 & node (Join-Path $PSScriptRoot 'iac/run.mjs') qualify
 if($LASTEXITCODE -ne 0){throw 'Installed read-only Azure MCP schema mismatch.'}

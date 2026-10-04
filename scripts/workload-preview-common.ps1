@@ -92,15 +92,25 @@ function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory,[switch
         }
     }
     $plan=@{schemaVersion=1;kind='full-release-preview';inputHash=$Bundle.hash;sourceCommit=$Bundle.receipt.sourceCommit;runId=$Bundle.receipt.runId;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');state=$state;changes=$report.changes;deployable=$true;workloadDeployed=$false}
-    $plan.fingerprint=Get-ValueHash @{inputHash=$plan.inputHash;state=$state;changes=$report.changes}
+    if($CaptureIac){
+        $evidence=Get-Content (Join-Path $Directory iac/analysis.json) -Raw|ConvertFrom-Json -AsHashtable
+        if($evidence.qualification.status -cne 'QualifiedProjection' -or $evidence.qualification.beforeFingerprint -cnotmatch '^[a-f0-9]{64}$'){throw 'Nested evidence qualification is missing or blocked.'}
+        $plan.iacFingerprint=$evidence.qualification.beforeFingerprint
+    }
+    $plan.fingerprint=Get-WorkloadPreviewFingerprint $plan
     Write-ServiceJson $plan (Join-Path $Directory preview-plan.json)
     return $plan
+}
+function Get-WorkloadPreviewFingerprint($Plan) {
+    $value=@{inputHash=$Plan.inputHash;state=$Plan.state;changes=$Plan.changes}
+    if($Plan.Contains('iacFingerprint')){$value.iacFingerprint=$Plan.iacFingerprint}
+    return Get-ValueHash $value
 }
 function Assert-PreviewMatchesBundle([string]$PreviewDirectory,$Bundle) {
     $preview=Read-WorkloadPreviewInputs $PreviewDirectory
     $approved=Get-Content (Join-Path $PreviewDirectory azure/preview-plan.json) -Raw|ConvertFrom-Json -AsHashtable
     if($approved.kind -cne 'full-release-preview' -or $approved.schemaVersion -ne 1 -or $approved.deployable -isnot [bool] -or !$approved.deployable -or $approved.inputHash -cne $preview.hash){throw 'A successful current-run preview is required.'}
-    if($approved.fingerprint -cne (Get-ValueHash @{inputHash=$approved.inputHash;state=$approved.state;changes=$approved.changes}) -or $approved.sourceCommit -cne $preview.receipt.sourceCommit -or $approved.runId -cne $preview.receipt.runId){throw 'Preview plan integrity failure.'}
+    if($approved.fingerprint -cne (Get-WorkloadPreviewFingerprint $approved) -or $approved.sourceCommit -cne $preview.receipt.sourceCommit -or $approved.runId -cne $preview.receipt.runId){throw 'Preview plan integrity failure.'}
     $age=[DateTimeOffset]::UtcNow-[DateTimeOffset]::Parse($approved.createdUtc)
     if($age.TotalHours -gt 24 -or $age.TotalMinutes -lt -5){throw 'Preview expired; rerun Preview.'}
     if((Get-ValueHash $Bundle.target) -cne (Get-ValueHash $preview.target) -or $Bundle.receipt.sourceCommit -cne $preview.receipt.sourceCommit -or $Bundle.receipt.releaseId -cne $preview.receipt.releaseId){throw 'Deployment bundle differs from the preview target/source/release.'}
@@ -203,6 +213,7 @@ function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$B
         $receipt.recovery=@{policyId=$policy.policy.id;mode=$policy.policy.mode;catalogSha256=$policy.catalogSha256;assessmentStatus='Not assessed';canExecute=$false;executorRegistered=$false}
         if($target.serviceConnection -cne $BoundServiceConnection -or $target.deploymentEnvironment -cne $BoundEnvironment -or $target.agentPool -cne $BoundAgentPool){throw 'Deployment protected resource binding mismatch.'}
         $approved=Assert-PreviewMatchesBundle $PreviewDirectory $bundle
+        if($CaptureIac -and (!$approved.Contains('iacFingerprint') -or $approved.iacFingerprint -cnotmatch '^[a-f0-9]{64}$')){throw 'Run a new Preview with nested evidence qualification before deploying.'}
         $preview=Read-WorkloadPreviewInputs $PreviewDirectory
         $current=Invoke-WorkloadInfrastructurePreview $preview (Join-Path $EvidenceDirectory recheck) -CaptureIac:$CaptureIac
         Assert-PreviewFingerprint $approved $current

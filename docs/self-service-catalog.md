@@ -1,5 +1,9 @@
 # Self-service catalog and how it works
 
+**Nested IaC evidence — 4 October 2026:** dedicated workload Preview/Deploy now uses [nested property and child-resource probes](nested-iac-evidence.md), unresolved desired-state coverage gates and an observed-state fingerprint. The portal and agent review retain the coverage evidence. New Preview evidence is required before deployment; this adds no pipeline root or cloud permissions.
+
+**4 October 2026 — operations suite first increment:** [DNS & drift](operations-workflows.md) adds dynamic Azure subscription selection, read-only DNS evidence, deterministic analysis/comparison, optional AHP/Codex review and editable non-executable proposals. This is a portal operations capability, with a shared offline CLI; it adds no workload target or ADO pipeline root. [O0/O1 acceptance gates and O2–O6](plans/operations-workflow-suite.md) remain open as documented.
+
 **4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
 
 

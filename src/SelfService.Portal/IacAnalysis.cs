@@ -10,27 +10,40 @@ namespace SelfService.Portal;
 public static class IacAnalysis
 {
     static string Text(JsonElement e,string key) => e.GetProperty(key).GetString() ?? "";
-    static readonly HashSet<string> ConfigPaths = new(StringComparer.Ordinal) {
-        "location","kind","sku.name","sku.tier","sku.capacity","identity.type",
-        "properties.publicNetworkAccess","properties.allowBlobPublicAccess","properties.allowSharedKeyAccess",
-        "properties.minimumTlsVersion","properties.supportsHttpsTrafficOnly","properties.enableRbacAuthorization",
-        "properties.enablePurgeProtection","properties.softDeleteRetentionInDays","properties.httpsOnly","properties.reserved",
-        "properties.virtualNetworkSubnetId","properties.subnet.id","properties.networkSecurityGroup.id","properties.routeTable.id",
-        "properties.virtualNetwork.id","properties.privateLinkServiceId","properties.apiServerAccessProfile.enablePrivateCluster",
-        "properties.disableLocalAccounts","properties.oidcIssuerProfile.enabled","properties.securityProfile.workloadIdentity.enabled" };
     static readonly string[] Actions = ["Create","Modify","Delete","NoChange","Ignore","Deploy","Unsupported","Detach","Unknown"];
     static readonly string[] Observations = ["Observed","Absent","NotAssessed","Denied","Unknown"];
+    static object? CleanQualification(JsonElement report,Func<string,bool> scoped) {
+        if(!report.TryGetProperty("qualification",out var q))return null;
+        if(Text(q,"profile")!="nested-arm/v1"||Text(q,"status") is not("Blocked" or "QualifiedProjection"))throw new PortalException("Unknown IaC qualification profile.",409);
+        foreach(var field in new[]{"profileSha256","beforeFingerprint"})if(!Regex.IsMatch(Text(q,field),"^[a-f0-9]{64}$",RegexOptions.CultureInvariant,TimeSpan.FromSeconds(1)))throw new PortalException("Invalid nested evidence digest.",409);
+        var blockers=EvidenceDiagram.Array(q,"blockers").ToArray();if(blockers.Length>3000)throw new PortalException("Too many coverage blockers.",413);
+        var codes=new[]{"WhatIfIncomplete","LinkedTemplatesNotExpanded","DesiredStateUnresolved","BeforeStateUnknown","BeforePropertyUnknown","InventoryIncomplete","ChildProbeIncomplete","PropertyProjectionIncomplete","AfterStateUnverified"};
+        return new {profile=Text(q,"profile"),status=Text(q,"status"),profileSha256=Text(q,"profileSha256"),beforeFingerprint=Text(q,"beforeFingerprint"),
+            blockers=blockers.Select(b=>{var id=EvidenceDiagram.Text(b,"resourceId");var code=Text(b,"code");if(!codes.Contains(code)||(id is not null&&!scoped(id)))throw new PortalException("Invalid IaC qualification blocker.",409);return new{code,resourceId=id};}).ToArray(),
+            authority="Profile-only evidence. Current observations cannot resolve desired deployment expressions or authorize deployment."};
+    }
+    static object[] CleanProbes(JsonElement report,Func<string,bool> scoped) {
+        var result=new List<object>();
+        foreach(var phase in new[]{"before","after"})foreach(var p in EvidenceDiagram.Array(report.GetProperty(phase),"probes")) {
+            if(result.Count>=1000)throw new PortalException("Too many child probe receipts.",413);
+            var id=Text(p,"id");var parent=Text(p,"parentId");var status=Text(p,"status");var apiVersion=Text(p,"apiVersion");
+            if(!scoped(id)||!scoped(parent)||!id.StartsWith(parent+"/",StringComparison.OrdinalIgnoreCase)||Text(p,"method")!="GET"||Text(p,"profile")!="nested-arm/v1"||
+                status is not("Unknown" or "NotAvailable" or "Denied" or "LimitExceeded" or "Partial" or "Succeeded")||!Regex.IsMatch(apiVersion,"^\\d{4}-\\d{2}-\\d{2}(-preview)?$",RegexOptions.CultureInvariant,TimeSpan.FromSeconds(1)))throw new PortalException("Invalid IaC child probe.",409);
+            result.Add(new{phase,id,parentId=parent,status,apiVersion,method="GET",observedUtc=EvidenceDiagram.Text(p,"observedUtc"),pages=p.GetProperty("pages").GetInt32(),observed=p.GetProperty("observed").GetInt32()});
+        }
+        return result.ToArray();
+    }
     static object? CleanState(JsonElement state,bool planned) {
         if(state.ValueKind==JsonValueKind.Null)return null;
         var status=Text(state,planned?"status":"inventoryStatus");
         if(planned ? status is not("Succeeded" or "Incomplete") : status is not("Listed" or "GroupAbsent" or "Partial" or "Unknown"))throw new PortalException("Invalid IaC coverage status.",409);
         return new {status=planned?status:null,inventoryStatus=planned?null:status,
             startedUtc=EvidenceDiagram.Text(state,"startedUtc"),completedUtc=EvidenceDiagram.Text(state,"completedUtc"),
-            coverage=planned?"Azure What-If prediction; omitted properties and uncertain changes remain unknown.":"Scoped Microsoft Azure MCP inventory and direct ARM GETs. Child resources may be omitted; identity-only or denied records do not establish configuration.",
+            coverage=planned?"Azure What-If prediction; omitted properties and uncertain changes remain unknown.":"Scoped Microsoft Azure MCP inventory and direct ARM GETs. Fixed profile child probes supplement inventory. Unsupported child types and omitted properties remain unknown.",
             issues=EvidenceDiagram.Array(state,"issues").Any()?new[]{"Collection has incomplete evidence. Inspect the pipeline report."}:Array.Empty<string>(),
             audit=EvidenceDiagram.Array(state,"audit").Select(a=>new{tool=Text(a,"tool"),status=Text(a,"status")}),
             resources=state.GetProperty("resources").EnumerateArray().Select(r=>new {id=Text(r,"id"),type=Text(r,"type"),status=Text(r,"status"),
-                apiVersion=EvidenceDiagram.Text(r,"apiVersion"),action=EvidenceDiagram.Text(r,"action"),certainty=EvidenceDiagram.Text(r,"certainty"),config=r.GetProperty("config")})};
+                apiVersion=EvidenceDiagram.Text(r,"apiVersion"),observedUtc=EvidenceDiagram.Text(r,"observedUtc"),propertyCoverage=IacPropertyProfile.Coverage(r),action=EvidenceDiagram.Text(r,"action"),certainty=EvidenceDiagram.Text(r,"certainty"),config=r.GetProperty("config"),unresolvedExpressions=r.TryGetProperty("unresolvedExpressions",out var u)?u.GetInt32():0})};
     }
     public static async Task<JsonElement> Read(byte[] bytes,Product product,int runId,string commit,int definitionId,string repositoryId,
         string resourceGroup,bool after,CancellationToken ct)
@@ -83,8 +96,9 @@ public static class IacAnalysis
                     if(!Regex.IsMatch(Text(r,"type"),"^[A-Za-z0-9.]+/[A-Za-z0-9/]+$",RegexOptions.CultureInvariant,TimeSpan.FromSeconds(1)))throw new PortalException("Invalid resource type.",409);
                     if(phase=="planned") {if(!Actions.Contains(Text(r,"action"))||Text(r,"status") is not("Predicted" or "Unresolved"))throw new PortalException("Invalid predicted action.",409);}
                     else if(!Observations.Contains(Text(r,"status")))throw new PortalException("Invalid observed state.",409);
+                    if(r.GetProperty("config").EnumerateObject().Count()>4096)throw new PortalException("IaC projected property limit exceeded.",413);
                     foreach(var property in r.GetProperty("config").EnumerateObject())
-                        if(!ConfigPaths.Contains(property.Name)||property.Value.ValueKind is not(JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False)||property.Value.ToString().Length>2048)
+                        if(!IacPropertyProfile.Allows(property.Name)||property.Value.ValueKind is not(JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False)||property.Value.ToString().Length>2048)
                             throw new PortalException("IaC property projection is not allowlisted.",409);
                 }
             }
@@ -95,7 +109,7 @@ public static class IacAnalysis
                 if(!phaseIds.TryGetValue("planned",out var plannedIds)||!plannedIds.Contains(Text(c,"id"))||!Actions.Contains(Text(c,"action"))||
                     Text(c,"status") is not("Unknown" or "Observed absent" or "Mismatch" or "Projected properties match" or "Partial projected match" or "Observed existence only"))throw new PortalException("Invalid IaC comparison.",409);
                 foreach(var field in new[]{"checkedPaths","mismatchPaths","unknownPaths"})
-                    if(EvidenceDiagram.Array(c,field).Any(p=>!ConfigPaths.Contains(p.GetString()??"")))throw new PortalException("Unrecognized comparison property.",409);
+                    if(EvidenceDiagram.Array(c,field).Any(p=>!IacPropertyProfile.Allows(p.GetString()??"")))throw new PortalException("Unrecognized comparison property.",409);
             }
             var collector=report.GetProperty("collector");
             if(Text(collector,"name")!="Microsoft Azure MCP"||Text(collector,"version")!="2.0.5"||!collector.GetProperty("readOnly").GetBoolean())throw new PortalException("Unknown IaC collector.",409);
@@ -104,6 +118,7 @@ public static class IacAnalysis
                 region=Text(provenance,"region"),tenantId=EvidenceDiagram.Text(provenance,"tenantId"),inputSha256=Text(provenance,"inputSha256"),templateSha256=Text(provenance,"templateSha256")};
             return JsonSerializer.SerializeToElement(new {kind="portal-iac-analysis",artifactPhase=after?"after":"preview",provenance=publicProvenance,scope=new{subscriptionId=subscription,resourceGroup},
                 collector=new{name="Microsoft Azure MCP",version="2.0.5",credential="AzureCliCredential",readOnly=true},
+                qualification=CleanQualification(report,Scoped),probes=CleanProbes(report,Scoped),
                 before=CleanState(report.GetProperty("before"),false),planned=CleanState(report.GetProperty("planned"),true),after=CleanState(report.GetProperty("after"),false),
                 comparison=comparison.Select(c=>new{id=Text(c,"id"),action=Text(c,"action"),status=Text(c,"status"),checkedPaths=EvidenceDiagram.Array(c,"checkedPaths").ToArray(),mismatchPaths=EvidenceDiagram.Array(c,"mismatchPaths").ToArray(),unknownPaths=EvidenceDiagram.Array(c,"unknownPaths").ToArray()}),
                 updatedUtc=Text(report,"updatedUtc"),limitations=new[]{"Existing-only Bicep is not a restore template.","Projected matches are not full configuration, connectivity or application acceptance."},deploymentAuthorized=false,

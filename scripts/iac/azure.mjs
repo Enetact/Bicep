@@ -2,6 +2,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { fileURLToPath } from 'node:url';
 import { assertId, assertPlannedId, scopeOf, resourceType, project, limits } from './core.mjs';
+import { projection, forType } from './projection.mjs';
+import { probeChildren } from './probes.mjs';
 
 export async function connectMcp() {
   const transport = new StdioClientTransport({ command: process.execPath,
@@ -30,9 +32,11 @@ function payload(result, key) {
   }
   throw Error('Azure MCP returned an unsupported response; no empty inventory inferred.');
 }
-export async function armRead(token, id, version) {
+export async function armRead(token, id, version, continuation=null) {
   if (!/^\d{4}-\d{2}-\d{2}(-preview)?$/.test(version)) throw Error('Invalid API version.');
-  const response = await fetch(`https://management.azure.com${id}?api-version=${version}`, {
+  const url=new URL(continuation??`https://management.azure.com${id}?api-version=${version}`);
+  if(url.origin!=='https://management.azure.com'||url.pathname.toLowerCase()!==id.toLowerCase()||url.username||url.password||url.hash||url.searchParams.get('api-version')!==version)throw Error('Invalid ARM GET route.');
+  const response = await fetch(url, {
     method: 'GET', headers: { Authorization: `Bearer ${token}` }, redirect: 'error', signal: AbortSignal.timeout(30000) });
   if (response.status !== 200) return { status: response.status === 404 ? 'Absent' : response.status === 403 ? 'Denied' : 'Unknown', httpStatus: response.status };
   if (Number(response.headers.get('content-length')) > limits.bytes) throw Error('ARM response exceeds limit.');
@@ -42,12 +46,12 @@ export async function armRead(token, id, version) {
   return { status: 'Observed', value: JSON.parse(Buffer.concat(chunks).toString('utf8')) };
 }
 export async function readProjected(id,target,apiVersions,token,read=armRead) {
-  assertPlannedId(id,target);const type=resourceType(id),apiVersion=apiVersions[type.toLowerCase()];
+  assertPlannedId(id,target);const type=resourceType(id),apiVersion=apiVersions[type.toLowerCase()]??forType(type)?.apiVersion;
   if(!apiVersion)return{id,type,status:'NotAssessed',config:{},issue:'No API version in the compiled deployment; metadata identity only.'};
   try {
     const r=await read(token,id,apiVersion);
     if(r.status==='Observed'&&r.value.id&&r.value.id.toLowerCase()!==id.toLowerCase())throw Error('Response identity mismatch.');
-    return{id,type,apiVersion,status:r.status,config:r.status==='Observed'?project(r.value):{},httpStatus:r.httpStatus};
+    return{id,type,apiVersion,status:r.status,...(r.status==='Observed'?projection(r.value,type):{config:{},propertyCoverage:[]}),httpStatus:r.httpStatus,observedUtc:new Date().toISOString(),source:'Resource ARM GET'};
   }catch{return{id,type,apiVersion,status:'Unknown',config:{},issue:'Read failed or timed out; absence not inferred.'};}
 }
 export async function completeBefore(snapshot,plan,target,apiVersions,token,read=armRead) {
@@ -62,6 +66,7 @@ export async function completeBefore(snapshot,plan,target,apiVersions,token,read
     }
   }
   snapshot.completedUtc=new Date().toISOString();
+  await probeChildren(snapshot,target,apiVersions,token,read);
   snapshot.coverage+=' Missing planned IDs within the selected subscription were read after What-If and before any apply; this includes explicit shared-group and child IDs, not a scan of those groups.';
 }
 // Injectable transports permit testing denied, missing, partial and cancellation behavior without Azure.
@@ -99,6 +104,8 @@ export async function collect({ target, tenantId, token, apiVersions, expected =
     }
     if(resources.length>limits.resources)throw Error('Combined evidence exceeds 500 resources.');
   } catch(e) {issues.push(e.message);inventoryStatus='Partial';}
-  return {startedUtc,completedUtc:new Date().toISOString(),inventoryStatus,resources,audit,issues,
-    coverage:'Microsoft Azure MCP resource-group inventory plus direct ARM GETs using the same pipeline identity. Inventory does not enumerate every child/extension resource. What-If IDs are explicitly read after apply. Values are allowlisted; no credentials, tags, data plane or effective connectivity collected.'};
+  const snapshot={startedUtc,completedUtc:new Date().toISOString(),inventoryStatus,resources,audit,issues,
+    coverage:'Scoped MCP inventory, ARM GETs and fixed profile child probes. Nested allowlisted values only; omitted properties, unsupported child types and effective connectivity remain unknown.'};
+  await probeChildren(snapshot,target,apiVersions,token,read);
+  return snapshot;
 }

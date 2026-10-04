@@ -19,6 +19,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     string? activeThread;
     string finalText = "";
     public string Home { get; }
+    public string? RuntimeVersion { get; private set; }
     public string? LoginId { get; private set; }
     public Func<JsonElement, CancellationToken, Task<object>>? ToolHandler { get; set; }
     public bool Alive => !process.HasExited;
@@ -29,14 +30,20 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         reader = Read();
         _ = DrainErrors(); // Never persist raw provider errors, credentials or prompt fragments.
     }
-    public static string? FindExecutable(string configured)
+    public static string? FindExecutable(string configured, string? searchPath = null)
     {
         if (!string.IsNullOrWhiteSpace(configured))
             return Path.IsPathFullyQualified(configured) && Path.GetFileName(configured).Equals("codex.exe", StringComparison.OrdinalIgnoreCase) && File.Exists(configured) ? configured : null;
-        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(Directory.Exists))
+        var directories = (searchPath ?? Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(Directory.Exists).ToArray();
+        // Match native executable resolution before considering npm's nested vendor fallback.
+        // An earlier npm shim directory must not shadow a newer native Codex on PATH.
+        foreach (var dir in directories)
         {
             var direct = Path.Combine(dir, "codex.exe");
             if (File.Exists(direct)) return direct;
+        }
+        foreach (var dir in directories)
+        {
             var arch = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64 ? "arm64" : "x64";
             var triple = arch == "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc";
             var npm = Path.Combine(dir, "node_modules", "@openai", "codex", "node_modules", "@openai", $"codex-win32-{arch}", "vendor", triple, "bin", "codex.exe");
@@ -61,7 +68,12 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         {
             await File.WriteAllTextAsync(Path.Combine(home, "process.json"), JsonSerializer.Serialize(new { pid = runtime.process.Id, parentPid = Environment.ProcessId,
                 executable = exe, startedUtc = runtime.process.StartTime.ToUniversalTime() }), ct);
-            await runtime.Call("initialize", new { clientInfo = new { name = "platform_studio", title = "Platform Studio", version = "1.0.0" }, capabilities = new { experimentalApi = true } }, ct);
+            var initialized = await runtime.Call("initialize", new { clientInfo = new { name = "platform_studio", title = "Platform Studio", version = "1.0.0" }, capabilities = new { experimentalApi = true } }, ct);
+            if (initialized.TryGetProperty("userAgent", out var userAgent))
+            {
+                var version = System.Text.RegularExpressions.Regex.Match(userAgent.GetString() ?? "", @"\b\d+\.\d+\.\d+\b");
+                if (version.Success) runtime.RuntimeVersion = version.Value;
+            }
             await runtime.Write(new { method = "initialized" }, ct);
             return runtime;
         }
@@ -69,24 +81,39 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     }
     public async Task<object> Status(CancellationToken ct)
     {
-        var account = await Call("account/read", new { refreshToken = false }, ct);
+        var status = await ReadStatus(Call, LoginId is not null, RuntimeVersion, ct);
+        if (JsonSerializer.SerializeToElement(status).GetProperty("authenticated").GetBoolean()) LoginId = null;
+        return status;
+    }
+    // Shared by the live protocol path and deterministic catalog/authentication regression tests.
+    public static async Task<object> ReadStatus(Func<string, object, CancellationToken, Task<JsonElement>> call, bool loginPending, string? runtimeVersion, CancellationToken ct)
+    {
+        object Result(bool authenticated, bool ready, string state) => new { authenticated, ready, state, runtimeVersion, model = AgentPolicy.Model, effort = AgentPolicy.Effort, speed = AgentPolicy.Speed };
+        var account = await call("account/read", new { refreshToken = false }, ct);
         if (!account.TryGetProperty("account", out var a) || a.ValueKind == JsonValueKind.Null)
-            return new { ready = false, state = LoginId is null ? "Connect Codex" : "Waiting for Codex browser sign-in", model = AgentPolicy.Model, effort = AgentPolicy.Effort, speed = "Standard" };
-        if (a.GetProperty("type").GetString() != "chatgpt") throw new PortalException("Use ChatGPT sign-in for Codex. API-key authentication is not enabled.", 409);
+            return Result(false, false, loginPending ? "Waiting for Codex browser sign-in" : "Connect Codex");
+        if (a.GetProperty("type").GetString() != "chatgpt") return Result(false, false, "Use ChatGPT sign-in for Codex. API-key authentication is not enabled.");
+        try
+        {
         string? cursor = null;
         for (var page = 0; page < 10; page++)
         {
-            var models = await Call("model/list", new { cursor, limit = 100, includeHidden = false }, ct);
+            var models = await call("model/list", new { cursor, limit = 100, includeHidden = false }, ct);
             var model = models.GetProperty("data").EnumerateArray().FirstOrDefault(m => m.GetProperty("model").GetString() == AgentPolicy.Model);
             if (model.ValueKind != JsonValueKind.Undefined)
             {
-                AgentPolicy.ValidateModel(model); LoginId = null;
-                return new { ready = true, state = "Ready", model = AgentPolicy.Model, effort = AgentPolicy.Effort, speed = "Standard" };
+                AgentPolicy.ValidateModel(model);
+                return Result(true, true, "Signed in to ChatGPT · Model ready");
             }
             cursor = models.TryGetProperty("nextCursor", out var next) ? next.GetString() : null;
             if (cursor is null) break;
         }
-        throw new PortalException($"{AgentPolicy.DisplayName} is not available to this Codex account. No fallback is allowed.", 409);
+        return Result(true, false, $"Signed in to ChatGPT, but this runtime's catalog does not list {AgentPolicy.DisplayName}. Update Codex or configure Portal:CodexPath, then reconnect. If it persists, check account availability. No fallback is allowed.");
+        }
+        catch (PortalException)
+        {
+            return Result(true, false, "Signed in to ChatGPT, but the requested model settings could not be verified. Refresh readiness; check the Codex runtime and account if this persists. No fallback is allowed.");
+        }
     }
     public async Task<string> Login(CancellationToken ct)
     {

@@ -38,6 +38,9 @@
           "Microsoft.Extensions.AI.Abstractions": "10.8.3"
         }
       },
+      "selfservice.operations": {
+        "type": "Project"
+      },
       "selfservice.tagging": {
         "type": "Project"
       }

@@ -13,12 +13,14 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public IPublicClientApplication? Client { get; } = options.AuthenticationConfigured ? PublicClientApplicationBuilder.Create(options.ClientId)
         .WithAuthority($"https://login.microsoftonline.com/{options.TenantId}").WithRedirectUri("http://localhost").Build() : null;
     public IAccount? Account { get; set; }
+    public string? AzureTenantId { get; set; }
     public ConcurrentDictionary<string, bool> Connected { get; } = new();
     public string State { get; set; } = "Not connected";
     public string? Error { get; set; }
     public CancellationTokenSource? Login { get; set; }
     public Dictionary<string, PendingRequest> Pending { get; } = new();
     public AgentSession Agent { get; } = new();
+    public OperationsSession Operations { get; } = new();
     public SemaphoreSlim NetworkGate { get; } = new(1, 1);
     public ConcurrentDictionary<string, System.Text.Json.JsonElement> NetworkReports { get; } = new();
     public long NetworkEpoch;
@@ -75,7 +77,13 @@ public sealed class BrowserIdentity : ITokenProvider
             {
                 await s.Client.RemoveAsync(result.Account); throw new PortalException("Use the same Microsoft account for both connections.");
             }
-            s.Account = result.Account; s.Connected[audience] = true; s.State = "Connected";
+            s.Account = result.Account;
+            if (audience == "azure")
+            {
+                if (s.AzureTenantId is not null && s.AzureTenantId != result.TenantId) { Interlocked.Increment(ref s.NetworkEpoch); s.Operations.Clear(); s.NetworkReports.Clear(); }
+                s.AzureTenantId = result.TenantId;
+            }
+            s.Connected[audience] = true; s.State = "Connected";
         }
         catch (OperationCanceledException) { s.State = "Cancelled"; }
         catch (MsalException e) { s.State = "Sign-in failed"; s.Error = $"Microsoft sign-in error: {e.ErrorCode}. Check registration, consent and tenant policy."; }
@@ -96,7 +104,7 @@ public sealed class BrowserIdentity : ITokenProvider
         try
         {
             if (s.Client is not null) foreach (var account in await s.Client.GetAccountsAsync()) await s.Client.RemoveAsync(account);
-            s.Account = null; s.Connected.Clear(); Interlocked.Increment(ref s.NetworkEpoch); s.NetworkReports.Clear(); s.NetworkPending.Clear(); s.TagReports.Clear(); s.TagPending.Clear(); lock (s.Pending) s.Pending.Clear(); lock (s.RegistrationPending) s.RegistrationPending.Clear(); s.State = "Not connected"; s.Error = null;
+            s.Account = null; s.AzureTenantId = null; s.Connected.Clear(); Interlocked.Increment(ref s.NetworkEpoch); s.Operations.Clear(); s.NetworkReports.Clear(); s.NetworkPending.Clear(); s.TagReports.Clear(); s.TagPending.Clear(); lock (s.Pending) s.Pending.Clear(); lock (s.RegistrationPending) s.RegistrationPending.Clear(); s.State = "Not connected"; s.Error = null;
         }
         finally { s.Gate.Release(); }
     }
