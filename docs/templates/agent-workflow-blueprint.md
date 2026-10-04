@@ -12,7 +12,7 @@ Copy this document into a capability design and replace every placeholder. This 
 | Skill ID / source / version | `<project or pinned upstream skill>` |
 | Evidence adapter / scope | `<typed adapter>` / `<subscription, group, workload, saved run>` |
 | Connections per step | Evidence: `<Azure or ADO or none>`; AI: Codex; execution: `<ADO profile or none>` |
-| Provider policy | Existing `AgentPolicy`: GPT-6 Astra / High / Standard; no new provider configuration |
+| Provider policy | Existing `AgentPolicy`: GPT-6.1 Sol / Ultra / Standard; no new provider configuration |
 | UI outputs | `<table, matrix, diagram, report>` and validated result contract |
 | Action adapter | `<typed request, pipeline names/paths, protected profile>` or None |
 | Recovery policy | `<registered policy ID, mode, retained evidence, exclusions and unsupported actions>`; see [executable recovery rules](../recovery-rules.md). No generic inverse operation. |

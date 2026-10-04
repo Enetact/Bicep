@@ -1,5 +1,12 @@
 # Bicep repository structure and authoring conventions
 
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** AKS implementation: `modules/compute/private-aks/` is a leaf resource module; `workloads/private-aks/` holds RG composition, subscription wrapper, environment examples and namespace onboarding; `charts/platform-app/` holds the independent application chart. `scripts/aks-common.ps1` supplies product adapter checks; `helm-common.ps1` and `Invoke-HelmDelivery.ps1` supply the application evidence/deployment contract. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**Private Data Platform:** leaf modules live under `modules/analytics/{databricks-workspace,data-factory}` and `modules/storage/data-lake`; composition, stack wrapper, environments and manually imported acceptance notebook live under `workloads/private-data-platform`. Adapter rules stay in `scripts/data-platform-common.ps1`; this does not add a .NET runtime service. See [module contracts](../modules/README.md).
+
 [Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
 
 **Recovery policy source:** `config/recovery-capabilities.json` defines descriptions/exclusions; `scripts/recovery-common.ps1` owns fixed mode/check mappings and deterministic offline assessment. `Test-RecoveryCandidate.ps1` is the source-checkout command; `Test-RecoveryRules.ps1` and `tests/portal/recovery.test.mjs` cover its rules/UI projection. Portal metadata and `wwwroot/recovery.mjs` present policies without execution. See [the recovery guide](recovery-rules.md).
@@ -28,11 +35,14 @@ The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfServic
 | `scripts/analysis/` | Shared production offline analyzer invoked by the portal and command-line wrapper; test fixtures live separately. |
 | `config/`, `self-service/`, `schemas/`, root YAML and `pipelines/` | Versioned catalog, contracts, targets and deployment routing. Local credentials do not belong here. |
 | `workloads/`, `modules/`, `environments/`, `platform/` | Versioned workload compositions, reusable Bicep modules, environment inputs and separately operated platform infrastructure. |
+| `scripts/*DataPlatform*.ps1`, `scripts/data-platform-common.ps1`, `workloads/private-data-platform/databricks/` and `workloads/private-data-platform/notebooks/` | Keep reusable PowerShell/Python scripts, notebook source, sample input and `bundle.template.json` in Git. ADF pipeline/linked-service definitions are source in `modules/analytics/data-factory/main.bicep`. Generated deployment-bound recipe exports belong in ignored `artifacts/data-platform/recipes/`. |
 | `.agents/skills/`, `vendor/azure-skills/` | Versioned project instructions and pinned Microsoft guidance/support files. Upstream scripts and hooks are not automatically enabled. |
 | `tests/` | Versioned test code and synthetic fixtures. Never a production application dependency. The optional diagram fixture server runs separately on 5098; normal startup uses 5087. |
 | `.local/`, `.tools/`, `.azure/`, `artifacts/`, `bin/`, `obj/` | Ignored runtime state, tools, credentials, generated reports and build/package output. Generated `SKILL.md` copies in a Codex runtime home are not authoritative source. |
 
 Run `./scripts/Test-RepositoryHygiene.ps1` before a source commit. It checks representative private/generated paths, real first-party source tracking eligibility, mistakenly tracked ignored files, portal test-path references and any available Release dependency graph. It does not stage/remove files, read token values, run inference or certify repository history as secret-free. New source shown by `git status --short` as `??` must still be included in the intended commit. Keep sanitized example settings and dependency lock files versioned; do not ignore `.codex/` wholesale because it can contain project instructions and configuration.
+
+Python environments and caches (`.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`), notebook checkpoints, Databricks deployment state (`.databricks/`) and `.databrickscfg` credentials are ignored. This does not ignore the normal `databricks/` source directory, `.py`, `.sql`, `.ipynb`, Bicep, YAML or the reviewed JSON bundle template. The hygiene check covers these source formats and representative runtime paths independently.
 
 The agent integration uses real application code and an in-process MCP server; it does not require a test harness or a separate external MCP daemon. Its functional limits remain explicit: four bounded reviews, AHP coordination only, and broader Azure MCP/tenant networking work still proposed. HTTP API and Service Bus worker remain documented starter workload samples rather than completed business applications. Source placement does not establish live provider acceptance.
 

@@ -8,9 +8,11 @@ The reference for developing, operating and extending Platform Studio. This wiki
 
 | I want to… | Reading path |
 |---|---|
+| Provision private AKS or deliver an application with Helm | [AKS and Helm onboarding](../workloads/private-aks/README.md) |
 | Try the local application | [Getting started](getting-started.md) → [Portal setup](local-portal.md) |
 | Understand the suite | [Platform overview](platform-overview.md) → [Current status](completion-status.md) |
 | Preview or deploy a workload | [Workload catalog](workload-catalog.md) → [ADO onboarding](self-service.md) → [Preview](deployment-preview.md) |
+| Compare live infrastructure before and after a deployment | [Shared agentic IaC workflow](agentic-iac.md) |
 | Discover networks and explain topology | [Network discovery](network-discovery-and-diagrams.md) → [Diagrams](portal-diagrams.md) → [Agent workflows](agent-workflows.md) |
 | Analyze or change tags | [Tag governance](tag-governance.md) → [Permissions](security-and-rbac.md) |
 | Understand recovery | [Recovery rules](recovery-rules.md) → [State and recovery plan](plans/deployment-state-and-recovery.md) |
@@ -22,7 +24,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 |---|---|
 | [Platform overview](platform-overview.md) | Components, evidence flow, identities, capability suite and agent boundaries. |
 | [Current implementation status](completion-status.md) | What is implemented, locally verified, observed in ADO and still awaiting live acceptance. |
-| [Workload catalog](workload-catalog.md) | Seven offerings, resource descriptions and exact pipeline entry points. |
+| [Workload catalog](workload-catalog.md) | Nine offerings, resource descriptions and exact pipeline entry points. |
 | [Detailed catalog and method map](self-service-catalog.md) | Workload types, named instances, target contracts and original adapter methods. |
 | [Enterprise platform design](enterprise-platform.md) | Ownership, governance and bounded workload support. |
 | [Source conventions](repository-structure.md) | Module/composition placement, configuration, runtime files and test boundaries. |
@@ -44,13 +46,13 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Guide | What it covers |
 |---|---|
 | [Developer and platform onboarding](self-service.md) | Definitions, protected environments, permissions and self-service use. |
-| [Bulk pipeline registration](ado-pipeline-registration.md) | Reviewed registration of the 20 root entry points, reuse and conflict handling. |
+| [Bulk pipeline registration](ado-pipeline-registration.md) | Reviewed registration of the 25 root entry points, reuse and conflict handling. |
 | [Pipeline flow](pipeline-flow.md) | Stages, script calls, shared templates and artifact handoffs. |
 | [Deployment Preview](deployment-preview.md) | Bicep validation, Azure What-If, report artifacts and deployment gates. |
 | [Deployment Stacks and Template Specs](deployment-stacks-upgrade.md) | Publication, stack ownership and lifecycle controls. |
 | [Subscription discovery](subscription-discovery.md) | Saved manifests, naming, scope and static menu generation. |
 | [Prerequisite resolution](prerequisite-resolution.md) | Event flow Create / Reuse / Manage / Blocked decisions. |
-| [Workload onboarding](workload-onboarding.md) | Shared dependencies, identities and acceptance tests for the seven products. |
+| [Workload onboarding](workload-onboarding.md) | Shared dependencies, identities and acceptance tests for the eight products. |
 | [Cost assumptions](self-service-costs.md) | Dated estimates, exclusions, freshness and missing-price behavior. |
 | [Security and RBAC](security-and-rbac.md) | Identity separation, permissions, protected operations and data handling. |
 
@@ -65,7 +67,13 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | [Codex agent workflows](agent-workflows.md) | Six explicit reviews/drafts, AHP coordination, MCP evidence, identity and receipts. |
 | [AI-assisted Bicep drafts](bicep-source-drafts.md) | Local module contracts, generated parameters, source downloads and qualification. |
 | [Tag governance](tag-governance.md) | Resource/tag matrix, deterministic analysis, editable drafts and protected changes. |
-| [Recovery rules](recovery-rules.md) | Fourteen policies, exclusions, portal views and non-authorizing offline checks. |
+| [Recovery rules](recovery-rules.md) | Seventeen policies, exclusions, portal views and non-authorizing offline checks. |
+
+## Private analytics platform
+
+[Manual data recipes](../workloads/private-data-platform/recipes.md): pre-bound ADF staging and native Job orchestration, a validate/curate/verify Databricks bundle, setup export and acceptance.
+
+[Databricks Premium + Data Factory v2](../workloads/private-data-platform/README.md) documents exact resources, shared prerequisites, managed identities, endpoint approvals and the manual Azure acceptance sequence. See its [delivery plan](plans/private-data-platform.md) for deferred profiles.
 
 ## Extend the suite
 

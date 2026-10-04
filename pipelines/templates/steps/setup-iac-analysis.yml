@@ -1,0 +1,12 @@
+# Shared by Preview and Apply, reusable from another pipeline after checkout.
+steps:
+  - task: UseNode@1
+    inputs:
+      version: '24.x'
+    displayName: Select Node 24 for the shared Azure MCP collector
+  - pwsh: |
+      npm ci --prefix scripts/iac --ignore-scripts --no-audit --no-fund
+      if ($LASTEXITCODE -ne 0) { throw 'Pinned Azure MCP restore failed.' }
+      node scripts/iac/run.mjs qualify
+      if ($LASTEXITCODE -ne 0) { throw 'Read-only Azure MCP tool contract failed.' }
+    displayName: Restore locked Azure MCP and qualify read-only tool schemas

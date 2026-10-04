@@ -7,21 +7,24 @@ Platform Studio is a local Windows web application for discovering Azure resourc
 [**Documentation wiki**](docs/README.md) · [Get started](docs/getting-started.md) · [Workload catalog](docs/workload-catalog.md) · [Implementation status](docs/completion-status.md) · [Roadmap](docs/self-service-expansion-plan.md)
 
 > [!IMPORTANT]
-> Source implementation and local verification are documented. All 28 workload targets, tag Apply and the AVNM allocation profile remain disabled pending platform onboarding and live acceptance. A successful local check or discovery run does not establish Azure deployment readiness.
+> Source implementation and local verification are documented. All 36 workload targets, tag Apply and the AVNM allocation profile remain disabled pending platform onboarding and live acceptance. A successful local check or discovery run does not establish Azure deployment readiness.
 
 ## What you can do
 
 | Capability | Experience |
 |---|---|
-| **Configure workloads** | Seven offerings with dedicated resource, dependency and cost descriptions; separate Discover and Deploy menus. |
+| **Configure workloads** | Nine offerings with dedicated resource, dependency and cost descriptions; separate Discover and Deploy menus. |
 | **Discover and visualize** | Resource and network inventory, explicit collection coverage, observed topology, proposed components and saved Azure What-If diagrams. |
-| **Review with AI** | Six Codex review/draft workflows using scoped evidence and pinned skills; deterministic checks remain usable without a model. |
+| **Compare live IaC state** | Shared Azure MCP before/What-If/after captures, property comparison, existing-resource Bicep snapshots and phase-specific Codex visualizer reviews. [Workflow and manual acceptance](docs/agentic-iac.md). |
+| **Review with AI** | Seven Codex review/draft workflows using scoped evidence and pinned skills; deterministic checks remain usable without a model. |
 | **Design Bicep** | Compose reviewable source drafts from local module contracts, with explicit required settings and qualification before deployment. |
 | **Govern tags** | Subscription resource/tag views, deterministic findings, editable drafts and a protected ADO change path. |
 | **Deliver through ADO** | Reviewed pipeline registration, saved discovery, Preview summaries, immutable bundle checks, Template Spec publication and stack deployment. |
-| **Assess recovery rules** | Fourteen workflow policies, portal explanations and an offline assessor. Restore execution is not implemented. |
+| **Assess recovery rules** | Seventeen workflow policies, portal explanations and an offline assessor. Restore execution is not implemented. |
 
 Explore the [platform overview](docs/platform-overview.md) for architecture, identity boundaries, skills and current limitations.
+
+Agent workflows use **GPT-6.1 Sol (`gpt-6.1-sol`), Ultra reasoning and Standard speed** through the existing AHP coordination and Codex app-server integration. The connected account must advertise the requested model and effort; execution blocks if the provider substitutes settings. See [agent setup and acceptance](docs/agent-workflows.md).
 
 ## Start Platform Studio locally
 
@@ -42,7 +45,11 @@ Azure, Azure DevOps and Codex use separate connections. See [browser authenticat
 
 ## Workload catalog
 
-**Blob copy · Event flow · Private Storage Workspace · Key Vault · Observability · HTTP Functions API · Service Bus worker**
+**Blob copy · Event flow · Private Storage Workspace · Key Vault · Observability · HTTP Functions API · Service Bus worker · Private Data Platform · Private AKS Foundation**
+
+[Private AKS Foundation and Helm delivery](workloads/private-aks/README.md) add private Kubernetes infrastructure and a separate manual render/diff/deploy application pipeline. All Helm profiles also remain disabled.
+
+Private Data Platform includes [manual ADF and Databricks recipes](workloads/private-data-platform/recipes.md) with deployment-bound connections and a local setup exporter.
 
 The [workload catalog](docs/workload-catalog.md) lists each offering's resources, dependencies, readiness boundary and exact Discover/Deploy YAML files. Hosting, private endpoints, storage, messaging and monitoring may incur charges; unavailable estimates are not zero-cost estimates. See [cost assumptions](docs/self-service-costs.md).
 

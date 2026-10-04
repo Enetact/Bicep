@@ -6,7 +6,7 @@ using SelfService.Tagging;
 namespace SelfService.Portal;
 
 public record AgentWorkflow(string Id, string Name, string SkillId, string? Audience, string Scope, string Limits);
-public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null, string? EvidenceId = null, string[]? ResourceIds = null, string? DraftGoal = null);
+public record AgentRequest(string Workflow, string? SubscriptionId, string? ResourceGroup, string? Product, string? Environment, string? Region, int? PreviewRunId, string? NetworkReportId = null, string? EvidenceId = null, string[]? ResourceIds = null, string? DraftGoal = null, string? IacPhase = null, string? IacArtifact = null);
 public sealed class AgentSession : IAsyncDisposable
 {
     public SemaphoreSlim Gate { get; } = new(1, 1);
@@ -36,7 +36,7 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
         }
         var ready = JsonSerializer.SerializeToElement(provider).GetProperty("ready").GetBoolean();
         if (ready && s.Agent.State == "Waiting for Codex") s.Agent.State = "Ready";
-        return new { provider, state = s.Agent.State, installed = CodexAgentRuntime.FindExecutable(options.CodexPath) is not null,
+        return new { provider, policy = AgentPolicy.Descriptor, state = s.Agent.State, installed = CodexAgentRuntime.FindExecutable(options.CodexPath) is not null,
             workflows = Definitions.Select(w => new { w.Id, w.Name, w.SkillId, w.Audience, w.Scope, w.Limits,
                 ready = ready && Authorized(s, w) && s.Agent.State != "Running", evidenceReady = Authorized(s, w),
                 requires = w.Audience is null ? "Codex" : $"Codex + {w.Audience}" }) };
@@ -107,7 +107,15 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
                 var product = catalog.Products.SingleOrDefault(p => p.Id == request.Product) ?? throw new PortalException("Select a registered workload.");
                 var target = product.Targets.SingleOrDefault(t => t.Environment == request.Environment) ?? throw new PortalException("Select a registered environment.");
                 if (request.Region is null || !catalog.Regions.Contains(request.Region)) throw new PortalException("Select an approved region.");
-                if (workflow.Scope == "preview")
+                if (workflow.Scope == "iac")
+                {
+                    if(request.PreviewRunId is not >0 || request.IacPhase is not("before" or "planned" or "after"))throw new PortalException("Choose an IaC run and evidence phase.");
+                    if(request.IacArtifact is not("preview" or "after") || (request.IacPhase=="after" && request.IacArtifact!="after"))throw new PortalException("Select the matching Preview or Deploy evidence artifact.");
+                    evidence=await ado.Iac(s,product.Id,request.PreviewRunId.Value,target.Environment,request.IacArtifact=="after",timeout.Token);
+                    var iac=JsonSerializer.SerializeToElement(evidence,Json);
+                    if(iac.GetProperty("provenance").GetProperty("region").GetString()!=request.Region)throw new PortalException("IaC report does not match the selected region.");
+                }
+                else if (workflow.Scope == "preview")
                 {
                     if (request.PreviewRunId is not > 0) throw new PortalException("Select a saved Preview run ID.");
                     evidence = await ado.Preview(s, product.Id, request.PreviewRunId.Value, timeout.Token);
@@ -120,13 +128,13 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             }
             var skill = catalog.Skills.Single(x => x.Id == workflow.SkillId);
             var skillHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(skill.Content))).ToLowerInvariant();
-            var diagramGraph = workflow.Scope == "resource-group" ? EvidenceDiagram.Build(JsonSerializer.SerializeToElement(evidence, Json)) : null;
-            var frozen = JsonSerializer.Serialize(new { workflow, request, collectedUtc = DateTimeOffset.UtcNow, evidence, diagramGraph, deploymentAuthorized = false }, Json);
+            var diagramGraph = workflow.Scope == "resource-group" ? EvidenceDiagram.Build(JsonSerializer.SerializeToElement(evidence, Json)) : workflow.Scope == "iac" ? IacAnalysis.Graph(JsonSerializer.SerializeToElement(evidence,Json),request.IacPhase!) : null;
+            var frozen = JsonSerializer.Serialize(new { workflow, request, collectedUtc = DateTimeOffset.UtcNow, evidence, diagramGraph, selectedPhase = request.IacPhase, deploymentAuthorized = false }, Json);
             if (Encoding.UTF8.GetByteCount(frozen) > 256 * 1024) throw new PortalException("Evidence exceeds the 256 KiB model budget. Select a smaller resource group; no silent truncation is allowed.", 413);
             await File.WriteAllTextAsync(Path.Combine(folder, "evidence.json"), frozen, timeout.Token);
             var skillPath = Path.Combine(runtime.Home, "SKILL.md");
             await File.WriteAllTextAsync(skillPath, skill.Content, timeout.Token);
-            bridge = await AgentMcpBridge.Create(frozen, skill.Content + "\n\nADAPTER COVERAGE: " + workflow.Limits, () => Authorized(s, workflow) && !timeout.IsCancellationRequested, timeout.Token);
+            bridge = await AgentMcpBridge.Create(frozen, skill.Content + "\n\nADAPTER COVERAGE: " + workflow.Limits + (workflow.Scope == "iac" ? " Compare before, predicted and observed-after facts separately. Draw only the selectedPhase diagramGraph. " + EvidenceDiagram.Instructions.Replace("For visualize or network", "For IaC") : ""), () => Authorized(s, workflow) && !timeout.IsCancellationRequested, timeout.Token);
             runtime.ToolHandler = bridge.Call;
             inferenceStarted = true;
             var review = await runtime.Review(skillPath, skill.Name, bridge.Tools, timeout.Token, tagEvidence is not null || draftContext is not null);

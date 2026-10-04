@@ -1,0 +1,72 @@
+# Register through ADO setup as Helm - Preview and Deploy.
+# windows-default must be a self-hosted pool with private AKS/DNS access.
+# Configure approvals, branch control and an exclusive lock on aksapps-<environment>.
+trigger: none
+pr: none
+lockBehavior: sequential
+parameters:
+  - name: operation
+    displayName: 'Helm: validate/render/diff only, or also deploy the reviewed app'
+    type: string
+    default: Preview only
+    values: [Preview only, Preview and deploy]
+  - name: environment
+    displayName: 'Reviewed AKS application profile (source onboarding required)'
+    type: string
+    default: dev
+    values: [dev, qa, uat, prod]
+pool:
+  name: windows-default
+stages:
+  - stage: Preview
+    displayName: Render, validate and compare Kubernetes resources
+    jobs:
+      - job: PreviewApplication
+        steps:
+          - checkout: self
+            clean: true
+          - task: AzureCLI@2
+            displayName: Helm Preview (no deployment)
+            inputs:
+              azureSubscription: SC-AZ-A-Bicep
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                try {
+                  ./scripts/Invoke-HelmDelivery.ps1 -Mode Preview -EnvironmentName '${{ parameters.environment }}' -OutputDirectory '$(Build.ArtifactStagingDirectory)/helm-preview'
+                } finally {
+                  if (Test-Path '$(Build.ArtifactStagingDirectory)/helm-preview/README.md') { Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/helm-preview/README.md' }
+                }
+          - publish: $(Build.ArtifactStagingDirectory)/helm-preview
+            artifact: helm-preview
+            condition: always()
+  - ${{ if eq(parameters.operation, 'Preview and deploy') }}:
+    - stage: Deploy
+      dependsOn: Preview
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      jobs:
+        - deployment: DeployApplication
+          environment: aksapps-${{ parameters.environment }}
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                    clean: true
+                  - download: current
+                    artifact: helm-preview
+                  - task: AzureCLI@2
+                    displayName: Apply exact reviewed chart and verify rollout
+                    inputs:
+                      azureSubscription: SC-AZ-A-Bicep
+                      scriptType: pscore
+                      scriptLocation: inlineScript
+                      inlineScript: |
+                        try {
+                          ./scripts/Invoke-HelmDelivery.ps1 -Mode Deploy -EnvironmentName '${{ parameters.environment }}' -PreviewDirectory '$(Pipeline.Workspace)/helm-preview' -OutputDirectory '$(Build.ArtifactStagingDirectory)/helm-receipt'
+                        } finally {
+                          if (Test-Path '$(Build.ArtifactStagingDirectory)/helm-receipt/README.md') { Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/helm-receipt/README.md' }
+                        }
+                  - publish: $(Build.ArtifactStagingDirectory)/helm-receipt
+                    artifact: helm-receipt
+                    condition: always()

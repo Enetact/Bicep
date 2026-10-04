@@ -7,11 +7,30 @@ namespace SelfService.Portal.Tests;
 public sealed class AgentTests
 {
     static JsonElement Json(object o) => JsonSerializer.SerializeToElement(o);
-    static JsonElement Model(string name = "gpt-6-astra", string effort = "high", string tier = "default") => Json(new { model = name, supportedReasoningEfforts = new[] { new { reasoningEffort = effort } }, serviceTiers = new[] { new { id = tier } } });
-    static JsonElement Thread(string tier = "default", bool network = false) => Json(new { model = AgentPolicy.Model, reasoningEffort = AgentPolicy.Effort, serviceTier = tier, approvalPolicy = "never", sandbox = new { type = "readOnly", networkAccess = network } });
+    static JsonElement Model(string name = "gpt-6.1-sol", string effort = "ultra", string tier = "default") => Json(new { model = name, supportedReasoningEfforts = new[] { new { reasoningEffort = effort } }, serviceTiers = new[] { new { id = tier } } });
+    static JsonElement Thread(string tier = "default", bool network = false, string model = "gpt-6.1-sol", string effort = "ultra") => Json(new { model, reasoningEffort = effort, serviceTier = tier, approvalPolicy = "never", sandbox = new { type = "readOnly", networkAccess = network } });
     [Fact] public void ExactRequestedSettingsAreAccepted() { AgentPolicy.ValidateModel(Model()); AgentPolicy.ValidateThread(Thread()); }
-    [Theory][InlineData("gpt-6-sol", "high", "default")][InlineData("gpt-6-astra", "max", "default")][InlineData("gpt-6-astra", "high", "priority")]
-    public void ModelFallbackAndDifferentReasoningOrSpeedAreBlocked(string model, string effort, string tier) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateModel(Model(model, effort, tier)));
+    [Theory][InlineData("unrequested-model", "ultra")][InlineData("gpt-6.1-sol", "high")][InlineData("gpt-6.1-sol", "max")]
+    public void ModelFallbackAndDifferentReasoningAreBlocked(string model, string effort) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateModel(Model(model, effort)));
+    [Fact] public void StandardDoesNotRequireAnOptionalCatalogTier()
+    {
+        AgentPolicy.ValidateModel(Model(tier: "priority"));
+        AgentPolicy.ValidateModel(Json(new { model = "gpt-6.1-sol", supportedReasoningEfforts = new[] { new { reasoningEffort = "ultra" } }, serviceTiers = Array.Empty<object>() }));
+        Assert.Throws<PortalException>(() => AgentPolicy.ValidateThread(Thread(tier: "priority")));
+    }
+    [Theory][InlineData("unrequested-model", "ultra")][InlineData("gpt-6.1-sol", "high")][InlineData("gpt-6.1-sol", "max")]
+    public void EffectiveThreadCannotDowngradeRequestedModelOrReasoning(string model, string effort) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateThread(Thread(model: model, effort: effort)));
+    [Fact] public void BootstrapAndPublicPolicyUseRequestedSettings()
+    {
+        Assert.Contains("model = \"gpt-6.1-sol\"", AgentPolicy.BootstrapConfiguration);
+        Assert.Contains("model_reasoning_effort = \"ultra\"", AgentPolicy.BootstrapConfiguration);
+        Assert.Contains("service_tier = \"default\"", AgentPolicy.BootstrapConfiguration);
+        var policy = Json(AgentPolicy.Descriptor);
+        Assert.Equal("GPT-6.1 Sol", policy.GetProperty("displayName").GetString());
+        Assert.Equal("Ultra", policy.GetProperty("effortDisplayName").GetString());
+        Assert.Equal("Standard", policy.GetProperty("speed").GetString());
+        Assert.False(Json(AgentPolicy.Isolation).GetProperty("features").GetProperty("multi_agent").GetBoolean());
+    }
     [Theory][InlineData("priority", false)][InlineData("default", true)]
     public void EffectiveThreadMustRespectIsolation(string tier, bool network) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateThread(Thread(tier, network)));
     [Theory][InlineData("http://auth.openai.com/login")][InlineData("https://auth.openai.com.evil.test/")][InlineData("https://user@auth.openai.com/")][InlineData("https://auth.openai.com:444/")][InlineData("file:///C:/secret")]

@@ -1,0 +1,28 @@
+# Call within an already authorized pipeline. No deployment is performed by this step.
+parameters:
+  - name: serviceConnection
+    type: string
+  - name: phase
+    type: string
+    values: [before, plan, after]
+  - name: directory
+    type: string
+  - name: inputDirectory
+    type: string
+    default: ''
+  - name: whatIfPath
+    type: string
+    default: ''
+steps:
+  - task: AzureCLI@2
+    displayName: Capture shared IaC ${{ parameters.phase }} evidence
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: pscore
+      scriptLocation: scriptPath
+      scriptPath: scripts/Invoke-IacAnalysis.ps1
+      arguments: >-
+        -Action "${{ parameters.phase }}" -Directory "${{ parameters.directory }}"
+        -InputDirectory "${{ parameters.inputDirectory }}" -WhatIfPath "${{ parameters.whatIfPath }}"
+      workingDirectory: $(Build.SourcesDirectory)
+      visibleAzLogin: false

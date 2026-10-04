@@ -21,6 +21,8 @@ parameters:
       - "Key Vault | key-vault"
       - "Event flow - Logic App + Event Grid + 2 Storage accounts | logic-app-event-grid"
       - "Observability | observability"
+      - "Private AKS Foundation | private-aks"
+      - "Private Data Platform | private-data-platform"
       - "Private Storage Workspace | private-storage"
       - "Service Bus worker | service-bus-worker"
   - name: workloadName
@@ -28,8 +30,10 @@ parameters:
     type: string
     default: "blobcopy"
     values:
+      - "aksapps"
       - "blobcopy"
       - "busworker"
+      - "dataplat"
       - "eventflow"
       - "httpapi"
       - "keyvault"

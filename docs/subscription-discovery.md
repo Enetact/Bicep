@@ -1,5 +1,9 @@
 # Subscription discovery, dropdowns and standard names
 
+**AKS/Helm increment — 4 October 2026:** AKS discovery inventories Azure resource metadata through the shared product reader. It does not fetch cluster credentials, enumerate pods or prove free subnet addresses. Kubernetes before-state is collected separately by the Helm pipeline after namespace/identity/private-agent onboarding. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**Private Data Platform:** its dedicated discovery menu uses the same inventory artifact. The product validator requires two dedicated Databricks subnets and an existing regional browser-auth endpoint, plus shared DNS/monitoring/network checks. Missing resources block this reuse-only profile; they do not trigger automatic network creation. See [the workload contract](../workloads/private-data-platform/README.md).
+
 **New product discovery:** the five [additional offerings](workload-onboarding.md) use discovery manifest v2 with a registered workload type, required-provider status and resource inventory. Their saved artifacts feed only the matching product. A successful missing owned resource can appear as Create during Preview; absent or unreadable shared subnets, DNS or monitoring cannot be silently created or adopted.
 
 The shared Discover pipeline now adds a [saved-evidence analysis report](self-service-analysis.md) under `subscription-discovery/analysis/`. It shows coverage, reported prerequisite actions and resource containment diagrams; it is not authenticated handoff approval or private-connectivity evidence. Local generation is verified; live ADO rendering remains pending.

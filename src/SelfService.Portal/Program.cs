@@ -92,6 +92,7 @@ app.MapPost("/api/queue/{ticket}", async (HttpContext c, string ticket, AdoGatew
 });
 app.MapGet("/api/runs/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Status(Session(c), product, id));
 app.MapGet("/api/preview/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Preview(Session(c), product, id, c.RequestAborted));
+app.MapGet("/api/iac/{product}/{id:int}/{environment}/{phase}", async (HttpContext c,string product,int id,string environment,string phase,AdoGateway ado) => { if(phase is not ("preview" or "after"))throw new PortalException("Select preview or after evidence."); return await ado.Iac(Session(c),product,id,environment,phase=="after",c.RequestAborted); });
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.MapGet("/api/network/scopes", async (NetworkDiscovery network, HttpContext c) => await network.Scopes(Session(c), c.RequestAborted));

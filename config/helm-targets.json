@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "dev": {
+      "enabled": false,
+      "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+      "clusterResourceId": "/subscriptions/f4f2eafe-2512-4c2f-9b5b-c88f6767e778/resourceGroups/rg-aksapps-dev/providers/Microsoft.ContainerService/managedClusters/aks-aksapps-dev",
+      "namespace": "platform-apps",
+      "release": "platform-app",
+      "protectedEnvironment": "aksapps-dev",
+      "serviceConnection": "SC-AZ-A-Bicep",
+      "values": {
+        "imageRepository": "REPLACE_PRIVATE_ACR_REPOSITORY",
+        "imageDigest": "REPLACE_SHA256_DIGEST",
+        "workloadIdentityClientId": "REPLACE_APPLICATION_CLIENT_ID",
+        "serviceAccountName": "platform-app",
+        "replicas": 3,
+        "port": 8080,
+        "cpuRequest": "100m",
+        "cpuLimit": "1000m",
+        "memoryRequest": "128Mi",
+        "memoryLimit": "512Mi",
+        "egressCidrs": []
+      },
+      "registryResourceId": "REPLACE_APPROVED_PRIVATE_ACR_RESOURCE_ID"
+    },
+    "qa": {
+      "enabled": false,
+      "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+      "clusterResourceId": "/subscriptions/f4f2eafe-2512-4c2f-9b5b-c88f6767e778/resourceGroups/rg-aksapps-qa/providers/Microsoft.ContainerService/managedClusters/aks-aksapps-qa",
+      "namespace": "platform-apps",
+      "release": "platform-app",
+      "protectedEnvironment": "aksapps-qa",
+      "serviceConnection": "SC-AZ-A-Bicep",
+      "values": {
+        "imageRepository": "REPLACE_PRIVATE_ACR_REPOSITORY",
+        "imageDigest": "REPLACE_SHA256_DIGEST",
+        "workloadIdentityClientId": "REPLACE_APPLICATION_CLIENT_ID",
+        "serviceAccountName": "platform-app",
+        "replicas": 3,
+        "port": 8080,
+        "cpuRequest": "100m",
+        "cpuLimit": "1000m",
+        "memoryRequest": "128Mi",
+        "memoryLimit": "512Mi",
+        "egressCidrs": []
+      },
+      "registryResourceId": "REPLACE_APPROVED_PRIVATE_ACR_RESOURCE_ID"
+    },
+    "uat": {
+      "enabled": false,
+      "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+      "clusterResourceId": "/subscriptions/f4f2eafe-2512-4c2f-9b5b-c88f6767e778/resourceGroups/rg-aksapps-uat/providers/Microsoft.ContainerService/managedClusters/aks-aksapps-uat",
+      "namespace": "platform-apps",
+      "release": "platform-app",
+      "protectedEnvironment": "aksapps-uat",
+      "serviceConnection": "SC-AZ-A-Bicep",
+      "values": {
+        "imageRepository": "REPLACE_PRIVATE_ACR_REPOSITORY",
+        "imageDigest": "REPLACE_SHA256_DIGEST",
+        "workloadIdentityClientId": "REPLACE_APPLICATION_CLIENT_ID",
+        "serviceAccountName": "platform-app",
+        "replicas": 3,
+        "port": 8080,
+        "cpuRequest": "100m",
+        "cpuLimit": "1000m",
+        "memoryRequest": "128Mi",
+        "memoryLimit": "512Mi",
+        "egressCidrs": []
+      },
+      "registryResourceId": "REPLACE_APPROVED_PRIVATE_ACR_RESOURCE_ID"
+    },
+    "prod": {
+      "enabled": false,
+      "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+      "clusterResourceId": "/subscriptions/f4f2eafe-2512-4c2f-9b5b-c88f6767e778/resourceGroups/rg-aksapps-prod/providers/Microsoft.ContainerService/managedClusters/aks-aksapps-prod",
+      "namespace": "platform-apps",
+      "release": "platform-app",
+      "protectedEnvironment": "aksapps-prod",
+      "serviceConnection": "SC-AZ-A-Bicep",
+      "values": {
+        "imageRepository": "REPLACE_PRIVATE_ACR_REPOSITORY",
+        "imageDigest": "REPLACE_SHA256_DIGEST",
+        "workloadIdentityClientId": "REPLACE_APPLICATION_CLIENT_ID",
+        "serviceAccountName": "platform-app",
+        "replicas": 3,
+        "port": 8080,
+        "cpuRequest": "100m",
+        "cpuLimit": "1000m",
+        "memoryRequest": "128Mi",
+        "memoryLimit": "512Mi",
+        "egressCidrs": []
+      },
+      "registryResourceId": "REPLACE_APPROVED_PRIVATE_ACR_RESOURCE_ID"
+    }
+  }
+}

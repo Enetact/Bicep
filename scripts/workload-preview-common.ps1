@@ -3,6 +3,9 @@
 . "$PSScriptRoot/platform-contract.ps1"
 . "$PSScriptRoot/service-cost-common.ps1"
 . "$PSScriptRoot/recovery-common.ps1"
+function Invoke-WorkloadIacEvidence([string]$Action,[string]$Directory,[string]$InputDirectory='',[string]$WhatIfPath='') {
+    & "$PSScriptRoot/Invoke-IacAnalysis.ps1" -Action $Action -Directory $Directory -InputDirectory $InputDirectory -WhatIfPath $WhatIfPath
+}
 function Get-PreviewParameters($Target,$Parameters,[string]$ReleaseId) {
     $p=$Parameters|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
     $type=Get-TargetWorkloadType $Target
@@ -67,18 +70,27 @@ function Read-WorkloadPreviewInputs([string]$Directory) {
     if($env:TF_BUILD -eq 'True' -and ($r.runId -cne $env:BUILD_BUILDID -or $r.sourceCommit -cne $env:BUILD_SOURCEVERSION)){throw 'Preview belongs to a different run or commit.'}
     return @{receipt=$r;target=$target;parameters=$p;stack=$stack;directory=$Directory;hash=(Get-ServiceHash (Join-Path $Directory preview-inputs.json))}
 }
-function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory) {
+function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory,[switch]$CaptureIac) {
     New-Item -ItemType Directory -Path $Directory -Force|Out-Null
     foreach($file in @('preview-plan.json','stack-what-if.json','arm-validation.json')){
         $old=Join-Path $Directory $file
         if(Test-Path -LiteralPath $old){Remove-Item -LiteralPath $old -Force}
     }
     Assert-StackTooling
+    if($CaptureIac){ Invoke-WorkloadIacEvidence -Action before -Directory (Join-Path $Directory iac) -InputDirectory $Bundle.directory }
     $state=Get-WorkloadStackState $Bundle
     if(Test-ProductWorkload (Get-TargetWorkloadType $Bundle.target)){$state.network=Test-ProductPrerequisites $Bundle}
     if((Get-TargetWorkloadType $Bundle.target) -eq 'logic-app-event-grid'){Assert-LogicPrerequisiteLiveState $Bundle $state}
     $path=Join-Path $Bundle.directory effective.parameters.json
-    $report=New-StackPreview $Bundle $state $path $Directory -UseLocalTemplate
+    $previewFailure=$null
+    try { $report=New-StackPreview $Bundle $state $path $Directory -UseLocalTemplate }
+    catch { $previewFailure=$_;throw }
+    finally {
+        if($CaptureIac -and (Test-Path (Join-Path $Directory stack-what-if.json))){
+            try { Invoke-WorkloadIacEvidence -Action plan -Directory (Join-Path $Directory iac) -WhatIfPath (Join-Path $Directory stack-what-if.json) }
+            catch { if($null -ne $previewFailure){Write-Warning "IaC plan projection also failed; the primary What-If failure is preserved."}else{throw} }
+        }
+    }
     $plan=@{schemaVersion=1;kind='full-release-preview';inputHash=$Bundle.hash;sourceCommit=$Bundle.receipt.sourceCommit;runId=$Bundle.receipt.runId;createdUtc=[DateTimeOffset]::UtcNow.ToString('O');state=$state;changes=$report.changes;deployable=$true;workloadDeployed=$false}
     $plan.fingerprint=Get-ValueHash @{inputHash=$plan.inputHash;state=$state;changes=$report.changes}
     Write-ServiceJson $plan (Join-Path $Directory preview-plan.json)
@@ -180,7 +192,8 @@ function Write-WorkloadPreviewReadme([string]$Directory,[string]$Status,[string]
     [IO.File]::WriteAllText((Join-Path $Directory README.md),($lines -join "`n")+"`n",[Text.UTF8Encoding]::new($false))
 }
 
-function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$BundleDirectory,[string]$EvidenceDirectory,[string]$BoundServiceConnection,[string]$BoundEnvironment,[string]$BoundAgentPool) {
+function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$BundleDirectory,[string]$EvidenceDirectory,[string]$BoundServiceConnection,[string]$BoundEnvironment,[string]$BoundAgentPool,[switch]$CaptureIac) {
+    $mutationAttempted=$false
     $receipt=@{schemaVersion=1;ready=$false;status='Failed';startedUtc=[DateTimeOffset]::UtcNow.ToString('O')}
     try{
         if($env:BUILD_SOURCEBRANCH -cne 'refs/heads/main' -or $env:BUILD_REASON -cne 'Manual'){throw 'Deploy requires a manually queued protected main run.'}
@@ -191,13 +204,14 @@ function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$B
         if($target.serviceConnection -cne $BoundServiceConnection -or $target.deploymentEnvironment -cne $BoundEnvironment -or $target.agentPool -cne $BoundAgentPool){throw 'Deployment protected resource binding mismatch.'}
         $approved=Assert-PreviewMatchesBundle $PreviewDirectory $bundle
         $preview=Read-WorkloadPreviewInputs $PreviewDirectory
-        $current=Invoke-WorkloadInfrastructurePreview $preview (Join-Path $EvidenceDirectory recheck)
+        $current=Invoke-WorkloadInfrastructurePreview $preview (Join-Path $EvidenceDirectory recheck) -CaptureIac:$CaptureIac
         Assert-PreviewFingerprint $approved $current
         $definition=Get-WorkloadDefinition (Get-TargetWorkloadType $target)
         $phases=if($definition.packageKind -eq 'infrastructure'){@('Release')}else{@('Foundation','Release')}
         foreach($phase in $phases){
             $planDirectory=Join-Path $EvidenceDirectory "plan-$phase"
             $null=New-ServicePlan $bundle $phase $planDirectory
+            $mutationAttempted=$true
             $result=Invoke-ServiceApply $bundle $phase $planDirectory (Join-Path $EvidenceDirectory "result-$phase")
             $receipt[$phase]=@{status=$result.status;ready=$result.ready}
         }
@@ -206,7 +220,21 @@ function Invoke-PreviewedWorkloadDeployment([string]$PreviewDirectory,[string]$B
         if($result.Contains('acceptance')){$receipt.acceptance=$result.acceptance}
     }catch{$receipt.error=$_.Exception.Message;throw}
     finally{
+        $iacFailure=$false
+        if($CaptureIac -and $mutationAttempted){
+            try{
+                $iac=Join-Path $EvidenceDirectory iac
+                New-Item -ItemType Directory -Path $iac -Force|Out-Null
+                Copy-Item -LiteralPath (Join-Path $EvidenceDirectory 'recheck/iac/analysis.json') -Destination (Join-Path $iac analysis.json)
+                Invoke-WorkloadIacEvidence -Action after -Directory $iac
+                $receipt.iac='Observed after apply; inspect projected comparison, not full acceptance.'
+            }catch{
+                $iacFailure=$true;$receipt.ready=$false;if(!$receipt.ContainsKey('error')){$receipt.status='Applied; after observation incomplete'};$receipt.iac='After observation unavailable or partial; final state is unknown.'
+                Write-Warning 'IaC after observation did not complete; retained deployment and analysis evidence require review.'
+            }
+        }
         $receipt.finishedUtc=[DateTimeOffset]::UtcNow.ToString('O')
         Write-ServiceJson $receipt (Join-Path $EvidenceDirectory receipt.json)
+        if($iacFailure -and !$receipt.ContainsKey("error")){throw "Deployment applied but after observation is incomplete. Reconcile the saved evidence before retrying."}
     }
 }

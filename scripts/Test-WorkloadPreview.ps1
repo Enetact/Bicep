@@ -199,12 +199,23 @@ Case 'Prepare compiles freezes discovery and full release without Azure access' 
     Check ($readme.Contains('Recovery rules') -and $readme.Contains('No restore executor is registered'))
     Check ($script:calls.Count -eq 0)
 }
+$script:iacCalls=[Collections.Generic.List[string]]::new();$script:iacAfterFailure=$false
+function Invoke-WorkloadIacEvidence([string]$Action,[string]$Directory,[string]$InputDirectory='',[string]$WhatIfPath='') {
+    $script:iacCalls.Add($Action)
+    if($Action -eq 'after' -and $script:iacAfterFailure){throw 'After read failed'}
+    Write-ServiceJson @{testOnly=$true} (Join-Path $Directory analysis.json)
+}
+Case 'live IaC hooks capture before and plan even when governance blocks What-If' {
+    $script:iacCalls.Clear();$script:previewMode='potential'
+    try{Reject {Invoke-WorkloadInfrastructurePreview $script:previewBundle (Join-Path $root iac-blocked/azure) -CaptureIac} '';Check (($script:iacCalls -join ',') -eq 'before,plan')}
+    finally{$script:previewMode='ok'}
+}
 # Exercise the actual Deploy coordinator with mocked infrastructure/application boundaries.
 $script:sequence=[Collections.Generic.List[string]]::new();$script:drift=$false;$script:releaseFails=$false
 function Read-ServiceBundle([string]$Directory){return $bundle}
 function Read-WorkloadPreviewInputs([string]$Directory){return $script:previewBundle}
 function Assert-PreviewMatchesBundle([string]$PreviewDirectory,$Bundle){return $script:approved}
-function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory){$script:sequence.Add('Recheck');$result=Clone $script:approved;if($script:drift){$result.fingerprint='drift'};return $result}
+function Invoke-WorkloadInfrastructurePreview($Bundle,[string]$Directory,[switch]$CaptureIac){if($CaptureIac){Write-ServiceJson @{testOnly=$true} (Join-Path $Directory iac/analysis.json)};$script:sequence.Add('Recheck');$result=Clone $script:approved;if($script:drift){$result.fingerprint='drift'};return $result}
 function New-ServicePlan($Bundle,[string]$Phase,[string]$Directory){$script:sequence.Add("Plan$Phase");return @{}}
 function Invoke-ServiceApply($Bundle,[string]$Phase,[string]$PlanDirectory,[string]$EvidenceDirectory){$script:sequence.Add("Apply$Phase");if($script:releaseFails -and $Phase -eq 'Release'){throw 'Runtime verification failed'};return @{status=$(if($Phase -eq 'Release'){'Ready'}else{'FoundationReady'});ready=($Phase -eq 'Release');outputs=@{}}}
 $savedBranch=$env:BUILD_SOURCEBRANCH;$savedReason=$env:BUILD_REASON
@@ -227,6 +238,27 @@ Case 'runtime verification failure never emits Ready' {
 }
 Case 'wrong service connection fails before Azure recheck' {
     $script:sequence.Clear();Reject {Invoke-PreviewedWorkloadDeployment $dir $dir (Join-Path $root wrong-binding) 'other' $target.deploymentEnvironment $target.agentPool} 'binding';Check (!$script:sequence.Count)
+}
+Case 'IaC after capture runs after successful apply and records observation independently' {
+    $script:iacCalls.Clear();$folder=Join-Path $root iac-after-success
+    Invoke-PreviewedWorkloadDeployment $dir $dir $folder $target.serviceConnection $target.deploymentEnvironment $target.agentPool -CaptureIac
+    Check (($script:iacCalls -join ',') -eq 'after')
+    $r=Get-Content (Join-Path $folder receipt.json) -Raw|ConvertFrom-Json -AsHashtable;Check ($r.ready -and $r.iac.Contains('Observed after'))
+}
+Case 'IaC observation failure withholds readiness without hiding a successful apply' {
+    $script:iacAfterFailure=$true;$folder=Join-Path $root iac-after-failed
+    try{Reject {Invoke-PreviewedWorkloadDeployment $dir $dir $folder $target.serviceConnection $target.deploymentEnvironment $target.agentPool -CaptureIac} 'applied but';$r=Get-Content (Join-Path $folder receipt.json) -Raw|ConvertFrom-Json -AsHashtable;Check (!$r.ready -and $r.status -like 'Applied;*')}
+    finally{$script:iacAfterFailure=$false}
+}
+Case 'after read is attempted on apply failure and preserves the original runtime failure' {
+    $script:iacCalls.Clear();$script:releaseFails=$true;$script:iacAfterFailure=$true;$folder=Join-Path $root iac-partial-apply
+    try{Reject {Invoke-PreviewedWorkloadDeployment $dir $dir $folder $target.serviceConnection $target.deploymentEnvironment $target.agentPool -CaptureIac} 'Runtime';Check (($script:iacCalls -join ',') -eq 'after');$r=Get-Content (Join-Path $folder receipt.json) -Raw|ConvertFrom-Json -AsHashtable;Check (!$r.ready -and $r.error -eq 'Runtime verification failed')}
+    finally{$script:releaseFails=$false;$script:iacAfterFailure=$false}
+}
+Case 'no mutation means no fabricated after snapshot' {
+    $script:iacCalls.Clear();$script:drift=$true
+    try{Reject {Invoke-PreviewedWorkloadDeployment $dir $dir (Join-Path $root iac-no-apply) $target.serviceConnection $target.deploymentEnvironment $target.agentPool -CaptureIac} 'drifted';Check (!$script:iacCalls.Count)}
+    finally{$script:drift=$false}
 }
 Case 'feature branch cannot apply reviewed preview' {
     $env:BUILD_SOURCEBRANCH='refs/heads/feature';$script:sequence.Clear()

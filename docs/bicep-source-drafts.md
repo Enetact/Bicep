@@ -4,9 +4,9 @@
 
 ## Current behavior
 
-Platform Studio now has **Design Bicep source draft** under **Agent workflows**. It uses the existing AHP coordination, GPT-6 Astra / High / Standard runtime and scoped MCP evidence bridge. The model proposes a structured module composition; deterministic C# generates Bicep, parameter files, a subscription wrapper, copied local modules and receipts. **All generated output is an unqualified source draft.** This feature cannot queue ADO, publish Template Specs, enable targets, create resources or reserve addresses.
+Platform Studio now has **Design Bicep source draft** under **Agent workflows**. It uses the existing AHP coordination, GPT-6.1 Sol / Ultra / Standard runtime and scoped MCP evidence bridge. The model proposes a structured module composition; deterministic C# generates Bicep, parameter files, a subscription wrapper, copied local modules and receipts. **All generated output is an unqualified source draft.** This feature cannot queue ADO, publish Template Specs, enable targets, create resources or reserve addresses.
 
-The existing seven workloads still deploy their registered, fixed compositions. `Resolve-PlatformRequest` accepts the same four intent fields. Generated drafts do not replace those files or become a new catalog entry automatically. This implements the user's selected **reviewable source drafts first** route.
+The existing eight workloads still deploy their registered, fixed compositions. `Resolve-PlatformRequest` accepts the same four intent fields. Generated drafts do not replace those files or become a new catalog entry automatically. This implements the user's selected **reviewable source drafts first** route.
 
 ## Use the workflow
 
@@ -32,7 +32,7 @@ The workload selection supplies context for a new design; it does not grant owne
 
 | File / method | Responsibility |
 |---|---|
-| `scripts/Update-BicepModuleContracts.ps1` | Locally compiles all 13 shared modules; records actual parameters, constraints, defaults, outputs, resource types and normalized source hashes. `-Check` rejects catalog drift. No Azure collection. |
+| `scripts/Update-BicepModuleContracts.ps1` | Locally compiles all 16 shared modules; records actual parameters, constraints, defaults, outputs, resource types and normalized source hashes. `-Check` rejects catalog drift. No Azure collection. |
 | `config/bicep-module-contracts.json` | Generated source-owned contract inventory. Twelve leaf modules are selectable; IPAM reservation is excluded from composition drafts. This is not an authorization catalog. |
 | `BicepDrafts.Context` | Validates browser-owned snapshot, selected subscription/target/region and goal; projects known resources and allowlisted target overrides; computes evidence/catalog digests. |
 | `platform-bicep-composition` skill | Requests `platform.bicep-proposal/v1`: module IDs, rationales, typed bindings and gaps. No raw generated Bicep is executed. |
@@ -75,3 +75,5 @@ Generated source cannot bypass the existing allowlists by supplying a path or up
 - Windows package generation includes source modules and contracts. Previously produced packages do not contain this increment; rebuild packages before distributing it.
 
 Manual acceptance: use a fresh network snapshot and connected Codex, request a storage-plus-monitoring draft, verify both MCP reads, inspect module selections/missing endpoints and permissions, download/extract, complete inputs, compile both templates/parameter files, and confirm no pipeline was queued. Repeat with partial evidence, missing module requirements, expired evidence and sign-out. **Live Azure/Codex draft acceptance remains outstanding.** See [validation history](validation.md) for local results.
+
+The three Private Data Platform modules are inventoried but not draft-selectable. Its fixed registered composition is available through the governed workload path; independently generated data-platform compositions need additional network/identity/data-plane qualification.

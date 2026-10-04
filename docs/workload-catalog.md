@@ -1,8 +1,10 @@
 # Workload catalog
 
+**AKS/Helm increment — 4 October 2026:** Private AKS Foundation is the ninth offering (`private-aks` / `aksapps`). It has dedicated `azure-pipelines-aksapps-discover.yml` and `azure-pipelines-aksapps-deploy.yml` menus. `azure-pipelines-helm.yml` is a separate manual application operation, not a tenth foundation product. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
 [Wiki home](README.md) · [Get started](getting-started.md) · [Onboarding](workload-onboarding.md) · [Status](completion-status.md)
 
-Seven workload types have compositions, Deployment Stack wrappers, environment parameters, request contracts, dedicated pipeline pairs and portal configuration. Four environments per named instance produce 28 registered targets. All remain disabled pending onboarding and live acceptance.
+Nine workload types have compositions, Deployment Stack wrappers, environment parameters, request contracts, dedicated pipeline pairs and portal configuration. Four environments per named instance produce 36 registered targets. All remain disabled pending onboarding and live acceptance.
 
 ## Offerings
 
@@ -15,8 +17,10 @@ Seven workload types have compositions, Deployment Stack wrappers, environment p
 | [Observability](../workloads/observability/README.md) | Azure Monitor workbook and missing-heartbeat query alert referencing existing Log Analytics and action groups. | Infrastructure only; does not create notification destinations or reconfigure shared workspace networking. |
 | [HTTP Functions API](../workloads/http-functions/README.md) | Private .NET 10 Function App on Linux B1, identity, host/package storage, four private endpoints, diagnostics and an Entra-protected health endpoint. | Health API starter; developers add application-specific endpoints. |
 | [Service Bus worker](../workloads/service-bus-worker/README.md) | Premium Service Bus namespace/queue, DLQ and duplicate detection, Linux B1 Functions worker, identity, receipt storage, five private endpoints and diagnostics. | Idempotent receipt-processing starter; developers add business processing. |
+| [Private Data Platform](../workloads/private-data-platform/README.md) | Databricks Premium, ADF v2 managed VNet/IR, ADLS Gen2, separate root/lake access connectors, root firewall, seven private endpoints, three managed endpoints, RBAC and diagnostics. | Infrastructure plus manual notebook pipeline; identity/Unity Catalog/notebook onboarding and live execution remain separate. |
+| [Private AKS Foundation](../workloads/private-aks/README.md) | Private Standard AKS, separate system/user pools, Cilium overlay, Entra RBAC, OIDC/application identity and diagnostics. | Infrastructure only; Helm application delivery and namespace/identity/network onboarding are separate. |
 
-The [onboarding guide](workload-onboarding.md) lists identities, shared resources, providers, permissions and product acceptance tests. Event flow can plan missing owned networking/DNS prerequisites; the five newer offerings require their declared shared dependencies to exist. Failed or partial discovery does not mean a dependency is absent and safe to create.
+The [onboarding guide](workload-onboarding.md) lists identities, shared resources, providers, permissions and product acceptance tests. Event flow can plan missing owned networking/DNS prerequisites; the seven product-adapter offerings require their declared shared dependencies to exist. Failed or partial discovery does not mean a dependency is absent and safe to create.
 
 ## Pipeline entry points
 
@@ -29,8 +33,10 @@ The [onboarding guide](workload-onboarding.md) lists identities, shared resource
 | Observability | [azure-pipelines-observe-discover.yml](../azure-pipelines-observe-discover.yml) | [azure-pipelines-observe-deploy.yml](../azure-pipelines-observe-deploy.yml) |
 | HTTP Functions API | [azure-pipelines-httpapi-discover.yml](../azure-pipelines-httpapi-discover.yml) | [azure-pipelines-httpapi-deploy.yml](../azure-pipelines-httpapi-deploy.yml) |
 | Service Bus worker | [azure-pipelines-busworker-discover.yml](../azure-pipelines-busworker-discover.yml) | [azure-pipelines-busworker-deploy.yml](../azure-pipelines-busworker-deploy.yml) |
+| Private Data Platform | [azure-pipelines-dataplat-discover.yml](../azure-pipelines-dataplat-discover.yml) | [azure-pipelines-dataplat-deploy.yml](../azure-pipelines-dataplat-deploy.yml) |
+| Private AKS Foundation | [azure-pipelines-aksapps-discover.yml](../azure-pipelines-aksapps-discover.yml) | [azure-pipelines-aksapps-deploy.yml](../azure-pipelines-aksapps-deploy.yml) |
 
-All entry points are manual. Push, PR and discovery-completion triggers are disabled. [azure-pipelines.yml](../azure-pipelines.yml) is the build/test/package entry. The generic self-service pair remains a compatibility route with its older stage structure. Tagging and AVNM have separate operations pipelines; they are not additional workload products. Use [ADO registration](ado-pipeline-registration.md) for the full 20-entry catalog and exact definition names.
+All entry points are manual. Push, PR and discovery-completion triggers are disabled. [azure-pipelines.yml](../azure-pipelines.yml) is the build/test/package entry. The generic self-service pair remains a compatibility route with its older stage structure. Tagging, AVNM and Helm have separate operations pipelines; they are not additional workload products. Use [ADO registration](ado-pipeline-registration.md) for the full 25-entry catalog and exact definition names.
 
 ## Delivery and evidence
 
@@ -44,7 +50,7 @@ ADO fields are generated from reviewed configuration. A discovery artifact canno
 
 ## Costs, ownership and recovery
 
-Dedicated hosting, Premium Service Bus, private endpoints, storage operations and monitoring can incur charges. The five newer offerings show **estimate unavailable**, not zero. Prices, assumptions and exclusions belong to the [cost guide](self-service-costs.md).
+Dedicated hosting, Premium Service Bus, private endpoints, storage operations and monitoring can incur charges. The seven product-adapter offerings show **estimate unavailable**, not zero. Prices, assumptions and exclusions belong to the [cost guide](self-service-costs.md).
 
 Shared modules are compiled into the Template Spec; a separate module registry is not required. Workload compositions own their resources, while target profiles bind the approved environment, identity and shared dependencies. See [source conventions](repository-structure.md) and [detailed method map](self-service-catalog.md).
 

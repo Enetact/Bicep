@@ -54,7 +54,7 @@ Authentication does not automatically run discovery, inference or deployment. So
 | Azure Preview | Resource actions returned by the saved What-If artifact; detailed property changes remain in ADO evidence. | A deployed or verified final state. |
 | Recovery assessment | Policy requirements and deterministic checks over supplied assertions. | Verified historical baseline, execution approval or a guarantee of restoration. |
 
-A completed portal deployment currently reloads the saved Preview. Durable run-bound before/after snapshots and a verified final-state diagram remain planned. Guides: [connected diagrams](portal-diagrams.md), [offline analysis](self-service-analysis.md) and [state/recovery design](plans/deployment-state-and-recovery.md).
+The [shared agentic IaC component](agentic-iac.md) now retains live before/What-If/after evidence in the dedicated workload pipeline artifacts, renders projected phase comparisons and uses the Microsoft visualizer through the AHP/Codex review path. After-state collection is observed evidence, not a universal readiness certificate. A separate retained-release store and restore execution remain planned. Guides: [connected diagrams](portal-diagrams.md), [offline analysis](self-service-analysis.md) and [state/recovery design](plans/deployment-state-and-recovery.md).
 
 ## Azure Resource Visualizer and network evidence
 
@@ -83,15 +83,15 @@ Six workflows are wired into the agent runtime:
 | Tag governance review | Selected saved tag evidence and deterministic findings. | Codex + Azure |
 | Design Bicep source draft | Network evidence, workload context and source-hashed local module contracts. | Codex + Azure |
 
-The repository policy selects GPT-6 Astra, High reasoning and Standard speed. Native Codex app-server performs inference; the experimental AHP profile coordinates session/readiness only. This is not a general Azure MCP server or fully conformant AHP host. Methods, setup and limits are documented in [agent workflows](agent-workflows.md).
+The repository policy selects GPT-6.1 Sol, Ultra reasoning and Standard speed. Native Codex app-server performs inference; the experimental AHP profile coordinates session/readiness only. This is not a general Azure MCP server or fully conformant AHP host. Methods, setup and limits are documented in [agent workflows](agent-workflows.md).
 
-The Bicep draft workflow supports 12 selectable modules from a 13-module audit; the IPAM reservation module stays separately governed. It generates main/stack/parameter source and provenance, with missing values marked as required. Drafts must compile, pass review and qualify before becoming deployable products. See [source drafts](bicep-source-drafts.md) and [module audit](plans/bicep-composition-and-module-audit.md).
+The Bicep draft workflow supports 12 selectable modules from a 17-module audit; IPAM reservation stays separately governed and AKS and the three data-platform modules remain excluded from generic drafts pending qualification. It generates main/stack/parameter source and provenance, with missing values marked as required. Drafts must compile, pass review and qualify before becoming deployable products. See [source drafts](bicep-source-drafts.md) and [module audit](plans/bicep-composition-and-module-audit.md).
 
 ## Operations workflows
 
 | Workflow | Implemented experience | Remaining boundary |
 |---|---|---|
-| ADO setup | Inventory, review and register missing definitions from the 20-root catalog; reuse matching definitions and block conflicts. | Existing GitHub connection, permissions and live acceptance are required. Registration queues no runs. |
+| ADO setup | Inventory, review and register missing definitions from the 25-root catalog; reuse matching definitions and block conflicts. | Existing GitHub connection, permissions and live acceptance are required. Registration queues no runs. |
 | Tag governance | Subscription tag table/matrix, deterministic findings, optional structured advice, custom-tag drafts and manual Preview/Apply/Verify. | Apply disabled. External resources require ownership/type qualification; source-owned resources produce source proposals. |
 | Network/IPAM | Scoped discovery, deterministic findings and reviewed AVNM pipeline handoff. Plan/Reconcile are read-only; protected reservation precedes a separate exact-prefix Preview and network creation. | Profile disabled. Existing pool, protected ADO setup and live acceptance required; no automatic workload binding. |
 | Recovery policies | Fourteen rulesets, selected-workload/all-workflow UI, Preview annotations and offline checks. | Caller assertions remain unverified; no recovery executor or rollback button. |

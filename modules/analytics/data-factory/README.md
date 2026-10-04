@@ -1,0 +1,7 @@
+# Data Factory v2
+
+Resource-group leaf module using `Microsoft.DataFactory/factories@2018-06-01` (the ARM API for ADF v2). Creates a system-identity factory with public access disabled, managed VNet/Azure IR, three managed endpoints, MSI Databricks and AzureBlobFS linked services, a manual notebook check, two Binary datasets, manual staging, an optional native Job launcher and diagnostics.
+
+Inputs: name/location/tags/Log Analytics; Databricks ID/URL; lake ID/name; qualified runtime/node type/worker bound/notebook path, reviewed input filename and optional existing Job ID (zero omits its launcher). Outputs: factory ID/name/principal plus notebook/staging/job pipeline names. No PATs, storage keys, schedule or automatic job submission. Secure activity input/output logging, concurrency one, one-hour timeout and no retry bound the sample execution path. Worker limit does not include driver cost and is not a budget enforcement policy.
+
+The factory identity needs Azure container RBAC and separate Databricks data-plane onboarding. Managed endpoints require target-owner approval. Existing NSGs/DNS alone do not approve ADF-managed-network traffic. See [composition and acceptance](../../../workloads/private-data-platform/README.md). This module is not independently selectable in AI source drafts. Additional business datasets/connectors, triggers, self-hosted IR and Unity Catalog configuration are outside its contract. See [manual recipes](../../../workloads/private-data-platform/recipes.md) for the included copy/job starters.

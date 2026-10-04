@@ -2,7 +2,7 @@ parameters:
   - name: workloadType
     type: string
     default: blob-transfer
-    values: [blob-transfer, logic-app-event-grid, private-storage, key-vault, observability, http-functions, service-bus-worker]
+    values: [blob-transfer, logic-app-event-grid, private-storage, key-vault, observability, http-functions, service-bus-worker, private-data-platform, private-aks]
   - name: workload
     type: string
   - name: environment

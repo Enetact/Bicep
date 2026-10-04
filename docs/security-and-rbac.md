@@ -1,5 +1,12 @@
 # Security and RBAC
 
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** AKS requires distinct control-plane, kubelet, application and pipeline identities. Shared network/DNS/identity/registry grants are validated, never automatically broadened. Helm uses temporary non-admin Entra kubeconfig, namespace-scoped authorization and reviewed application federation. It manages no Kubernetes Secrets or RBAC objects; Helm itself stores release metadata in namespace Secrets, so its delivery identity still requires that permission. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**Private Data Platform identity boundary:** factory managed identity, separate root/lake Databricks access connectors and deployment principal have distinct roles. Container-scoped Azure data RBAC does not grant Databricks workspace/compute permissions or Unity Catalog privileges. No PAT or blanket factory Contributor assignment is emitted. Endpoint approvals require explicit owner review. See [permissions and manual acceptance](../workloads/private-data-platform/README.md).
+
 **Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
 
 

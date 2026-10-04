@@ -1,3 +1,4 @@
+import { renderIac } from './iac.mjs';
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
 import { setupTagging } from './tagging.mjs';
@@ -12,7 +13,7 @@ const runs = [], diagramUrls = [];
 let selectionVersion = 0;
 let refreshAgents;
 let recoveryCatalog;
-function clearPreview() { selectionVersion++; $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
+function clearPreview() { selectionVersion++; $('iac-analysis').replaceChildren(); $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
   renderTopology($('workload-diagram'), proposedTopology(chosen, t, $('region').value, data.topologies.products[chosen.id]));
@@ -23,7 +24,14 @@ function drawProposal() {
 async function loadPreview(product, runId) {
   const version = ++selectionVersion;
   $('preview-diagram').replaceChildren(); $('preview-message').textContent = 'Reading the saved Preview artifact from Azure DevOps…';
+  $('iac-analysis').replaceChildren();
   try {
+    try {
+      const iac = await api(`iac/${product}/${runId}/${$('environment').value}/preview`);
+      if(version!==selectionVersion||chosen?.id!==product)return;
+      if(iac.provenance.region!==$('region').value)throw new Error('IaC evidence is for another region.');
+      renderIac($('iac-analysis'),iac);
+    } catch(e) { if(version===selectionVersion)$('iac-analysis').textContent=`Before/after evidence unavailable: ${e.message}`; }
     const report = await api(`preview/${product}/${runId}`);
     if (version !== selectionVersion || chosen?.id !== product) return;
     if (report.environment !== $('environment').value) throw new Error(`This Preview is for ${report.environment}. Select that environment to view it.`);
@@ -73,6 +81,7 @@ function updateGates() {
   $('refresh-discovery').disabled = !auth.connected.includes('ado'); $('cancel-login').hidden = !waiting;
   $('run-skill-discovery').disabled = !discoverySkill || !auth.connected.includes('azure') || discoveryBusy;
   $('load-preview').disabled = !chosen || !auth.connected.includes('ado');
+  $('load-iac-after').disabled = !chosen || !auth.connected.includes('ado');
 }
 async function refreshAuth() {
   auth = await api('auth'); $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
@@ -126,6 +135,19 @@ action('run-skill-discovery', async () => {
 });
 $('download-discovery').addEventListener('click', () => { if (!discoveryReport) return; const url = URL.createObjectURL(new Blob([JSON.stringify(discoveryReport, null, 2)], { type: 'application/json' })); const a = make('a'); a.href = url; a.download = `azure-discovery-${discoveryReport.id}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); });
 for (const id of ['environment', 'region', 'operation', 'discovery-run']) $(id).addEventListener('change', selectionChanged);
+action('load-iac-after', async () => {
+  const id=Number($('preview-run-id').value);if(!chosen||!Number.isSafeInteger(id)||id<1)throw new Error('Select a workload and a positive Deploy run ID.');
+  const version=++selectionVersion, product=chosen.id, environment=$('environment').value;
+  $('iac-analysis').replaceChildren();$('preview-diagram').replaceChildren();$('preview-message').textContent=`Loading observed evidence from run ${id}…`;
+  try {
+    const report=await api(`iac/${product}/${id}/${environment}/after`);
+    if(version!==selectionVersion||chosen?.id!==product)return;
+    if(report.provenance.region!==$('region').value)throw new Error('IaC evidence is for another region.');
+    renderIac($('iac-analysis'),report);$('preview-message').textContent=`Saved observed-after evidence from run ${id}; inspect comparison coverage and the deployment receipt.`;
+  } catch(e) {if(version===selectionVersion)$('preview-message').textContent=`Observed-after evidence unavailable: ${e.message}`;throw e;}
+});
+window.addEventListener('platform-iac-review',()=>page('agents'));
+window.addEventListener('platform-disconnected',clearPreview);
 action('load-preview', async () => {
   const id = Number($('preview-run-id').value);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Enter the positive run ID of a Preview / Deploy pipeline.');
@@ -182,7 +204,7 @@ action('analyze', async () => {
 try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
-  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'] };
+  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
   $('products').replaceChildren(...data.products.map(p => {
     const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top');
     const [icon, label] = productLabels[p.id] ?? ['◈', 'WORKLOAD'];

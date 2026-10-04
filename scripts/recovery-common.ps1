@@ -6,7 +6,7 @@ function Get-RecoveryModes {
         'blob-transfer'='ApplicationRestore';'logic-app-event-grid'='ApplicationRestore'
         'private-storage'='ConfigurationRestore';'key-vault'='ConfigurationRestore';'observability'='ConfigurationRestore'
         'http-functions'='ApplicationRestore';'service-bus-worker'='ApplicationRestore'
-        'tags-external'='TagCompensation';'tags-source'='SourceRevert';'network-ipam'='ManualRecovery'
+        'private-aks'='ManualRecovery';'helm-app'='ManualRecovery';'private-data-platform'='ManualRecovery';'tags-external'='TagCompensation';'tags-source'='SourceRevert';'network-ipam'='ManualRecovery'
         'pipeline-registration'='ManualRecovery';'discovery'='NotApplicable';'agent-review'='NotApplicable';'bicep-draft'='NotApplicable'
     }
 }

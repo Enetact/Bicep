@@ -1,0 +1,45 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const json=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8').replace(/^\uFEFF/,''));
+const resources=t=>Object.values(t.resources);
+const main=json('artifacts/products/private-data-platform/main.json');
+const factory=resources(main).find(x=>x.type==='Microsoft.Resources/deployments' && x.name==='factory').properties.template;
+const rr=resources(factory);
+const pipeline=name=>rr.find(x=>x.type==='Microsoft.DataFactory/factories/pipelines' && x.name.includes(name));
+assert(rr.every(x=>!x.type.endsWith('/triggers')));
+const stage=pipeline('stage-reviewed-file');
+const launch=pipeline('stage-and-run-reviewed-job');
+assert(stage && launch && pipeline('run-reviewed-notebook'));
+assert(launch.condition && JSON.stringify(launch.condition).includes('databricksJobId'));
+for(const p of [stage,launch]){
+ assert.equal(p.properties.concurrency,1);
+ const entry=p.properties.activities[0];
+ const copy=typeof entry==='string' ? factory.variables.copyActivity : entry;
+ if(typeof entry==='string') assert.equal(entry,"[variables('copyActivity')]");
+ assert.equal(copy.typeProperties.source.storeSettings.deleteFilesAfterCompletion,false);
+ assert.equal(copy.typeProperties.validateDataConsistency,true);
+ assert.equal(copy.typeProperties.parallelCopies,1);
+ assert.equal(copy.policy.retry,0);
+ assert.equal(copy.policy.secureInput,true);
+}
+const activity=launch.properties.activities[1];
+assert.equal(activity.type,'DatabricksJob');
+assert.deepEqual(activity.dependsOn,[{activity:'StageReviewedFile',dependencyConditions:['Succeeded']}]);
+assert(activity.typeProperties.jobId.includes('databricksJobId'));
+assert.equal(activity.typeProperties.jobParameters.batch_id.value,'@pipeline().RunId');
+const job=json('workloads/private-data-platform/databricks/bundle.template.json');
+const config=job.resources.jobs.reviewed_batch;
+assert.equal(config.max_concurrent_runs,1);
+assert.equal(config.queue.enabled,false);
+assert(!config.schedule && !config.trigger && !config.continuous);
+assert.equal(job.run_as.service_principal_name,'${var.run_as_application_id}');
+assert.deepEqual(config.tasks.map(t=>t.task_key),['validate','curate','verify']);
+assert.equal(config.job_clusters[0].new_cluster.data_security_mode,'USER_ISOLATION');
+assert(config.job_clusters[0].new_cluster.policy_id);
+for(const task of config.tasks){assert.equal(task.max_retries,0);assert.equal(task.job_cluster_key,'bounded');}
+assert.equal(config.tasks[1].notebook_task.base_parameters.expected_sha256,'{{tasks.validate.values.source_sha256}}');
+assert.equal(config.permissions[0].level,'CAN_MANAGE_RUN');
+console.log('PASS: manual ADF recipes, dependency/connection bindings and Databricks bundle contracts. No native bundle validation or cloud execution.');

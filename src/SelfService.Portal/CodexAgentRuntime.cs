@@ -50,7 +50,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         var home = Path.Combine(options.RepositoryRoot, ".local", "portal", "agents", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(home);
         // New per-browser home: do not copy desktop auth or inherit desktop plugins, MCP servers or hooks.
-        await File.WriteAllTextAsync(Path.Combine(home, "config.toml"), "model = \"gpt-6-astra\"\nmodel_reasoning_effort = \"high\"\nservice_tier = \"default\"\ncli_auth_credentials_store = \"file\"\nweb_search = \"disabled\"\nproject_doc_max_bytes = 0\n", ct);
+        await File.WriteAllTextAsync(Path.Combine(home, "config.toml"), AgentPolicy.BootstrapConfiguration, ct);
         var start = new ProcessStartInfo(exe) { WorkingDirectory = home, UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
         start.ArgumentList.Add("app-server"); start.ArgumentList.Add("--listen"); start.ArgumentList.Add("stdio://");
@@ -86,7 +86,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
             cursor = models.TryGetProperty("nextCursor", out var next) ? next.GetString() : null;
             if (cursor is null) break;
         }
-        throw new PortalException("GPT-6 Astra is not available to this Codex account. No fallback is allowed.", 409);
+        throw new PortalException($"{AgentPolicy.DisplayName} is not available to this Codex account. No fallback is allowed.", 409);
     }
     public async Task<string> Login(CancellationToken ct)
     {

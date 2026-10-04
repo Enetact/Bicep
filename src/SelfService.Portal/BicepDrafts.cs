@@ -30,7 +30,8 @@ public static class BicepDrafts
         "event-grid/topic/main.bicep", "logic-app/standard/main.bicep", "messaging/service-bus/main.bicep",
         "monitoring/log-analytics/main.bicep", "monitoring/observability/main.bicep", "network/ipam-reservation.bicep",
         "network/private-dns-zone/main.bicep", "network/private-endpoint/main.bicep", "network/workload-vnet/main.bicep",
-        "security/key-vault/main.bicep", "storage/storage-account/main.bicep"];
+        "security/key-vault/main.bicep", "storage/storage-account/main.bicep",
+        "analytics/data-factory/main.bicep", "analytics/databricks-workspace/main.bicep", "storage/data-lake/main.bicep", "compute/private-aks/main.bicep"];
     static readonly string[] SettingKeys = ["owner", "costCenter", "existingLogAnalyticsWorkspaceId", "integrationSubnetId",
         "privateEndpointSubnetId", "privateDnsZoneIds", "deploymentPrincipalObjectId", "consumerPrincipalObjectId",
         "readerPrincipalObjectId", "apiClientId", "allowedClientApplications", "alertActionGroupIds"];

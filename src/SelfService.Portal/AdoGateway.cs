@@ -111,4 +111,26 @@ public sealed class AdoGateway(HttpClient http, ITokenProvider identity, PortalO
         var bytes = await PreviewDiagram.Bounded(stream, 32 * 1024 * 1024, ct);
         return await PreviewDiagram.Read(bytes, p, runId, b.GetProperty("sourceVersion").GetString()!, ct);
     }
+    public async Task<JsonElement> Iac(BrowserSession s,string product,int runId,string environment,bool after,CancellationToken ct)
+    {
+        if(runId<=0)throw new PortalException("Enter a positive run ID.");
+        var p=catalog.Products.SingleOrDefault(p=>p.Id==product)??throw new PortalException("Unknown workload.");
+        var target=p.Targets.SingleOrDefault(t=>t.Environment==environment)??throw new PortalException("Unknown environment.");
+        var d=await Definition(s,p,false);var b=await Send(s,"ado",Api($"build/builds/{runId}"));
+        var definitionId=d.GetProperty("id").GetInt32();var repositoryId=d.GetProperty("repository").GetProperty("id").GetString()!;
+        if(b.GetProperty("definition").GetProperty("id").GetInt32()!=definitionId || b.GetProperty("repository").GetProperty("id").GetString()!=repositoryId || b.GetProperty("sourceBranch").GetString()!="refs/heads/main")
+            throw new PortalException("IaC evidence must come from this workload's registered main pipeline and repository.",403);
+        var name=after?"deployment-result":"deployment-preview";
+        var artifact=await Send(s,"ado",Api($"pipelines/{definitionId}/runs/{runId}/artifacts?artifactName={name}&$expand=signedContent"));
+        if(artifact.GetProperty("name").GetString()!=name)throw new PortalException("Unexpected IaC artifact.",502);
+        var uri=PreviewDiagram.DownloadUri(artifact.GetProperty("signedContent").GetProperty("url").GetString());
+        using var request=new HttpRequestMessage(HttpMethod.Get,uri);
+        using var response=await http.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,ct);
+        if(!response.IsSuccessStatusCode)throw new PortalException("IaC artifact not yet available. Refresh after the stage publishes its evidence.",409);
+        using var stream=await response.Content.ReadAsStreamAsync(ct);
+        var bytes=await PreviewDiagram.Bounded(stream,32*1024*1024,ct);
+        var config=JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root,"self-service/targets",$"{product}.{environment}.json")));
+        return await IacAnalysis.Read(bytes,p with{Targets=[target]},runId,b.GetProperty("sourceVersion").GetString()!,definitionId,repositoryId,config.GetProperty("resourceGroup").GetString()!,after,ct);
+    }
+
 }

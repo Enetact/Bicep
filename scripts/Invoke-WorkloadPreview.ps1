@@ -20,7 +20,7 @@ try {
         if($env:BUILD_SOURCEBRANCH -cne 'refs/heads/main' -or $env:BUILD_REASON -cne 'Manual'){throw 'Preview requires a manually queued main run.'}
         $bundle=Read-WorkloadPreviewInputs $Directory
         if($BoundServiceConnection -cne $bundle.target.serviceConnection){throw 'Preview service connection binding mismatch.'}
-        $null=Invoke-WorkloadInfrastructurePreview $bundle (Join-Path $Directory azure)
+        $null=Invoke-WorkloadInfrastructurePreview $bundle (Join-Path $Directory azure) -CaptureIac
         $status='Preview succeeded; no workload deployment performed'
     }
 }catch{$errorText=$_.Exception.Message;throw}

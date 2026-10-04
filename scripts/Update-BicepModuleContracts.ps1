@@ -17,7 +17,7 @@ $contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*
     $parameters=[ordered]@{};foreach($key in $arm.parameters.Keys|Sort-Object){$parameters[$key]=$arm.parameters[$key]}
     $outputs=[ordered]@{};foreach($key in $arm.outputs.Keys|Sort-Object){$outputs[$key]=@{type=$arm.outputs[$key].type}}
     $resources=if($arm.resources -is [Collections.IDictionary]){@($arm.resources.Values)}else{@($arm.resources)}
-    [ordered]@{id=$id;path=$path;sourceSha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($source))).ToLowerInvariant();draftSelectable=($id -ne 'network-ipam-reservation');parameters=$parameters;outputs=$outputs;resourceTypes=@($resources|ForEach-Object {$_.type}|Sort-Object -Unique)}
+    [ordered]@{id=$id;path=$path;sourceSha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($source))).ToLowerInvariant();draftSelectable=($id -notin @('network-ipam-reservation','analytics-databricks-workspace','analytics-data-factory','storage-data-lake','compute-private-aks'));parameters=$parameters;outputs=$outputs;resourceTypes=@($resources|ForEach-Object {$_.type}|Sort-Object -Unique)}
 })
 $json=ConvertTo-Json -InputObject ([ordered]@{schemaVersion=1;purpose='Source draft contracts, not deployment authorization';modules=$contracts}) -Depth 100
 $path=Join-Path $root 'config/bicep-module-contracts.json'

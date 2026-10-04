@@ -106,3 +106,5 @@ This is a separate workload runtime using real local Functions and Azurite. Run:
 ```
 
 The launcher checks/installs missing tools into ignored project folders; Stop preserves data. This path needs no Azure subscription, Docker, Azure CLI or Bicep. It does not emulate hosted Event flow, Service Bus, Entra or private Azure networking. Read [local prerequisites and troubleshooting](local-development.md), [the execution flow](local-workflow.md) and [dispatcher methods](dispatcher/README.md).
+
+Contributors running the complete qualification suite also need Python 3.10+ for the Private Data Platform recipe contract tests (standard library only). The portal itself does not launch Python for this offering. See [manual recipes](../workloads/private-data-platform/recipes.md).

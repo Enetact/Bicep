@@ -1,20 +1,23 @@
 # Implementation and verification status
 
+**AKS/Helm increment — 4 October 2026:** AKS foundation source, catalog, portal topology and dedicated menus are implemented. The separate Helm pipeline produces Kubernetes render/diff artifacts and guarded deployment receipts. Targets remain disabled; no live cluster, Helm rollout or ADO acceptance is established. Helm launches from native ADO; no separate portal Kubernetes diff screen or agent executor was added. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
 [Wiki home](README.md) · [Overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Validation history](validation.md)
 
-**Source/configuration reviewed: 27 September 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. Documentation consolidation does not rerun those tests or establish new cloud acceptance.
+**Source/configuration reviewed: 4 October 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. The data-platform increment adds local validation; no new cloud acceptance is established.
 
 ## Current inventory
 
 | Item | Checked-in state |
 |---|---|
-| Workloads | Seven types and named instances. |
-| Environment targets | 28 registered; **zero enabled**. |
-| Pipeline entry points | 20 manual roots, including 14 dedicated workload menus. |
+| Workloads | Nine types and named instances. |
+| Environment targets | 36 registered; **zero enabled**. |
+| Pipeline entry points | 25 manual roots, including 18 dedicated workload menus. |
 | Skill definitions | 42 Microsoft Azure skills and eight project skills. |
-| Agent workflows | Six explicitly invoked reviews/drafts. |
-| Recovery policies | Fourteen policies; execution unavailable. |
+| Agent workflows | Seven explicitly invoked reviews/drafts. |
+| Recovery policies | Seventeen policies; execution unavailable. |
 | Tag Apply / AVNM allocation | Both profiles disabled. |
+| Helm application profiles | Four configured examples; zero enabled. |
 
 ## Capability matrix
 
@@ -23,7 +26,9 @@
 | Local portal and Windows packages | Implemented | Local backend/HTTP/browser evidence exists. Packages predate some source increments; rebuild to include current code. Native x64 hardware acceptance is outstanding. |
 | Microsoft browser authentication and ADO integration | Implemented | Separate audience/session controls and local tests; registration, consent and authenticated live workflows need acceptance. |
 | ADO definition registration | Implemented | Reviewed create/reuse/conflict logic for all roots. Local contracts do not establish live registration or permission setup. |
-| Seven workload menus/compositions | Implemented | Local YAML routing, Bicep and product checks recorded. Shared dependencies, complete pricing and per-target Azure acceptance remain required. |
+| Nine workload menus/compositions | Implemented | Local YAML routing, Bicep and product checks recorded. Shared dependencies, complete pricing and per-target Azure acceptance remain required. |
+| Private AKS / Helm | Implemented; targets disabled | 34 mocked AKS checks, real Helm 4.3.0 rendering and 22 application contracts pass. Cluster/namespace onboarding and live installation/upgrade/failure acceptance remain outstanding. |
+| Private Data Platform | Implemented | Databricks Premium/ADF v2/ADLS composition, private connectivity and managed identities compile; 41 mocked domain checks pass. Manual ADF staging/optional Job launch and a parameterized Databricks bundle are also implemented. Endpoint approvals, workspace/UC onboarding, native bundle validation and a controlled data-flow run remain mandatory. |
 | Discovery and saved-run handoff | Implemented | Local coverage/failure/provenance tests and supplied ADO evidence. Discovery does not establish deploy permissions. |
 | Event flow prerequisite resolution | Implemented | Create / Reuse / Manage / Blocked rules and local recheck tests; actual Azure creation/reuse remains unaccepted. |
 | Preview stage and diagrams | Implemented | Azure stack validation/What-If path and guarded artifact reader; local mocked contracts pass. Successful live What-If is not established by the reviewed records. |
@@ -34,7 +39,8 @@
 | Tag governance | Implemented, Apply disabled | Shared collector/rules, structured advice, drafts and protected pipeline source tested locally. Ownership/type qualification and live change verification remain required. |
 | AI-assisted Bicep drafts | Implemented | Typed module bindings and emitted source compiled locally. Drafts remain unqualified; production parameter resolution and admission are incomplete. |
 | Recovery rules and policy UI | Implemented | Offline assessor and policy annotations tested; caller assertions remain unverified and never authorize execution. |
-| Durable before/after timeline and restore execution | Planned | Completed portal runs reload Preview. Trusted retained-release reader, verified final diagram and protected restore executor are absent. |
+| Before/What-If/after IaC comparison | Implemented; locally verified | Pipeline Microsoft Azure MCP + ARM captures, hash-bound portal reader, existing-only Bicep inventory and explicit Codex visualizer review. See [coverage and acceptance](agentic-iac.md). No live acceptance claimed. |
+| Durable retained-release store and restore execution | Planned | ADO artifact retention is used for the new phase history. No universal final-state proof, backup or protected restore executor. |
 | Blob copy local runtime | Implemented | Recorded real Functions/Azurite transfer and recovery evidence. Not every clean-machine/architecture installation path is qualified; Azure runtime acceptance remains outstanding. |
 | Event flow and starter application runtimes | Implemented | Source/package/compile contracts recorded. Hosted triggers, delivery, private access, identity propagation and product smoke need Azure acceptance. |
 | Cost estimates | Implemented with gaps | Dated references, freshness rules and exclusions exist. Newer products explicitly lack complete estimates; no live billing or enforced budget integration. |

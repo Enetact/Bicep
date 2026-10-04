@@ -27,15 +27,15 @@ export function setupAgents({ api, data, notice }) {
   const opts = (id, values) => { $(id).replaceChildren(...values.map(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.name; return o; })); };
   function fields() {
     const w = selected(); if (!w) return;
-    $('agent-network-fields').hidden = w.scope !== 'resource-group' || !!networkReportId; $('agent-workload-fields').hidden = !['workload', 'preview', 'composition'].includes(w.scope);
+    $('agent-network-fields').hidden = w.scope !== 'resource-group' || !!networkReportId; $('agent-workload-fields').hidden = !['workload', 'preview', 'composition', 'iac'].includes(w.scope);
     $('agent-network-snapshot').hidden = !networkReportId || !['resource-group', 'composition'].includes(w.scope); $('agent-clear-snapshot').hidden = $('agent-network-snapshot').hidden;
     $('agent-draft-fields').hidden = w.scope !== 'composition';
-    $('agent-preview-field').hidden = w.scope !== 'preview'; $('agent-limits').textContent = w.limits;
+    $('agent-preview-field').hidden = !['preview','iac'].includes(w.scope); $('agent-iac-phase-field').hidden=w.scope!=='iac'; $('agent-iac-artifact-field').hidden=w.scope!=='iac'; $('agent-limits').textContent = w.limits;
     $('agent-tag-snapshot').hidden = w.scope !== 'tag-evidence';
     $('agent-run').disabled = busy || !w.ready || (w.scope === 'tag-evidence' && !tagEvidence) || (w.scope === 'composition' && (!networkReportId || !$('agent-draft-goal').value.trim()));
     $('agent-connect').disabled = busy || !status.installed || status.provider.ready || String(status.provider.state).includes('Waiting');
     $('agent-groups').disabled = busy || !w.evidenceReady;
-    for (const id of ['agent-workflow','agent-subscription','agent-group','agent-product','agent-environment','agent-region','agent-preview','agent-draft-goal']) $(id).disabled = busy;
+    for (const id of ['agent-workflow','agent-subscription','agent-group','agent-product','agent-environment','agent-region','agent-preview','agent-draft-goal','agent-iac-phase','agent-iac-artifact']) $(id).disabled = busy;
     $('agent-requirements').textContent = `${w.requires} · ${w.ready ? 'Ready to collect evidence and review' : 'Connect the required services to enable this workflow'}`;
   }
   function environments() {
@@ -50,7 +50,9 @@ export function setupAgents({ api, data, notice }) {
     const old = $('agent-workflow').value;
     opts('agent-workflow', status.workflows.map(w => ({ id: w.id, name: w.name })));
     if (old) $('agent-workflow').value = old;
-    $('codex-state').textContent = `${status.provider.state} · GPT-6 Astra · High · Standard`;
+    const policy = status.policy;
+    $('codex-state').textContent = `${status.provider.state} · ${policy.displayName} · ${policy.effortDisplayName} · ${policy.speed}`;
+    $('agent-policy').textContent = `${policy.displayName} · ${policy.effortDisplayName} reasoning · ${policy.speed} speed`;
     $('agent-status').textContent = status.state;
     $('agent-connect').disabled = busy || !status.installed || status.provider.ready;
     $('codex-install').hidden = status.installed;
@@ -83,7 +85,7 @@ export function setupAgents({ api, data, notice }) {
     try {
       const result = await api('agent/run', { workflow: $('agent-workflow').value, subscriptionId: $('agent-subscription').value,
         resourceGroup: $('agent-group').value, product: $('agent-product').value, environment: $('agent-environment').value,
-        region: $('agent-region').value, previewRunId: Number($('agent-preview').value) || null,
+        region: $('agent-region').value, iacArtifact:selected()?.scope==='iac'?$('agent-iac-artifact').value:null, iacPhase: selected()?.scope==='iac'?$('agent-iac-phase').value:null, previewRunId: Number($('agent-preview').value) || null,
         networkReportId: ['resource-group','composition'].includes(selected()?.scope) ? networkReportId : null, evidenceId: selected()?.scope === 'tag-evidence' ? tagEvidence?.id : null, resourceIds: selected()?.scope === 'tag-evidence' ? tagEvidence?.resourceIds : null,
         draftGoal: selected()?.scope === 'composition' ? $('agent-draft-goal').value.trim() : null });
       $('agent-review').textContent = result.review; $('agent-receipt').textContent = JSON.stringify(result.receipt, null, 2);
@@ -105,6 +107,12 @@ export function setupAgents({ api, data, notice }) {
   $('agent-mermaid').addEventListener('click', () => { if (lastResult?.diagram?.source) save(lastResult.diagram.source, 'agent-diagram.mmd', 'text/plain'); });
   $('agent-receipt-download').addEventListener('click', () => { if (lastResult) save(JSON.stringify(lastResult.receipt, null, 2), 'agent-receipt.json', 'application/json'); });
   $('agent-draft-download').addEventListener('click', () => { if(lastResult?.draft?.archiveBase64) save(Uint8Array.from(atob(lastResult.draft.archiveBase64), c => c.charCodeAt(0)), 'bicep-source-draft.zip', 'application/zip'); });
+  window.addEventListener('platform-iac-review', event => {
+    if(busy){notice('Wait for the current agent review before changing its evidence.',true);return;}
+    const r=event.detail;$('agent-workflow').value='iac';$('agent-product').value=r.product;environments();$('agent-environment').value=r.environment;
+    $('agent-region').value=r.region;$('agent-preview').value=r.runId;$('agent-iac-phase').value=r.phase;$('agent-iac-artifact').value=r.artifact;fields();
+    notice('IaC phase selected. Click Run to send the saved projected evidence to Codex for advisory review.');
+  });
   window.addEventListener('platform-network-report', event => { networkReportId = event.detail.id; $('agent-network-snapshot').textContent = 'Using your latest network discovery snapshot. Review sends this projected evidence to Codex; it does not scan again or authorize changes.'; $('agent-workflow').value = 'visualize'; fields(); });
   $('agent-clear-snapshot').addEventListener('click', () => {networkReportId = null; fields();});
   window.addEventListener('platform-tag-evidence', event => { tagEvidence=event.detail; $('agent-workflow').value='tagging'; $('agent-tag-snapshot').textContent=`Using saved tag evidence for ${tagEvidence.resourceIds.length} selected resources. Click Run to send the approved projection to Codex.`; fields(); });

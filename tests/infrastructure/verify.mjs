@@ -294,6 +294,19 @@ check('AVNM exact-prefix creation follows reservation and a separate protected a
   assert.equal(document('azure-pipelines-network.yml').lockBehavior,'sequential');
   assert.match(read('scripts/Invoke-ReservedNetwork.ps1'),/whatIfHash/); assert.match(read('scripts/Invoke-ReservedNetwork.ps1'),/No implicit adoption|no implicit adoption/);
 });
+check('Helm defaults to manual Preview on a private pool with no deployment job',()=>{
+  const pipeline=document('azure-pipelines-helm.yml');assert.equal(pipeline.trigger,'none');assert.equal(pipeline.pr,'none');assert.equal(pipeline.lockBehavior,'sequential');
+  assert.equal(pipeline.pool.name,'windows-default');assert.deepEqual(expand('azure-pipelines-helm.yml').map(s=>s.stage),['Preview']);
+  for(const profile of Object.values(json('config/helm-targets.json').profiles)) assert.equal(profile.enabled,false);
+});
+check('Helm Apply consumes only current-run Preview under the matching protected environment',()=>{
+  for(const environment of ['dev','qa','uat','prod']){
+    const stages=expand('azure-pipelines-helm.yml',{environment,operation:'Preview and deploy'});assert.deepEqual(stages.map(s=>s.stage),['Preview','Deploy']);
+    const deploy=stages[1];assert.equal(deploy.dependsOn,'Preview');assert.match(deploy.condition,/refs\/heads\/main/);assert.equal(deploy.jobs[0].environment,'aksapps-'+environment);
+    const steps=deploy.jobs[0].strategy.runOnce.deploy.steps;assert(steps.some(s=>s.download==='current'&&s.artifact==='helm-preview'));
+    assert(steps.some(s=>s.inputs?.inlineScript?.includes('-Mode Deploy')));
+  }
+});
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');
 console.log(`PASS: ${cases.length} pipeline/infrastructure contracts; ${yamlFiles.length} YAML files. No Azure calls or ADO server expansion.`);

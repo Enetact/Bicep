@@ -1,5 +1,12 @@
 # Self-service expansion and enhancement plan
 
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** Private AKS foundation and a bounded stateless Helm application path now have local source implementation and targeted checks. Remaining work includes live acceptance, cluster maintenance/upgrade orchestration, Gateway API ingress, managed Prometheus/Container Insights, signed-image policy, OCI chart promotion and a dedicated portal Helm request/diff experience. None is implied by the new catalog card. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**4 October 2026 delivered source increment:** [Private Data Platform](../workloads/private-data-platform/README.md) adds Databricks Premium/ADF v2/ADLS, private connectivity, identities, diagnostics and a manual notebook pipeline. [Delivery plan](plans/private-data-platform.md) records the bounded network profile. Remaining phases: live Azure acceptance, governed identity/Unity Catalog bootstrap, compute policy and business datasets/pipelines, shared portal endpoint reuse, CMK/serverless/hub networking profiles, complete pricing and recovery qualification. No target is enabled by this increment.
+
 [Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
 
 **Recovery policy increment delivered:** R2 now has [fourteen policies, offline rule checks and portal explanations](recovery-rules.md), with Preview and receipt annotations. This is partial R2 delivery: no verified historical-release eligibility or protected executor exists, and R1's durable before/after evidence remains required. No automatic rollback or Azure resource-group rollback-on-error was added.
@@ -26,6 +33,8 @@
 **Status: offline reporting, portal discovery and five additional workload implementations delivered; remaining roadmap proposed.** Reviewed 27 September 2026. Phased implementation is authorized by the repository operator; resource creation, deletion, new permissions, spending and live acceptance still follow their explicit target/profile gates. Priorities below are not delivery dates or claims of completed future work.
 
 **Implementation readiness:** the [final design review and validation plan](plans/enhanced-self-service-validation.md) is the controlling implementation sequence. Offline contracts/reporting are ready to build; automatic allocation and live promotion require the listed ADO, IPAM and Azure acceptance gates. The review corrects approval-stage timing and consolidates evidence, compatibility and recovery requirements.
+
+**Manual data recipes delivered in source:** [quick setup](../workloads/private-data-platform/recipes.md) now covers Binary staging, optional native Job orchestration and a three-task Databricks bundle. Governed ADO workspace-bundle publication, larger/incremental workloads and live acceptance remain future qualification.
 
 ## Outcome and starting point
 

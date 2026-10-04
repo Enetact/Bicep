@@ -1,5 +1,58 @@
 # Validation evidence
 
+## 4 October 2026 - GPT-6.1 Sol / Ultra model policy
+
+Migrated the active AHP-coordinated Codex integration to `gpt-6.1-sol`, `ultra` reasoning and explicit `default` (Standard) speed. `AgentPolicy` now supplies the CLI bootstrap configuration, AHP display name and HTTP/UI policy descriptor. Model and effective-thread checks reject substitutions; Standard is verified from the thread response rather than requiring it in a catalog list of optional speed tiers. Read-only MCP scope, disabled delegation, browser isolation and deployment authorization are unchanged.
+
+- **206 backend tests passed, one optional native Codex handshake test skipped**. Added checks for the exact policy, lower-effort rejection, provider substitutions and catalogs listing only optional Fast tiers. Receipt: `artifacts/codex-61/portal.trx`.
+- **35 local HTTP checks and seven AHP coordination/policy checks passed** against an isolated, unauthenticated ARM64 portal at port 5101. The test host was stopped; the existing portal was untouched. HTTP receipt: `artifacts/codex-61/http-smoke.json`.
+- Generated the installed **Codex 0.160.0** app-server schema locally. Its reasoning field accepts advertised strings; `serviceTierForTurn` explicitly documents `default` as Standard. The inspected local Codex model cache lists `gpt-6.1-sol` with `ultra`; this does not prove availability in a newly authenticated portal session. Schema evidence: `artifacts/codex-61/schema/`.
+
+No model inference, completed login, Azure/ADO operation, production portal restart or portable-package rebuild was performed. Rebuild/restart and reconnect before manual model acceptance. Earlier entries and the `codexAgentWorkflows` JSON record retain the model used on their historical test date; they are not the active policy. See [agent workflows](agent-workflows.md).
+
+## 4 October 2026 - Shared agentic IaC evidence
+
+Implemented the shared pipeline Microsoft Azure MCP before/plan/after collector, safe configuration projection, existing-only Bicep inventory, hash-bound portal reader, phase views and an explicit AHP/Codex visualizer workflow. The existing protected Preview/Deploy path remains authoritative; 36 workload targets remain disabled.
+
+Local verification:
+
+- `Test-IacAnalysis.ps1 -SkipRestore`: **20 Node contracts**, actual MCP 2.0.5 initialize/tools-list handshake (two read-only tools, **zero Azure calls**), generated existing-only Bicep compilation and the real PowerShell/Node stdin/artifact wrapper with a mocked credential and empty plan, including failure on repeat without retaining the previous successful prediction. The compiler emits the expected unused-existing-resource warning because this file is an inventory, not a deployment.
+- **201 portal tests passed / one optional native Codex test skipped**, including 15 new artifact provenance/tamper/scope/projection and validated-diagram cases. Isolated build/test receipt: `artifacts/iac/iac-portal.trx`.
+- **27 mocked Preview/Deploy contracts** passed, including before/plan capture on governance rejection, after collection on partial apply, preservation of the primary failure, withholding readiness on failed observation and no after snapshot when drift stops mutation. Receipt: `artifacts/preview-tests/07dbeccf6ff94688a45596435c9158c4/results.json`.
+- **35 real local HTTP checks** passed on an isolated unconfigured ARM64 portal at port 5099. That owned test host was stopped; the existing portal was untouched. Receipt: `artifacts/portal-tests/http-smoke.json`.
+- **Eight local DOM assertions** exercised the actual `iac.mjs` renderer with synthetic evidence: phase views, image-only SVG, comparison table, exact Preview/Deploy artifact handoff and unavailable-after handling. Receipt: `artifacts/iac/dom-check.json`.
+- **169 infrastructure/pipeline contracts across 42 YAML files**, catalog verification for 36 target selections, and repository hygiene (**19 ignore probes / 259 source paths**) passed. npm audit reported **zero known advisories** for the locked collector dependencies; receipt: `artifacts/iac/npm-audit.json`.
+
+No authenticated Azure queries, ADO mutations/deployments, Codex inference, new portable package build, target enablement, git commit or push were performed. The installed MCP handshake establishes local transport/schema compatibility only. Live MCP payload behavior, service-connection permissions, real What-If/after resources, ADO artifact download compatibility and end-to-end agent output remain to be accepted using [the manual checklist](agentic-iac.md#manual-acceptance). The source-manifest check is run after the final documentation edits; it does not establish cloud readiness.
+
+
+## 4 October 2026 - Manual analytics recipes
+
+Extended Private Data Platform with source-owned Binary datasets, `stage-reviewed-file`, optional `stage-and-run-reviewed-job`, deployment-bound connections, a three-task Databricks bundle and `Export-DataPlatformRecipes.ps1`. No ADF schedule, file-arrival trigger, automatic job run, credential or cloud publication was introduced. Recipe source is copied to an ignored local setup export; actual workspace publication remains an explicit operator action.
+
+Final local checks: composition/stack and four environment files compile; **44 mocked data-platform contracts**, **four exporter contracts**, **10 Python domain tests**, compiled ADF/bundle structural checks, **114 product contracts**, **10 ProductFunctions tests**, **186 portal tests passed / one optional native-agent test skipped**, **150 pipeline/infrastructure checks across 37 YAML files**, **seven topology tests** and repository hygiene (**15 ignore probes / 214 source paths**) passed. Catalog and compiler-derived module checks remain required and separate from cloud acceptance. Python 3.10+ standard library tests are now part of the product qualification path.
+
+Receipts: `artifacts/data-platform/recipe-tests/66f1797920654930a8266c4e85f69b99/results.json`, `artifacts/product-tests/7f331bb38cbb4ddaa55483cd997acbc7/results.json`, `artifacts/data-platform/data-recipes-portal.trx`. The latest domain receipt at `artifacts/data-platform/contracts.json` supersedes the earlier 41-case local artifact. The initial recipe structural test needed to resolve the compiler's shared Copy activity variable; its final rerun passed.
+
+No Spark/Delta runtime, actual native ADF Job activity, Databricks CLI bundle validation/publication, Azure data access, ADO server expansion or end-to-end acceptance was executed. Offline bundle checks do not validate its live workspace permissions or native CLI compatibility. No target enablement, service restart, portable packaging, push or commit was performed. Follow [manual setup and acceptance](../workloads/private-data-platform/recipes.md).
+
+## 4 October 2026 - Private Data Platform
+
+Added `private-data-platform` / `dataplat`: three resource modules, composition/stack/four disabled environment profiles, dedicated Discover/Deploy roots, portal summaries/proposed topology, existing advisor context and ManualRecovery policy. Current source has eight offerings, 32 disabled targets and 22 manual pipeline roots. The three new modules are inventoried but excluded from generic AI source drafts until independently qualified.
+
+Local verification:
+
+- Final composition, subscription stack and all four environment files compiled; compiler-derived contracts cover 16 modules (12 selectable).
+- **114 product contracts** passed, covering typed requests, compiled products/wrappers, saved evidence, bundle roundtrips, tamper rejection and mocked plans. Receipt: `artifacts/product-tests/8a8edc547f4547a5a6739d7576d86e29/results.json`.
+- **41 data-platform contracts** passed with mocked Azure readers: malformed/scope inputs, discovery coverage, subnet delegation/size, NSGs/NAT, browser-auth region/approval/DNS, post-deploy root firewall/endpoint approval checks and sensitive What-If rejection. Receipt: `artifacts/data-platform/contracts.json`.
+- **10 ProductFunctions tests**, **186 portal tests passed / one optional native agent test skipped**, **11 Node topology/recovery tests**, **54 recovery rules** and **22 Preview contracts** passed. Portal receipt: `artifacts/data-platform/data-platform-portal.trx`.
+- **150 pipeline/infrastructure contracts across 37 YAML files** passed. Catalog generation check passed for 32 targets. These checks do not perform ADO server-side YAML expansion.
+- Repository hygiene: **15 ignore probes and 212 source paths** passed. New source remains untracked for the user's review/commit; no ignored artifacts were staged.
+
+The first portal regression exposed old fixed counts for modules/registration. Updated the reviewed module path allowlist and expectations; the final rerun passed. Databricks `computeMode`, deployment-start-known loop IDs and typed ADF properties were corrected during local compilation. Final root-storage firewall/endpoint composition was recompiled after those changes.
+
+No Azure deployment, ADO definition registration/run, notebook execution, real managed identity/Unity Catalog acceptance, model invocation, target enablement or external permission change was performed. Azure operations in adapter tests are mocked. No portable packages were rebuilt or existing portal restarted. This is targeted qualification, not a new full-project or live end-to-end pass. Follow the [manual acceptance sequence](../workloads/private-data-platform/README.md#manual-azure-acceptance).
+
 ## Recovery policy implementation: 27 September 2026
 
 Delivered fourteen workflow recovery policies, a deterministic non-authorizing offline assessor, portal policy views and workload Preview/Deploy policy annotations. `./scripts/Test-RecoveryRules.ps1` passed **54 contracts**, including required/typed checks, unknown outcomes, unsupported changes, scope/ID checks, tag conflicts, package requirements, CLI blocked exit status and preserved receipts. Final evidence: `artifacts/recovery-tests/845ab2849ba149fc81200734880b9eb1/results.json`. `./scripts/Test-WorkloadPreview.ps1` passed **22 mocked contracts**, including new policy summary/receipt assertions; evidence: `artifacts/preview-tests/6a70c9d485ef4bb5a7a781196be52886/results.json`. **Four** Node recovery-view tests passed; **133** pipeline contracts passed over 35 YAML files.
@@ -494,3 +547,20 @@ Documentation-only review: the root README is now a concise landing page, with a
 - Checked local Markdown links, heading anchors and balanced code fences across the changed guides. Source/configuration counts and the machine-readable documentation review were refreshed from this checkout.
 - Kept implementation, local verification, observed ADO runs and outstanding Azure acceptance distinct. Resource Visualizer, scope/coverage limits and the recovery policy versus executor boundary remain documented.
 - No runtime tests, service restarts, Azure calls, ADO writes, target enablement or package rebuilds were performed for this documentation change. Earlier test results do not represent a new full-suite run.
+
+
+## Private AKS and Helm delivery — 4 October 2026
+
+Implemented the ninth workload (`private-aks` / `aksapps`), its two generated menus, specialized prerequisite/verification adapter, a separate manual Helm Preview/Deploy root and restricted stateless application chart. Four foundation targets and four Helm profiles remain disabled. Catalog: 36 workload targets, 25 root pipelines, 17 module contracts (12 draft-selectable), 17 recovery policies.
+
+Local evidence for this increment:
+
+- AKS composition, subscription wrapper and four environment parameter files compiled. `Update-BicepModuleContracts.ps1 -Check`: **17 source-matching compiled contracts**. No ARM deployment/What-If was called.
+- `Test-Aks.ps1`: **34 assertions**, including overlap/size/identity/DNS/role/version rejection and What-If security gates. Azure reads are mocked.
+- Official Helm **4.3.0 Windows ARM64** binary was downloaded to ignored artifacts and its published SHA-256 checked. `Test-HelmDelivery.ps1`: real lint/package/template plus **22 contract assertions**, including first-install empty state, foreign ownership/pending/denied cases, security rendering, artifact/source/run/expiry checks and client/server version skew. Kubernetes responses are mocked. Final receipt: `artifacts/helm-tests/ce0e952699104403a4234d0dc8d258f1/results.json`. No kubectl server dry-run, real diff, Helm install or OCI publication occurred.
+- `Test-Products.ps1 -SkipCompile`: **131 shared product contracts**, existing data recipe regression checks, and **10 ProductFunctions tests**. Product receipt: `artifacts/product-tests/9ae034d0d10a467f80e75e9d3a576ffc/results.json`. The later AKS-only gate increment was separately retested above.
+- `node tests/infrastructure/verify.mjs`: **169 contracts across 40 pipeline YAML files**, including manual Helm stages and same-run artifact/protected environment routing. This is local expression expansion, not ADO server validation.
+- Isolated portal Release tests: **186 passed, one optional native-agent test skipped**, no failures. Receipt: `artifacts/aks/aks-portal.trx`. The running portal was not rebuilt in place or restarted.
+- `Test-RecoveryRules.ps1`: **54 contracts**. Node topology/recovery: **11 tests**. `Update-ServiceCatalog.ps1 -Check`: **36 selections**. Hygiene: **19 ignored-private-path probes / 250 eligible source paths**. Changed JSON/PowerShell syntax and local Markdown links were checked.
+
+No live Azure/Codex/ADO/Kubernetes acceptance, full Test-Project run or new Windows distribution package is claimed. The [AKS/Helm guide](../workloads/private-aks/README.md) defines platform onboarding, costs, remaining capabilities and manual acceptance. Existing dirty data-platform changes were preserved; nothing was committed, pushed, deployed or enabled.

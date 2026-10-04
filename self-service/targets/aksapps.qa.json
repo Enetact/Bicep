@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "private-aks",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "aksapps",
+  "environmentName": "qa",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-aksapps-qa",
+  "parameterFile": "workloads/private-aks/environments/main.qa.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "blob-transfer-private",
+  "deploymentEnvironment": "aksapps-qa",
+  "smokePrefix": "smoke/"
+}

@@ -4,9 +4,14 @@ namespace SelfService.Portal;
 
 public static class AgentPolicy
 {
-    public const string Model = "gpt-6-astra";
-    public const string Effort = "high";
+    public const string Model = "gpt-6.1-sol";
+    public const string DisplayName = "GPT-6.1 Sol";
+    public const string Effort = "ultra";
+    public const string EffortDisplayName = "Ultra";
+    public const string Speed = "Standard";
     public const string Tier = "default"; // Codex app-server: explicit standard speed, never inherit Fast.
+    public static object Descriptor => new { model = Model, displayName = DisplayName, effort = Effort, effortDisplayName = EffortDisplayName, serviceTier = Tier, speed = Speed };
+    public static string BootstrapConfiguration => $"model = \"{Model}\"\nmodel_reasoning_effort = \"{Effort}\"\nservice_tier = \"{Tier}\"\ncli_auth_credentials_store = \"file\"\nweb_search = \"disabled\"\nproject_doc_max_bytes = 0\n";
     public static object Isolation => new Dictionary<string, object>
     {
         ["model_reasoning_effort"] = Effort, ["service_tier"] = Tier,
@@ -23,9 +28,10 @@ public static class AgentPolicy
     public static void ValidateModel(JsonElement model)
     {
         if (model.GetProperty("model").GetString() != Model ||
-            !model.GetProperty("supportedReasoningEfforts").EnumerateArray().Any(x => x.GetProperty("reasoningEffort").GetString() == Effort) ||
-            !model.TryGetProperty("serviceTiers", out var tiers) || !tiers.EnumerateArray().Any(x => x.GetProperty("id").GetString() == Tier))
-            throw new PortalException("This Codex account does not advertise GPT-6 Astra / High / Standard. No fallback is allowed.", 409);
+            !model.GetProperty("supportedReasoningEfforts").EnumerateArray().Any(x => x.GetProperty("reasoningEffort").GetString() == Effort))
+            throw new PortalException($"This Codex account does not advertise {DisplayName} / {EffortDisplayName}. Update Codex or check account availability. No fallback is allowed.", 409);
+        // Catalog serviceTiers may list only optional Fast tiers. Standard is requested explicitly;
+        // ValidateThread must still verify that the provider accepted the exact speed before inference.
     }
     public static void ValidateThread(JsonElement thread)
     {

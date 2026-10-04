@@ -16,6 +16,7 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-PlatformContracts.ps1"
 & "$PSScriptRoot/Test-DeploymentStacks.ps1"
 & "$PSScriptRoot/Test-WorkloadPreview.ps1"
+& "$PSScriptRoot/Test-IacAnalysis.ps1"
 & "$PSScriptRoot/Test-RecoveryRules.ps1"
 & "$PSScriptRoot/Test-LogicWorkload.ps1"
 & "$PSScriptRoot/Test-LogicPrerequisites.ps1"

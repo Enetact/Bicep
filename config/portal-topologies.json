@@ -433,6 +433,108 @@
           "Identity"
         ]
       ]
+    },
+    "dataplat": {
+      "source": "workloads/private-data-platform/main.bicep",
+      "nodes": [
+        [
+          "lake",
+          "ADLS Gen2",
+          "Identity-only landing and curated filesystems",
+          "lake"
+        ],
+        [
+          "db",
+          "Databricks Premium",
+          "Private VNet-injected workspace and access connector; UC onboarding separate",
+          "databricks"
+        ],
+        [
+          "adf",
+          "Data Factory v2",
+          "Managed VNet/IR, MSI links, manual staging and optional reviewed Job launch",
+          "factory"
+        ],
+        [
+          "pe",
+          "Private endpoints",
+          "7 workload endpoints including managed root Blob/DFS; shared DNS/browser auth/network are prerequisites",
+          "endpoints"
+        ]
+      ],
+      "edges": [
+        [
+          "adf",
+          "db",
+          "Proposed notebook orchestration; approvals and permissions required"
+        ],
+        [
+          "adf",
+          "lake",
+          "Proposed managed private access"
+        ],
+        [
+          "db",
+          "lake",
+          "Proposed Unity Catalog access; grants required"
+        ],
+        [
+          "pe",
+          "db",
+          "Proposed workspace private access"
+        ],
+        [
+          "pe",
+          "adf",
+          "Proposed factory and authoring access"
+        ]
+      ]
+    },
+    "aksapps": {
+      "source": "workloads/private-aks/main.bicep",
+      "nodes": [
+        [
+          "aks",
+          "Private AKS API",
+          "Standard tier, Entra RBAC, private DNS and OIDC",
+          "aks"
+        ],
+        [
+          "pools",
+          "System and app node pools",
+          "Three system nodes; 3-10 app nodes; Azure Linux 3 and Cilium overlay",
+          "aks"
+        ],
+        [
+          "identity",
+          "Application identity",
+          "Exact namespace/service-account federation; data access grants require review",
+          "aks"
+        ],
+        [
+          "logs",
+          "Control-plane diagnostics",
+          "Proposed diagnostic settings to the approved shared workspace",
+          "aks"
+        ]
+      ],
+      "edges": [
+        [
+          "aks",
+          "pools",
+          "Proposed cluster-managed pools"
+        ],
+        [
+          "aks",
+          "identity",
+          "Proposed OIDC federation"
+        ],
+        [
+          "aks",
+          "logs",
+          "Proposed control-plane telemetry"
+        ]
+      ]
     }
   }
 }

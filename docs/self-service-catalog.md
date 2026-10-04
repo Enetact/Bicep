@@ -1,5 +1,12 @@
 # Self-service catalog and how it works
 
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** The current catalog has nine types, 36 disabled workload targets, 18 dedicated menus and 25 root pipelines. Four additional disabled Helm profiles govern application releases. AKS discovery uses the shared product adapter; Helm does not consume a subscription inventory as Kubernetes state. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**4 October 2026 addition:** [Private Data Platform](../workloads/private-data-platform/README.md) adds Databricks Premium, ADF v2 and ADLS Gen2 through the existing product adapter. Current catalog: nine types, 36 disabled targets, 18 dedicated menus and 25 total roots. Earlier dated counts below describe their original increments. [Manual data recipes](../workloads/private-data-platform/recipes.md) add pre-bound staging/native Job orchestration and a local Databricks bundle exporter. Data-plane onboarding and live Azure acceptance remain outstanding.
+
 [Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
 
 **Lifecycle boundary:** saved What-If diagrams and deployment verification receipts exist; a durable before/after timeline and rollback buttons do not. The [deployment state and recovery plan](plans/deployment-state-and-recovery.md) maps each product and operations workflow to eligible configuration restoration, compensation or manual recovery. It adds no catalog offering or pipeline yet.
@@ -11,7 +18,7 @@ The [recovery rules layer](recovery-rules.md) now implements that policy mapping
 
 **Operations workflow:** [Tag governance](tag-governance.md) discovers visible subscription tags, provides deterministic checks and optional structured agent advice, and prepares reviewed ADO or source-owned changes. It is separate from the seven deployment products.
 
-**Pipeline registration:** use the portal **ADO setup** menu for all 20 root entry points, including the fourteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
+**Pipeline registration:** use the portal **ADO setup** menu for all 25 root entry points, including the eighteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
 
 **Network capability update, 27 September 2026:** Network discovery is a separate portal workspace with registered/selected/management-group/accessible-tenant scopes and an AVNM allocation request menu. Agent Mermaid can now render after evidence/grammar validation. The separate `azure-pipelines-network.yml` does not add a workload product or enable any of the 28 targets. See [contracts and tests](network-discovery-and-diagrams.md).
 
@@ -31,7 +38,7 @@ The [connected diagram views](portal-diagrams.md) add observed Azure inventory, 
 
 Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.
 
-A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for seven instances are 28 targets, representing seven products.
+A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for eight instances are 32 targets, representing eight products.
 
 | Item | Blob copy | Event flow |
 |---|---|---|
