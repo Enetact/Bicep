@@ -22,6 +22,7 @@ builder.WebHost.ConfigureKestrel(k => { k.ListenLocalhost(options.Port); k.Limit
 builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("System.Net.Http", LogLevel.None);
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
+builder.Services.AddSingleton<IAzureCliRunner, AzureCliRunner>().AddSingleton<AzureCliIdentity>();
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
 builder.Services.AddTransient<OperationsService>();
@@ -69,10 +70,11 @@ app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Se
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
     products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
     discoveryScopes = catalog.Products.SelectMany(p => p.Targets).DistinctBy(t => t.SubscriptionId).Select(t => new { id = t.SubscriptionId, name = t.Subscription }) });
-app.MapGet("/api/auth", (HttpContext c) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Account?.Username, connected = s.Connected.Keys.ToArray() }; });
+app.MapGet("/api/auth", (HttpContext c, AzureCliIdentity cli) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Cli?.Username ?? s.Account?.Username, tenantId = s.AzureTenantId, mode = s.Cli is not null ? "local-cli" : s.Account is not null ? "registered-app" : null, localCliAvailable = cli.Available, connected = s.Connected.Keys.ToArray() }; });
+app.MapPost("/api/local-auth/{audience}", (HttpContext c, string audience, LocalAuthRequest request, AzureCliIdentity cli) => { cli.Begin(Session(c), audience, request.TenantId); return Results.Accepted(); });
 app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIdentity identity) => { identity.Begin(Session(c), audience); return Results.Accepted(); });
 app.MapPost("/api/cancel-login", (HttpContext c) => { try { Session(c).Login?.Cancel(); } catch (ObjectDisposedException) { } return Results.Ok(); });
-app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { var s = Session(c); await identity.SignOut(s); await s.Agent.DisposeAsync(); return Results.Ok(); });
+app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { await identity.SignOut(Session(c)); return Results.Ok(); });
 app.MapGet("/api/skills/{id}", (string id, Catalog catalog) => catalog.Skills.SingleOrDefault(s => s.Id == id) ?? throw new PortalException("Unknown skill.", 404));
 app.MapGet("/api/recovery/policies", (Catalog catalog) => catalog.RecoveryPolicies);
 app.MapGet("/api/subscriptions", async (HttpContext c, AdoGateway ado) => await ado.Subscriptions(Session(c)));
@@ -139,3 +141,4 @@ app.MapPost("/api/agent/run", async (HttpContext c, AgentRequest request, AgentW
 app.MapGet("/api/agent/resource-groups/{subscription}", async (HttpContext c, string subscription, AzureDiscovery azure) => await azure.ResourceGroups(Session(c), subscription, c.RequestAborted));
 app.Run();
 public partial class Program { }
+public record LocalAuthRequest(string? TenantId);

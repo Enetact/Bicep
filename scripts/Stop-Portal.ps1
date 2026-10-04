@@ -36,5 +36,6 @@ if($p){
     Stop-Process -Id $p.Id
     $p.WaitForExit(10000)|Out-Null
 }
+& (Join-Path $PSScriptRoot 'Clear-PortalAzureCli.ps1') -PortalPid $record.pid -PortalStartedUtc $record.startedUtc
 Remove-Item -LiteralPath $receipt
 Write-Host 'Portal stopped; local reports and logs preserved.'

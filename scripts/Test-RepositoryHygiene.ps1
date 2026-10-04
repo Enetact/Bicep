@@ -20,6 +20,7 @@ try {
 
     $privateProbes=@(
         '.local/portal/agents/example/auth.json','artifacts/portal-agents/example/evidence.json',
+        '.local/portal/azure-cli/example/msal_token_cache.bin','.local/portal/azure-cli/example/owner.json',
         'src/SelfService.Portal/portal.local.json','src/BlobTransfer/local.settings.json',
         '.env','.env.development','.codex/auth.json','.codex/sessions/example.jsonl',
         '.codex/state.sqlite-wal','credentials/msal_token_cache.bin','credentials/client.pfx',

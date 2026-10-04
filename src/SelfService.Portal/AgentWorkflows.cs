@@ -84,7 +84,7 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             else if (workflow.Scope == "tag-evidence")
             {
                 if (tagging is null) throw new PortalException("Tagging adapter unavailable.",409);
-                var full = tagging.Evidence(s, request.EvidenceId ?? ""); tagProfile = tagging.Profile(full.SubscriptionId);
+                var full = tagging.Evidence(s, request.EvidenceId ?? ""); tagProfile = tagging.ProfileFor(s,full.SubscriptionId);
                 if (request.ResourceIds is not { Length: > 0 and <= 50 } || request.ResourceIds.Distinct().Count()!=request.ResourceIds.Length || request.ResourceIds.Any(id=>!full.Resources.Any(r=>r.Id==id))) throw new PortalException("Select 1–50 observed resources for the model review.");
                 tagEvidence = full with { Resources=full.Resources.Where(r=>request.ResourceIds.Contains(r.Id)).Select(r=>r with { Tags=r.Tags.Where(p=>tagProfile.RequiredKeys.Concat(tagProfile.ApprovedCustomKeys).Contains(p.Key,StringComparer.OrdinalIgnoreCase)).ToDictionary(p=>p.Key,p=>p.Value) }).ToArray() };
                 evidence = new { inventory=tagEvidence, findings=TagRules.Analyze(tagEvidence,tagProfile), rules=new { tagProfile.RequiredKeys, tagProfile.ApprovedCustomKeys, protectedKeys=TagRules.Protected, customPrefix="custom." }, projection="Explicit selected resources and approved tag keys only; the digest identifies the original saved inventory." };

@@ -4,7 +4,7 @@ using Microsoft.Identity.Client;
 
 namespace SelfService.Portal;
 
-// One public-client token cache per browser session. Tokens never leave this process.
+// Registered-app tokens stay in memory; optional CLI sessions own an isolated on-disk cache.
 public sealed class BrowserSession(PortalOptions options) : IDisposable
 {
     public string Csrf { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -13,6 +13,7 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public IPublicClientApplication? Client { get; } = options.AuthenticationConfigured ? PublicClientApplicationBuilder.Create(options.ClientId)
         .WithAuthority($"https://login.microsoftonline.com/{options.TenantId}").WithRedirectUri("http://localhost").Build() : null;
     public IAccount? Account { get; set; }
+    public LocalCliSession? Cli { get; set; }
     public string? AzureTenantId { get; set; }
     public ConcurrentDictionary<string, bool> Connected { get; } = new();
     public string State { get; set; } = "Not connected";
@@ -28,7 +29,13 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public Dictionary<string, RegistrationReview> RegistrationPending { get; } = new();
     public ConcurrentDictionary<string, SelfService.Tagging.TagInventory> TagReports { get; } = new();
     public ConcurrentDictionary<string, PendingTagQueue> TagPending { get; } = new();
-    public void Dispose() { Login?.Cancel(); _ = Agent.DisposeAsync(); /* MSAL cache becomes unreachable when session expires. */ }
+    public void ClearMicrosoftEvidence()
+    {
+        Connected.Clear(); Interlocked.Increment(ref NetworkEpoch); Operations.Clear(); NetworkReports.Clear(); NetworkPending.Clear(); TagReports.Clear(); TagPending.Clear();
+        lock (Pending) Pending.Clear(); lock (RegistrationPending) RegistrationPending.Clear();
+    }
+    public void Dispose() { Login?.Cancel(); _ = Agent.DisposeAsync(); _ = CleanupCli(); }
+    async Task CleanupCli() { try { if (Cli is { } cli) await cli.DisposeAsync(); } catch { /* Governed Stop-Portal also removes owned credential caches. */ } }
 }
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
 public sealed class Sessions(PortalOptions options) : IDisposable
@@ -48,7 +55,7 @@ public sealed class Sessions(PortalOptions options) : IDisposable
     }
 }
 public interface ITokenProvider { Task<string> Token(BrowserSession session, string audience); }
-public sealed class BrowserIdentity : ITokenProvider
+public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITokenProvider
 {
     public static string[] Scopes(string audience) => audience switch
     {
@@ -59,6 +66,7 @@ public sealed class BrowserIdentity : ITokenProvider
     public void Begin(BrowserSession s, string audience)
     {
         var scopes = Scopes(audience);
+        if (s.Cli is not null) throw new PortalException("Disconnect Microsoft before switching authentication modes.", 409);
         if (s.Client is null) throw new PortalException("Configure the portal Entra tenant and client ID first.", 409);
         if (!s.Gate.Wait(0)) throw new PortalException("Another session action is in progress.", 409);
         s.Login = new CancellationTokenSource(TimeSpan.FromMinutes(5)); s.State = "Waiting for Microsoft"; s.Error = null;
@@ -94,6 +102,8 @@ public sealed class BrowserIdentity : ITokenProvider
     static string ResultPage(string title, string text) => $"<!doctype html><html lang='en'><meta charset='utf-8'><title>{title}</title><body style='background:#061322;color:#fff;font:18px Segoe UI;padding:12vw'><p style='color:#50e6ff'>PLATFORM STUDIO</p><h1>{title}</h1><p>{text}</p><p>You may close this tab.</p></body></html>";
     public async Task<string> Token(BrowserSession s, string audience)
     {
+        _ = Scopes(audience);
+        if (s.Cli is not null && cliIdentity is not null) return await cliIdentity.Token(s, audience);
         if (s.Client is null || s.Account is null || !s.Connected.ContainsKey(audience)) throw new PortalException($"Connect {audience} first.", 401);
         try { return (await s.Client.AcquireTokenSilent(Scopes(audience), s.Account).ExecuteAsync()).AccessToken; }
         catch (MsalException) { s.Connected.TryRemove(audience, out _); throw new PortalException("Session needs consent or renewal. Connect again.", 401); }
@@ -103,8 +113,9 @@ public sealed class BrowserIdentity : ITokenProvider
         if (!await s.Gate.WaitAsync(0)) { s.Login?.Cancel(); throw new PortalException("Sign-in cancellation requested. Retry disconnect when it finishes.", 409); }
         try
         {
+            if (s.Cli is { } cli) { await cli.DisposeAsync(); s.Cli = null; }
             if (s.Client is not null) foreach (var account in await s.Client.GetAccountsAsync()) await s.Client.RemoveAsync(account);
-            s.Account = null; s.AzureTenantId = null; s.Connected.Clear(); Interlocked.Increment(ref s.NetworkEpoch); s.Operations.Clear(); s.NetworkReports.Clear(); s.NetworkPending.Clear(); s.TagReports.Clear(); s.TagPending.Clear(); lock (s.Pending) s.Pending.Clear(); lock (s.RegistrationPending) s.RegistrationPending.Clear(); s.State = "Not connected"; s.Error = null;
+            s.Account = null; s.AzureTenantId = null; s.ClearMicrosoftEvidence(); s.State = "Not connected"; s.Error = null;
         }
         finally { s.Gate.Release(); }
     }

@@ -48,7 +48,8 @@ public sealed class NetworkDiscovery(HttpClient http, ITokenProvider identity, P
     public async Task<ScopeInventory> Scopes(BrowserSession session, CancellationToken ct)
     {
         if (!options.AllowExpandedNetworkDiscovery) throw new PortalException("Expanded discovery is disabled by local platform configuration.", 403);
-        if (!Guid.TryParse(options.TenantId, out _)) throw new PortalException("Configure the portal tenant before expanded discovery.", 409);
+        var tenantId = session.AzureTenantId ?? options.TenantId;
+        if (!Guid.TryParse(tenantId, out _)) throw new PortalException("Connect Azure before expanded discovery.", 409);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(TimeSpan.FromMinutes(2));
         var token = await identity.Token(session, "azure");
         var subscriptions = await List(token, "/subscriptions?api-version=2022-12-01", timeout.Token);
@@ -60,7 +61,7 @@ public sealed class NetworkDiscovery(HttpClient http, ITokenProvider identity, P
         foreach (var row in subscriptions.Values)
         {
             var tenant = EvidenceDiagram.Text(row, "tenantId"); var id = EvidenceDiagram.Text(row, "subscriptionId");
-            if (!string.Equals(tenant, options.TenantId, StringComparison.OrdinalIgnoreCase) || !Guid.TryParse(id, out var guid) || EvidenceDiagram.Text(row, "state") != "Enabled")
+            if (!string.Equals(tenant, tenantId, StringComparison.OrdinalIgnoreCase) || !Guid.TryParse(id, out var guid) || EvidenceDiagram.Text(row, "state") != "Enabled")
             { issues.Add("A subscription was excluded: tenant membership, identifier or enabled state could not be qualified."); continue; }
             permitted.Add(new(guid.ToString(), EvidenceDiagram.Text(row, "displayName") ?? guid.ToString()));
         }
@@ -68,11 +69,11 @@ public sealed class NetworkDiscovery(HttpClient http, ITokenProvider identity, P
         foreach (var row in groups.Values)
         {
             var name = EvidenceDiagram.Text(row, "name"); var p = EvidenceDiagram.Part(row, "properties");
-            if (name is null || !Regex.IsMatch(name, "^[a-zA-Z0-9_.()-]{1,90}$") || !string.Equals(EvidenceDiagram.Text(p, "tenantId"), options.TenantId, StringComparison.OrdinalIgnoreCase))
+            if (name is null || !Regex.IsMatch(name, "^[a-zA-Z0-9_.()-]{1,90}$") || !string.Equals(EvidenceDiagram.Text(p, "tenantId"), tenantId, StringComparison.OrdinalIgnoreCase))
             { issues.Add("A management group was excluded because its ID or tenant could not be verified."); continue; }
             management.Add(new(name, EvidenceDiagram.Text(p, "displayName") ?? name));
         }
-        return new(options.TenantId, Success(subscriptions.Status) ? "VisibleScopes" : "Partial", permitted.DistinctBy(s => s.Id).ToArray(), management.DistinctBy(g => g.Id).ToArray(), issues.Distinct().ToArray());
+        return new(tenantId, Success(subscriptions.Status) ? "VisibleScopes" : "Partial", permitted.DistinctBy(s => s.Id).ToArray(), management.DistinctBy(g => g.Id).ToArray(), issues.Distinct().ToArray());
     }
     public async Task<object> Discover(BrowserSession session, NetworkScopeRequest request, CancellationToken ct)
     {
@@ -93,12 +94,12 @@ public sealed class NetworkDiscovery(HttpClient http, ITokenProvider identity, P
             if (!options.AllowExpandedNetworkDiscovery) throw new PortalException("Expanded discovery is disabled by local platform configuration.", 403);
             var scopes = await Scopes(session, timeout.Token); issues.AddRange(scopes.Issues);
             if (scopes.Status == "Partial") throw new PortalException("Subscription enumeration is incomplete. Retry scope discovery before scanning.", 409);
-            membership = "Caller-visible subscriptions in configured tenant; undisclosed subscriptions remain unknown. Resource-level visibility is not complete tenant coverage.";
+            membership = "Caller-visible subscriptions in authenticated tenant; undisclosed subscriptions remain unknown. Resource-level visibility is not complete tenant coverage.";
             if (request.Mode == "tenant") selected.AddRange(scopes.Subscriptions);
             if (request.Mode == "selected")
             {
                 if (request.SubscriptionIds is not { Length: > 0 }) throw new PortalException("Select subscriptions.");
-                foreach (var id in request.SubscriptionIds.Distinct(StringComparer.OrdinalIgnoreCase)) selected.Add(scopes.Subscriptions.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) ?? throw new PortalException("Subscription is outside the visible configured tenant.", 403));
+                foreach (var id in request.SubscriptionIds.Distinct(StringComparer.OrdinalIgnoreCase)) selected.Add(scopes.Subscriptions.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) ?? throw new PortalException("Subscription is outside the visible authenticated tenant.", 403));
             }
             if (request.Mode == "managementGroup")
             {
@@ -134,7 +135,7 @@ public sealed class NetworkDiscovery(HttpClient http, ITokenProvider identity, P
         var provisional = JsonSerializer.SerializeToElement(new { reports }, Json);
         var assessment = NetworkAssessment.Evaluate(provisional);
         var result = new { schemaVersion = 2, kind = "portal-network-discovery", id = idReport, generatedUtc = DateTimeOffset.UtcNow,
-            tenantId = options.TenantId, request, resolvedSubscriptions = selected, reports, assessment,
+            tenantId = session.AzureTenantId ?? options.TenantId, request, resolvedSubscriptions = selected, reports, assessment,
             status = issues.Count == 0 && reports.All(r => EvidenceDiagram.Text(r, "status") == "Collected") ? (reports.Count == 0 ? "CollectedEmpty" : "Collected") : "Partial",
             membershipCoverage = membership, issues, readOnly = true, allocationAuthorized = false, deploymentAuthorized = false };
         var directory = Path.Combine(options.RepositoryRoot, "artifacts/portal-network", idReport); Directory.CreateDirectory(directory);

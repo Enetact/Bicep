@@ -8,6 +8,14 @@ namespace SelfService.Portal.Tests;
 
 public sealed class NetworkDiscoveryTests
 {
+    [Fact] public async Task ScopeDropdownUsesAuthenticatedTenantWhenNoAppRegistrationIsConfigured()
+    {
+        var o=Options(); var tenant=o.TenantId; o.TenantId=""; o.ClientId="";
+        using var s=new BrowserSession(o){AzureTenantId=tenant};
+        var service=new NetworkDiscovery(new(new Handler()),new Tokens(),o,new(o));
+        var scopes=await service.Scopes(s,CancellationToken.None);
+        Assert.Equal(tenant,scopes.TenantId); Assert.Single(scopes.Subscriptions); Assert.DoesNotContain(scopes.Subscriptions,x=>x.Id==Other);
+    }
     const string Tenant = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", Sub = "11111111-1111-1111-1111-111111111111", Other = "22222222-2222-2222-2222-222222222222";
     static PortalOptions Options() { var d=new DirectoryInfo(AppContext.BaseDirectory); while(d is not null && !File.Exists(Path.Combine(d.FullName,"config/workloads.json")))d=d.Parent;return new(){RepositoryRoot=d!.FullName,TenantId=Tenant}; }
     sealed class Tokens : ITokenProvider { public Task<string> Token(BrowserSession session,string audience) => Task.FromResult("TEST-TOKEN"); }

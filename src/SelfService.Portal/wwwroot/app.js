@@ -76,7 +76,15 @@ function selectionChanged() {
 function updateGates() {
   if (!data) return;
   const waiting = auth.state === 'Waiting for Microsoft';
-  $('connect-ado').disabled = !data.configured || waiting; $('connect-azure').disabled = !data.configured || waiting;
+  const local = $('auth-mode').value === 'local-cli';
+  const ready = local ? auth.localCliAvailable : data.configured;
+  $('auth-mode').disabled = waiting || !!auth.mode;
+  $('local-auth-tenant').disabled = waiting || !!auth.mode;
+  $('local-auth-settings').hidden = !local;
+  $('setup').hidden = local || data.configured;
+  $('connect-local').disabled = !auth.localCliAvailable || waiting || auth.connected.includes('azure');
+  $('connect-ado').disabled = !ready || waiting || auth.connected.includes('ado'); $('connect-azure').disabled = !ready || waiting || auth.connected.includes('azure');
+  $('local-cli-status').textContent = auth.localCliAvailable ? 'Azure CLI found on this device · local authentication available' : 'Azure CLI not found. Install Microsoft Azure CLI, then restart the portal to refresh PATH. See docs/local-portal.md.';
   $('subscriptions').disabled = !auth.connected.includes('azure');
   $('review').disabled = !chosen || !auth.connected.includes('ado') || ($('operation').value !== 'discover' && !$('discovery-run').value);
   $('refresh-discovery').disabled = !auth.connected.includes('ado'); $('cancel-login').hidden = !waiting;
@@ -86,14 +94,25 @@ function updateGates() {
 }
 async function refreshAuth() {
   auth = await api('auth'); $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
-  $('ado-state').textContent = auth.connected.includes('ado') ? 'Connected · delegated access' : 'Not connected';
-  $('azure-state').textContent = auth.connected.includes('azure') ? 'Connected · delegated access' : 'Not connected';
+  if (auth.mode) $('auth-mode').value = auth.mode;
+  const method = auth.mode === 'local-cli' ? 'Local auth · Azure CLI' : 'Registered app';
+  $('auth-context').textContent = auth.mode ? `${method} · ${auth.account ?? 'Sign-in pending'}${auth.tenantId ? ' · Tenant ' + auth.tenantId : ''}` : 'Microsoft and Codex authenticate separately.';
+  $('ado-state').textContent = auth.connected.includes('ado') ? `${method} · ADO token connected; project permissions checked on use` : 'Not connected';
+  $('azure-state').textContent = auth.connected.includes('azure') ? `${method} · Azure token connected; resource access checked on use` : 'Not connected';
   $('auth-detail').textContent = auth.error ?? (auth.state === 'Waiting for Microsoft' ? 'Your default browser is opening Microsoft sign-in. Complete account selection, consent and MFA there. This page will update automatically.' : auth.state === 'Connected' ? 'Connection complete. You can return to Workloads.' : 'Click Connect to open Microsoft sign-in. Cancelled or failed sign-in can be retried.');
   if (auth.state !== 'Waiting for Microsoft') { clearInterval(loginTimer); loginTimer = null; }
   updateGates();
   if (refreshAgents) await refreshAgents();
 }
-for (const audience of ['ado', 'azure']) action('connect-' + audience, async () => { await api('auth/' + audience, {}); await refreshAuth(); if (!loginTimer && auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => { clearInterval(loginTimer); notice(e.message, true); }), 2000); });
+async function connectMicrosoft(audience) {
+  const local = $('auth-mode').value === 'local-cli';
+  await api((local ? 'local-auth/' : 'auth/') + audience, local ? { tenantId: $('local-auth-tenant').value.trim() || null } : {});
+  await refreshAuth();
+  if (!loginTimer && auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => { clearInterval(loginTimer); notice(e.message, true); }), 2000);
+}
+$('auth-mode').addEventListener('change', updateGates);
+action('connect-local', () => connectMicrosoft('azure'));
+for (const audience of ['ado', 'azure']) action('connect-' + audience, () => connectMicrosoft(audience));
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
 action('disconnect', async () => { await api('disconnect', {}); window.dispatchEvent(new Event('platform-disconnected')); await refreshAuth(); });
 action('subscriptions', async () => { const subscriptions = await api('subscriptions'); $('subscription-list').replaceChildren(...subscriptions.map(s => make('p', `${s.name} · ${s.state}`))); if (!subscriptions.length) $('subscription-list').textContent = 'No registered subscriptions are visible to this account.'; });
