@@ -24,6 +24,9 @@ function drawProposal() {
     let naming = $('naming-draft');
     if (!naming) { naming = make('section'); naming.id = 'naming-draft'; $('workload-diagram').before(naming); }
     renderNamingEditor(naming, api, chosen, t, $('region').value);
+    const label = make('label', 'Preview naming instance'), select = make('select'); select.id = 'preview-naming-instance';
+    options(select, [{id:'legacy', name:'Existing target naming'}, ...(data.naming.previewInstances ?? []).filter(n => n.workloadType === chosen.type && n.environment === t.environment && n.region === $('region').value && n.subscriptionId.toLowerCase() === t.subscriptionId.toLowerCase()).map(n=>({id:n.id,name:`${n.name} · ${n.id} · Preview only`}))], n=>n.name);
+    select.addEventListener('change', clearPreview); label.append(select); label.hidden = $('operation').value !== 'preview'; naming.prepend(label);
   }
   $('workload-observed').hidden = !discoveryReport || discoveryReport.subscriptionId.toLowerCase() !== t.subscriptionId.toLowerCase();
   $('workload-observed-diagram').replaceChildren();
@@ -45,6 +48,8 @@ async function loadPreview(product, runId) {
     if (report.environment !== $('environment').value) throw new Error(`This Preview is for ${report.environment}. Select that environment to view it.`);
     if (report.region !== $('region').value) throw new Error(`This Preview is for ${report.region}. Select that region to view it.`);
     renderTopology($('preview-diagram'), previewTopology(report));
+    const names = make('section'); $('preview-diagram').append(names);
+    renderResourceNames(names, report.resources.map(r=>({...r,status:`${r.action} · ${r.certainty || 'unknown'}`})), 'Resource names from Azure What-If', report.coverage);
     $('preview-message').textContent = `Saved evidence from run ${runId}. Compare with the proposed components above; this does not confirm deployment.`;
   } catch (e) { if (version === selectionVersion) $('preview-message').textContent = `Preview unavailable: ${e.message}`; }
 }
@@ -184,6 +189,7 @@ $('discovery-to-workloads').addEventListener('click', () => { page('workloads');
 action('refresh-discovery', async () => { const found = await api('discovery/' + chosen.id); options($('discovery-run'), [{ id: '', name: 'Choose a matching discovery run' }, ...found], v => v.name + (v.finished ? ` · ${new Date(v.finished).toLocaleString()}` : '')); if (!found.length) notice('No successful main discovery runs from the last seven days were found. Run Discover first.'); });
 action('review', async () => {
   const request = { product: chosen.id, environment: $('environment').value, region: $('region').value, operation: $('operation').value, discoveryRunId: Number($('discovery-run').value) || null };
+  if (request.operation === 'preview' && $('preview-naming-instance')?.value && $('preview-naming-instance').value !== 'legacy') request.namingInstanceId = $('preview-naming-instance').value;
   const review = await api('review', request); ticket = review.ticket; reviewedProduct = { id: chosen.id, environment: request.environment, region: request.region, operation: request.operation };
   $('review-warning').textContent = review.warning; $('review-payload').textContent = JSON.stringify(review.payload, null, 2); $('confirmation').showModal();
 });
@@ -223,11 +229,23 @@ async function pollRuns() {
   finally { polling = false; }
 }
 async function fileBase64(input) { const f = input.files[0]; if (!f || f.size > 16 * 1024 * 1024) throw new Error('Choose both JSON files, at most 16 MiB each.'); const bytes = new Uint8Array(await f.arrayBuffer()); let text = ''; for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(text); }
+let analysisVersion = 0;
+function clearAnalysis() {
+  analysisVersion++;
+  $('analysis-result').hidden = true;
+  $('analysis-text').textContent = ''; $('analysis-location').textContent = '';
+  $('analysis-names')?.replaceChildren(); $('diagrams').replaceChildren();
+  diagramUrls.splice(0).forEach(URL.revokeObjectURL);
+  $('notice').hidden = true; $('notice').textContent = '';
+}
+for (const id of ['manifest', 'inventory']) $(id).addEventListener('change', clearAnalysis);
 action('analyze', async () => {
+  clearAnalysis(); const version = analysisVersion;
   let names = $('analysis-names');
   if (!names) { names = make('section'); names.id = 'analysis-names'; $('analysis-text').before(names); }
   names.replaceChildren();
   const result = await api('analysis', { manifest: await fileBase64($('manifest')), inventory: await fileBase64($('inventory')) });
+  if (version !== analysisVersion) return;
   if (Array.isArray(result.report.observedNames)) renderResourceNames(names, result.report.observedNames, 'Names generated from saved discovery', `Collected ${result.report.context.generatedUtc}. Inventory SHA-256: ${result.report.context.inventorySha256}. Offline provenance; review collection coverage.`);
   for (const draft of result.namingDrafts?.drafts ?? []) { const proposed = make('section'); names.append(proposed); renderResourceNames(proposed, draft.plan.resources, `Calculated source draft: ${draft.plan.intent.stackDisplayName}`, result.namingDrafts.coverage); }
   $('analysis-result').hidden = false; $('analysis-text').textContent = result.markdown; $('analysis-location').textContent = `Saved to artifacts/portal-analysis/${result.id}/report. Offline evidence only. Showing ${result.diagrams.length} of ${result.diagramCount} diagram pages; all pages are in the saved report.`;

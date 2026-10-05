@@ -1,5 +1,7 @@
 # Logic App Standard + Event Grid
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 For the cross-workload menu/method map and current evidence levels, use the [catalog](../../docs/self-service-catalog.md) and [completion status](../../docs/completion-status.md). New offerings are proposals in the [expansion plan](../../docs/self-service-expansion-plan.md).
 
 Implemented and locally contract-tested, 19 September 2026. Registered pattern: `logic-app-event-grid`; example instance: `eventflow`; environments: dev, QA, UAT, prod. **All targets remain disabled until platform onboarding and Azure acceptance.** This independent workload neither consumes nor changes blobcopy resources.

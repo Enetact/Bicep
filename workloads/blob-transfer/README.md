@@ -1,5 +1,7 @@
 # Blob-transfer workload composition
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 Status: implemented with local Functions/Azurite evidence; all four Blob copy targets remain disabled and Azure acceptance is outstanding in reviewed evidence. See the [catalog](../../docs/self-service-catalog.md) and [current status](../../docs/completion-status.md).
 
 The resource-group implementation entry point is [main.bicep](main.bicep). [stack.bicep](stack.bicep) is the subscription entry point used by the self-service Deployment Stack and owns the dedicated workload RG. Environment values live in `environments/main.{dev,qa,uat,prod}.bicepparam`; each file uses `../main.bicep`. This folder also owns the developer request schema/example and pattern-specific module helpers.

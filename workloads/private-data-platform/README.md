@@ -1,5 +1,7 @@
 # Private Data Platform
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 [Workload catalog](../../docs/workload-catalog.md) · [Delivery plan](../../docs/plans/private-data-platform.md) · [ADO onboarding](../../docs/self-service.md)
 
 An infrastructure offering for **Azure Databricks Premium and Azure Data Factory v2**, registered as `private-data-platform` / `dataplat`. It uses the existing saved-discovery, Preview, Template Spec, Deployment Stack and verification workflow. Four environment profiles are checked in **disabled**. Local compilation and mocked contracts are not Azure acceptance.

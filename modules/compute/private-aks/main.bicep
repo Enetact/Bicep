@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 param name string
+param nodeResourceGroupName string = '${resourceGroup().name}-aks-managed'
+param applicationIdentityName string = 'id-${name}-app'
 param location string
 param tags object
 param kubernetesVersion string
@@ -31,7 +33,7 @@ resource cluster 'Microsoft.ContainerService/managedClusters@2026-02-01' = {
  properties: {
   kubernetesVersion: kubernetesVersion
   dnsPrefix: name
-  nodeResourceGroup: '${resourceGroup().name}-aks-managed'
+  nodeResourceGroup: nodeResourceGroupName
   enableRBAC: true
   disableLocalAccounts: true
   aadProfile: { managed: true, enableAzureRBAC: true, tenantID: tenant().tenantId, adminGroupObjectIDs: adminGroupObjectIds }
@@ -96,7 +98,7 @@ resource cluster 'Microsoft.ContainerService/managedClusters@2026-02-01' = {
  }
 }
 resource applicationIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
- name: 'id-${name}-app'
+ name: applicationIdentityName
  location: location
  tags: tags
 }

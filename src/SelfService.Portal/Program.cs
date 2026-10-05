@@ -71,7 +71,7 @@ app.Use(async (context, next) =>
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
 app.UseDefaultFiles(); app.UseStaticFiles();
 app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Session(c).Csrf, configured = options.AuthenticationConfigured,
-    naming = new { draftCalculations = true, deploymentSubmission = false },
+    naming = new { draftCalculations = true, deploymentSubmission = false, previewInstances = catalog.NamingInstances },
     packagedCatalog = options.RepositoryRoot == Path.Combine(AppContext.BaseDirectory, "repository"),
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
     products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),

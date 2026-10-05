@@ -1,5 +1,7 @@
 # Private Storage Workspace
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 Implemented source offering; all four targets remain disabled pending platform onboarding and live Azure acceptance.
 
 1 identity-only StorageV2 account, workspace container, work queue, 2 private endpoints and storage diagnostics. Reuses approved subnet, DNS and Log Analytics.

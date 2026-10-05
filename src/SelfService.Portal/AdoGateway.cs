@@ -130,7 +130,8 @@ public sealed class AdoGateway(HttpClient http, ITokenProvider identity, PortalO
         using var stream=await response.Content.ReadAsStreamAsync(ct);
         var bytes=await PreviewDiagram.Bounded(stream,32*1024*1024,ct);
         var config=JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root,"self-service/targets",$"{product}.{environment}.json")));
-        return await IacAnalysis.Read(bytes,p with{Targets=[target]},runId,b.GetProperty("sourceVersion").GetString()!,definitionId,repositoryId,config.GetProperty("resourceGroup").GetString()!,after,ct);
+        var namedGroup=after?null:await NamingArtifact.ResourceGroup(bytes,options,p,target,ct);
+        return await IacAnalysis.Read(bytes,p with{Targets=[target]},runId,b.GetProperty("sourceVersion").GetString()!,definitionId,repositoryId,namedGroup??config.GetProperty("resourceGroup").GetString()!,after,ct);
     }
 
 }

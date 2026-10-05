@@ -1,5 +1,7 @@
 # Pipeline flow and refactor
 
+**5 October 2026 — optional named Preview:** dedicated workload Deploy menus now include `namingInstanceId` (default `legacy`). Source-reviewed draft UUIDs matching workload/environment/subscription/region may be selected for **Preview only**. Prepare freezes and revalidates the complete name map and stack identity; named Deploy is rejected. The portal exposes the same reviewed choices, while its local editor creates a draft for source review. The registry is empty until platform review adds entries. See [naming setup and boundaries](resource-naming.md).
+
 **4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
 
 

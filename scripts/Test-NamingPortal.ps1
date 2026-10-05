@@ -23,12 +23,12 @@ try {
     if(!$ready -or $ready.products.Count -ne 9 -or !$ready.naming.draftCalculations -or $ready.naming.deploymentSubmission){throw 'Actual Release candidate did not become ready with non-deploying naming capabilities.'};$checks++
     $headers=@{Origin=$url;'X-Portal-CSRF'=$ready.csrf}
     $intent=(Get-Content (Join-Path $root tests/naming/request.example.json) -Raw|ConvertFrom-Json -AsHashtable).intent
-    foreach($type in @('private-storage','key-vault','observability')) {
+    foreach($type in @('private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer')) {
         $body=@{workloadType=$type;intent=$intent}|ConvertTo-Json -Depth 20
         $draft=Invoke-RestMethod "$url/api/naming/draft" -Method Post -ContentType 'application/json' -Headers $headers -WebSession $candidateSession -Body $body
         if($draft.schema -ne 'platform.workload-naming-draft/v1' -or $draft.deploymentAuthorized -or $draft.plan.intent.instanceId -ne $intent.instanceId){throw 'Unexpected live naming response.'};$checks++
     }
-    $bad=Invoke-WebRequest "$url/api/naming/draft" -Method Post -ContentType 'application/json' -Headers $headers -WebSession $candidateSession -Body (@{workloadType='private-aks';intent=$intent}|ConvertTo-Json -Depth 20) -SkipHttpErrorCheck
+    $bad=Invoke-WebRequest "$url/api/naming/draft" -Method Post -ContentType 'application/json' -Headers $headers -WebSession $candidateSession -Body (@{workloadType='unknown-product';intent=$intent}|ConvertTo-Json -Depth 20) -SkipHttpErrorCheck
     if($bad.StatusCode -ne 400){throw 'Unsupported workload was not rejected.'};$checks++
     $csrf=Invoke-WebRequest "$url/api/naming/draft" -Method Post -ContentType 'application/json' -Headers @{Origin=$url;'X-Portal-CSRF'='invalid-test-csrf'} -WebSession $candidateSession -Body '{}' -SkipHttpErrorCheck
     if($csrf.StatusCode -ne 403){throw 'CSRF boundary failed.'};$checks++

@@ -1,3 +1,5 @@
+import { ResourceNames } from '../naming.bicep'
+param resourceNames ResourceNames?
 param name string
 param location string
 param tags object
@@ -21,7 +23,7 @@ var selectedWorkspaceId = useSharedWorkspace ? sharedWorkspace.id : workspace!.i
 var workloadLogs = 'FunctionAppLogs | where _ResourceId =~ "${functionAppResourceId}"'
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (!useSharedWorkspace) {
-  name: 'log-${name}'
+  name: resourceNames.?workspace ?? 'log-${name}'
   location: location
   tags: tags
   properties: {
@@ -34,7 +36,7 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (!
   }
 }
 resource insights 'Microsoft.Insights/components@2020-02-02' = {
-  name: 'appi-${name}'
+  name: resourceNames.?insights ?? 'appi-${name}'
   location: location
   tags: tags
   kind: 'web'
@@ -56,7 +58,7 @@ resource metricsPublisher 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 resource failures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: 'alert-${name}-function-errors'
+  name: resourceNames.?functionErrors ?? 'alert-${name}-function-errors'
   location: location
   tags: tags
   properties: {
@@ -95,7 +97,7 @@ output connectionString string = insights.properties.ConnectionString
 
 
 resource recoveryFailures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: 'alert-${name}-recovery-review'
+  name: resourceNames.?recoveryReview ?? 'alert-${name}-recovery-review'
   location: location
   tags: tags
   properties: {
@@ -118,7 +120,7 @@ resource recoveryFailures 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = 
   }
 }
 resource recoveryHeartbeat 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: 'alert-${name}-recovery-heartbeat'
+  name: resourceNames.?recoveryHeartbeat ?? 'alert-${name}-recovery-heartbeat'
   location: location
   tags: tags
   properties: {

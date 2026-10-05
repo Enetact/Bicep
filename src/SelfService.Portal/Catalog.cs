@@ -7,11 +7,16 @@ public record Product(string Id, string Type, string Name, string DiscoverName, 
     string Summary, string Requirements, string Costs, Target[] Targets);
 public record Target(string Workload, string Environment, string Subscription, string SubscriptionId, string Network, bool Enabled);
 public record Skill(string Id, string Name, string Description, string Content, string Origin, string PipelineStatus, string DiscoveryProfile, string? SourceUrl);
-public record RunRequest(string Product, string Environment, string Region, string Operation, int? DiscoveryRunId);
+public record RunRequest(string Product, string Environment, string Region, string Operation, int? DiscoveryRunId, string? NamingInstanceId = null);
+public record NamingInstance(string Id, string Name, string WorkloadType, string Environment, string Region, string SubscriptionId);
 
 public sealed class Catalog(PortalOptions options)
 {
     public string Root => options.RepositoryRoot;
+    public NamingInstance[] NamingInstances => Read(Path.Combine(Root, "self-service/instances/registry.json")).GetProperty("instances").EnumerateArray()
+        .Where(e => e.GetProperty("state").GetString() == "draft")
+        .Select(e => { var i = e.GetProperty("intent"); return new NamingInstance(i.GetProperty("instanceId").GetString()!, i.GetProperty("stackDisplayName").GetString()!,
+            e.GetProperty("workloadType").GetString()!, i.GetProperty("environment").GetString()!, i.GetProperty("region").GetString()!, i.GetProperty("subscriptionId").GetString()!); }).ToArray();
     // Display metadata only. Execution cannot be enabled by editing this catalog.
     public JsonElement RecoveryPolicies
     {
@@ -90,6 +95,12 @@ public sealed class Catalog(PortalOptions options)
         if (request.Operation is not ("discover" or "preview" or "deploy")) throw new PortalException("Unknown operation.");
         if (request.Operation == "deploy" && !t.Enabled) throw new PortalException("This target is disabled. Platform onboarding is required.", 409);
         if (request.Operation != "discover" && request.DiscoveryRunId is not > 0) throw new PortalException("Select a successful discovery run.");
+        if (!string.IsNullOrEmpty(request.NamingInstanceId) && request.NamingInstanceId != "legacy")
+        {
+            if (request.Operation != "preview") throw new PortalException("Named drafts support Preview only; deployment is disabled.");
+            if (!NamingInstances.Any(n => n.Id == request.NamingInstanceId && n.WorkloadType == p.Type && n.Environment == t.Environment && n.Region == request.Region && n.SubscriptionId.Equals(t.SubscriptionId, StringComparison.OrdinalIgnoreCase)))
+                throw new PortalException("Select a reviewed naming instance matching this scope.");
+        }
         return (p, t);
     }
     public object Payload(RunRequest r)
@@ -101,7 +112,9 @@ public sealed class Catalog(PortalOptions options)
         else
         {
             resources["pipelines"] = new { discovery = new { version = r.DiscoveryRunId!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) } };
-            parameters = new { workloadName = t.Workload, environment = t.Environment, region = r.Region, executionMode = r.Operation == "preview" ? "Preview only" : "Preview and deploy" };
+            var values = new Dictionary<string, object> { ["workloadName"] = t.Workload, ["environment"] = t.Environment, ["region"] = r.Region, ["executionMode"] = r.Operation == "preview" ? "Preview only" : "Preview and deploy" };
+            if (!string.IsNullOrEmpty(r.NamingInstanceId) && r.NamingInstanceId != "legacy") values["namingInstanceId"] = r.NamingInstanceId;
+            parameters = values;
         }
         return new { resources, templateParameters = parameters };
     }

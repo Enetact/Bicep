@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Force $output|Out-Null
 $compiler=(Get-Item -LiteralPath $BicepPath -ErrorAction Stop).FullName
 $intent=(Get-Content (Join-Path $root tests/naming/request.example.json) -Raw|ConvertFrom-Json -AsHashtable).intent
 $results=@()
-foreach($type in @('private-storage','key-vault','observability')) {
+foreach($type in @('private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer')) {
     $stack=Join-Path $root "workloads/$type/stack.bicep"
     & $compiler build $stack --outfile (Join-Path $output "$type.json")
     if($LASTEXITCODE){throw "Stack compile failed: $type"}
@@ -37,4 +37,4 @@ foreach($type in @('private-storage','key-vault','observability')) {
     }
 }
 @{cases=$results;azureCalls=$false;deploymentQualified=$false}|ConvertTo-Json -Depth 8|Set-Content (Join-Path $output receipt.json)
-Write-Host "PASS: 3 stack templates and $($results.Count) standard/legacy environment pairs compiled offline. No deployment."
+Write-Host "PASS: 9 stack templates and $($results.Count) standard/legacy environment pairs compiled offline. No deployment."

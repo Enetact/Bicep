@@ -1,4 +1,5 @@
 param name string
+param planName string = '${name}-plan'
 param location string
 param tags object
 param identityId string
@@ -13,7 +14,7 @@ param busName string = ''
 param apiClientId string = ''
 param allowedClientApplications string[] = []
 resource plan 'Microsoft.Web/serverfarms@2024-11-01' = {
- name: '${name}-plan'
+ name: planName
  location: location
  tags: tags
  kind: 'linux'

@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete standard-v2 name candidates; null preserves legacy names. Effective settings govern conditional resources.')
+param resourceNames ResourceNames?
 param workload string
 @allowed(['dev', 'qa', 'uat', 'prod'])
 param environmentName string
@@ -33,7 +36,9 @@ var tags = union(customTags, { workload: workload, environment: environmentName,
 module aks '../../modules/compute/private-aks/main.bicep' = {
  name: 'aks'
  params: {
-  name: 'aks-${workload}-${environmentName}'
+  name: resourceNames.?cluster ?? 'aks-${workload}-${environmentName}'
+  nodeResourceGroupName: resourceNames.?nodeGroup ?? '${resourceGroup().name}-aks-managed'
+  applicationIdentityName: resourceNames.?applicationIdentity ?? 'id-aks-${workload}-${environmentName}-app'
   location: location
   tags: tags
   workspaceId: existingLogAnalyticsWorkspaceId

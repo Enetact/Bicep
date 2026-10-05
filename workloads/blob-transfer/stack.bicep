@@ -1,5 +1,8 @@
 // Workload lifecycle wrapper. Shared references stay outside resource ownership.
 targetScope = 'subscription'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete standard-v2 name candidates; null preserves legacy names. Effective settings govern conditional resources.')
+param resourceNames ResourceNames?
 
 metadata name = 'Blob transfer deployment stack'
 metadata description = 'Subscription entry point owning one dedicated workload resource group and its resource-group composition.'
@@ -112,6 +115,7 @@ module composition './main.bicep' = {
   name: 'workload-composition'
   scope: workloadGroup
   params: {
+    resourceNames: resourceNames
     workload: workload
     environmentName: environmentName
     location: location

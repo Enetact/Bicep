@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete standard-v2 name candidates; null preserves legacy names. Effective settings govern conditional resources.')
+param resourceNames ResourceNames?
 @minLength(3)
 @maxLength(10)
 param workload string
@@ -30,7 +33,12 @@ param databricksJobId int = 0
 var stem = '${workload}-${environmentName}'
 var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
 var suffix = take(uniqueString(subscription().id, resourceGroup().id), 6)
-var storageName = 'st${workload}${environmentName}${suffix}'
+var storageName = resourceNames.?storage ?? 'st${workload}${environmentName}${suffix}'
+var databricksName = resourceNames.?databricks ?? 'dbw-${stem}-${suffix}'
+var factoryName = resourceNames.?factory ?? 'adf-${stem}-${suffix}'
+var managedGroupName = resourceNames.?managedGroup ?? '${resourceGroup().name}-databricks-managed'
+var rootStorageName = resourceNames.?rootStorage ?? 'dbfs${workload}${environmentName}${suffix}'
+var connectorName = resourceNames.?accessConnector ?? 'dbw-${stem}-${suffix}-access'
 module lake '../../modules/storage/data-lake/main.bicep' = {
   name: 'lake'
   params: { name: storageName, location: location, tags: tags, skuName: environmentName == 'prod' ? 'Standard_ZRS' : 'Standard_LRS', workspaceId: existingLogAnalyticsWorkspaceId }
@@ -38,11 +46,13 @@ module lake '../../modules/storage/data-lake/main.bicep' = {
 module databricks '../../modules/analytics/databricks-workspace/main.bicep' = {
   name: 'databricks'
   params: {
-    name: 'dbw-${stem}-${suffix}'
+    name: databricksName
+    accessConnectorName: connectorName
+    rootAccessConnectorName: resourceNames.?rootAccessConnector ?? 'dbw-${stem}-${suffix}-root-access'
     location: location
     tags: tags
-    managedResourceGroupName: '${resourceGroup().name}-databricks-managed'
-    rootStorageAccountName: 'dbfs${workload}${environmentName}${suffix}'
+    managedResourceGroupName: managedGroupName
+    rootStorageAccountName: rootStorageName
     virtualNetworkId: substring(databricksHostSubnetId, 0, lastIndexOf(databricksHostSubnetId, '/subnets/'))
     hostSubnetName: last(split(databricksHostSubnetId, '/'))
     containerSubnetName: last(split(databricksContainerSubnetId, '/'))
@@ -52,7 +62,7 @@ module databricks '../../modules/analytics/databricks-workspace/main.bicep' = {
 module factory '../../modules/analytics/data-factory/main.bicep' = {
   name: 'factory'
   params: {
-    name: 'adf-${stem}-${suffix}'
+    name: factoryName
     location: location
     tags: tags
     workspaceId: existingLogAnalyticsWorkspaceId
@@ -74,18 +84,18 @@ resource landing 'Microsoft.Storage/storageAccounts/blobServices/containers@2025
 resource curated 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-01-01' existing = { parent: blobs, name: 'curated' }
 var blobContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 resource factoryLanding 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(landing.id, 'adf-${stem}-${suffix}', blobContributor)
+  name: guid(landing.id, factoryName, blobContributor)
   scope: landing
   properties: { principalId: factory.outputs.principalId, principalType: 'ServicePrincipal', roleDefinitionId: blobContributor }
 }
 resource connectorLanding 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(landing.id, 'dbw-${stem}-${suffix}-access', blobContributor)
+  name: guid(landing.id, connectorName, blobContributor)
   scope: landing
   properties: { principalId: databricks.outputs.accessConnectorPrincipalId, principalType: 'ServicePrincipal', roleDefinitionId: blobContributor }
   dependsOn: [lake]
 }
 resource connectorCurated 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(curated.id, 'dbw-${stem}-${suffix}-access', blobContributor)
+  name: guid(curated.id, connectorName, blobContributor)
   scope: curated
   properties: { principalId: databricks.outputs.accessConnectorPrincipalId, principalType: 'ServicePrincipal', roleDefinitionId: blobContributor }
   dependsOn: [lake]
@@ -93,18 +103,18 @@ resource connectorCurated 'Microsoft.Authorization/roleAssignments@2022-04-01' =
 // Databricks workspace membership and notebook/compute/UC grants are data-plane onboarding.
 // Do not grant ADF Azure Contributor just to implicitly make it a workspace administrator.
 var destinations = [
-  { key: 'root-blob', id: resourceId('${resourceGroup().name}-databricks-managed', 'Microsoft.Storage/storageAccounts', 'dbfs${workload}${environmentName}${suffix}'), group: 'blob' }
-  { key: 'root-dfs', id: resourceId('${resourceGroup().name}-databricks-managed', 'Microsoft.Storage/storageAccounts', 'dbfs${workload}${environmentName}${suffix}'), group: 'dfs' }
+  { key: 'root-blob', id: resourceId(managedGroupName, 'Microsoft.Storage/storageAccounts', rootStorageName), group: 'blob' }
+  { key: 'root-dfs', id: resourceId(managedGroupName, 'Microsoft.Storage/storageAccounts', rootStorageName), group: 'dfs' }
   { key: 'blob', id: resourceId('Microsoft.Storage/storageAccounts', storageName), group: 'blob' }
   { key: 'dfs', id: resourceId('Microsoft.Storage/storageAccounts', storageName), group: 'dfs' }
-  { key: 'databricks', id: resourceId('Microsoft.Databricks/workspaces', 'dbw-${stem}-${suffix}'), group: 'databricks_ui_api' }
-  { key: 'datafactory', id: resourceId('Microsoft.DataFactory/factories', 'adf-${stem}-${suffix}'), group: 'dataFactory' }
-  { key: 'adfportal', id: resourceId('Microsoft.DataFactory/factories', 'adf-${stem}-${suffix}'), group: 'portal' }
+  { key: 'databricks', id: resourceId('Microsoft.Databricks/workspaces', databricksName), group: 'databricks_ui_api' }
+  { key: 'datafactory', id: resourceId('Microsoft.DataFactory/factories', factoryName), group: 'dataFactory' }
+  { key: 'adfportal', id: resourceId('Microsoft.DataFactory/factories', factoryName), group: 'portal' }
 ]
 module endpoints '../../modules/network/private-endpoint/main.bicep' = [for item in destinations: {
   name: 'pe-${item.key}'
   dependsOn: [lake, databricks, factory]
-  params: { name: 'pe-${stem}-${item.key}', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: item.id, groupIds: [item.group], privateDnsZoneIds: [privateDnsZoneIds[startsWith(item.key, 'root-') ? item.group : item.key]] }
+  params: { name: resourceNames == null ? 'pe-${stem}-${item.key}' : resourceNames![replace(item.key, 'root-', 'root') == item.key ? '${item.key}Endpoint' : (item.key == 'root-blob' ? 'rootBlobEndpoint' : 'rootDfsEndpoint')], location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: item.id, groupIds: [item.group], privateDnsZoneIds: [privateDnsZoneIds[startsWith(item.key, 'root-') ? item.group : item.key]] }
 }]
 output storageAccountName string = lake.outputs.name
 output storageResourceId string = lake.outputs.id

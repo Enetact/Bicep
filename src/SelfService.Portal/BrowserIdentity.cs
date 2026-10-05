@@ -41,17 +41,19 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
 public sealed class Sessions(PortalOptions options) : IDisposable
 {
+    // Cookies ignore TCP ports. Keep the established default cookie while isolating candidate builds.
+    readonly string cookieName = options.Port == 5087 ? "portal-session" : $"portal-session-{options.Port}";
     readonly ConcurrentDictionary<string, BrowserSession> sessions = new();
     public void Dispose() { foreach (var s in sessions.Values) s.Dispose(); }
     public BrowserSession Get(HttpContext context)
     {
         foreach (var pair in sessions.Where(p => p.Value.Created < DateTimeOffset.UtcNow.AddHours(-8)))
             if (sessions.TryRemove(pair.Key, out var old)) old.Dispose();
-        if (context.Request.Cookies.TryGetValue("portal-session", out var id) && sessions.TryGetValue(id, out var found)) return found;
+        if (context.Request.Cookies.TryGetValue(cookieName, out var id) && sessions.TryGetValue(id, out var found)) return found;
         if (sessions.Count >= 64) throw new PortalException("Too many local sessions. Restart the portal.", 429);
         id = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var session = new BrowserSession(options); sessions[id] = session;
-        context.Response.Cookies.Append("portal-session", id, new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Strict, Path = "/", MaxAge = TimeSpan.FromHours(8), IsEssential = true });
+        context.Response.Cookies.Append(cookieName, id, new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Strict, Path = "/", MaxAge = TimeSpan.FromHours(8), IsEssential = true });
         return session;
     }
 }

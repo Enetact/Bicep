@@ -1,5 +1,29 @@
 # Validation evidence
 
+## 5 October 2026 - All-workload naming and guarded Preview
+
+Source context: local edits over commit d6e7db3; no commit, push, ADO queue or Azure change performed. All nine workload compositions now bind optional concrete names, including plans, identities, managed groups, owned subnets and DNS links. Legacy parameter files omit the override. Source-registry UUIDs can enter dedicated **Preview only**; Prepare freezes names and stack identity, validates provenance and rejects drift/tampering. Named Deploy is blocked. The registry remains empty and all 36 targets remain disabled.
+
+| Local check | Result | Evidence |
+|---|---|---|
+| Naming core/registry/workload/discovery adapters | 123 Node cases; three schemas and PowerShell adapters passed | `artifacts/naming-tests/receipt.json` |
+| Standalone Bicep | Nine stacks and 36 standard/legacy environment pairs compiled | `artifacts/naming-integration/bicep/receipt.json` |
+| Discovery fixture repair | 80 cases passed; mocked Azure | `artifacts/discovery-tests/6e4fee69b37a41c2a07f5635c870bbe8/results.json` |
+| Event flow prerequisites | 27 cases passed, including named policy drift and exact networking names | `artifacts/prerequisite-tests/6970037e4a4e4ec5acbf94b12aceae90/results.json` |
+| Preview integrity | 30 cases passed, including frozen real-resolver names and named Deploy rejection | `artifacts/preview-tests/6b63f0574ec44193a865efa4ce511a04/` |
+| Saved-evidence analysis | 38 cases, five emitted reports matched schema | `artifacts/analysis-tests/run-y3BsUP/` |
+| Pipeline/menu contracts | 171 checks, 42 YAML files; generated catalog check passed | `artifacts/test-results/pipeline-structure.json` |
+| Module contract generation | 17 compiled interfaces regenerated after optional-name changes | `config/bicep-module-contracts.json` |
+| Portal Release tests | 306 passed, one optional native Codex test skipped, zero failed | `artifacts/naming-integration/portal.trx` |
+| Actual application build and HTTP | Release build: zero warnings/errors; 15 checks, all nine naming APIs | `artifacts/naming-integration/build/`, `http-receipt.json` |
+| Actual browser | Blob copy naming table/diagram, edit invalidation; valid → tampered → valid discovery clears stale evidence/notices | `artifacts/naming-integration/browser-receipt.json` |
+
+Portal network discovery and DNS/drift now recover bounded zone metadata while retaining original direct-DNS failure coverage. Tests distinguish empty from failed. ADO signed-artifact host validation accepts the observed constrained host family and rejects spoofed hosts; no bearer token is sent to storage. Full names parsed from validated IDs enter the existing IaC/AHP evidence projection without starting a model call. The package smoke check now derives workload count from the bundled catalog; no new Windows package or x64 acceptance run was produced.
+
+Browser inputs were synthetic, with a deliberately historical collection date; the expected stale/offline assessment did not authorize deployment. Accepted uploads generated new reports under `artifacts/portal-analysis/55002aa5465b474cb30fc72e27a3919a` and `190d37b2783c412cbc43b8d5bd7c574b`. Original evidence was never backfilled. Candidate port 5099 used its own cookie name; the primary port-5087 process and credentials were not restarted or transferred.
+
+Remaining acceptance: source-review/register a real draft, fresh authenticated Discover and named Preview on that source, ADO server expansion/resource authorization, live artifact/agent review and Azure name availability. Named Deploy, immutable-transition CI enforcement, portal registration and auth-preserving restart handoff are separate unfinished rollout gates. Local compilation and HTTP/browser tests do not certify them.
+
 ## 4 October 2026 - First naming integration group and generated discovery artifacts
 
 Added reviewed component adapters and optional sealed Bicep name maps for Private Storage, Key Vault and Observability. Legacy defaults remain in place. New discovery analyses derive observed name/type/parent rows from validated inventory IDs, generate separate matching source-draft calculations and bind both files in the report manifest. The checked-in registry remains empty. Existing saved summaries/What-If artifacts were not edited. Portal source displays the generated categories separately and offers a non-deploying local naming editor, gated by backend capabilities.
@@ -675,3 +699,11 @@ Local evidence for this increment:
 - `Test-RecoveryRules.ps1`: **54 contracts**. Node topology/recovery: **11 tests**. `Update-ServiceCatalog.ps1 -Check`: **36 selections**. Hygiene: **19 ignored-private-path probes / 250 eligible source paths**. Changed JSON/PowerShell syntax and local Markdown links were checked.
 
 No live Azure/Codex/ADO/Kubernetes acceptance, full Test-Project run or new Windows distribution package is claimed. The [AKS/Helm guide](../workloads/private-aks/README.md) defines platform onboarding, costs, remaining capabilities and manual acceptance. Existing dirty data-platform changes were preserved; nothing was committed, pushed, deployed or enabled.
+
+## Rebuilt portal UI review — 5 October 2026
+
+The actual ARM64 Release app was rebuilt with zero warnings/errors and started on a separate port, 5099. Bootstrap reported nine products. The primary portal on 5087 and its authentication were preserved. Build output, ownership receipt and logs are under ignored `artifacts/ui-review-20261005/`.
+
+Browser review covered the workload catalog, Blob copy Discover/Preview configuration, Connections, Network discovery, Agent workflows, Pipeline activity and Tag governance. A synthetic draft reproduced input loss and UUID regeneration when changing the workload Action. The [UI/UX review](plans/portal-ui-ux-review.md) records the source cause, authentication lifecycle, prioritized findings and U1–U5 design/acceptance plan. These improvements are proposed, not implemented.
+
+No Azure/ADO/Codex calls, resource deployment, target enablement, primary restart, new distribution package, or full regression-suite rerun occurred in this review. Connected and cross-device accessibility acceptance remain separate work.

@@ -1,5 +1,7 @@
 # Private AKS Foundation and Helm delivery
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 [Wiki](../../docs/README.md) · [Current status](../../docs/completion-status.md) · [Foundation source](main.bicep) · [Helm chart](../../charts/platform-app/Chart.yaml)
 
 **Implemented source; local checks only. All four AKS targets and all four Helm profiles are disabled. No AKS cluster, namespace, role assignment, image publication or ADO definition was created by this increment. Live Azure/ADO/Kubernetes acceptance remains required.**

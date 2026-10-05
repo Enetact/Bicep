@@ -1,6 +1,6 @@
 # Implementation and verification status
 
-**Naming integration — 4 October 2026:** [the resolver and draft contract](resource-naming.md) now feed additive Bicep name maps for Private Storage, Key Vault and Observability, fresh discovery name artifacts and portal source views. Passed 99 Node naming cases, three schema checks, three stack compilations, 12 standard/legacy environment pairs, 38 analysis cases, 74 focused .NET tests and nine actual Release HTTP checks. The authenticated primary portal was not restarted; browser acceptance remains pending. Existing targets/default names are unchanged, and no target is enabled by this work. Remaining six workloads, instance/request binding and protected Preview/Deploy propagation keep [the phases](plans/stack-naming-and-resource-previews.md) incomplete. Calculated names are not observed resources or deployable registration.
+**5 October 2026 — discovery and named Preview integration:** all nine workload compositions now accept typed standard-v2 name maps. Fresh discovery generates observed identities and matching source-draft candidates; the dedicated Deploy menus can freeze a reviewed instance into **Preview only**. Names shown for Azure changes come from returned What-If resource IDs. Existing evidence is never edited. All targets remain disabled, the source draft registry remains empty, and named Deploy is explicitly rejected. Local verification is recorded below; live ADO/Azure Preview and Codex inference acceptance remain outstanding. See [the guide](resource-naming.md) and [validation log](validation.md).
 
 **Authenticated discovery acceptance — 4 October 2026:** Blob copy and Event flow Discover succeeded on merged `main` in ADO runs 25/26. Private GitHub source checks and live tag discovery passed. Portal DNS collections remain Partial (HTTP 400), the discovery PowerShell fixture fails on a missing helper, and 19 pipeline definitions remain unregistered. Codex is disconnected in the tested browser session. This establishes bounded read-only discovery evidence, not deployment acceptance. See [the test README and issue log](testing/README.md).
 
@@ -10,7 +10,7 @@
 
 [Wiki home](README.md) · [Overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Validation history](validation.md)
 
-**Source/configuration reviewed: 4 October 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. The data-platform increment adds local validation; no new cloud acceptance is established.
+**Naming/discovery source review: 5 October 2026; broader source review retained from 4 October.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. The data-platform increment adds local validation; no new cloud acceptance is established.
 
 ## Current inventory
 

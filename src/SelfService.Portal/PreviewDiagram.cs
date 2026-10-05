@@ -20,7 +20,8 @@ public static class PreviewDiagram
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Port != 443 ||
             uri.UserInfo.Length != 0 || uri.Fragment.Length != 0 ||
-            !(uri.Host.EndsWith(".vsblob.vsassets.io", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".blob.core.windows.net", StringComparison.OrdinalIgnoreCase)))
+            !(uri.Host.EndsWith(".vsblob.vsassets.io", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".blob.core.windows.net", StringComparison.OrdinalIgnoreCase) ||
+              System.Text.RegularExpressions.Regex.IsMatch(uri.Host, @"^artprod[a-z]{2,12}[0-9]{1,3}\.artifacts\.visualstudio\.com$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
             throw new PortalException("ADO returned an unsupported artifact download host. Open the report in ADO.", 502);
         return uri;
     }
@@ -55,7 +56,9 @@ public static class PreviewDiagram
                 var id = Text(c, "id"); var action = Text(c, "changeType");
                 if (!id.StartsWith($"/subscriptions/{t.SubscriptionId}/", StringComparison.OrdinalIgnoreCase)) throw new PortalException("Preview contains an out-of-scope resource.", 409);
                 var known = new[] { "Create", "Delete", "Modify", "NoChange", "Ignore", "Deploy", "Unsupported", "Detach" };
+                var resource = ResourceIdentity.Parse(id);
                 return new { id, action = known.FirstOrDefault(a => a.Equals(action, StringComparison.OrdinalIgnoreCase)) ?? "Unknown",
+                    name=resource.Name, fullName=resource.FullName, type=resource.Type, parentId=resource.ParentId,
                     certainty = c.TryGetProperty("changeCertainty", out var certainty) ? certainty.GetString() : "unknown" };
             }).ToArray();
             var succeeded = Text(status, "status") == "Preview succeeded; no workload deployment performed" &&

@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete standard-v2 name candidates; null preserves legacy names. Effective settings govern conditional resources.')
+param resourceNames ResourceNames?
 
 metadata name = 'Blob transfer workload'
 metadata description = 'Private blob dispatcher, queue worker, storage, identity and monitoring composition. Shared resources remain externally owned.'
@@ -111,7 +114,7 @@ var tags = union(customTags, {
 })
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
-  name: 'id-${stem}-${suffix}'
+  name: resourceNames.?identity ?? 'id-${stem}-${suffix}'
   location: location
   tags: tags
 }
@@ -120,6 +123,7 @@ module monitoring './modules/monitoring.bicep' = {
   name: 'monitoring-${environmentName}'
   params: {
     name: stem
+    resourceNames: resourceNames
     location: location
     tags: tags
     retentionDays: logRetentionDays
@@ -130,7 +134,7 @@ module monitoring './modules/monitoring.bicep' = {
     enableRuntimeAlerts: deployFunctionApp
     enableLogAlerts: enableLogAlerts
     existingWorkspaceResourceId: existingLogAnalyticsWorkspaceId
-    functionAppResourceId: resourceId('Microsoft.Web/sites', 'func-${stem}-${suffix}')
+    functionAppResourceId: resourceId('Microsoft.Web/sites', resourceNames.?app ?? 'func-${stem}-${suffix}')
   }
 }
 
@@ -138,6 +142,7 @@ module network './modules/network.bicep' = if (networkMode == 'new') {
   name: 'network-${environmentName}'
   params: {
     name: stem
+    resourceNames: resourceNames
     location: location
     tags: tags
     addressPrefix: vnetAddressPrefix
@@ -157,7 +162,7 @@ var webZoneId = networkMode == 'new' ? network!.outputs.webZoneId : existingNetw
 module hostStorage '../../modules/storage/storage-account/main.bicep' = {
   name: 'host-storage-${environmentName}'
   params: {
-    name: 'sth${environmentName}${suffix}'
+    name: resourceNames.?hostStorage ?? 'sth${environmentName}${suffix}'
     location: location
     tags: tags
     skuName: storageSku
@@ -169,7 +174,7 @@ module hostStorage '../../modules/storage/storage-account/main.bicep' = {
 module uploadStorage '../../modules/storage/storage-account/main.bicep' = {
   name: 'upload-storage-${environmentName}'
   params: {
-    name: 'stu${environmentName}${suffix}'
+    name: resourceNames.?uploadStorage ?? 'stu${environmentName}${suffix}'
     location: location
     tags: tags
     skuName: storageSku
@@ -218,7 +223,7 @@ var storageEndpoints = [
 module storagePrivateEndpoints '../../modules/network/private-endpoint/main.bicep' = [for item in storageEndpoints: {
   name: 'pe-${item.name}-${environmentName}'
   params: {
-    name: 'pe-${stem}-${item.name}'
+    name: resourceNames == null ? 'pe-${stem}-${item.name}' : (item.account == 'host' ? (item.groupId == 'blob' ? resourceNames!.hostBlobEndpoint : item.groupId == 'queue' ? resourceNames!.hostQueueEndpoint : resourceNames!.hostTableEndpoint) : (item.groupId == 'blob' ? resourceNames!.uploadBlobEndpoint : resourceNames!.uploadQueueEndpoint))
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
@@ -231,7 +236,7 @@ module storagePrivateEndpoints '../../modules/network/private-endpoint/main.bice
 module destinationBlobEndpoint '../../modules/network/private-endpoint/main.bicep' = if (createDestinationPrivateEndpoints) {
   name: 'pe-destination-blob-${environmentName}'
   params: {
-    name: 'pe-${stem}-destination-blob'
+    name: resourceNames.?destinationBlobEndpoint ?? 'pe-${stem}-destination-blob'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
@@ -244,7 +249,7 @@ module destinationBlobEndpoint '../../modules/network/private-endpoint/main.bice
 module destinationDfsEndpoint '../../modules/network/private-endpoint/main.bicep' = if (createDestinationPrivateEndpoints && destinationIsHnsEnabled) {
   name: 'pe-destination-dfs-${environmentName}'
   params: {
-    name: 'pe-${stem}-destination-dfs'
+    name: resourceNames.?destinationDfsEndpoint ?? 'pe-${stem}-destination-dfs'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
@@ -257,8 +262,8 @@ module destinationDfsEndpoint '../../modules/network/private-endpoint/main.bicep
 module app './modules/function-app.bicep' = if (deployFunctionApp) {
   name: 'function-app-${environmentName}'
   params: {
-    name: 'func-${stem}-${suffix}'
-    planName: 'asp-${stem}'
+    name: resourceNames.?app ?? 'func-${stem}-${suffix}'
+    planName: resourceNames.?plan ?? 'asp-${stem}'
     location: location
     tags: tags
     planSku: planSku
@@ -298,7 +303,7 @@ module app './modules/function-app.bicep' = if (deployFunctionApp) {
 module appPrivateEndpoint '../../modules/network/private-endpoint/main.bicep' = if (deployFunctionApp) {
   name: 'pe-function-${environmentName}'
   params: {
-    name: 'pe-${stem}-function'
+    name: resourceNames.?sitesEndpoint ?? 'pe-${stem}-function'
     location: location
     tags: tags
     subnetId: privateEndpointSubnetId
@@ -314,7 +319,7 @@ output uploadContainer string = uploadContainerName
 output packageContainer string = deploymentContainerName
 output packageUrl string = '${hostStorage.outputs.blobEndpoint}${deploymentContainerName}/${packageBlobName}'
 output functionAppName string = 'func-${stem}-${suffix}'
-output functionAppResourceId string = resourceId('Microsoft.Web/sites', 'func-${stem}-${suffix}')
+output functionAppResourceId string = resourceId('Microsoft.Web/sites', resourceNames.?app ?? 'func-${stem}-${suffix}')
 output managedIdentityPrincipalId string = identity.properties.principalId
 output managedIdentityClientId string = identity.properties.clientId
 output virtualNetworkId string = networkMode == 'new' ? network!.outputs.vnetId : substring(integrationSubnetId, 0, lastIndexOf(integrationSubnetId, '/subnets/'))

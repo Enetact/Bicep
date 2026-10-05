@@ -42,7 +42,7 @@ public static class IacAnalysis
             coverage=planned?"Azure What-If prediction; omitted properties and uncertain changes remain unknown.":"Scoped Microsoft Azure MCP inventory and direct ARM GETs. Fixed profile child probes supplement inventory. Unsupported child types and omitted properties remain unknown.",
             issues=EvidenceDiagram.Array(state,"issues").Any()?new[]{"Collection has incomplete evidence. Inspect the pipeline report."}:Array.Empty<string>(),
             audit=EvidenceDiagram.Array(state,"audit").Select(a=>new{tool=Text(a,"tool"),status=Text(a,"status")}),
-            resources=state.GetProperty("resources").EnumerateArray().Select(r=>new {id=Text(r,"id"),type=Text(r,"type"),status=Text(r,"status"),
+            resources=state.GetProperty("resources").EnumerateArray().Select(r=>new {id=Text(r,"id"),name=ResourceIdentity.Parse(Text(r,"id")).Name,fullName=ResourceIdentity.Parse(Text(r,"id")).FullName,type=Text(r,"type"),status=Text(r,"status"),
                 apiVersion=EvidenceDiagram.Text(r,"apiVersion"),observedUtc=EvidenceDiagram.Text(r,"observedUtc"),propertyCoverage=IacPropertyProfile.Coverage(r),action=EvidenceDiagram.Text(r,"action"),certainty=EvidenceDiagram.Text(r,"certainty"),config=r.GetProperty("config"),unresolvedExpressions=r.TryGetProperty("unresolvedExpressions",out var u)?u.GetInt32():0})};
     }
     public static async Task<JsonElement> Read(byte[] bytes,Product product,int runId,string commit,int definitionId,string repositoryId,

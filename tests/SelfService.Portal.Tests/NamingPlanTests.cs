@@ -15,7 +15,7 @@ public sealed class NamingPlanTests
         workloadType = workload,
         intent = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(Root(), "tests/naming/request.example.json"))).GetProperty("intent")
     });
-    [Theory][InlineData("private-storage")][InlineData("key-vault")][InlineData("observability")]
+    [Theory][InlineData("private-storage")][InlineData("key-vault")][InlineData("observability")][InlineData("http-functions")][InlineData("service-bus-worker")][InlineData("private-aks")][InlineData("private-data-platform")][InlineData("logic-app-event-grid")][InlineData("blob-transfer")]
     public async Task RealNodeAdapterReturnsFrozenNonExecutableDraft(string workload)
     {
         var runner = new NamingPlan(new() { RepositoryRoot = Root() });
@@ -24,7 +24,7 @@ public sealed class NamingPlanTests
         Assert.Equal("standard-v2",result.GetProperty("parameterPatch").GetProperty("parameters").GetProperty("resourceNames").GetProperty("value").GetProperty("profile").GetString());
         Assert.Equal(64,result.GetProperty("draftSha256").GetString()!.Length);
     }
-    [Fact] public async Task UnsupportedProductFailsWithoutFallback() => await Assert.ThrowsAsync<PortalException>(() => new NamingPlan(new() { RepositoryRoot=Root() }).Generate(Request("private-aks"),CancellationToken.None));
+    [Fact] public async Task UnsupportedProductFailsWithoutFallback() => await Assert.ThrowsAsync<PortalException>(() => new NamingPlan(new() { RepositoryRoot=Root() }).Generate(Request("unknown-product"),CancellationToken.None));
     [Fact] public async Task OversizedInputRejectedBeforeExecution() => await Assert.ThrowsAsync<PortalException>(() => new NamingPlan(new() { RepositoryRoot=Root(), NodePath="not-invoked" }).Generate(JsonSerializer.SerializeToElement(new { oversized=new string('x',65537) }),CancellationToken.None));
     [Fact] public async Task MissingNodeDoesNotReportSuccess() => await Assert.ThrowsAsync<PortalException>(() => new NamingPlan(new() { RepositoryRoot=Root(), NodePath="missing-naming-node" }).Generate(Request("key-vault"),CancellationToken.None));
 }

@@ -1,5 +1,6 @@
 targetScope = 'resourceGroup'
 param name string
+param planName string = 'asp-${name}'
 param location string
 param tags object
 param runtimeStorageName string
@@ -12,7 +13,7 @@ param releaseActivated bool
 param skuName string = 'WS1'
 resource runtime 'Microsoft.Storage/storageAccounts@2025-01-01' existing = { name: runtimeStorageName }
 resource plan 'Microsoft.Web/serverfarms@2024-04-01' = {
-  name: 'asp-${name}'
+  name: planName
   location: location
   tags: tags
   kind: 'elastic'

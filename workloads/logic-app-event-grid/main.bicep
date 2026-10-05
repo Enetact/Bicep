@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete standard-v2 name candidates; null preserves legacy names. Effective settings govern conditional resources.')
+param resourceNames ResourceNames?
 param workload string
 @allowed(['dev', 'qa', 'uat', 'prod'])
 param environmentName string
@@ -21,10 +24,10 @@ param hostingSku string = 'WS1'
 param alertActionGroupIds array = []
 var stem = '${workload}-${environmentName}'
 var suffix = uniqueString(resourceGroup().id)
-var appName = 'logic-${stem}-${suffix}'
-var runtimeName = take('strt${workload}${environmentName}${suffix}', 24)
-var eventName = take('stev${workload}${environmentName}${suffix}', 24)
-var topicName = 'evgt-${stem}'
+var appName = resourceNames.?app ?? 'logic-${stem}-${suffix}'
+var runtimeName = resourceNames.?runtimeStorage ?? take('strt${workload}${environmentName}${suffix}', 24)
+var eventName = resourceNames.?eventStorage ?? take('stev${workload}${environmentName}${suffix}', 24)
+var topicName = resourceNames.?topic ?? 'evgt-${stem}'
 var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, workloadType: 'logic-app-event-grid', trustedServiceReview: trustedServiceException.reviewReference, runtimeCredentialReview: runtimeStorageCredentialException.reviewReference })
 module prerequisites './modules/prerequisites.bicep' = if (!empty(prerequisitePlan)) {
   name: 'workload-prerequisites'
@@ -32,7 +35,7 @@ module prerequisites './modules/prerequisites.bicep' = if (!empty(prerequisitePl
 }
 resource insights 'Microsoft.Insights/components@2020-02-02' = {
   dependsOn: [prerequisites]
-  name: 'appi-${stem}'
+  name: resourceNames.?insights ?? 'appi-${stem}'
   location: location
   tags: tags
   kind: 'web'
@@ -52,15 +55,15 @@ var storageEndpoints = [
 module endpoints '../../modules/network/private-endpoint/main.bicep' = [for endpoint in storageEndpoints: {
   name: 'pe-${endpoint.name}'
   dependsOn: [prerequisites, runtime, events]
-  params: { name: 'pe-${stem}-${endpoint.name}', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: endpoint.target, groupIds: [endpoint.group], privateDnsZoneIds: [privateDnsZoneIds[endpoint.group]] }
+  params: { name: resourceNames == null ? 'pe-${stem}-${endpoint.name}' : (startsWith(endpoint.name, 'runtime-') ? (endpoint.group == 'blob' ? resourceNames!.runtimeBlobEndpoint : endpoint.group == 'queue' ? resourceNames!.runtimeQueueEndpoint : endpoint.group == 'table' ? resourceNames!.runtimeTableEndpoint : resourceNames!.runtimeFileEndpoint) : (endpoint.group == 'blob' ? resourceNames!.eventBlobEndpoint : resourceNames!.eventQueueEndpoint)), location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: endpoint.target, groupIds: [endpoint.group], privateDnsZoneIds: [privateDnsZoneIds[endpoint.group]] }
 }]
 module host '../../modules/logic-app/standard/main.bicep' = {
   name: 'workflow-host'
-  params: { name: appName, location: location, tags: tags, runtimeStorageName: runtimeName, eventStorageName: eventName, topicId: topic.outputs.id, integrationSubnetId: integrationSubnetId, instrumentationConnectionString: insights.properties.ConnectionString, releaseActivated: releaseActivated, skuName: hostingSku }
+  params: { name: appName, planName: resourceNames.?plan ?? 'asp-${appName}', location: location, tags: tags, runtimeStorageName: runtimeName, eventStorageName: eventName, topicId: topic.outputs.id, integrationSubnetId: integrationSubnetId, instrumentationConnectionString: insights.properties.ConnectionString, releaseActivated: releaseActivated, skuName: hostingSku }
   dependsOn: [endpoints]
 }
-module appEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-app', params: { name: 'pe-${stem}-app', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: host.outputs.id, groupIds: ['sites'], privateDnsZoneIds: [privateDnsZoneIds.sites] } }
-module topicEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-topic', dependsOn: [prerequisites], params: { name: 'pe-${stem}-topic', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: topic.outputs.id, groupIds: ['topic'], privateDnsZoneIds: [privateDnsZoneIds.topic] } }
+module appEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-app', params: { name: resourceNames.?sitesEndpoint ?? 'pe-${stem}-app', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: host.outputs.id, groupIds: ['sites'], privateDnsZoneIds: [privateDnsZoneIds.sites] } }
+module topicEndpoint '../../modules/network/private-endpoint/main.bicep' = { name: 'pe-topic', dependsOn: [prerequisites], params: { name: resourceNames.?topicEndpoint ?? 'pe-${stem}-topic', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: topic.outputs.id, groupIds: ['topic'], privateDnsZoneIds: [privateDnsZoneIds.topic] } }
 module access './modules/access.bicep' = { name: 'event-access', params: { storageName: eventName, logicPrincipalId: host.outputs.principalId, topicPrincipalId: topic.outputs.principalId, deploymentPrincipalId: deploymentPrincipalObjectId } }
 resource topicRef 'Microsoft.EventGrid/topics@2025-02-15' existing = { name: topicName }
 resource sender 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -77,7 +80,7 @@ resource diagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' 
   dependsOn: [topic]
 }
 resource backlog 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: 'alert-${stem}-workflow-failures'
+  name: resourceNames.?workflowFailures ?? 'alert-${stem}-workflow-failures'
   dependsOn: [prerequisites]
   location: location
   tags: tags
@@ -100,7 +103,7 @@ output topicEndpoint string = topic.outputs.endpoint
 output workspaceId string = existingLogAnalyticsWorkspaceId
 
 resource deliveryAlerts 'Microsoft.Insights/metricAlerts@2018-03-01' = [for metric in ['DeliveryAttemptFailCount', 'DeadLetteredCount'] : {
-  name: 'alert-${stem}-${metric}'
+  name: resourceNames == null ? 'alert-${stem}-${metric}' : (metric == 'DeliveryAttemptFailCount' ? resourceNames!.deliveryFailures : resourceNames!.deadletters)
   location: 'global'
   tags: tags
   properties: {
@@ -114,7 +117,7 @@ resource deliveryAlerts 'Microsoft.Insights/metricAlerts@2018-03-01' = [for metr
   }
 }]
 resource queueBacklog 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: 'alert-${stem}-queue-backlog'
+  name: resourceNames.?backlog ?? 'alert-${stem}-queue-backlog'
   location: 'global'
   tags: tags
   properties: {
@@ -128,7 +131,7 @@ resource queueBacklog 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   }
 }
 resource quarantineAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
-  name: 'alert-${stem}-quarantine'
+  name: resourceNames.?quarantine ?? 'alert-${stem}-quarantine'
   dependsOn: [prerequisites]
   location: location
   tags: tags

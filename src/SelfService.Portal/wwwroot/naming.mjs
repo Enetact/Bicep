@@ -11,12 +11,13 @@ export function namingGraph(draft) {
 }
 
 export function renderResourceNames(host, rows, title, evidence) {
-  host.replaceChildren(); host.append(el('h3', title), el('p', evidence));
+  host.replaceChildren(); host.classList.add('resource-names'); host.append(el('h3', title), el('p', evidence));
   const search = el('input'); search.type = 'search'; search.placeholder = 'Filter resource names, types or scopes'; search.setAttribute('aria-label', 'Filter resource names');
   const count = el('p'), table = el('table'), head = el('thead'), header = el('tr'), body = el('tbody');
   for (const label of ['Name / full child name', 'Resource type', 'State', 'Resource ID / parent scope']) { const th = el('th', label); th.scope = 'col'; header.append(th); }
   head.append(header); table.append(head, body); const download = el('button', 'Download resource names JSON'); download.type = 'button'; download.className = 'secondary'; download.onclick = () => save({ title, evidence, resources: rows }, 'resource-names.json');
-  host.append(search, download, count, table);
+  const scroll = el('div'); scroll.className = 'resource-names-scroll'; scroll.tabIndex = 0; scroll.setAttribute('role','region'); scroll.setAttribute('aria-label',title); scroll.append(table);
+  host.append(search, download, count, scroll);
   const draw = () => {
     const query = search.value.toLowerCase(), found = rows.filter(r => [r.fullName, r.name, r.armType ?? r.type, r.resourceId ?? r.id, r.scope ?? r.parentId, r.status].join(' ').toLowerCase().includes(query));
     body.replaceChildren(); count.textContent = `${found.length} matching records. Showing up to 200; download retains all records. Empty or unresolved evidence does not mean a resource should be created.`;
@@ -28,8 +29,8 @@ export function renderResourceNames(host, rows, title, evidence) {
 // This editor never modifies the deployment form/request. It calculates explicit local drafts only.
 export function renderNamingEditor(host, api, product, target, region) {
   host.replaceChildren(); const title = el('h3', 'New stack naming draft'); host.append(title);
-  if (!['private-storage','key-vault','observability'].includes(product.type)) { host.append(el('p', 'Concrete naming maps for this workload are still being qualified. Existing deployment naming is unchanged.')); return; }
-  host.append(el('p', 'Local calculation only. Discovery supplies observed names; a fresh Azure Preview is required for planned changes. This draft cannot be submitted to ADO yet.'));
+  if (!['private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer'].includes(product.type)) { host.append(el('p', 'Concrete naming maps for this workload are still being qualified. Existing deployment naming is unchanged.')); return; }
+  host.append(el('p', 'Local calculation only. Discovery supplies observed names; a fresh Azure Preview is required for planned changes. Save this draft for source review. Only source-registered instances can be selected for ADO Preview.'));
   const fields = {};
   for (const [key, label, initial] of [['stackDisplayName','Stack display name',''], ['stackAcronym','Stack acronym (2–4 lowercase letters/numbers)',''], ['instanceId','New instance UUID',crypto.randomUUID()], ['instanceOrdinal','Instance ordinal (01–99)','01'], ['subscriptionId','Subscription ID for this draft',target.subscriptionId], ['namespaceSalt','Persistent collision salt (optional)','']]) {
     const wrapper = el('label', label), input = el('input'); input.value = initial; input.name = key; input.autocomplete = 'off'; fields[key] = input; wrapper.append(input); host.append(wrapper);

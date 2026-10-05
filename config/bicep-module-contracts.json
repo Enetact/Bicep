@@ -102,9 +102,13 @@
     {
       "id": "analytics-databricks-workspace",
       "path": "modules/analytics/databricks-workspace/main.bicep",
-      "sourceSha256": "acf9abbb8c375c2bdac261d0080abd277244f44e1fc336a036b5851b72dcce3d",
+      "sourceSha256": "9c1f06fdc09bcee457e094c0b398588a79350e546a8321488909164e1f8a26c9",
       "draftSelectable": false,
       "parameters": {
+        "accessConnectorName": {
+          "type": "string",
+          "defaultValue": "[format('{0}-access', parameters('name'))]"
+        },
         "containerSubnetName": {
           "type": "string"
         },
@@ -119,6 +123,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "rootAccessConnectorName": {
+          "type": "string",
+          "defaultValue": "[format('{0}-root-access', parameters('name'))]"
         },
         "rootStorageAccountName": {
           "type": "string"
@@ -159,7 +167,7 @@
     {
       "id": "compute-private-aks",
       "path": "modules/compute/private-aks/main.bicep",
-      "sourceSha256": "3f5018145c305c3218cea5938e4c08fcc90eaf52fbd5d8b8dbb21943fe18825b",
+      "sourceSha256": "3362e811846381087920793a6de69ff230282005ce82406c46bb3ceff8a7a1dc",
       "draftSelectable": false,
       "parameters": {
         "adminGroupObjectIds": {
@@ -167,6 +175,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "applicationIdentityName": {
+          "type": "string",
+          "defaultValue": "[format('id-{0}-app', parameters('name'))]"
         },
         "applicationNamespace": {
           "type": "string"
@@ -199,6 +211,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "nodeResourceGroupName": {
+          "type": "string",
+          "defaultValue": "[format('{0}-aks-managed', resourceGroup().name)]"
         },
         "nodeSubnetId": {
           "type": "string"
@@ -259,7 +275,7 @@
     {
       "id": "compute-private-functions",
       "path": "modules/compute/private-functions/main.bicep",
-      "sourceSha256": "f50a160c28373850b688d9624d9e5b355fc71c8012b31ff2841aed0202e00196",
+      "sourceSha256": "c935ef589e975f6c0a60a8a2a307b232120614ec4631db67fdf416cf3402aebe",
       "draftSelectable": true,
       "parameters": {
         "allowedClientApplications": {
@@ -301,6 +317,10 @@
         },
         "packageBlobName": {
           "type": "string"
+        },
+        "planName": {
+          "type": "string",
+          "defaultValue": "[format('{0}-plan', parameters('name'))]"
         },
         "storageName": {
           "type": "string"
@@ -390,7 +410,7 @@
     {
       "id": "logic-app-standard",
       "path": "modules/logic-app/standard/main.bicep",
-      "sourceSha256": "1fae910988ef3eae64aa90066b68f971f907d0f51a365a136bef08b30bdbfd1d",
+      "sourceSha256": "6801798aebffc7d1a5c27cf2740b0e6dbe6fa7e03fa59eddfc97433f282fd38f",
       "draftSelectable": true,
       "parameters": {
         "eventStorageName": {
@@ -407,6 +427,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "planName": {
+          "type": "string",
+          "defaultValue": "[format('asp-{0}', parameters('name'))]"
         },
         "releaseActivated": {
           "type": "bool"
@@ -707,11 +731,19 @@
     {
       "id": "network-workload-vnet",
       "path": "modules/network/workload-vnet/main.bicep",
-      "sourceSha256": "40781425aa2db009b5ff862bb9140df12218338c893bbe060b0880f1f648cd60",
+      "sourceSha256": "4bd61cf48adfecf19f9a55e6960b89ea56ada5d09417398bbdf2e35960f0058b",
       "draftSelectable": true,
       "parameters": {
         "addressPrefix": {
           "type": "string"
+        },
+        "integrationNsgName": {
+          "type": "string",
+          "defaultValue": "[format('nsg-{0}-integration', parameters('name'))]"
+        },
+        "integrationSubnetName": {
+          "type": "string",
+          "defaultValue": "snet-integration"
         },
         "integrationSubnetPrefix": {
           "type": "string"
@@ -721,6 +753,10 @@
         },
         "name": {
           "type": "string"
+        },
+        "privateEndpointSubnetName": {
+          "type": "string",
+          "defaultValue": "snet-private-endpoints"
         },
         "privateEndpointSubnetPrefix": {
           "type": "string"

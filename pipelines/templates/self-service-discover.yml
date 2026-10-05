@@ -29,6 +29,10 @@ stages:
               New-Item -ItemType Directory -Path $folder -Force | Out-Null
               'Discovery was queued. If inventory.json is absent, inspect the Azure CLI task log; discovery did not complete.' | Set-Content (Join-Path $folder README.txt)
             displayName: Prepare evidence before Azure authentication
+          - task: UseNode@1
+            inputs:
+              version: 22.x
+            displayName: Prepare discovery and naming runtime
           - task: AzureCLI@2
             inputs:
               azureSubscription: ${{ parameters.serviceConnection }}
@@ -49,11 +53,6 @@ stages:
             env:
               AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
               AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no'
-          - task: NodeTool@0
-            condition: succeededOrFailed()
-            inputs:
-              versionSpec: 22.x
-            displayName: Prepare offline report runtime
           - pwsh: |
               $folder = '$(Build.ArtifactStagingDirectory)/discovery'
               if ((Test-Path (Join-Path $folder manifest.json)) -and (Test-Path (Join-Path $folder inventory.json))) {

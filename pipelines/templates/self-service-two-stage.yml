@@ -1,4 +1,7 @@
 parameters:
+  - name: namingInstanceId
+    type: string
+    default: legacy
   - name: workloadType
     type: string
     default: blob-transfer
@@ -56,10 +59,13 @@ stages:
               Write-WorkloadPreviewReadme '$(Build.ArtifactStagingDirectory)/preview' 'Not completed' 'Discovery download, prerequisites or Azure validation have not completed. Inspect the task logs.'
               Write-Host '##vso[task.setvariable variable=previewEvidencePrepared]true'
               if ($env:DISCOVERY_PIPELINE_ID -cnotmatch '^[1-9][0-9]*$' -or $env:DISCOVERY_RUN_ID -cnotmatch '^[1-9][0-9]*$') { throw 'Select a successful matching main run under Resources > discovery.' }
+              if ($env:NAMING_INSTANCE_ID -cne 'legacy' -and $env:EXECUTION_MODE -cne 'Preview only') { throw 'Named instance drafts are Preview-only. Deploy is not enabled for this path.' }
             displayName: Prepare preview report and check discovery selection
             env:
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+              NAMING_INSTANCE_ID: ${{ parameters.namingInstanceId }}
+              EXECUTION_MODE: ${{ parameters.executionMode }}
           - pwsh: |
               try {
                   az bicep install --version v0.47.16
@@ -82,11 +88,16 @@ stages:
               pipelineId: ${{ parameters.discoveryRunId }}
               artifactName: subscription-discovery
               targetPath: $(Pipeline.Workspace)/discovery-input
+          - task: UseNode@1
+            inputs:
+              version: 22.x
+            displayName: Prepare deterministic naming runtime
           - pwsh: |
               ./scripts/Test-DiscoveryHandoff.ps1 -Directory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -BoundServiceConnection '${{ parameters.serviceConnection }}' -DiscoveryPipelineId $env:DISCOVERY_PIPELINE_ID -DiscoveryRunId $env:DISCOVERY_RUN_ID -AllowDisabled
-              ./scripts/Invoke-WorkloadPreview.ps1 -Action Prepare -Directory '$(Build.ArtifactStagingDirectory)/preview' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -ReleaseId '$(Build.BuildId)'
+              ./scripts/Invoke-WorkloadPreview.ps1 -Action Prepare -Directory '$(Build.ArtifactStagingDirectory)/preview' -DiscoveryDirectory '$(Pipeline.Workspace)/discovery-input' -Workload '${{ parameters.workload }}' -EnvironmentName '${{ parameters.environment }}' -SubscriptionAlias '${{ parameters.subscription }}' -NetworkProfile '${{ parameters.network }}' -ReleaseId '$(Build.BuildId)' -NamingInstanceId $env:NAMING_INSTANCE_ID
             displayName: Verify discovery and compile full release Bicep
             env:
+              NAMING_INSTANCE_ID: ${{ parameters.namingInstanceId }}
               SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}

@@ -50,7 +50,11 @@ public class PreviewDiagramTests
     [Theory]
     [InlineData("http://x.vsblob.vsassets.io/a")][InlineData("https://evil.test/a")][InlineData("https://x.vsblob.vsassets.io.evil.test/a")]
     [InlineData("https://user@x.vsblob.vsassets.io/a")][InlineData("https://x.vsblob.vsassets.io:444/a")][InlineData("https://localhost/a")]
+    [InlineData("https://artprodeus21.artifacts.visualstudio.com.evil.test/a")][InlineData("https://evil.artifacts.visualstudio.com/a")]
+    [InlineData("https://user@artprodeus21.artifacts.visualstudio.com/a")]
     public void UnsafeDownloadHostIsRejected(string url) => Assert.Throws<PortalException>(() => PreviewDiagram.DownloadUri(url));
+    [Theory][InlineData("https://artprodeus21.artifacts.visualstudio.com/a?sig=test")][InlineData("https://test.vsblob.vsassets.io/a")]
+    public void AzureArtifactHostsAccepted(string url) => Assert.Equal(url, PreviewDiagram.DownloadUri(url).AbsoluteUri);
     [Fact] public async Task BoundedReaderRejectsOversizedStream() => await Assert.ThrowsAsync<PortalException>(() => PreviewDiagram.Bounded(new MemoryStream(new byte[11]), 10, CancellationToken.None));
     [Theory][InlineData("")][InlineData("wrongDefinition")][InlineData("wrongBranch")][InlineData("wrongRepo")][InlineData("redirect")]
     public async Task GatewayBindsRunAndNeverSendsAdoTokenToStorage(string fault)

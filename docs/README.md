@@ -10,6 +10,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 |---|---|
 | Provision private AKS or deliver an application with Helm | [AKS and Helm onboarding](../workloads/private-aks/README.md) |
 | Try the local application | [Getting started](getting-started.md) → [Portal setup](local-portal.md) |
+| Review the rebuilt portal experience and improvement priorities | [UI/UX review and phased plan](plans/portal-ui-ux-review.md) |
 | Understand the suite | [Platform overview](platform-overview.md) → [Current status](completion-status.md) |
 | Preview or deploy a workload | [Workload catalog](workload-catalog.md) → [ADO onboarding](self-service.md) → [Preview](deployment-preview.md) |
 | Compare live infrastructure before and after a deployment | [Shared agentic IaC workflow](agentic-iac.md) |
