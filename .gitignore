@@ -22,6 +22,8 @@ local.settings.json
 !.env.example
 **/portal.local.json
 **/auth.json
+# GitHub CLI credential file if a developer uses a repository-local GH_CONFIG_DIR.
+**/hosts.yml
 **/accessTokens.json
 **/azureProfile.json
 **/service_principal_entries.json

@@ -23,6 +23,10 @@ builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("System.Net.Http", LogLevel.None);
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
 builder.Services.AddSingleton<IAzureCliRunner, AzureCliRunner>().AddSingleton<AzureCliIdentity>();
+builder.Services.AddSingleton<IGitHubCliRunner, GitHubCliRunner>();
+builder.Services.AddHttpClient<GitHubIdentity>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddTransient<IGitHubIdentity>(s => s.GetRequiredService<GitHubIdentity>());
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
 builder.Services.AddTransient<OperationsService>();
@@ -75,6 +79,10 @@ app.MapPost("/api/local-auth/{audience}", (HttpContext c, string audience, Local
 app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIdentity identity) => { identity.Begin(Session(c), audience); return Results.Accepted(); });
 app.MapPost("/api/cancel-login", (HttpContext c) => { try { Session(c).Login?.Cancel(); } catch (ObjectDisposedException) { } return Results.Ok(); });
 app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { await identity.SignOut(Session(c)); return Results.Ok(); });
+app.MapGet("/api/github/status", (HttpContext c, GitHubIdentity identity) => identity.Status(Session(c)));
+app.MapPost("/api/github/connect", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), false); return Results.Ok(); });
+app.MapPost("/api/github/attach", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), true); return Results.Ok(); });
+app.MapPost("/api/github/disconnect", (HttpContext c, GitHubIdentity identity) => { identity.Disconnect(Session(c)); return Results.Ok(); });
 app.MapGet("/api/skills/{id}", (string id, Catalog catalog) => catalog.Skills.SingleOrDefault(s => s.Id == id) ?? throw new PortalException("Unknown skill.", 404));
 app.MapGet("/api/recovery/policies", (Catalog catalog) => catalog.RecoveryPolicies);
 app.MapGet("/api/subscriptions", async (HttpContext c, AdoGateway ado) => await ado.Subscriptions(Session(c)));

@@ -11,6 +11,7 @@ public sealed class PortalOptions
     public string NodePath { get; set; } = "node";
     public string CodexPath { get; set; } = "";
     public string AzureCliPath { get; set; } = "";
+    public string GitHubCliPath { get; set; } = "";
     public bool AllowExpandedNetworkDiscovery { get; set; } = true;
     public bool AuthenticationConfigured => Guid.TryParse(TenantId, out _) && Guid.TryParse(ClientId, out _);
     public string Origin => $"http://localhost:{Port}";

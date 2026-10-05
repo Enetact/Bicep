@@ -5,6 +5,7 @@ import { setupOperations } from './operations.mjs';
 import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
+import { setupGitHub } from './github.mjs';
 import { renderRecovery } from './recovery.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
@@ -240,6 +241,7 @@ try {
   setupTagging({ api, data, notice, page });
   setupOperations({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
+  setupGitHub({ api, notice });
   try {
     recoveryCatalog = await api('recovery/policies');
     options($('recovery-workflow'), recoveryCatalog.policies, p => p.name);

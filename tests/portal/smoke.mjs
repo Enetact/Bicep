@@ -102,6 +102,15 @@ await test('Tagging configuration does not enable writes', async () => { const c
 await test('Tag evidence is isolated from unauthenticated sessions', async () => {const r=await fetch(base+'/api/tags/evidence/unknown',{headers});assert.equal(r.status,401);});
 await test('Tag drafts require a connected evidence owner', async () => {const r=await post('tags/drafts',{evidenceId:'unknown',edits:[]});assert.equal(r.status,401);});
 await test('Tag queue rejects unissued tickets', async () => {const r=await post('tags/pipeline/queue/unissued',{});assert.equal(r.status,409);});
+await test('GitHub controls and status expose no credential and require CSRF', async () => {
+  const status=await fetch(base+'/api/github/status',{headers}).then(r=>r.json());
+  assert.equal(typeof status.available,'boolean'); assert.equal(status.connected,false); assert.equal(status.user,null); assert.equal(status.code,null);
+  assert.equal(status.verificationUrl,'https://github.com/login/device'); assert.ok(!('token' in status));
+  const html=await fetch(base+'/').then(r=>r.text()); for(const id of ['github-connect','github-attach','github-code','github-disconnect']) assert.ok(html.includes(`id="${id}"`));
+  assert.equal((await fetch(base+'/github.mjs')).status,200);
+  for(const route of ['connect','attach','disconnect']) assert.equal((await post('github/'+route,{}, {'x-portal-csrf':''})).status,403);
+  assert.equal((await post('github/disconnect',{})).status,200);
+});
 fs.mkdirSync('artifacts/portal-tests', { recursive: true });
 fs.writeFileSync('artifacts/portal-tests/http-smoke.json', JSON.stringify({ timestamp: new Date().toISOString(), architecture: bootstrap.architecture, liveAzure: false, results }, null, 2));
 console.log(`PASS: ${results.length} real local HTTP checks (${bootstrap.architecture}); no Azure/ADO calls.`);

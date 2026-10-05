@@ -14,6 +14,7 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
         .WithAuthority($"https://login.microsoftonline.com/{options.TenantId}").WithRedirectUri("http://localhost").Build() : null;
     public IAccount? Account { get; set; }
     public LocalCliSession? Cli { get; set; }
+    public GitHubSession GitHub { get; } = new();
     public string? AzureTenantId { get; set; }
     public ConcurrentDictionary<string, bool> Connected { get; } = new();
     public string State { get; set; } = "Not connected";
@@ -34,7 +35,7 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
         Connected.Clear(); Interlocked.Increment(ref NetworkEpoch); Operations.Clear(); NetworkReports.Clear(); NetworkPending.Clear(); TagReports.Clear(); TagPending.Clear();
         lock (Pending) Pending.Clear(); lock (RegistrationPending) RegistrationPending.Clear();
     }
-    public void Dispose() { Login?.Cancel(); _ = Agent.DisposeAsync(); _ = CleanupCli(); }
+    public void Dispose() { Login?.Cancel(); GitHub.Dispose(); _ = Agent.DisposeAsync(); _ = CleanupCli(); }
     async Task CleanupCli() { try { if (Cli is { } cli) await cli.DisposeAsync(); } catch { /* Governed Stop-Portal also removes owned credential caches. */ } }
 }
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
