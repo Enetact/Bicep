@@ -1,5 +1,7 @@
 # Self-service expansion and enhancement plan
 
+**4 October 2026 — local authentication:** the portal now offers a local Azure CLI browser sign-in button, isolated credential cache, separate Azure/ADO audiences and returned-tenant discovery. Registered-app authentication remains available. This removes the custom-registration prerequisite for local CLI users; live tenant/ADO acceptance and operation-specific onboarding remain open. See [setup and limits](local-portal.md#configure-microsoft-browser-sign-in).
+
 **4 October 2026 — operations workflow implementation:** the selected suite covers Private DNS, identity/access, private connectivity, data promotion, AKS maintenance, pipeline analysis and drift. The [phased plan](plans/operations-workflow-suite.md) now has an O0–O1 source pilot: [DNS/drift workspace and limits](operations-workflows.md). Two analysis review handlers reuse the updated AHP/Codex/MCP runtime. Later phases, accepted baseline storage, live domain acceptance and cloud execution remain open.
 
 **4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.

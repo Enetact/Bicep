@@ -12,6 +12,8 @@
 
 User clarification: subscription selection must use values returned by Azure authentication/discovery, not a hardcoded developer subscription or the workload catalog. The new operations adapter enforces this. Existing deployment catalog targets are a separate, unchanged governance surface.
 
+**Local authentication increment (4 October 2026):** Connections now offers an Azure CLI browser sign-in button without a custom registration. The shared token provider supplies Azure/ADO audiences; network and tagging scope selection also use the authenticated tenant. Codex/AHP remains separate and explicitly invoked. Local isolation/cancellation tests pass; completed tenant login and authenticated O1 collection remain manual acceptance gates. See [authentication setup](../local-portal.md#configure-microsoft-browser-sign-in).
+
 [Wiki](../README.md) · [Workflow standard](../agent-workflow-standard.md) · [Blueprint](../templates/agent-workflow-blueprint.md) · [Expansion roadmap](../self-service-expansion-plan.md)
 
 ## Scope and delivery decision

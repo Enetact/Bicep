@@ -6,7 +6,7 @@
 
 ## Use the portal
 
-1. Start the rebuilt application with `scripts/Start-Portal.ps1`. Configure your own Entra tenant/client registration using the [portal setup](local-portal.md); no client secret is needed. Connect **Azure** under Connections.
+1. Start the rebuilt application with `scripts/Start-Portal.ps1`. Under Connections, use **Local authentication — Azure CLI → Sign in locally — Azure CLI**, or configure your own Entra tenant/client registration using the [portal setup](local-portal.md). No client secret is needed. Connect **Azure** with the selected method.
 2. Open **DNS & drift → Refresh subscriptions from Azure**. The authenticated tenant comes from the Microsoft sign-in result. The subscription IDs/names come from the live ARM subscriptions response, filtered to enabled subscriptions in that tenant. No workload catalog subscription or developer-specific subscription ID is used by this collector.
 3. Select 1–8 returned subscriptions and **Collect new DNS observation**. Collection re-enumerates subscriptions before reading resources. A forged selection, incomplete subscription enumeration or a changed identity blocks collection. Successful enumeration represents visible scope, not proof of complete tenant access.
 4. Choose **Private DNS analysis** and **Assess selected observation**. Inspect records, findings, collection coverage and the configured relationship diagram. No resources are preselected for change.
@@ -78,7 +78,7 @@ The wrapper restores locked .NET dependencies, builds its CLI and passes file pa
 
 ## Manual acceptance and subsequent phases
 
-1. Configure a separate portal Entra public-client registration, sign in to Azure, refresh scopes, and confirm returned tenant/subscription names match that identity. Validate denied/empty collections in an approved read-only scope.
+1. Use local Azure CLI authentication or a separate portal Entra public-client registration, sign in to Azure, refresh scopes, and confirm returned tenant/subscription names match that identity. Validate denied/empty collections in an approved read-only scope.
 2. Reconnect Codex after rebuilding. Collect a small DNS scope, assess it, run one explicit domain review and verify terminal completion, both MCP tool reads, exact model policy and structured advice validation in its receipt.
 3. Review a second observation against a local reference and explicit desired settings. Confirm missing desired/property/ownership data remains Unknown, and edited inputs require a new assessment/proposal.
 4. Confirm proposal Preview displays blockers and no Apply action. Rehearse cloud mutations only after the later adapters and platform qualification gates exist.

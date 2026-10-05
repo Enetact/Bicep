@@ -36,7 +36,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Guide | What it covers |
 |---|---|
 | [Getting started](getting-started.md) | Ordered installation, upgrade, verification and packaging commands. |
-| [Portal setup and authentication](local-portal.md) | Entra registration, Azure/ADO browser sign-in, configuration and Windows packages. |
+| [Portal setup and authentication](local-portal.md) | Local Azure CLI sign-in, optional Entra registration, Azure/ADO connections, configuration and Windows packages. |
 | [Blob copy local development](local-development.md) | Functions/Azurite prerequisites, data, lifecycle and troubleshooting. |
 | [Exact local workflow](local-workflow.md) | Blob upload, dispatcher, queue worker, ledger and timers. |
 | [Dispatcher reference](dispatcher/README.md) | Methods, dependencies, settings and execution behavior. |

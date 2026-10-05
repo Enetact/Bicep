@@ -39,7 +39,7 @@ This is the implemented source flow; its presence does not enable targets or est
 
 ## Identity and execution boundaries
 
-Azure browser sign-in authorizes resource reads using the user's access. ADO sign-in authorizes the portal's pipeline/artifact actions. Pipeline service connections govern deployment permissions. Codex sign-in enables model execution separately. The portal needs its own Entra public-client registration, distinct from the pipeline principal.
+Azure sign-in authorizes resource reads using the user's access. ADO sign-in authorizes the portal's pipeline/artifact actions. Pipeline service connections govern deployment permissions. Codex sign-in enables model execution separately. The portal supports local Azure CLI authentication without a custom registration, or a separate Entra public-client registration. Its Microsoft identity remains distinct from the pipeline principal.
 
 Authentication does not automatically run discovery, inference or deployment. Source drafts and agent recommendations cannot enable a target, allocate network space or approve a change. Azure/ADO bearer tokens are not supplied to the model. See [portal authentication](local-portal.md), [agent contracts](agent-workflows.md) and [security/RBAC](security-and-rbac.md).
 

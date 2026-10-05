@@ -45,10 +45,10 @@ public sealed class LocalCliIdentityTests
         Assert.Equal("Connected", s.State); Assert.Null(s.Account); Assert.Equal(Tenant, s.AzureTenantId);
         Assert.True(s.Connected.ContainsKey("azure")); Assert.False(s.Connected.ContainsKey("ado"));
         var directory = s.Cli!.DirectoryPath;
-        Assert.StartsWith(Path.Combine(o.RepositoryRoot, ".local/portal/azure-cli"), directory);
+        Assert.StartsWith(Path.GetFullPath(Path.Combine(o.RepositoryRoot, ".local/portal/azure-cli")), directory);
         Assert.Equal("test-token-not-a-credential", await router.Token(s, "azure"));
         cli.Begin(s, "ado", null); await Complete(s);
-        Assert.Single(fake.Commands.Where(c => c[0] == "login"));
+        Assert.Single(fake.Commands, c => c[0] == "login");
         Assert.Contains(fake.Commands, c => c.Contains("499b84ac-1321-427f-aa17-267ca6975798"));
         Assert.Contains(fake.Commands, c => c.Contains("https://management.azure.com/"));
         Assert.All(fake.Directories, d => Assert.Equal(directory, d));

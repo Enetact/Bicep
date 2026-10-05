@@ -1,4 +1,25 @@
 {
+  "localCliAuthentication20261004": {
+    "date": "2026-10-04",
+    "guide": "docs/local-portal.md",
+    "backendTests": { "passed": 258, "skipped": 1, "failed": 0 },
+    "installedAzureCliVersionProcessTest": true,
+    "actualReleaseAppRebuiltAndRestarted": true,
+    "actualAppHttpChecks": 41,
+    "actualAppAhpChecks": 7,
+    "browserSignInInitiatedAndCancelled": true,
+    "browserCancellationCacheRemoved": true,
+    "shutdownCleanupOwnerIsolationTest": true,
+    "ignoreProbes": 31,
+    "eligibleSourcePaths": 284,
+    "portablePackagesRebuilt": false,
+    "completedAzureAuthentication": false,
+    "liveResourceAccessVerified": false,
+    "adoWritesPerformed": false,
+    "modelInferencePerformed": false,
+    "evidence": ["artifacts/test-results/portal-local-auth.trx", "artifacts/portal-tests/http-smoke.json", "artifacts/portal-local-auth/connections.png"],
+    "liveAcceptance": "Complete Microsoft sign-in in the UI, connect the separate ADO audience, refresh visible scopes and validate read-only access."
+  },
   "nestedIacEvidence20261004": {
     "date": "2026-10-04",
     "guide": "docs/nested-iac-evidence.md",

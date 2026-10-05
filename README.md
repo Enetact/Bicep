@@ -44,7 +44,7 @@ Open [localhost:5087](http://localhost:5087/). You can browse workloads, skills 
 ./scripts/Stop-Portal.ps1
 ```
 
-Azure, Azure DevOps and Codex use separate connections. See [browser authentication](docs/local-portal.md#configure-microsoft-browser-sign-in) and [agent setup](docs/agent-workflows.md). The portal requires its own Entra application registration; the pipeline service connection is a separate identity.
+Azure, Azure DevOps and Codex use separate connections. In **Connections → Local authentication — Azure CLI**, click **Sign in locally — Azure CLI** to open Microsoft sign-in without a custom app registration; then connect ADO through the same account. Registered Entra app authentication remains an alternative. See [authentication and cache handling](docs/local-portal.md#configure-microsoft-browser-sign-in) and [agent setup](docs/agent-workflows.md). The pipeline service connection remains a separate identity.
 
 ## Workload catalog
 

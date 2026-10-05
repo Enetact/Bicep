@@ -84,6 +84,20 @@ await test('Registration catalog covers all 25 root pipelines', async () => { co
 await test('Registration inventory requires ADO identity', async () => assert.equal((await fetch(base + '/api/pipeline-setup/inventory', {headers})).status,401));
 await test('Unissued registration ticket cannot create', async () => assert.equal((await post('pipeline-setup/apply/not-issued',{})).status,409));
 await test('Disconnect returns clean state', async () => { assert.equal((await post('disconnect', {})).status, 200); const s = await fetch(base + '/api/auth', { headers }).then(r => r.json()); assert.deepEqual(s.connected, []); });
+await test('Local authentication UI and status expose no credentials', async () => {
+  const s=await fetch(base+'/api/auth',{headers}).then(r=>r.json());
+  assert.equal(typeof s.localCliAvailable,'boolean'); assert.equal(s.mode,null); assert.equal(s.tenantId,null);
+  assert.ok(!('accessToken' in s)); assert.ok(!('cachePath' in s));
+  const html=await fetch(base+'/').then(r=>r.text());
+  for(const id of ['auth-mode','local-auth-settings','local-auth-tenant','connect-local','local-cli-status','auth-context']) assert.ok(html.includes(`id="${id}"`));
+  assert.ok(html.includes('Local authentication — Azure CLI')); assert.ok(html.includes('Disconnect Microsoft'));
+});
+await test('Local authentication rejects CSRF before any CLI invocation', async () => assert.equal((await post('local-auth/azure',{}, {'x-portal-csrf':'wrong'})).status,403));
+await test('Local authentication rejects arbitrary audiences and tenant arguments', async () => {
+  assert.equal((await post('local-auth/untrusted',{})).status,400);
+  assert.equal((await post('local-auth/azure',{tenantId:'invalid; shell text'})).status,400);
+  const s=await fetch(base+'/api/auth',{headers}).then(r=>r.json()); assert.equal(s.mode,null); assert.deepEqual(s.connected,[]);
+});
 await test('Tagging configuration does not enable writes', async () => { const c=await fetch(base+'/api/tags/config',{headers}).then(r=>r.json()); assert.equal(c.enabled,false);assert.equal(c.workflow,'tagging'); });
 await test('Tag evidence is isolated from unauthenticated sessions', async () => {const r=await fetch(base+'/api/tags/evidence/unknown',{headers});assert.equal(r.status,401);});
 await test('Tag drafts require a connected evidence owner', async () => {const r=await post('tags/drafts',{evidenceId:'unknown',edits:[]});assert.equal(r.status,401);});

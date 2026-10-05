@@ -1,5 +1,17 @@
 # Validation evidence
 
+## 4 October 2026 - Local Azure CLI authentication
+
+Implemented the real Connections UI button, shared-token-provider routing, optional tenant selection, private per-browser CLI cache, audience/tenant/expiry qualification, cancellation, renewal and governed cleanup. Microsoft disconnect clears Azure/ADO evidence without disconnecting Codex. Network/tagging discovery uses the returned tenant; deployment catalog enablement and pipeline service connections are unchanged. See [the operating guide](local-portal.md#configure-microsoft-browser-sign-in).
+
+- **258 backend tests passed, one optional native Codex test skipped, zero failures**. Includes a real installed Azure CLI `version` subprocess, mocked successful/failed authentication, separate ADO audience, wrong-tenant/expired-token rejection, renewal/account change, cancellation, cache isolation/removal and dynamic network scope resolution. Receipt: `artifacts/test-results/portal-local-auth.trx`. An initial Windows path-separator assertion failed and was corrected before this successful run.
+- Rebuilt the **actual normal Release portal**, zero warnings/errors, and restarted through `Setup-Portal.ps1` / `Start-Portal.ps1` at port 5087. **41 real HTTP checks** and **seven AHP coordination/policy checks** passed. The current native Codex policy was preserved. Portable packages were not rebuilt.
+- Codex browser verification observed the CLI-installed state, enabled local button, actual sign-in waiting state, cancellation/re-enabled controls and registered-app setup gating. Cancellation removed the session cache; the browser was left on Connections, ready for manual sign-in. UI evidence: `artifacts/portal-local-auth/connections.png`.
+- Repository hygiene passed **31 ignore probes / 284 eligible source paths**, including the isolated CLI cache. No secrets were written to source or browser API responses by this feature. This is not a full publication/history secret audit.
+- The real `Clear-PortalAzureCli.ps1` cleanup helper removed a synthetic session matching the recorded owner and preserved a second owner's session; both fixtures were cleaned. No live credentials were used in that check.
+
+The browser test initiated and cancelled Microsoft authentication. It did **not** complete user consent/MFA, verify live resource access or queue any ADO operation. Successful live Azure/ADO authentication, Conditional Access handling and workflow acceptance remain user verification tasks. No deployment, target enablement or model inference occurred.
+
 ## 4 October 2026 - Nested discovery and IaC qualification
 
 Added versioned nested-property profiles, fixed child ARM probes, explicit property/probe coverage, unresolved What-If and linked-template qualification, and observed-property fingerprints in the dedicated Preview/Deploy handoff. The portal and AHP/Codex IaC review consume these records; Bicep draft recommendations now retain projected nested network evidence without promoting it to parameter defaults. See [the coverage and manual acceptance guide](nested-iac-evidence.md).

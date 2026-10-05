@@ -24,7 +24,7 @@
 | Capability | Implementation | Verification boundary / remaining work |
 |---|---|---|
 | Local portal and Windows packages | Implemented | Local backend/HTTP/browser evidence exists. Packages predate some source increments; rebuild to include current code. Native x64 hardware acceptance is outstanding. |
-| Microsoft browser authentication and ADO integration | Implemented | Separate audience/session controls and local tests; registration, consent and authenticated live workflows need acceptance. |
+| Microsoft authentication and ADO integration | Implemented: local Azure CLI button or registered-app browser flow | Separate audience/session controls, isolated CLI cache, cancellation and renewal tests. User consent, tenant policy and authenticated live Azure/ADO workflows need acceptance. CLI mode needs no custom registration. |
 | ADO definition registration | Implemented | Reviewed create/reuse/conflict logic for all roots. Local contracts do not establish live registration or permission setup. |
 | Nine workload menus/compositions | Implemented | Local YAML routing, Bicep and product checks recorded. Shared dependencies, complete pricing and per-target Azure acceptance remain required. |
 | Private AKS / Helm | Implemented; targets disabled | 34 mocked AKS checks, real Helm 4.3.0 rendering and 22 application contracts pass. Cluster/namespace onboarding and live installation/upgrade/failure acceptance remain outstanding. |

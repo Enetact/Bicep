@@ -36,7 +36,7 @@ The [Agent workflows menu](agent-workflows.md) adds six review/draft workflows: 
 
 The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The original two workload routes retain their ADO manifest contracts; five additional products use typed discovery v2.
 
-The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Entra registration and live authentication/ADO acceptance remain required.
+The [local Platform Studio website](local-portal.md) presents this catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Microsoft authentication can use the local Azure CLI button without a custom registration, or a registered Entra app. Live authentication/ADO acceptance remains required.
 
 The [connected diagram views](portal-diagrams.md) add observed Azure inventory, conceptual component diagrams for every selected product, and resource-action diagrams from the registered workload's saved ADO Preview artifact. Conceptual components are separate from exact Azure resource IDs; no name-based reuse or deployment approval is inferred.
 
