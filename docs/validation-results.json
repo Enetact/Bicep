@@ -8,8 +8,10 @@
     "actualAppAhpChecks": 7,
     "githubCli": { "version": "2.102.0", "architecture": "arm64", "officialChecksumVerified": true },
     "realDevicePromptAndCancellationVerified": true,
-    "liveUserConsentAccepted": false,
-    "livePrivateRepositoryReadAccepted": false,
+    "liveUserConsentAccepted": true,
+    "livePrivateRepositoryReadAccepted": true,
+    "livePrivateRepositoryReadMethod": "Authenticated GitHub CLI GET; portal account identity separately verified through its API adapter",
+    "livePrivateSourceAdoRegistrationAccepted": false,
     "pipelinesQueued": false,
     "portablePackagesRebuilt": false,
     "testReceipt": "artifacts/test-results/portal-github.trx"
