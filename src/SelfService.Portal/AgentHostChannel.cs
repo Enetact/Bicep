@@ -20,7 +20,7 @@ public static class AgentHostChannel
         using var socket = await context.WebSockets.AcceptWebSocketAsync("platform-studio");
         var initialized = false; string? channel = null; long seq = 0;
         async Task Send(object value) => await socket.SendAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, Json)), WebSocketMessageType.Text, true, context.RequestAborted);
-        object RootState() => new { agents = new[] { new { provider = "codex", displayName = "Codex", description = "Platform Studio bounded workflows", models = new[] { new { id = AgentPolicy.Model, name = "GPT-6 Astra", provider = "codex" } } } },
+        object RootState() => new { agents = new[] { new { provider = "codex", displayName = "Codex", description = "Platform Studio bounded workflows", models = new[] { new { id = AgentPolicy.Model, name = AgentPolicy.DisplayName, provider = "codex" } } } },
             platformStudio = new { profile = "coordination-only", modelTurns = "/api/agent/run", arbitraryDispatch = false, mcpSideChannel = false, version = Version } };
         try
         {

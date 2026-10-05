@@ -1,0 +1,164 @@
+{
+  "bundle": {
+    "name": "platform-data-recipes"
+  },
+  "variables": {
+    "workspace_host": {
+      "description": "HTTPS workspace URL"
+    },
+    "lake_account": {
+      "description": "Owned ADLS account"
+    },
+    "spark_version": {
+      "description": "Qualified runtime"
+    },
+    "node_type": {
+      "description": "Approved node type"
+    },
+    "max_workers": {
+      "description": "Approved worker upper bound"
+    },
+    "run_as_application_id": {
+      "description": "Job runner application ID, not object ID"
+    },
+    "adf_application_id": {
+      "description": "Factory identity application ID, not object ID"
+    },
+    "compute_policy_id": {
+      "description": "Existing approved standard-access compute policy"
+    },
+    "instance": {
+      "description": "Reviewed workload-environment"
+    }
+  },
+  "workspace": {
+    "host": "${var.workspace_host}",
+    "root_path": "/Workspace/Shared/platform-studio/bundles/${var.instance}"
+  },
+  "run_as": {
+    "service_principal_name": "${var.run_as_application_id}"
+  },
+  "resources": {
+    "jobs": {
+      "reviewed_batch": {
+        "name": "${var.instance}-reviewed-batch",
+        "description": "Manual only: validate CSV, write isolated Delta batch, verify. No source deletion.",
+        "max_concurrent_runs": 1,
+        "queue": {
+          "enabled": false
+        },
+        "timeout_seconds": 3600,
+        "permissions": [
+          {
+            "service_principal_name": "${var.adf_application_id}",
+            "level": "CAN_MANAGE_RUN"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "default": "{{job.run_id}}"
+          },
+          {
+            "name": "source_relative_path",
+            "default": "inbox/sample.csv"
+          }
+        ],
+        "job_clusters": [
+          {
+            "job_cluster_key": "bounded",
+            "new_cluster": {
+              "spark_version": "${var.spark_version}",
+              "node_type_id": "${var.node_type}",
+              "policy_id": "${var.compute_policy_id}",
+              "apply_policy_default_values": true,
+              "data_security_mode": "USER_ISOLATION",
+              "autoscale": {
+                "min_workers": 1,
+                "max_workers": "${var.max_workers}"
+              },
+              "azure_attributes": {
+                "availability": "ON_DEMAND_AZURE"
+              },
+              "spark_conf": {
+                "spark.sql.session.timeZone": "UTC"
+              }
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "validate",
+            "job_cluster_key": "bounded",
+            "timeout_seconds": 1200,
+            "max_retries": 0,
+            "notebook_task": {
+              "notebook_path": "./src/batch.py",
+              "source": "WORKSPACE",
+              "base_parameters": {
+                "stage": "validate",
+                "lake_account": "${var.lake_account}",
+                "expected_sha256": ""
+              }
+            }
+          },
+          {
+            "task_key": "curate",
+            "depends_on": [
+              {
+                "task_key": "validate"
+              }
+            ],
+            "job_cluster_key": "bounded",
+            "timeout_seconds": 1200,
+            "max_retries": 0,
+            "notebook_task": {
+              "notebook_path": "./src/batch.py",
+              "source": "WORKSPACE",
+              "base_parameters": {
+                "stage": "curate",
+                "lake_account": "${var.lake_account}",
+                "expected_sha256": "{{tasks.validate.values.source_sha256}}"
+              }
+            }
+          },
+          {
+            "task_key": "verify",
+            "depends_on": [
+              {
+                "task_key": "curate"
+              }
+            ],
+            "job_cluster_key": "bounded",
+            "timeout_seconds": 1200,
+            "max_retries": 0,
+            "notebook_task": {
+              "notebook_path": "./src/batch.py",
+              "source": "WORKSPACE",
+              "base_parameters": {
+                "stage": "verify",
+                "lake_account": "${var.lake_account}",
+                "expected_sha256": "{{tasks.validate.values.source_sha256}}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "targets": {
+    "manual": {
+      "default": true,
+      "mode": "production"
+    }
+  },
+  "sync": {
+    "include": [
+      "src/**"
+    ],
+    "exclude": [
+      "receipt.json",
+      "sample.csv"
+    ]
+  }
+}

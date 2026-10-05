@@ -2,7 +2,7 @@ parameters:
   - name: workloadType
     type: string
     default: blob-transfer
-    values: [blob-transfer, logic-app-event-grid, private-storage, key-vault, observability, http-functions, service-bus-worker]
+    values: [blob-transfer, logic-app-event-grid, private-storage, key-vault, observability, http-functions, service-bus-worker, private-data-platform, private-aks]
   - name: workload
     type: string
   - name: environment
@@ -90,6 +90,7 @@ stages:
               SYSTEM_ACCESSTOKEN: $(System.AccessToken)
               DISCOVERY_PIPELINE_ID: ${{ parameters.discoveryPipelineId }}
               DISCOVERY_RUN_ID: ${{ parameters.discoveryRunId }}
+          - template: steps/setup-iac-analysis.yml
           - task: AzureCLI@2
             displayName: Validate and What-If (no workload deployment)
             inputs:
@@ -104,6 +105,7 @@ stages:
               visibleAzLogin: false
           - pwsh: |
               Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/preview/README.md'
+              if (Test-Path '$(Build.ArtifactStagingDirectory)/preview/azure/iac/README.md') { Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/preview/azure/iac/README.md' }
             condition: and(always(), eq(variables['previewEvidencePrepared'], 'true'))
             displayName: Show resource-change README in Summary / Extensions
           - publish: $(Build.ArtifactStagingDirectory)/preview
@@ -227,6 +229,7 @@ stages:
                     artifact: self-service-bundle
                   - download: current
                     artifact: deployment-preview
+                  - template: steps/setup-iac-analysis.yml
                   - task: AzureCLI@2
                     displayName: Recheck approved plan, deploy, and verify readiness
                     inputs:
@@ -243,6 +246,10 @@ stages:
                         -BoundAgentPool "${{ parameters.agentPool }}"
                       workingDirectory: $(Build.SourcesDirectory)
                       visibleAzLogin: false
+                  - pwsh: |
+                      if (Test-Path '$(Build.ArtifactStagingDirectory)/result/iac/README.md') { Write-Host '##vso[task.uploadsummary]$(Build.ArtifactStagingDirectory)/result/iac/README.md' }
+                    condition: always()
+                    displayName: Show observed after-state analysis
                   - publish: $(Build.ArtifactStagingDirectory)/result
                     artifact: deployment-result
                     condition: and(always(), eq(variables['stageEvidencePrepared'], 'true'))

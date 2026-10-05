@@ -1,6 +1,8 @@
+. "$PSScriptRoot/data-platform-common.ps1"
+. "$PSScriptRoot/aks-common.ps1"
 # Reviewed product adapter. No executable paths are accepted from developer requests or artifacts.
 function Get-ProductDnsNames {
-    return @{blob='privatelink.blob.core.windows.net';queue='privatelink.queue.core.windows.net';table='privatelink.table.core.windows.net';sites='privatelink.azurewebsites.net';vault='privatelink.vaultcore.azure.net';servicebus='privatelink.servicebus.windows.net'}
+    return @{dfs='privatelink.dfs.core.windows.net';databricks='privatelink.azuredatabricks.net';datafactory='privatelink.datafactory.azure.net';adfportal='privatelink.adf.azure.com';blob='privatelink.blob.core.windows.net';queue='privatelink.queue.core.windows.net';table='privatelink.table.core.windows.net';sites='privatelink.azurewebsites.net';vault='privatelink.vaultcore.azure.net';servicebus='privatelink.servicebus.windows.net'}
 }
 function Get-ProductRequiredParameters([string]$Type) {
     $d=Get-WorkloadDefinition $Type
@@ -8,6 +10,8 @@ function Get-ProductRequiredParameters([string]$Type) {
     if($d.dnsKeys.Count){$keys+=@('privateEndpointSubnetId','privateDnsZoneIds')}
     if($d.packageKind -eq 'productFunctions'){$keys+='integrationSubnetId'}
     switch($Type){'private-storage'{$keys+='consumerPrincipalObjectId'} 'key-vault'{$keys+='readerPrincipalObjectId'} 'observability'{$keys+='alertActionGroupIds'} 'http-functions'{$keys+=@('apiClientId','allowedClientApplications')}}
+    if($Type -eq 'private-data-platform'){$keys+=@('databricksHostSubnetId','databricksContainerSubnetId','browserAuthenticationPrivateEndpointId','sparkVersion','nodeType','maxWorkers','notebookPath','inputFileName','databricksJobId')}
+    if($Type -eq 'private-aks'){$keys+=Get-AksParameterKeys}
     return $keys
 }
 function Assert-ProductParameters($Target,$P) {
@@ -39,6 +43,8 @@ function Assert-ProductParameters($Target,$P) {
         if($P.alertActionGroupIds.value -isnot [array] -or !$P.alertActionGroupIds.value.Count){throw 'Configure a reviewed action group; no notification destination is invented.'}
         foreach($id in $P.alertActionGroupIds.value){if($id -notmatch ($scope+'Microsoft.Insights/actionGroups/[^/]+$')){throw 'Invalid action group.'}}
     }
+    if($type -eq 'private-aks'){Assert-AksParameters $Target $P}
+    if($type -eq 'private-data-platform'){Assert-DataPlatformParameters $Target $P}
     if($P.Contains('releaseActivated') -and $P.releaseActivated.value -isnot [bool]){throw 'Invalid lifecycle flag.'}
     if($P.Contains('packageBlobName') -and $P.packageBlobName.value -cnotmatch '^releases/[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}\.zip$'){throw 'Invalid application package path.'}
 }
@@ -47,6 +53,8 @@ function Assert-ProductDiscovery($Target,$P,[string]$Directory) {
     $i=Get-Content (Join-Path $Directory inventory.json) -Raw|ConvertFrom-Json -AsHashtable
     $d=Get-WorkloadDefinition (Get-TargetWorkloadType $Target)
     if($i.resourceQuery.status -cne 'Succeeded' -or $i.networkQuery.status -cne 'Succeeded' -or $i.privateDnsQuery.status -cne 'Succeeded'){throw 'Failed discovery does not establish empty resources.'}
+    if((Get-TargetWorkloadType $Target) -eq 'private-data-platform'){Assert-DataPlatformDiscovery $Target $P $i}
+    if((Get-TargetWorkloadType $Target) -eq 'private-aks'){Assert-AksDiscovery $Target $P $i}
     foreach($ns in $d.providers){$found=@($i.providers|Where-Object {$_.namespace -ceq $ns -and $_.registrationState -eq 'Registered'});if($found.Count -ne 1){throw "Provider not registered or unknown: $ns"}}
     foreach($id in @($P.existingLogAnalyticsWorkspaceId.value)+@($(if($P.Contains('alertActionGroupIds')){$P.alertActionGroupIds.value}))){
         if(@($i.resources|Where-Object {$_.id -ieq $id}).Count -ne 1){throw "Shared dependency missing from discovery: $id. Platform must provision/approve it first."}
@@ -92,6 +100,8 @@ function Test-ProductPrerequisites($Bundle) {
             $evidence[$id]=$links
         }
     }
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'private-data-platform'){$evidence.dataPlatform=Test-DataPlatformPrerequisites $Bundle}
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'private-aks'){$evidence.aks=Test-AksPrerequisites $Bundle}
     return $evidence
 }
 function Get-ProductCostEstimate($Target,$P) {
@@ -157,7 +167,7 @@ function Test-ProductPackage([string]$Path) {
 function Get-ProductOutputs($Bundle) {
     $s=Get-WorkloadStack $Bundle;if(!$s){throw 'Product stack not provisioned.'};$o=$s.properties.outputs
     $d=Get-WorkloadDefinition (Get-TargetWorkloadType $Bundle.target)
-    $expected=switch($d.menuSlug){storage{@('storageResourceId')} keyvault{@('vaultResourceId')} observe{@('workbookId','alertId')} httpapi{@('storageResourceId')} busworker{@('storageResourceId','busResourceId')}}
+    $expected=switch($d.menuSlug){aksapps{@('clusterResourceId','applicationIdentityId')} dataplat{@('storageResourceId','databricksResourceId','factoryResourceId','accessConnectorId')} storage{@('storageResourceId')} keyvault{@('vaultResourceId')} observe{@('workbookId','alertId')} httpapi{@('storageResourceId')} busworker{@('storageResourceId','busResourceId')}}
     foreach($k in $expected){if(!$o.Contains($k) -or !$o[$k].value){throw "Missing product output $k"};Assert-StackManagedId $Bundle $o[$k].value}
     if($o.workspaceId.value -ine $Bundle.parameters.parameters.existingLogAnalyticsWorkspaceId.value){throw 'Unexpected shared workspace.'}
     # Validate data-plane host names before sending tokens; ARM outputs alone are not trusted URLs.
@@ -196,7 +206,7 @@ function Test-ProductInfrastructure($Bundle,$Outputs) {
     if($Outputs.Contains('storageResourceId')){
         $s=Invoke-ServiceJson @('resource','show','--ids',$Outputs.storageResourceId.value,'--api-version','2025-01-01')
         if($s.properties.publicNetworkAccess -cne 'Disabled' -or $s.properties.allowSharedKeyAccess -ne $false -or $s.properties.allowBlobPublicAccess -ne $false){throw 'Storage security acceptance failed.'}
-        foreach($service in $(if($type -eq 'private-storage'){@('blob','queue')}else{@('blob','queue','table')})){Wait-ProductPrivateHost "$($Outputs.storageAccountName.value).$service.core.windows.net"}
+        foreach($service in $(if($type -eq 'private-storage'){@('blob','queue')}elseif($type -eq 'private-data-platform'){@('blob','dfs')}else{@('blob','queue','table')})){Wait-ProductPrivateHost "$($Outputs.storageAccountName.value).$service.core.windows.net"}
         $checks+='Storage private DNS and identity-only configuration'
     }
     if($type -eq 'key-vault'){
@@ -214,6 +224,8 @@ function Test-ProductInfrastructure($Bundle,$Outputs) {
         if($n.properties.publicNetworkAccess -cne 'Disabled' -or $n.properties.disableLocalAuth -ne $true -or $n.sku.name -cne 'Premium'){throw 'Service Bus private identity-only configuration failed.'}
         $checks+='Premium Service Bus private access and local auth disabled'
     }
+    if($type -eq 'private-aks'){return (Test-AksInfrastructure $Bundle $Outputs)}
+    if($type -eq 'private-data-platform'){return (Test-DataPlatformInfrastructure $Bundle $Outputs)}
     return @{checks=$checks;dataPlaneVerified=$false;notificationDeliveryVerified=$false;note='Resource configuration and private DNS verified. Consumer authorization, recovery and alert delivery require separate live acceptance.'}
 }
 function Invoke-ProductApply($Bundle,[string]$Phase,[string]$PlanDirectory,[string]$Directory) {

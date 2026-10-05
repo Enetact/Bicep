@@ -1,0 +1,5 @@
+{"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"name":{{ .Release.Name | quote }}},"spec":{
+ "podSelector":{"matchLabels":{"app.kubernetes.io/instance":{{ .Release.Name | quote }}}},"policyTypes":["Ingress","Egress"],
+ "ingress":[{"from":[{"podSelector":{"matchLabels":{"platform-studio/client":"allowed"}}}],"ports":[{"port":{{ .Values.port }},"protocol":"TCP"}]}],
+ "egress":[{"to":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"kube-system"}},"podSelector":{"matchLabels":{"k8s-app":"kube-dns"}}}],"ports":[{"port":53,"protocol":"UDP"},{"port":53,"protocol":"TCP"}]}
+ {{- range .Values.egressCidrs }}, {"to":[{"ipBlock":{"cidr":{{ . | quote }}}}],"ports":[{"port":443,"protocol":"TCP"}]}{{- end }}]}}

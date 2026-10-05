@@ -21,7 +21,7 @@ public sealed class Catalog(PortalOptions options)
             if (c.GetProperty("schemaVersion").GetInt32() != 1 || c.GetProperty("executionEnabled").GetBoolean())
                 throw new InvalidOperationException("Recovery catalog cannot enable execution.");
             var ids = c.GetProperty("policies").EnumerateArray().Select(p => p.GetProperty("id").GetString()!).ToArray();
-            var expected = ProductTypes.Concat(new[] { "tags-external", "tags-source", "network-ipam", "pipeline-registration", "discovery", "agent-review", "bicep-draft" }).ToArray();
+            var expected = ProductTypes.Concat(new[] { "tags-external", "tags-source", "network-ipam", "pipeline-registration", "discovery", "agent-review", "bicep-draft", "helm-app" }).ToArray();
             if (ids.Length != expected.Length || !ids.Order().SequenceEqual(expected.Order()))
                 throw new InvalidOperationException("Recovery catalog must cover exactly the registered workflows.");
             return c;
@@ -30,7 +30,7 @@ public sealed class Catalog(PortalOptions options)
     static JsonElement Read(string file) => JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(file));
     public string[] Regions => Read(Path.Combine(Root, "config/platform.json")).GetProperty("approvedRegions").EnumerateArray().Select(x => x.GetString()!).ToArray();
     // Explicit source allowlist: configuration describes products but cannot supply executable paths.
-    static readonly string[] ProductTypes = ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker"];
+    static readonly string[] ProductTypes = ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker", "private-data-platform", "private-aks"];
     public Product[] Products => ProductTypes.Select(type =>
     {
         var d = Read(Path.Combine(Root, "config/workloads.json")).GetProperty("workloads").GetProperty(type);

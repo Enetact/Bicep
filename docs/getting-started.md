@@ -34,13 +34,13 @@ The application is a single-user localhost service. Ownership receipts and logs 
 
 | Task | Connection and setup |
 |---|---|
-| Discover Azure resources or networks | Azure browser sign-in through a separate portal Entra registration; caller needs read access to the selected scope. |
+| Discover Azure resources or networks | Connections → Local authentication — Azure CLI, or browser sign-in through a separate portal Entra registration; caller needs read access to the selected scope. |
 | Select discovery, read Preview or request pipelines | Azure DevOps browser sign-in, project membership, appropriate pipeline access and registered definitions. |
 | Request AI review or generate a source draft | Compatible native Codex executable and the portal's separate ChatGPT browser sign-in; workflow-specific Azure/ADO evidence may also be required. |
 
 Follow [Microsoft browser sign-in setup](local-portal.md#configure-microsoft-browser-sign-in) and [agent setup](agent-workflows.md#setup-and-dependencies). Do not reuse the deployment service connection's client ID for the portal. Sign-in does not automatically start discovery, model inference or a pipeline.
 
-After creating the portal registration, stop the portal and configure the identifiers together:
+Skip registration setup for local CLI authentication. If you choose the registered-app method, create the portal registration, then stop the portal and configure the identifiers together:
 
 ```powershell
 ./scripts/Stop-Portal.ps1
@@ -106,3 +106,5 @@ This is a separate workload runtime using real local Functions and Azurite. Run:
 ```
 
 The launcher checks/installs missing tools into ignored project folders; Stop preserves data. This path needs no Azure subscription, Docker, Azure CLI or Bicep. It does not emulate hosted Event flow, Service Bus, Entra or private Azure networking. Read [local prerequisites and troubleshooting](local-development.md), [the execution flow](local-workflow.md) and [dispatcher methods](dispatcher/README.md).
+
+Contributors running the complete qualification suite also need Python 3.10+ for the Private Data Platform recipe contract tests (standard library only). The portal itself does not launch Python for this offering. See [manual recipes](../workloads/private-data-platform/recipes.md).

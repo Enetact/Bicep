@@ -1,5 +1,9 @@
 # Run-menu costs and deployment options
 
+**AKS/Helm increment — 4 October 2026:** Private AKS has a Standard control-plane charge, at least six VMs and disks, shared Premium ACR/NAT/private connectivity, Defender and monitoring costs. The chart requests at least three application replicas. No complete reviewed monthly estimate exists; this is not a free offering. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**Private Data Platform, 4 October 2026:** its estimate is also `Unavailable`, never zero. Cost drivers include Databricks Premium DBUs and driver/workers, ADF activities/IR, seven workload private endpoints and three managed endpoints, root/lake storage, diagnostics, shared NAT/browser authentication and DNS. No job is automatically started; infrastructure can still incur charges. No new price quote was qualified.
+
 **Five additional products, 27 September 2026:** Storage, Key Vault, Observability, HTTP Functions API and Service Bus worker currently return `Unavailable` and a null monthly subtotal. Their menus and reports list cost drivers; no reviewed complete price snapshot has been admitted. B1 hosting, Premium Service Bus, private endpoints and consumption are billable. Existing Blob copy/Event flow reference estimates below do not price the new products. See [onboarding](workload-onboarding.md#costs-and-acceptance).
 
 Logic App/Event Grid costs: the new `eventflow` profile uses WS1 plus eight private endpoints, approximately USD 233.56/month fixed subtotal in the dated East US 2 snapshot, with usage/additional costs excluded. The resolved Event flow estimate also adds fixed charges for owned DNS zones; queries and log/storage usage remain additional. See the [workload cost assumptions and evidence](../workloads/logic-app-event-grid/README.md#costs-and-local-tests). The existing calculations below describe blob-transfer.

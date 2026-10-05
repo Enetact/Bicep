@@ -1,6 +1,7 @@
 # Property-level review gates supplement ARM validation and platform Azure Policy.
 function Assert-ServiceChange($Change) {
     if ($Change.changeType -in @('NoChange','NoEffect')) { return }
+    if ($Change.changeType -eq 'Modify' -and $Change.resourceId -match '/providers/Microsoft.ContainerService/managedClusters/' -and (!$Change.Contains('delta') -or !@($Change.delta).Count -or @($Change.delta|Where-Object {$_.path -cnotmatch '^tags(\.|\[|$)'}).Count)) { throw 'AKS upgrades and cluster changes require a separately qualified platform maintenance plan.' }
     if ($Change.changeType -eq 'Modify') {
         if (!$Change.Contains('delta') -or @($Change.delta).Count -eq 0) { throw "Unanalyzed Modify without property deltas: $($Change.resourceId)" }
         if ($Change.resourceId -match '/providers/(Microsoft.Authorization/roleAssignments|Microsoft.ManagedIdentity/userAssignedIdentities|Microsoft.Network/(privateEndpoints|privateDnsZones|virtualNetworks|networkSecurityGroups|routeTables|azureFirewalls|dnsResolvers))(/|$)') {
@@ -15,21 +16,25 @@ function Assert-ServiceChange($Change) {
             if ($node.propertyChangeType -notin @('Create','Delete','Modify','Array','NoEffect')) { throw 'Unanalyzed what-if property change type.' }
             if ($node.propertyChangeType -eq 'NoEffect') { continue }
             $path="$($item.prefix)$($node.path)"
-            if ($path -match '(?i)(^|\.)(identity|sku|location|publicNetworkAccess|allowBlobPublicAccess|allowSharedKeyAccess|minimumTlsVersion|disableLocalAuth|enableRbacAuthorization|enablePurgeProtection|enableSoftDelete|allowedAudiences|allowedClientApplications|requireAuthentication|httpsOnly|virtualNetworkSubnetId|subnet|networkAcls|ipSecurityRestrictions|scmIpSecurityRestrictions|roleDefinitionId|principalId|privateEndpointConnections|dnsSettings|siteConfig\.vnetRouteAllEnabled)(\.|\[|$)') {
+            if ($path -match '(?i)(^|\.)(identity|sku|location|defaultStorageFirewall|accessConnector|computeMode|managedResourceGroupId|enableNoPublicIp|requiredNsgRules|isHnsEnabled|customVirtualNetworkId|customPublicSubnetName|customPrivateSubnetName|publicNetworkAccess|allowBlobPublicAccess|allowSharedKeyAccess|minimumTlsVersion|disableLocalAuth|enableRbacAuthorization|enablePurgeProtection|enableSoftDelete|allowedAudiences|allowedClientApplications|requireAuthentication|httpsOnly|virtualNetworkSubnetId|subnet|networkAcls|ipSecurityRestrictions|scmIpSecurityRestrictions|roleDefinitionId|principalId|privateEndpointConnections|dnsSettings|siteConfig\.vnetRouteAllEnabled)(\.|\[|$)') {
                 throw "High-risk property '$path' requires platform migration review: $($Change.resourceId)"
             }
             # A parent object replacement can hide a sensitive child from the delta path.
             foreach ($side in @('before','after')) {
                 if ($node.Contains($side) -and $node[$side] -is [Collections.IDictionary]) {
-                    if ((ConvertTo-Canonical $node[$side]) -match '"(identity|sku|location|publicNetworkAccess|allowBlobPublicAccess|allowSharedKeyAccess|minimumTlsVersion|disableLocalAuth|enableRbacAuthorization|enablePurgeProtection|enableSoftDelete|allowedAudiences|allowedClientApplications|requireAuthentication|httpsOnly|virtualNetworkSubnetId|subnet|networkAcls|roleDefinitionId|principalId)":') { throw "High-risk object replacement at '$path' requires platform review." }
+                    if ((ConvertTo-Canonical $node[$side]) -match '"(identity|sku|location|defaultStorageFirewall|accessConnector|computeMode|managedResourceGroupId|enableNoPublicIp|requiredNsgRules|isHnsEnabled|customVirtualNetworkId|customPublicSubnetName|customPrivateSubnetName|publicNetworkAccess|allowBlobPublicAccess|allowSharedKeyAccess|minimumTlsVersion|disableLocalAuth|enableRbacAuthorization|enablePurgeProtection|enableSoftDelete|allowedAudiences|allowedClientApplications|requireAuthentication|httpsOnly|virtualNetworkSubnetId|subnet|networkAcls|roleDefinitionId|principalId)":') { throw "High-risk object replacement at '$path' requires platform review." }
                 }
             }
             if ($node.Contains('children')) { foreach ($child in $node.children) { $pending.Enqueue(@{node=$child;prefix="$path."}) } }
         }
     }
+    if ($Change.changeType -eq 'Modify' -and $Change.resourceId -match '/providers/Microsoft.DataFactory/factories/[^/]+/(datasets|linkedservices|pipelines|managedVirtualNetworks|integrationRuntimes)(/|$)') { throw 'Data Factory execution/connectivity changes require a reviewed data-platform migration.' }
     # Validate explicit create/modify payloads too; monitor public ingestion is a documented exception.
     if ($Change.Contains('after') -and $Change.after -is [Collections.IDictionary]) {
         $json=ConvertTo-Canonical $Change.after
-        if ($Change.resourceId -match '/providers/(Microsoft.Storage/storageAccounts|Microsoft.Web/sites|Microsoft.Sql/servers|Microsoft.KeyVault/vaults|Microsoft.ServiceBus/namespaces)(/|$)' -and $json -match '"publicNetworkAccess":"Enabled"|"allowBlobPublicAccess":true|"allowSharedKeyAccess":true|"disableLocalAuth":false|"enableRbacAuthorization":false|"enablePurgeProtection":false|"requireAuthentication":false|"httpsOnly":false|"minimumTlsVersion":"(TLS1_0|TLS1_1|1\.0|1\.1)"') { throw "Insecure public access or transport in planned resource: $($Change.resourceId)" }
+        if ($Change.resourceId -match '/providers/Microsoft.ContainerService/managedClusters/' -and $json -match '"(enablePrivateCluster|disableLocalAccounts|enableRBAC|enableAzureRBAC)":false|"(enablePrivateClusterPublicFQDN|enableNodePublicIP)":true') { throw 'AKS private API, Entra authorization and private nodes cannot be disabled by this profile.' }
+        if ($Change.resourceId -match '/providers/Microsoft.Databricks/workspaces/[^/]+$' -and $json -match '"enableNoPublicIp":\{"value":false|"requiredNsgRules":"AllRules"|"sku":\{"name":"standard"') { throw 'Databricks requires Premium, no public IP and private compute connectivity.' }
+        if ($Change.resourceId -match '/providers/Microsoft.DataFactory/factories/[^/]+/linkedservices/' -and $json -match '"(accessToken|accountKey|servicePrincipalKey)":') { throw 'Data platform linked services require managed identity, not embedded credentials.' }
+        if ($Change.resourceId -match '/providers/(Microsoft.Storage/storageAccounts|Microsoft.Web/sites|Microsoft.Sql/servers|Microsoft.Databricks/workspaces|Microsoft.DataFactory/factories|Microsoft.KeyVault/vaults|Microsoft.ServiceBus/namespaces)(/|$)' -and $json -match '"publicNetworkAccess":"Enabled"|"allowBlobPublicAccess":true|"allowSharedKeyAccess":true|"disableLocalAuth":false|"enableRbacAuthorization":false|"enablePurgeProtection":false|"requireAuthentication":false|"httpsOnly":false|"minimumTlsVersion":"(TLS1_0|TLS1_1|1\.0|1\.1)"') { throw "Insecure public access or transport in planned resource: $($Change.resourceId)" }
     }
 }

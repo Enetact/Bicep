@@ -10,7 +10,7 @@ function Candidate([string]$Id='private-storage'){
 }
 function Blocked($c,[string]$code){$r=Get-RecoveryAssessment $c;Check ($r.status -ceq 'Blocked');Check ($code -cin @($r.issues.code));Check (!$r.canExecute)}
 Case 'all registered products and operations have rules; configuration cannot enable execution' {
-    $catalog=Read-RecoveryCatalog;Check ($catalog.policies.Count -eq 14);Check (!$catalog.executionEnabled)
+    $catalog=Read-RecoveryCatalog;Check ($catalog.policies.Count -eq 17);Check (!$catalog.executionEnabled)
     $workloads=(Get-Content (Join-Path (Get-ProjectRoot) config/workloads.json) -Raw|ConvertFrom-Json -AsHashtable).workloads
     foreach($id in $workloads.Keys){Check ((Get-RecoveryPolicy $id).policy.id -ceq $id)}
 }

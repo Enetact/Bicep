@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param([switch]$SkipCompile)
 . "$PSScriptRoot/workload-preview-common.ps1"
+. "$PSScriptRoot/../tests/aks/fixtures.ps1"
 $root=Get-ProjectRoot;$testRoot=Join-Path $root ('artifacts/product-tests/'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
 $cases=[Collections.Generic.List[object]]::new()
@@ -30,6 +31,11 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
     $vnet="$scope/Microsoft.Network/virtualNetworks/pilot"
     if($d.dnsKeys.Count){$p.privateEndpointSubnetId.value="$vnet/subnets/endpoints";foreach($key in $d.dnsKeys){$p.privateDnsZoneIds.value[$key]="$scope/Microsoft.Network/privateDnsZones/$((Get-ProductDnsNames)[$key])"}}
     if($p.Contains('integrationSubnetId')){$p.integrationSubnetId.value="$vnet/subnets/integration"}
+    if($type -eq 'private-data-platform'){
+        $p.databricksHostSubnetId.value="$vnet/subnets/db-host";$p.databricksContainerSubnetId.value="$vnet/subnets/db-container"
+        $p.browserAuthenticationPrivateEndpointId.value="$scope/Microsoft.Network/privateEndpoints/browser-auth";$p.sparkVersion.value='15.4.x-scala2.12'
+    }
+    if($type -eq 'private-aks'){Set-AksTestParameters $p $scope $vnet}
     Case "$type reviewed parameters resolve typed intent" {
         Assert-ProductParameters $t $p
         $intent=Resolve-PlatformRequest @{workloadType=$type;workloadName=$t.workload;environment='dev';region='eastus2'} @($t)
@@ -47,9 +53,14 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
     if($d.dnsKeys.Count){
         $subnets=@(@{id=$p.privateEndpointSubnetId.value;privateEndpointCandidate=$true;integrationCandidate=$false})
         if($p.Contains('integrationSubnetId')){$subnets+=@{id=$p.integrationSubnetId.value;privateEndpointCandidate=$false;integrationCandidate=$true}}
+        if($type -eq 'private-data-platform'){
+            foreach($key in @('databricksHostSubnetId','databricksContainerSubnetId')){$subnets+=@{id=$p[$key].value;delegations=@('Microsoft.Databricks/workspaces');addressPrefixes=@('10.0.4.0/26')}}
+            $inv.resources+=@{id=$p.browserAuthenticationPrivateEndpointId.value;type='Microsoft.Network/privateEndpoints'}
+        }
         $inv.networks=@(@{id=$vnet;location='eastus2';subnets=$subnets;subnetQuery=@{status='Succeeded'}})
         $inv.privateDnsZones=@($p.privateDnsZoneIds.value.Values|ForEach-Object {@{id=$_}})
     }
+    if($type -eq 'private-aks'){Set-AksTestInventory $inv $p $vnet}
     $dir=Join-Path $testRoot $type;New-Item -ItemType Directory -Path $dir|Out-Null
     Write-ServiceJson $inv (Join-Path $dir inventory.json)
     $m=@{schemaVersion=2;kind='workload-discovery';workloadType=$type;discoveryStatus='Complete';generatedUtc=$inv.generatedUtc;inventorySha256=(Get-ServiceHash (Join-Path $dir inventory.json));subscriptionId=$t.subscriptionId;serviceConnection=$t.serviceConnection;selection=@{workload=$t.workload;environment='dev';region='eastus2';subscription=$t.subscriptionAlias;network=$t.networkProfile};source=@{runId='42';pipelineId='1';branch='refs/heads/main';commit=('a'*40);repositoryId='test';projectId='test'}}
@@ -75,7 +86,7 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
         Reject {Assert-StackManagedId @{target=$t;parameters=@{parameters=$p}} "$scope/Microsoft.Storage/storageAccounts/external"}
     }
     if($d.dnsKeys.Count){Case "$type mismatched DNS zone fails" {$bad=Clone $p;$bad.privateDnsZoneIds.value[$d.dnsKeys[0]]="$scope/Microsoft.Network/privateDnsZones/invalid";Reject {Assert-ProductParameters $t $bad}}}
-    Case "$type live prerequisite adapter rejects unreadable and drifted dependencies (mocked Azure)" {
+    if($type -notin @('private-data-platform','private-aks')){Case "$type live prerequisite adapter rejects unreadable and drifted dependencies (mocked Azure)" {
         $originalJson=${function:Invoke-ServiceJson};$originalLinks=${function:Get-StackRestCollection}
         try {
             $scenario='healthy';$fixtureVnetId=$vnet
@@ -97,6 +108,7 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
             if($d.dnsKeys.Count){foreach($scenario in @('wrong-region','custom-dns','unlinked')){Reject {Test-ProductPrerequisites $b}}}
         }finally{Set-Item Function:Invoke-ServiceJson $originalJson;Set-Item Function:Get-StackRestCollection $originalLinks}
     }
+    } # Data platform live prerequisites have their own negative-path fixtures.
     Case "$type plan serializes a flat governed change list (mocked Azure)" {
         $originalState=${function:Get-WorkloadStackState};$originalPrereq=${function:Test-ProductPrerequisites};$originalPreview=${function:New-StackPreview}
         try {
@@ -147,5 +159,7 @@ foreach($pair in @(@('Microsoft.KeyVault/vaults','enablePurgeProtection'),@('Mic
 }
 Write-ServiceJson @{passed=$cases.Count;failed=0;azureCalls=$false;cases=$cases} (Join-Path $testRoot results.json)
 Write-Host "PASS: $($cases.Count) product contracts. Evidence: $testRoot"
+& "$PSScriptRoot/Test-Aks.ps1"
+& "$PSScriptRoot/Test-DataPlatformRecipes.ps1"
 & dotnet test (Join-Path $root tests/ProductFunctions.Tests/ProductFunctions.Tests.csproj) -c Release -p:RestoreLockedMode=true --logger 'trx;LogFileName=products.trx' --results-directory (Join-Path $root artifacts/test-results)
 if($LASTEXITCODE -ne 0){throw 'Product runtime tests failed.'}

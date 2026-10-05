@@ -14,13 +14,15 @@ parameters:
       - "Key Vault | key-vault"
       - "Event flow - Logic App + Event Grid + 2 Storage accounts | logic-app-event-grid"
       - "Observability | observability"
+      - "Private AKS Foundation | private-aks"
+      - "Private Data Platform | private-data-platform"
       - "Private Storage Workspace | private-storage"
       - "Service Bus worker | service-bus-worker"
   - name: workload
     displayName: 2. Registered instance name
     type: string
     default: blobcopy
-    values: [blobcopy, busworker, eventflow, httpapi, keyvault, observe, storage]
+    values: [aksapps, blobcopy, busworker, dataplat, eventflow, httpapi, keyvault, observe, storage]
   - name: environment
     displayName: Target environment
     type: string

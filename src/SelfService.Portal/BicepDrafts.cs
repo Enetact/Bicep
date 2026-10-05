@@ -16,7 +16,7 @@ public record BicepProposal(string Schema, string EvidenceDigest, string Summary
 public record BicepObservedResource(string Id, string Type);
 public record BicepDraftContext(string Schema, string EvidenceDigest, string CatalogDigest, string SubscriptionId,
     string Product, string Environment, string Region, string Goal, string DiscoveryStatus,
-    Dictionary<string, JsonElement> Settings, BicepObservedResource[] Resources, BicepModuleContract[] Modules);
+    Dictionary<string, JsonElement> Settings, BicepObservedResource[] Resources, BicepModuleContract[] Modules, JsonElement? NestedEvidence = null);
 public record BicepDraftResult(string Status, string Summary, string[] RequiredInputs, string[] Gaps,
     Dictionary<string, string> Files, string ArchiveBase64);
 
@@ -30,7 +30,8 @@ public static class BicepDrafts
         "event-grid/topic/main.bicep", "logic-app/standard/main.bicep", "messaging/service-bus/main.bicep",
         "monitoring/log-analytics/main.bicep", "monitoring/observability/main.bicep", "network/ipam-reservation.bicep",
         "network/private-dns-zone/main.bicep", "network/private-endpoint/main.bicep", "network/workload-vnet/main.bicep",
-        "security/key-vault/main.bicep", "storage/storage-account/main.bicep"];
+        "security/key-vault/main.bicep", "storage/storage-account/main.bicep",
+        "analytics/data-factory/main.bicep", "analytics/databricks-workspace/main.bicep", "storage/data-lake/main.bicep", "compute/private-aks/main.bicep"];
     static readonly string[] SettingKeys = ["owner", "costCenter", "existingLogAnalyticsWorkspaceId", "integrationSubnetId",
         "privateEndpointSubnetId", "privateDnsZoneIds", "deploymentPrincipalObjectId", "consumerPrincipalObjectId",
         "readerPrincipalObjectId", "apiClientId", "allowedClientApplications", "alertActionGroupIds"];
@@ -65,7 +66,13 @@ public static class BicepDrafts
         foreach (var r in EvidenceDiagram.Array(collection, "resources"))
         {
             Add(r);
-            foreach (var subnet in EvidenceDiagram.Array(EvidenceDiagram.Part(r, "properties"), "subnets")) Add(subnet);
+            // AzureDiscovery projects subnets at the top level; ARM property bags are never forwarded here.
+            foreach (var subnet in EvidenceDiagram.Array(r, "subnets"))
+            {
+                var parentId=EvidenceDiagram.Text(r,"id");var subnetId=EvidenceDiagram.Text(subnet,"id");
+                if(EvidenceDiagram.Text(r,"type")?.Equals("Microsoft.Network/virtualNetworks",StringComparison.OrdinalIgnoreCase)==true && parentId is not null && subnetId?.StartsWith(parentId+"/subnets/",StringComparison.OrdinalIgnoreCase)==true)
+                    Add(JsonSerializer.SerializeToElement(new{id=subnetId,type="Microsoft.Network/virtualNetworks/subnets"}));
+            }
         }
         void Add(JsonElement r)
         {
@@ -89,7 +96,7 @@ public static class BicepDrafts
         var status = EvidenceDiagram.Text(reports[0], "status") ?? "Unknown";
         var digest = Hash(JsonSerializer.Serialize(new { snapshot = snapshot.GetProperty("id"), observed = snapshot.GetProperty("generatedUtc"), report = reports[0], settings, catalogDigest, request.DraftGoal, product.Id, target.Environment, request.Region }, Json));
         return new("platform.bicep-context/v1", digest, catalogDigest, target.SubscriptionId, product.Id, target.Environment, request.Region,
-            request.DraftGoal, status, settings, resources.Values.OrderBy(r => r.Id).ToArray(), modules);
+            request.DraftGoal, status, settings, resources.Values.OrderBy(r => r.Id).ToArray(), modules,reports[0].Clone());
     }
     public static BicepDraftResult Generate(string root, BicepDraftContext context, string output)
     {

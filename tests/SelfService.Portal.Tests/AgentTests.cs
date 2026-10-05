@@ -7,11 +7,87 @@ namespace SelfService.Portal.Tests;
 public sealed class AgentTests
 {
     static JsonElement Json(object o) => JsonSerializer.SerializeToElement(o);
-    static JsonElement Model(string name = "gpt-6-astra", string effort = "high", string tier = "default") => Json(new { model = name, supportedReasoningEfforts = new[] { new { reasoningEffort = effort } }, serviceTiers = new[] { new { id = tier } } });
-    static JsonElement Thread(string tier = "default", bool network = false) => Json(new { model = AgentPolicy.Model, reasoningEffort = AgentPolicy.Effort, serviceTier = tier, approvalPolicy = "never", sandbox = new { type = "readOnly", networkAccess = network } });
+    static JsonElement Model(string name = "gpt-6.1-sol", string effort = "ultra", string tier = "default") => Json(new { model = name, supportedReasoningEfforts = new[] { new { reasoningEffort = effort } }, serviceTiers = new[] { new { id = tier } } });
+    static JsonElement Thread(string tier = "default", bool network = false, string model = "gpt-6.1-sol", string effort = "ultra") => Json(new { model, reasoningEffort = effort, serviceTier = tier, approvalPolicy = "never", sandbox = new { type = "readOnly", networkAccess = network } });
+    [Fact] public void NativeExecutableWinsOverEarlierNpmVendorFallback()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "codex-resolution-" + Guid.NewGuid().ToString("N"));
+        var npmDirectory = Path.Combine(root, "npm"); var nativeDirectory = Path.Combine(root, "native");
+        var arm = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64;
+        var vendor = Path.Combine(npmDirectory, "node_modules", "@openai", "codex", "node_modules", "@openai", "codex-win32-" + (arm ? "arm64" : "x64"), "vendor", arm ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc", "bin", "codex.exe");
+        var native = Path.Combine(nativeDirectory, "codex.exe");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(vendor)!); Directory.CreateDirectory(nativeDirectory);
+            File.WriteAllText(vendor, "fixture"); File.WriteAllText(native, "fixture");
+            var path = npmDirectory + Path.PathSeparator + nativeDirectory;
+            Assert.Equal(native, CodexAgentRuntime.FindExecutable("", path));
+            Assert.Equal(vendor, CodexAgentRuntime.FindExecutable(vendor, path));
+            Assert.Null(CodexAgentRuntime.FindExecutable(Path.Combine(root, "missing", "codex.exe"), path));
+            File.Delete(native);
+            Assert.Equal(vendor, CodexAgentRuntime.FindExecutable("", path));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+    [Theory][InlineData(false, false)][InlineData(true, false)][InlineData(true, true)]
+    public async Task AuthAndModelReadinessAreDistinct(bool signedIn, bool available)
+    {
+        var calls = new List<string>();
+        Task<JsonElement> Protocol(string method, object parameters, CancellationToken ct)
+        {
+            calls.Add(method);
+            return Task.FromResult(method == "account/read"
+                ? Json(new { account = signedIn ? new { type = "chatgpt" } : null })
+                : Json(new { data = available ? new[] { Model() } : Array.Empty<JsonElement>(), nextCursor = (string?)null }));
+        }
+        var status = Json(await CodexAgentRuntime.ReadStatus(Protocol, false, "0.160.0", CancellationToken.None));
+        Assert.Equal(signedIn, status.GetProperty("authenticated").GetBoolean());
+        Assert.Equal(signedIn && available, status.GetProperty("ready").GetBoolean());
+        Assert.Equal("0.160.0", status.GetProperty("runtimeVersion").GetString());
+        Assert.Equal(signedIn ? 2 : 1, calls.Count);
+        if (signedIn && !available) Assert.Contains("runtime's catalog", status.GetProperty("state").GetString());
+    }
+    [Fact] public async Task CatalogFailurePreservesVerifiedSignInButBlocksReview()
+    {
+        Task<JsonElement> Protocol(string method, object parameters, CancellationToken ct) => method == "account/read"
+            ? Task.FromResult(Json(new { account = new { type = "chatgpt" } }))
+            : throw new PortalException("fixture failure", 502);
+        var status = Json(await CodexAgentRuntime.ReadStatus(Protocol, false, "0.160.0", CancellationToken.None));
+        Assert.True(status.GetProperty("authenticated").GetBoolean());
+        Assert.False(status.GetProperty("ready").GetBoolean());
+    }
+    [Fact] public async Task PaginatedCatalogStillRequiresUltra()
+    {
+        var page = 0;
+        Task<JsonElement> Protocol(string method, object parameters, CancellationToken ct) => Task.FromResult(method == "account/read"
+            ? Json(new { account = new { type = "chatgpt" } })
+            : ++page == 1 ? Json(new { data = Array.Empty<JsonElement>(), nextCursor = "next" })
+            : Json(new { data = new[] { Model(effort: "high") }, nextCursor = (string?)null }));
+        var status = Json(await CodexAgentRuntime.ReadStatus(Protocol, false, null, CancellationToken.None));
+        Assert.Equal(2, page); Assert.True(status.GetProperty("authenticated").GetBoolean()); Assert.False(status.GetProperty("ready").GetBoolean());
+    }
     [Fact] public void ExactRequestedSettingsAreAccepted() { AgentPolicy.ValidateModel(Model()); AgentPolicy.ValidateThread(Thread()); }
-    [Theory][InlineData("gpt-6-sol", "high", "default")][InlineData("gpt-6-astra", "max", "default")][InlineData("gpt-6-astra", "high", "priority")]
-    public void ModelFallbackAndDifferentReasoningOrSpeedAreBlocked(string model, string effort, string tier) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateModel(Model(model, effort, tier)));
+    [Theory][InlineData("unrequested-model", "ultra")][InlineData("gpt-6.1-sol", "high")][InlineData("gpt-6.1-sol", "max")]
+    public void ModelFallbackAndDifferentReasoningAreBlocked(string model, string effort) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateModel(Model(model, effort)));
+    [Fact] public void StandardDoesNotRequireAnOptionalCatalogTier()
+    {
+        AgentPolicy.ValidateModel(Model(tier: "priority"));
+        AgentPolicy.ValidateModel(Json(new { model = "gpt-6.1-sol", supportedReasoningEfforts = new[] { new { reasoningEffort = "ultra" } }, serviceTiers = Array.Empty<object>() }));
+        Assert.Throws<PortalException>(() => AgentPolicy.ValidateThread(Thread(tier: "priority")));
+    }
+    [Theory][InlineData("unrequested-model", "ultra")][InlineData("gpt-6.1-sol", "high")][InlineData("gpt-6.1-sol", "max")]
+    public void EffectiveThreadCannotDowngradeRequestedModelOrReasoning(string model, string effort) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateThread(Thread(model: model, effort: effort)));
+    [Fact] public void BootstrapAndPublicPolicyUseRequestedSettings()
+    {
+        Assert.Contains("model = \"gpt-6.1-sol\"", AgentPolicy.BootstrapConfiguration);
+        Assert.Contains("model_reasoning_effort = \"ultra\"", AgentPolicy.BootstrapConfiguration);
+        Assert.Contains("service_tier = \"default\"", AgentPolicy.BootstrapConfiguration);
+        var policy = Json(AgentPolicy.Descriptor);
+        Assert.Equal("GPT-6.1 Sol", policy.GetProperty("displayName").GetString());
+        Assert.Equal("Ultra", policy.GetProperty("effortDisplayName").GetString());
+        Assert.Equal("Standard", policy.GetProperty("speed").GetString());
+        Assert.False(Json(AgentPolicy.Isolation).GetProperty("features").GetProperty("multi_agent").GetBoolean());
+    }
     [Theory][InlineData("priority", false)][InlineData("default", true)]
     public void EffectiveThreadMustRespectIsolation(string tier, bool network) => Assert.Throws<PortalException>(() => AgentPolicy.ValidateThread(Thread(tier, network)));
     [Theory][InlineData("http://auth.openai.com/login")][InlineData("https://auth.openai.com.evil.test/")][InlineData("https://user@auth.openai.com/")][InlineData("https://auth.openai.com:444/")][InlineData("file:///C:/secret")]

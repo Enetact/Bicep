@@ -4,7 +4,7 @@
 
 **Extension standard:** follow [the shared workflow standard](agent-workflow-standard.md), [blueprint](templates/agent-workflow-blueprint.md) and [workflow-builder skill](../.agents/skills/platform-workflow-builder/SKILL.md). Tagging implements validated structured recommendations and explicit advice-to-draft selection. The four earlier reviews remain advisory Markdown. AHP coordinates readiness; the typed API starts model execution.
 
-Implemented locally on 27 September 2026. Platform Studio now connects a browser-owned agent host, Codex inference and an in-process MCP evidence server. **Live ChatGPT login, Astra inference, Azure collection and ADO Preview review remain unverified.** The native Codex startup/account/MCP handshake and local contract tests are verified; those checks made no model calls.
+Implemented locally on 27 September 2026. Platform Studio connects a browser-owned agent host, Codex inference and an in-process MCP evidence server. **On 4 October, the existing portal ChatGPT sign-in and live GPT-6.1 Sol/Ultra catalog availability were verified with Codex 0.160.0.** Model inference, Azure collection and ADO Preview review remain separate acceptance steps. See the [dated validation evidence](validation.md).
 
 ## Developer experience
 
@@ -17,14 +17,17 @@ Implemented locally on 27 September 2026. Platform Studio now connects a browser
 
 | Workflow | Connections | Implemented evidence and limits |
 |---|---|---|
+| Private DNS analysis review | Codex + Azure | Browser-owned DNS assessment through the shared MCP bridge. Validated advice can be explicitly copied into an editable local proposal; no migration executor. |
+| DNS drift and desired-change review | Codex + Azure | Explicit reference/observed/desired DNS property matrix. Local reference authority and missing accepted baseline stay visible; no remediation executor. |
 | Azure resource visualizer | Codex + Azure | Executes the pinned Microsoft visualizer instructions against selected-group metadata and configured network relationships. Produces advisory Markdown and restricted Mermaid validated against the evidence before image-only rendering. Does not collect secret-bearing app settings, data-plane objects or identity/RBAC detail. |
 | Private network evidence review | Codex + Azure | Uses the same visualizer guidance with a network-specific review scope. Covers configured VNet/subnet/peering/NSG/route/DNS/private-endpoint inventory. Broader visible scopes are available through Network discovery; IP occupancy, IPAM availability and effective traffic remain unknown. |
-| Workload configuration advisor | Codex | Applies `platform-request-design` to the selected catalog product, target and reviewed topology. Covers all seven products. Does not write/resolve a typed request or queue ADO. |
+| Workload configuration advisor | Codex | Applies `platform-request-design` to the selected catalog product, target and reviewed topology. Covers all nine products. Does not write/resolve a typed request or queue ADO. |
 | Tag governance review | Codex + Azure | Applies `platform-tagging-review` to 1–50 selected resources in saved tag evidence (maximum age 30 minutes, 256 KiB projection). Strict JSON/resource/finding validation before selectable suggestions. No model write tools. See [tagging](tag-governance.md). |
+| Before / What-If / after IaC review | Codex + ADO | Applies the pinned Microsoft visualizer to the exact saved Preview or Deploy artifact and selected phase. Live collection occurs in the pipeline through Microsoft Azure MCP plus scoped ARM reads. Hash/provenance validation, projected properties and evidence-validated Mermaid; no write tools. See [agentic IaC](agentic-iac.md). |
 | Saved Preview change review | Codex + ADO | Applies `platform-change-review` to the existing bounded Preview projection. Source/run checks are deterministic. Full digests, stack ownership, application ZIP contents and approval outcomes are not proven by this projection. |
 | Design Bicep source draft | Codex + Azure | Applies `platform-bicep-composition` to a browser-owned network snapshot, selected workload context and source-hashed local module contracts. Generates unqualified main/stack/parameter source and provenance. See [source drafts](bicep-source-drafts.md); compile and qualify before promotion. |
 
-The other bundled Microsoft skills remain guidance plus their existing deterministic discovery views. Their complete upstream workflows, hooks and remediation commands are **not** enabled. The four original reviews add no pipeline definitions. Tag governance adds two separate governed entries, not a new deployment product. Microsoft Azure MCP Server (`azmcp`) is not launched or implicitly signed in; this implementation uses the platform's own MCP evidence bridge and existing Azure/ADO readers.
+The other bundled Microsoft skills remain guidance plus their existing deterministic discovery views. Their complete upstream workflows, hooks and remediation commands are **not** enabled. The four original reviews add no pipeline definitions. Tag governance adds two separate governed entries, not a new deployment product. The portal does not launch Microsoft Azure MCP or implicitly sign it in. The shared IaC pipeline collector now launches pinned Azure MCP 2.0.5 under its service connection; Codex reads its retained evidence through the platform MCP bridge. Existing interactive network/tagging collectors retain their separate browser-identity paths.
 
 ## Setup and dependencies
 
@@ -33,16 +36,26 @@ From the repository root, in PowerShell 7.4+:
 ```powershell
 ./scripts/Stop-Portal.ps1
 # Optional installation if Codex CLI is missing. Uses the official npm package.
-npm install --global @openai/codex@0.153.2
+npm install --global @openai/codex@latest
 ./scripts/Setup-Portal.ps1
 ./scripts/Start-Portal.ps1
 ```
 
-Existing Codex installations need not be replaced. The implementation was checked with **Codex CLI 0.153.2**, **.NET SDK 10.0.300** and **ModelContextProtocol 2.2.0**. NuGet lock files pin the MCP dependency. Codex runs natively on Windows ARM64 or x64 using the matching official CLI package. Portable portal packages still require Codex installed separately; they do not bundle another agent executable. Rebuild older portal packages to include these changes.
+The current GPT-6.1 Sol/Ultra connection was checked with **Codex CLI 0.160.0**, **.NET SDK 10.0.300** and **ModelContextProtocol 2.2.0**. An older installed CLI 0.153.2 returned a catalog without GPT-6.1 Sol despite successful sign-in; the earlier protocol-only checks did not establish model availability. NuGet lock files pin the MCP dependency. Codex runs natively on Windows ARM64 or x64 using the matching official CLI package. Portable portal packages require Codex installed separately; they do not bundle another agent executable. Rebuild older portal packages to include these changes.
 
-Native executable lookup checks PATH and the official npm package's architecture-specific vendor directory. If needed, set `Portal.CodexPath` in ignored `src/SelfService.Portal/portal.local.json` to the absolute path of the official `codex.exe`, then restart. This must be an executable path, not a shell command or `.cmd` wrapper. The example configuration leaves it empty for discovery. No API key or Azure model endpoint is required.
+Native executable lookup first checks all PATH entries for `codex.exe`, in PATH order. Only if no native executable is found does it check the official npm package's architecture-specific vendor directories. This prevents an earlier npm shim directory from shadowing a newer native executable later on PATH. An explicit `Portal.CodexPath` overrides discovery; it must be an existing absolute `codex.exe` path, not a shell command or `.cmd` wrapper. Set it in ignored `src/SelfService.Portal/portal.local.json` and restart when necessary. No API key or Azure model endpoint is required.
 
-The provider selection is fixed in `AgentPolicy`: model **`gpt-6-astra`**, reasoning **`high`**, service tier **`default`** (Standard). Both thread creation and each turn specify the tier; the turn also sets `serviceTierForTurn`. Readiness checks the authenticated account's model catalog, including High and Standard support. Effective thread settings are verified before starting the turn. Unavailable or substituted settings block execution. There is no Fast/priority, alternative-model or API-key fallback. See [Codex app-server](https://developers.openai.com/codex/app-server); the exact field contracts were also generated from the installed CLI.
+### Sign-in and model readiness troubleshooting
+
+The connection panel reports the selected runtime version separately from the requested model settings. `account/read` establishes ChatGPT sign-in; `model/list` must then advertise the exact model and Ultra effort. The status response exposes `authenticated` and `ready` separately. **Signed in to ChatGPT · Model ready** enables eligible workflows; it does not claim a model turn has completed or Azure/ADO is connected. Standard speed is requested explicitly and checked on the effective thread when a review starts.
+
+If sign-in succeeds but the catalog is missing the model, update the selected Codex installation or configure `Portal.CodexPath`, then disconnect/reconnect (restart after configuration changes). Check account availability if the current runtime still lacks the model. Refresh readiness retries catalog verification without another sign-in. The portal never substitutes another model or reasoning level. Rebuilding through `Stop-Portal.ps1` clears that portal session's credentials, so reconnect afterward; desktop credentials are not copied.
+
+**Model policy updated 4 October 2026.** The provider selection is fixed in `AgentPolicy`: model **`gpt-6.1-sol`**, reasoning **`ultra`**, service tier **`default`** (Standard). The isolated CLI configuration, AHP model advertisement, status API and UI use this shared policy. Both thread creation and each turn specify the tier; the turn also sets `serviceTierForTurn`. Readiness checks the authenticated account's model catalog for the exact model and Ultra effort. Optional catalog speed tiers need not list Standard: the explicit `default` setting must still be accepted in the effective thread before inference. Unavailable or substituted settings block execution. There is no Fast/priority, alternative-model, lower-reasoning or API-key fallback.
+
+The installed Codex 0.160.0 protocol accepts advertised reasoning strings, and the inspected local Codex catalog lists Ultra for GPT-6.1 Sol. This is a Codex app-server integration, not a claim that the Responses API accepts `ultra`. The read-only MCP boundary and disabled delegation remain unchanged. See [Codex app-server](https://developers.openai.com/codex/app-server). Live authenticated model acceptance remains a manual check; historical validation receipts describe the policy tested at their recorded date.
+
+After rebuilding or repackaging, restart the portal and reconnect Codex to create an isolated agent session with the new policy. Existing processes and previously built distribution ZIPs do not update themselves. Verify that the agent page and saved review receipt show **GPT-6.1 Sol / Ultra / Standard**.
 
 ## Method and protocol flow
 
@@ -85,7 +98,7 @@ sequenceDiagram
 
 ## Identity, evidence and failure behavior
 
-- Azure/ADO tokens stay in the existing per-browser MSAL cache. They are never passed to Codex, process arguments, MCP tool output or prompts. Selected infrastructure metadata does go to Codex on **Run**, so normal Codex usage limits apply.
+- Azure/ADO authentication uses the per-browser MSAL cache or the isolated local Azure CLI cache described in [portal authentication](local-portal.md#configure-microsoft-browser-sign-in). Tokens are never passed to Codex, process arguments, MCP tool output or prompts. **Disconnect Microsoft** preserves the separate Codex connection while invalidating Microsoft evidence/review tickets. Selected infrastructure metadata goes to Codex only on **Run**, so normal Codex usage limits apply.
 - Each Codex process has a fresh ignored home under `.local/portal/agents/<id>`. Existing desktop credentials/configuration are not copied. Codex stores its own login cache there while connected. Disconnect removes that runtime's `auth.json`; the stop script verifies and stops registered child processes and removes their credential file. A crash or forced OS shutdown can leave this ignored local cache; protect this folder as credentials and remove stale session directories deliberately when no process uses them. No browser-session reconnect is promised after portal restart.
 - API-key and Azure credential environment variables are removed from the child. Shell, web search, hooks, plugins, memories and delegated agents are disabled; read-only sandbox settings are checked before inference. Unknown Codex server requests are rejected. The trusted local CLI/OS account remains part of the trust boundary.
 - Evidence is capped at 256 KiB before inference; oversized evidence is rejected without silent truncation. Azure collections retain their existing time/page/resource limits. A selected resource group's visibility must be verified before analysis.
@@ -108,6 +121,6 @@ node ./tests/portal/smoke.mjs
 ./scripts/Test-AgentHost.ps1
 ```
 
-The native handshake test is explicitly skipped unless opted in. Before production use, complete browser consent/cancel/logout tests, one synthetic Astra review at High/Standard, one scoped Azure visualization and one ADO Preview review. Verify denied/partial coverage and cancellation against those real providers; inspect saved receipts. These remain acceptance gates.
+The native handshake test is explicitly skipped unless opted in. Before production use, complete browser consent/cancel/logout tests, one synthetic GPT-6.1 Sol review at Ultra/Standard, one scoped Azure visualization and one ADO Preview review. Verify denied/partial coverage and cancellation against those real providers; inspect saved receipts. These remain acceptance gates.
 
 Next additions should be read-only evidence adapters with their own scope/permission contracts: saved discovery coverage audit using the original manifest/inventory pair; policy/RBAC prerequisite explanation; cost review using dated price/billing evidence; and Resource Graph scale optimization for the now-implemented tenant/management-group coverage collector. Full AHP chat/action synchronization, general Azure MCP hosting, IPAM reservation and any write/remediation workflows remain separate enhancements. Authentication alone must never grant those capabilities.

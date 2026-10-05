@@ -22,8 +22,16 @@ builder.WebHost.ConfigureKestrel(k => { k.ListenLocalhost(options.Port); k.Limit
 builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("System.Net.Http", LogLevel.None);
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
+builder.Services.AddSingleton<IAzureCliRunner, AzureCliRunner>().AddSingleton<AzureCliIdentity>();
+builder.Services.AddSingleton<IGitHubCliRunner, GitHubCliRunner>();
+builder.Services.AddHttpClient<GitHubIdentity>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddTransient<IGitHubIdentity>(s => s.GetRequiredService<GitHubIdentity>());
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
+builder.Services.AddTransient<OperationsService>();
+builder.Services.AddHttpClient<PrivateDnsReader>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<NetworkPipeline>();
 builder.Services.AddHttpClient<TaggingService>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
@@ -56,6 +64,7 @@ app.Use(async (context, next) =>
     }
     catch (PortalException e) { context.Response.StatusCode = e.Status; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (SelfService.Tagging.TagException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
+    catch (SelfService.Operations.OperationsException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (Exception) { context.Response.StatusCode = 500; await context.Response.WriteAsJsonAsync(new { error = "Operation could not complete. For a queue request, check ADO runs before retrying; it may have been accepted." }); }
 });
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
@@ -65,10 +74,15 @@ app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Se
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
     products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
     discoveryScopes = catalog.Products.SelectMany(p => p.Targets).DistinctBy(t => t.SubscriptionId).Select(t => new { id = t.SubscriptionId, name = t.Subscription }) });
-app.MapGet("/api/auth", (HttpContext c) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Account?.Username, connected = s.Connected.Keys.ToArray() }; });
+app.MapGet("/api/auth", (HttpContext c, AzureCliIdentity cli) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Cli?.Username ?? s.Account?.Username, tenantId = s.AzureTenantId, mode = s.Cli is not null ? "local-cli" : s.Account is not null ? "registered-app" : null, localCliAvailable = cli.Available, connected = s.Connected.Keys.ToArray() }; });
+app.MapPost("/api/local-auth/{audience}", (HttpContext c, string audience, LocalAuthRequest request, AzureCliIdentity cli) => { cli.Begin(Session(c), audience, request.TenantId); return Results.Accepted(); });
 app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIdentity identity) => { identity.Begin(Session(c), audience); return Results.Accepted(); });
 app.MapPost("/api/cancel-login", (HttpContext c) => { try { Session(c).Login?.Cancel(); } catch (ObjectDisposedException) { } return Results.Ok(); });
-app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { var s = Session(c); await identity.SignOut(s); await s.Agent.DisposeAsync(); return Results.Ok(); });
+app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { await identity.SignOut(Session(c)); return Results.Ok(); });
+app.MapGet("/api/github/status", (HttpContext c, GitHubIdentity identity) => identity.Status(Session(c)));
+app.MapPost("/api/github/connect", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), false); return Results.Ok(); });
+app.MapPost("/api/github/attach", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), true); return Results.Ok(); });
+app.MapPost("/api/github/disconnect", (HttpContext c, GitHubIdentity identity) => { identity.Disconnect(Session(c)); return Results.Ok(); });
 app.MapGet("/api/skills/{id}", (string id, Catalog catalog) => catalog.Skills.SingleOrDefault(s => s.Id == id) ?? throw new PortalException("Unknown skill.", 404));
 app.MapGet("/api/recovery/policies", (Catalog catalog) => catalog.RecoveryPolicies);
 app.MapGet("/api/subscriptions", async (HttpContext c, AdoGateway ado) => await ado.Subscriptions(Session(c)));
@@ -92,6 +106,7 @@ app.MapPost("/api/queue/{ticket}", async (HttpContext c, string ticket, AdoGatew
 });
 app.MapGet("/api/runs/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Status(Session(c), product, id));
 app.MapGet("/api/preview/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Preview(Session(c), product, id, c.RequestAborted));
+app.MapGet("/api/iac/{product}/{id:int}/{environment}/{phase}", async (HttpContext c,string product,int id,string environment,string phase,AdoGateway ado) => { if(phase is not ("preview" or "after"))throw new PortalException("Select preview or after evidence."); return await ado.Iac(Session(c),product,id,environment,phase=="after",c.RequestAborted); });
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.MapGet("/api/network/scopes", async (NetworkDiscovery network, HttpContext c) => await network.Scopes(Session(c), c.RequestAborted));
@@ -116,6 +131,14 @@ app.MapPost("/api/network/discover", async (NetworkScopeRequest request, Network
     var s = Session(c); if (!await s.NetworkGate.WaitAsync(0)) throw new PortalException("A network scan is already active in this browser.", 409);
     try { return await network.Discover(s, request, c.RequestAborted); } finally { s.NetworkGate.Release(); }
 });
+app.MapGet("/api/operations/catalog", () => SelfService.Operations.OperationsRegistry.Catalog);
+app.MapGet("/api/operations/scopes", (HttpContext c, OperationsService service) => service.Scopes(Session(c), c.RequestAborted));
+app.MapGet("/api/operations/evidence", (HttpContext c, OperationsService service) => service.List(Session(c)));
+app.MapGet("/api/operations/evidence/{id}", (HttpContext c, string id) => OperationsService.Evidence(Session(c), id, false));
+app.MapPost("/api/operations/collect", (HttpContext c, OperationsCollectRequest request, OperationsService service) => service.Collect(Session(c), request, c.RequestAborted));
+app.MapPost("/api/operations/assess", (HttpContext c, OperationsAssessRequest request, OperationsService service) => service.Assess(Session(c), request, c.RequestAborted));
+app.MapPost("/api/operations/proposals", (HttpContext c, OperationsDraftRequest request, OperationsService service) => service.Draft(Session(c), request, c.RequestAborted));
+app.MapPost("/api/operations/proposals/{id}/preview", (HttpContext c, string id) => OperationsService.Preview(Session(c), id));
 app.MapGet("/api/agent/status", async (HttpContext c, AgentWorkflows agents) => await agents.Status(Session(c), c.RequestAborted));
 app.MapGet("/api/agent/ahp", async (HttpContext c, AgentWorkflows agents) => await AgentHostChannel.Handle(c, Session(c), agents, options));
 app.MapPost("/api/agent/connect", async (HttpContext c, AgentWorkflows agents) => await agents.Connect(Session(c), c.RequestAborted));
@@ -126,3 +149,4 @@ app.MapPost("/api/agent/run", async (HttpContext c, AgentRequest request, AgentW
 app.MapGet("/api/agent/resource-groups/{subscription}", async (HttpContext c, string subscription, AzureDiscovery azure) => await azure.ResourceGroups(Session(c), subscription, c.RequestAborted));
 app.Run();
 public partial class Program { }
+public record LocalAuthRequest(string? TenantId);

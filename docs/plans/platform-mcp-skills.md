@@ -1,5 +1,7 @@
 # Platform skills and MCP capability design
 
+**4 October 2026 scope update:** use the [operations and drift suite](operations-workflow-suite.md) for the selected Private DNS, identity/access, connectivity, data promotion, AKS maintenance, pipeline analysis and drift implementations. It reuses the current AHP/Codex runtime and frozen-evidence MCP bridge, with separately qualified Azure MCP/service collectors. Proposed tool names in this older design are not a requirement to create a general-purpose agent tool server. The new plan preserves the protected ADO execution boundary and records which collectors do not exist yet.
+
 **Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](../tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
 
 
@@ -7,7 +9,7 @@
 
 **Tagging extension proposal, 27 September 2026:** [Tag governance](tagging-self-service.md) adds a proposed `platform-tagging-review` skill alongside this original twelve-skill design. It will use the implemented read-only `platform_evidence` / `platform_skill` bridge with validated tagging evidence, not a model-callable tag writer. Deterministic checks and protected ADO execution own changes. The skill is not installed or bound yet; current implemented counts are unchanged.
 
-**27 September 2026 implementation update:** [portal agent workflows](../agent-workflows.md) now provide a real in-process MCP SDK bridge with `platform_evidence` and `platform_skill`, Codex Astra/High/Standard inference wiring, isolated browser authentication and a bounded AHP coordination profile. Four read-only reviews are implemented; live model/Azure/ADO acceptance is pending. The richer `platform_*` contracts and general Azure MCP integration below remain proposed. Historical “no MCP implementation” statements below describe the earlier increment only.
+**27 September 2026 implementation update:** [portal agent workflows](../agent-workflows.md) now provide a real in-process MCP SDK bridge with `platform_evidence` and `platform_skill`, Codex GPT-6.1 Sol/Ultra/Standard inference wiring, isolated browser authentication and a bounded AHP coordination profile. Four read-only reviews are implemented; live model/Azure/ADO acceptance is pending. The richer `platform_*` contracts and general Azure MCP integration below remain proposed. Historical “no MCP implementation” statements below describe the earlier increment only.
 
 **Scope review, 27 September 2026:** see [tenant and management-group discovery](tenant-network-discovery.md). Microsoft documents tenant-scoped MCP Insights with sampling and management-group-scoped Resource Graph queries; our portal implements neither integration yet. Browser identity, MCP identity and ADO service connections must not be conflated.
 

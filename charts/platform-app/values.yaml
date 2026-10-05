@@ -1,0 +1,13 @@
+# Complete these through the source-reviewed environment profile, never queue-time shell input.
+imageRepository: REPLACE_PRIVATE_ACR_REPOSITORY
+imageDigest: REPLACE_SHA256_DIGEST
+workloadIdentityClientId: REPLACE_APPLICATION_CLIENT_ID
+serviceAccountName: platform-app
+replicas: 3
+port: 8080
+cpuRequest: 100m
+cpuLimit: 1000m
+memoryRequest: 128Mi
+memoryLimit: 512Mi
+# Empty means no outbound application traffic. DNS is allowed separately.
+egressCidrs: []

@@ -12,21 +12,22 @@ public record PendingTagQueue(TagQueueRequest Request,string ProfileHash,object 
 
 public sealed class TaggingService(HttpClient http,ITokenProvider identity,Catalog catalog,PortalOptions options,AdoGateway ado)
 {
-    public TagProfile Profile(string? subscription=null)
+    public TagProfile Profile(string? subscription=null,string? tenant=null)
     {
         var p=TagJson.Read<TagProfile>(File.ReadAllText(Path.Combine(catalog.Root,"config/tag-governance.json")));
-        if(subscription is null||subscription==p.SubscriptionId)return p;
+        if(subscription is null||(subscription==p.SubscriptionId&&(string.IsNullOrEmpty(tenant)||tenant.Equals(p.TenantId,StringComparison.OrdinalIgnoreCase))))return p;
         if(!Guid.TryParse(subscription,out var id))throw new TagException("Invalid subscription.");
-        return p with{TenantId=options.TenantId,SubscriptionId=id.ToString(),Enabled=false,ExternalResourceIds=[],SourceTargets=[],QualifiedWriteTypes=[],GovernanceReviewed=false,GovernanceDigest=""};
+        return p with{TenantId=tenant??options.TenantId,SubscriptionId=id.ToString(),Enabled=false,ExternalResourceIds=[],SourceTargets=[],QualifiedWriteTypes=[],GovernanceReviewed=false,GovernanceDigest=""};
     }
+    public TagProfile ProfileFor(BrowserSession s,string subscription)=>Profile(subscription,s.AzureTenantId??options.TenantId);
     AzureTags Azure(BrowserSession s)=>new(http,async ct=>await identity.Token(s,"azure"));
     public object Configuration()=>new{profile=Profile().Id,subscriptionId=Profile().SubscriptionId,enabled=Profile().Enabled,ruleVersion=Profile().RuleVersion,requiredKeys=Profile().RequiredKeys,customKeyPrefix="custom.",workflow="tagging",limits=new{edits=100,evidenceMinutes=30,requestBytes=32768},note="Visible ARM inventory. Unsupported/unknown types and unregistered ownership remain blocked. Apply requires a qualified private ADO project and protected profile."};
-    public async Task<object[]> Scopes(BrowserSession s,CancellationToken ct)=>await Azure(s).Scopes(options.TenantId,ct);
+    public async Task<object[]> Scopes(BrowserSession s,CancellationToken ct)=>await Azure(s).Scopes(s.AzureTenantId??options.TenantId,ct);
     public TagInventory Evidence(BrowserSession s,string id)
     {
         if(!s.Connected.ContainsKey("azure"))throw new PortalException("Connect Azure before reading tag evidence.",401);
         if(!s.TagReports.TryGetValue(id,out var inventory)||DateTimeOffset.UtcNow-inventory.ObservedUtc>TimeSpan.FromMinutes(30))throw new PortalException("Tag evidence is missing, stale or belongs to another browser. Discover again.",409);
-        TagRules.ValidateInventory(inventory,Profile(inventory.SubscriptionId));return inventory;
+        TagRules.ValidateInventory(inventory,ProfileFor(s,inventory.SubscriptionId));return inventory;
     }
     async Task Store(BrowserSession s,TagInventory inventory,CancellationToken ct)
     {
@@ -37,15 +38,15 @@ public sealed class TaggingService(HttpClient http,ITokenProvider identity,Catal
     public async Task<object> Discover(BrowserSession s,TagScopeRequest request,CancellationToken ct)
     {
         var epoch=Interlocked.Read(ref s.NetworkEpoch);using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromMinutes(15));
-        var p=Profile(request.SubscriptionId);var inventory=await Azure(s).Discover(p,"Browser Azure identity",timeout.Token);
+        var p=ProfileFor(s,request.SubscriptionId);var inventory=await Azure(s).Discover(p,"Browser Azure identity",timeout.Token);
         if(epoch!=Interlocked.Read(ref s.NetworkEpoch)||!s.Connected.ContainsKey("azure"))throw new PortalException("Session disconnected during discovery.",401);
         await Store(s,inventory,timeout.Token);return View(inventory,p);
     }
     public static object View(TagInventory inventory,TagProfile p)=>new{inventory,findings=TagRules.Analyze(inventory,p),profile=p.Id,p.Enabled,coverage="Visible ARM objects; unreadable and unsupported provider children are not inferred absent."};
-    public object Read(BrowserSession s,string id){var x=Evidence(s,id);return View(x,Profile(x.SubscriptionId));}
+    public object Read(BrowserSession s,string id){var x=Evidence(s,id);return View(x,ProfileFor(s,x.SubscriptionId));}
     public object Draft(BrowserSession s,TagDraftRequest request)
     {
-        var x=Evidence(s,request.EvidenceId);var plan=TagRules.BuildPlan(x,new("platform.tag-change-request/v1",x.Digest,request.Edits,x.RunId),Profile(x.SubscriptionId),DateTimeOffset.UtcNow);
+        var x=Evidence(s,request.EvidenceId);var plan=TagRules.BuildPlan(x,new("platform.tag-change-request/v1",x.Digest,request.Edits,x.RunId),ProfileFor(s,x.SubscriptionId),DateTimeOffset.UtcNow);
         var proposals=plan.Changes.Where(c=>c.Route=="SourceChange").GroupBy(c=>c.SourceTarget).Select(g=>{
             if(g.Key is null||!System.Text.RegularExpressions.Regex.IsMatch(g.Key,@"^self-service/targets/[a-z0-9-]+\.(dev|qa|uat|prod)\.json$"))throw new TagException("Source target path is not a registered target.");
             var path=Path.Combine(catalog.Root,g.Key);var target=TagJson.Read<Dictionary<string,JsonElement>>(File.ReadAllText(path));

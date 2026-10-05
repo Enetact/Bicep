@@ -1,17 +1,19 @@
 # Platform recovery rules
 
+**AKS/Helm increment — 4 October 2026:** Private AKS and Helm add two ManualRecovery policies, bringing the current source catalog to 17. There is no automatic cluster downgrade, inverse stack or Helm rollback executor. Retain before/after and desired release artifacts, reconcile uncertainty and use a freshly reviewed forward change. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
 [Wiki home](README.md) · [Platform overview](platform-overview.md) · [Status](completion-status.md)
 
-**Implemented locally, 27 September 2026:** fourteen policies, a deterministic offline assessor, workload/operations policy views and pipeline evidence annotations. This is our platform's recovery policy layer. It uses no Azure resource-group rollback-on-error mechanism.
+**Implemented locally, updated 4 October 2026:** fifteen policies, a deterministic offline assessor, workload/operations policy views and pipeline evidence annotations. This is our platform's recovery policy layer. It uses no Azure resource-group rollback-on-error mechanism.
 
-**Execution boundary:** there is no restore executor or recovery pipeline yet. Offline checks consume caller-supplied assertions and cannot verify Azure state, historical artifacts, approval or ownership. Even `ChecksSatisfiedUnverified` always has `canExecute: false`. Do not use this command's exit code or a diagram as an Apply gate. Run-bound before/after collection, retained-release verification and the protected restore path remain [planned](plans/deployment-state-and-recovery.md).
+**Execution boundary:** there is no restore executor or recovery pipeline yet. Offline checks consume caller-supplied assertions and cannot verify Azure state, historical artifacts, approval or ownership. Even `ChecksSatisfiedUnverified` always has `canExecute: false`. Do not use this command's exit code or a diagram as an Apply gate. Run-bound before/after collection is now implemented by the [shared IaC evidence component](agentic-iac.md). Retained-release verification and the protected restore executor remain [planned](plans/deployment-state-and-recovery.md); existing-only Bicep snapshots are not recovery code.
 
 ## View the rules
 
 Rebuild/restart Platform Studio using [the existing local setup commands](local-portal.md#run-from-source-in-order) when upgrading an already running portal.
 
 1. Choose **Configure workload**, then expand **Recovery rules for this workload**. Only that product's policy, exclusions and required evidence appear.
-2. Open **Pipeline activity → Recovery policies** to select any of the fourteen product/operations policies. This works without Azure, ADO or Codex sign-in and never queues a run.
+2. Open **Pipeline activity → Recovery policies** to select any of the fifteen product/operations policies. This works without Azure, ADO or Codex sign-in and never queues a run.
 3. In a newly prepared workload Preview, read **Recovery rules** in its ADO summary and `deployment-preview/recovery-policy.json`. It explicitly says eligibility is not assessed.
 4. A new deployment coordinator receipt includes `recovery.policyId`, `mode`, `catalogSha256`, `assessmentStatus`, `canExecute` and `executorRegistered`. A Ready deployment does not imply recoverability. If bundle/target validation fails before the policy is resolved, the failure receipt may have no recovery annotation.
 
@@ -25,7 +27,7 @@ Existing artifacts are not rewritten. The policy snapshot is informational and h
 | ApplicationRestore | Blob copy, Event flow, HTTP Functions API, Service Bus worker | Configuration rules plus exact prior package compatibility and processing/trigger impact review. |
 | TagCompensation | External-resource tags | Plan restoration only for owned keys whose current values match the recorded applied values. Unrelated tags stay unchanged. Removal of a newly introduced key is blocked until separately qualified. |
 | SourceRevert | Source-owned tags | Return `SourceChangeRequired`; revert reviewed source settings through the normal workload path. |
-| ManualRecovery | Network/IPAM, ADO registration | Return `ManualRecoveryRequired`; reconcile durable allocation/resource/definition receipts with the platform owner. |
+| ManualRecovery | Network/IPAM, ADO registration, Private Data Platform | Return `ManualRecoveryRequired`; reconcile durable allocation/resource/definition receipts with the platform owner. |
 | NotApplicable | Discovery/diagrams, agent reviews, Bicep drafts | Return `NotApplicable`; no cloud change was made by these workflows. |
 
 The executable assessor requires fourteen common boolean checks for action-capable modes: observed-before capture, qualified baseline, retained artifacts, integrity, same target, complete coverage, ownership, current policy, compatible changes, current credentials, fresh Preview, no drift, protected approval and a verification plan. Application and tag modes each add two domain checks. Missing values, strings such as `"true"` and false values fail the corresponding check.

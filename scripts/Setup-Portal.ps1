@@ -33,5 +33,5 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Portal restore failed.'}
     & dotnet build src/SelfService.Portal/SelfService.Portal.csproj -c Release --no-restore
     if($LASTEXITCODE -ne 0){throw 'Portal build failed.'}
-    Write-Host 'Portal ready. Run ./scripts/Start-Portal.ps1. Sign-in requires a separate Entra app registration; see docs/local-portal.md.'
+    Write-Host 'Portal ready. Run ./scripts/Start-Portal.ps1. Use local Azure CLI authentication or configure a separate Entra app registration; see docs/local-portal.md.'
 } finally {Pop-Location}

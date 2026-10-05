@@ -2,6 +2,7 @@ export function setupPipelineRegistration({ api, data, notice }) {
   const $ = id => document.getElementById(id);
   const make = (tag, text, cls) => { const e = document.createElement(tag); if (text) e.textContent = text; if (cls) e.className = cls; return e; };
   let inventory, ticket, busy = false;
+  document.addEventListener('github-connection-changed', () => { inventory = null; ticket = null; draw([]); $('pipeline-setup-confirmation').close(); $('pipeline-setup-status').textContent = 'GitHub connection changed. Check registration again.'; });
   const selected = () => [...$('pipeline-setup-list').querySelectorAll('input:checked')].map(e => e.value);
   function gates() { $('pipeline-setup-review').disabled = busy || !selected().length || !$('pipeline-setup-source').value; $('pipeline-setup-refresh').disabled = busy; $('pipeline-setup-all').disabled = busy || !inventory; }
   function draw(rows) {
@@ -16,7 +17,7 @@ export function setupPipelineRegistration({ api, data, notice }) {
   $('pipeline-setup-source').addEventListener('change', gates);
   $('pipeline-setup-all').addEventListener('click', () => { for (const box of $('pipeline-setup-list').querySelectorAll('input')) box.checked = !box.disabled; gates(); });
   $('pipeline-setup-refresh').addEventListener('click', async () => {
-    busy = true; gates(); $('pipeline-setup-status').textContent = 'Reading ADO definitions and the public GitHub main tree…';
+    busy = true; gates(); $('pipeline-setup-status').textContent = 'Reading ADO definitions and GitHub main using the connected account when available…';
     inventory = null; ticket = null;
     try {
       const found = await api('pipeline-setup/inventory'); inventory = found;

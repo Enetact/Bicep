@@ -28,7 +28,7 @@ if ($settings.discoveryPipelineName -isnot [string] -or [string]::IsNullOrWhiteS
 $discoverySource=ConvertTo-Json -InputObject $settings.discoveryPipelineName -Compress
 $root=if ($OutputRoot) { [IO.Path]::GetFullPath($OutputRoot) } else { Get-ProjectRoot }
 if (!$CatalogDirectory) { $CatalogDirectory=Join-Path (Get-ProjectRoot) 'self-service/targets' }
-$targets=@(Get-ChildItem $CatalogDirectory -Filter *.json | Sort-Object Name | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json -AsHashtable })
+$targets=@(Get-ChildItem $CatalogDirectory -Filter *.json | Sort-Object @{Expression={if($_.Name -eq 'blobcopy.dev.json'){0}else{1}}},Name | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json -AsHashtable })
 if (!$targets.Count) { throw 'No registered target profiles.' }
 $selections=@{}; $aliases=@{}; $resourceOwners=@{}
 foreach ($t in $targets) {

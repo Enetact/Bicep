@@ -160,6 +160,68 @@
         "observability": true,
         "application": true
       }
+    },
+    "private-data-platform": {
+      "composition": "workloads/private-data-platform/main.bicep",
+      "stack": "workloads/private-data-platform/stack.bicep",
+      "packageKind": "infrastructure",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "private-data-platform",
+      "adapter": "product",
+      "menuSlug": "dataplat",
+      "displayName": "Private Data Platform",
+      "providers": [
+        "Microsoft.Databricks",
+        "Microsoft.DataFactory",
+        "Microsoft.Storage",
+        "Microsoft.Network",
+        "Microsoft.Insights",
+        "Microsoft.OperationalInsights"
+      ],
+      "dnsKeys": [
+        "blob",
+        "dfs",
+        "databricks",
+        "datafactory",
+        "adfportal"
+      ],
+      "summary": "Databricks Premium (VNet injected, no public IP), Data Factory v2 with managed VNet/IR, MSI linked services, a manual notebook check, file staging and optional reviewed Databricks Job orchestration, ADLS Gen2 landing/curated storage, separate lake/root access connector identities, root storage firewall, scoped RBAC, 7 private endpoints, 3 ADF managed endpoints and diagnostics. No automatic job execution.",
+      "requirements": "Reuses approved same-VNet /26-or-larger Databricks host/container subnets with NSGs and NAT egress, endpoint subnet, 5 linked private DNS zones, regional browser-auth endpoint and Log Analytics. Endpoint approvals, Databricks identity/Unity Catalog/notebook onboarding and runtime qualification are separate acceptance steps. Job launcher requires a published reviewed Job ID; workspace bundle exports are local setup artifacts, not automatic deployment.",
+      "costDescription": "Premium Databricks DBUs plus driver/workers, ADF orchestration/IR, storage/operations, 7 private endpoints plus 3 managed endpoints, shared NAT/auth/DNS and log ingestion. No complete estimate yet; not free.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": true,
+        "application": false,
+        "analytics": true
+      }
+    },
+    "private-aks": {
+      "composition": "workloads/private-aks/main.bicep",
+      "stack": "workloads/private-aks/stack.bicep",
+      "packageKind": "infrastructure",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "private-aks",
+      "adapter": "product",
+      "menuSlug": "aksapps",
+      "displayName": "Private AKS Foundation",
+      "providers": [
+        "Microsoft.ContainerService",
+        "Microsoft.ManagedIdentity",
+        "Microsoft.ContainerRegistry",
+        "Microsoft.Network",
+        "Microsoft.Insights",
+        "Microsoft.OperationalInsights"
+      ],
+      "dnsKeys": [],
+      "summary": "Private Standard AKS, 3 system nodes and 3-10 autoscaled app nodes across three zones, Azure Linux 3, Cilium overlay, Entra RBAC, OIDC/workload identity, an application identity/federation, Azure Policy, Key Vault CSI and control-plane diagnostics. Helm applications use a separate manual pipeline.",
+      "requirements": "Approved existing node subnet/NAT, private DNS, private Premium ACR, two platform identities with scoped roles, Entra groups, Log Analytics and reviewed nonoverlapping IP ranges. Private agent and namespace onboarding required. No automatic subnet allocation.",
+      "costDescription": "Standard AKS control plane, at least six VMs and disks, ACR Premium, NAT, private connectivity, Defender and log ingestion. No complete price estimate; not free.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": true,
+        "application": false,
+        "kubernetes": true
+      }
     }
   }
 }

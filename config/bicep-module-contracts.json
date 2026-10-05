@@ -3,6 +3,260 @@
   "purpose": "Source draft contracts, not deployment authorization",
   "modules": [
     {
+      "id": "analytics-data-factory",
+      "path": "modules/analytics/data-factory/main.bicep",
+      "sourceSha256": "cf52e360c113632e573ab7236e34c447d2e615881c97dbd4def17a95a2d93521",
+      "draftSelectable": false,
+      "parameters": {
+        "databricksJobId": {
+          "type": "int",
+          "defaultValue": 0,
+          "minValue": 0,
+          "metadata": {
+            "description": "Existing reviewed Databricks Job ID. Zero omits the job-launch pipeline until workspace onboarding is complete."
+          }
+        },
+        "databricksResourceId": {
+          "type": "string"
+        },
+        "databricksUrl": {
+          "type": "string"
+        },
+        "inputFileName": {
+          "type": "string",
+          "defaultValue": "sample.csv",
+          "metadata": {
+            "description": "Reviewed single CSV filename in landing/inbox. No arbitrary runtime URL or path."
+          }
+        },
+        "lakeName": {
+          "type": "string"
+        },
+        "lakeResourceId": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "maxWorkers": {
+          "type": "int",
+          "minValue": 1,
+          "maxValue": 4
+        },
+        "name": {
+          "type": "string"
+        },
+        "nodeType": {
+          "type": "string"
+        },
+        "notebookPath": {
+          "type": "string",
+          "metadata": {
+            "description": "Reviewed workspace notebook path. Notebook import and Unity Catalog grants are separate data-plane onboarding."
+          }
+        },
+        "sparkVersion": {
+          "type": "string",
+          "metadata": {
+            "description": "Platform-qualified Databricks runtime key; validate availability before operating the sample."
+          }
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "jobPipelineName": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pipelineName": {
+          "type": "string"
+        },
+        "principalId": {
+          "type": "string"
+        },
+        "stagingPipelineName": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.DataFactory/factories",
+        "Microsoft.DataFactory/factories/datasets",
+        "Microsoft.DataFactory/factories/integrationRuntimes",
+        "Microsoft.DataFactory/factories/linkedservices",
+        "Microsoft.DataFactory/factories/managedVirtualNetworks",
+        "Microsoft.DataFactory/factories/managedVirtualNetworks/managedPrivateEndpoints",
+        "Microsoft.DataFactory/factories/pipelines",
+        "Microsoft.Insights/diagnosticSettings"
+      ]
+    },
+    {
+      "id": "analytics-databricks-workspace",
+      "path": "modules/analytics/databricks-workspace/main.bicep",
+      "sourceSha256": "acf9abbb8c375c2bdac261d0080abd277244f44e1fc336a036b5851b72dcce3d",
+      "draftSelectable": false,
+      "parameters": {
+        "containerSubnetName": {
+          "type": "string"
+        },
+        "hostSubnetName": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "managedResourceGroupName": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "rootStorageAccountName": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        },
+        "virtualNetworkId": {
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "accessConnectorId": {
+          "type": "string"
+        },
+        "accessConnectorPrincipalId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Databricks/accessConnectors",
+        "Microsoft.Databricks/workspaces",
+        "Microsoft.Insights/diagnosticSettings"
+      ]
+    },
+    {
+      "id": "compute-private-aks",
+      "path": "modules/compute/private-aks/main.bicep",
+      "sourceSha256": "3f5018145c305c3218cea5938e4c08fcc90eaf52fbd5d8b8dbb21943fe18825b",
+      "draftSelectable": false,
+      "parameters": {
+        "adminGroupObjectIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "applicationNamespace": {
+          "type": "string"
+        },
+        "controlPlaneIdentityId": {
+          "type": "string"
+        },
+        "dnsServiceIP": {
+          "type": "string"
+        },
+        "kubeletClientId": {
+          "type": "string"
+        },
+        "kubeletIdentityId": {
+          "type": "string"
+        },
+        "kubeletObjectId": {
+          "type": "string"
+        },
+        "kubernetesVersion": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "maxUserNodes": {
+          "type": "int",
+          "minValue": 3,
+          "maxValue": 10
+        },
+        "name": {
+          "type": "string"
+        },
+        "nodeSubnetId": {
+          "type": "string"
+        },
+        "nodeVmSize": {
+          "type": "string",
+          "allowedValues": [
+            "Standard_D4ds_v5",
+            "Standard_D8ds_v5"
+          ]
+        },
+        "podCidr": {
+          "type": "string"
+        },
+        "privateDnsZoneId": {
+          "type": "string"
+        },
+        "serviceAccountName": {
+          "type": "string"
+        },
+        "serviceCidr": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "applicationClientId": {
+          "type": "string"
+        },
+        "applicationIdentityId": {
+          "type": "string"
+        },
+        "clusterName": {
+          "type": "string"
+        },
+        "clusterResourceId": {
+          "type": "string"
+        },
+        "oidcIssuerUrl": {
+          "type": "string"
+        },
+        "privateFqdn": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.ContainerService/managedClusters",
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.ManagedIdentity/userAssignedIdentities",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
+      ]
+    },
+    {
       "id": "compute-private-functions",
       "path": "modules/compute/private-functions/main.bicep",
       "sourceSha256": "f50a160c28373850b688d9624d9e5b355fc71c8012b31ff2841aed0202e00196",
@@ -511,6 +765,47 @@
         "Microsoft.Authorization/roleAssignments",
         "Microsoft.Insights/diagnosticSettings",
         "Microsoft.KeyVault/vaults"
+      ]
+    },
+    {
+      "id": "storage-data-lake",
+      "path": "modules/storage/data-lake/main.bicep",
+      "sourceSha256": "27927c406716c53ebf2598da27970eeb6b69592e83fc9a7eaecd3bfd30ba7315",
+      "draftSelectable": false,
+      "parameters": {
+        "location": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "skuName": {
+          "type": "string",
+          "allowedValues": [
+            "Standard_LRS",
+            "Standard_ZRS"
+          ]
+        },
+        "tags": {
+          "type": "object"
+        },
+        "workspaceId": {
+          "type": "string"
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.Storage/storageAccounts",
+        "Microsoft.Storage/storageAccounts/blobServices",
+        "Microsoft.Storage/storageAccounts/blobServices/containers"
       ]
     },
     {

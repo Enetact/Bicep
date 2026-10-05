@@ -1,40 +1,48 @@
 # Implementation and verification status
 
+**AKS/Helm increment — 4 October 2026:** AKS foundation source, catalog, portal topology and dedicated menus are implemented. The separate Helm pipeline produces Kubernetes render/diff artifacts and guarded deployment receipts. Targets remain disabled; no live cluster, Helm rollout or ADO acceptance is established. Helm launches from native ADO; no separate portal Kubernetes diff screen or agent executor was added. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
 [Wiki home](README.md) · [Overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Validation history](validation.md)
 
-**Source/configuration reviewed: 27 September 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. Documentation consolidation does not rerun those tests or establish new cloud acceptance.
+**Source/configuration reviewed: 4 October 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. The data-platform increment adds local validation; no new cloud acceptance is established.
 
 ## Current inventory
 
 | Item | Checked-in state |
 |---|---|
-| Workloads | Seven types and named instances. |
-| Environment targets | 28 registered; **zero enabled**. |
-| Pipeline entry points | 20 manual roots, including 14 dedicated workload menus. |
-| Skill definitions | 42 Microsoft Azure skills and eight project skills. |
-| Agent workflows | Six explicitly invoked reviews/drafts. |
-| Recovery policies | Fourteen policies; execution unavailable. |
+| Workloads | Nine types and named instances. |
+| Environment targets | 36 registered; **zero enabled**. |
+| Pipeline entry points | 25 manual roots, including 18 dedicated workload menus. |
+| Skill definitions | 42 Microsoft Azure skills and ten project skills. |
+| Agent workflows | Nine explicitly invoked reviews/drafts. |
+| Recovery policies | Seventeen policies; execution unavailable. |
 | Tag Apply / AVNM allocation | Both profiles disabled. |
+| Helm application profiles | Four configured examples; zero enabled. |
 
 ## Capability matrix
 
 | Capability | Implementation | Verification boundary / remaining work |
 |---|---|---|
 | Local portal and Windows packages | Implemented | Local backend/HTTP/browser evidence exists. Packages predate some source increments; rebuild to include current code. Native x64 hardware acceptance is outstanding. |
-| Microsoft browser authentication and ADO integration | Implemented | Separate audience/session controls and local tests; registration, consent and authenticated live workflows need acceptance. |
+| Microsoft authentication and ADO integration | Implemented: local Azure CLI button or registered-app browser flow | Separate audience/session controls, isolated CLI cache, cancellation and renewal tests. User consent, tenant policy and authenticated live Azure/ADO workflows need acceptance. CLI mode needs no custom registration. |
 | ADO definition registration | Implemented | Reviewed create/reuse/conflict logic for all roots. Local contracts do not establish live registration or permission setup. |
-| Seven workload menus/compositions | Implemented | Local YAML routing, Bicep and product checks recorded. Shared dependencies, complete pricing and per-target Azure acceptance remain required. |
+| GitHub CLI connection and private source | Implemented; local sign-in accepted | User completed browser consent; portal verified Enetact identity and an authenticated CLI read confirmed private repository access. Registration routing is locally tested; end-to-end private-source ADO registration remains unverified. [Guide](local-portal.md#github-browser-sign-in). |
+| Nine workload menus/compositions | Implemented | Local YAML routing, Bicep and product checks recorded. Shared dependencies, complete pricing and per-target Azure acceptance remain required. |
+| Private AKS / Helm | Implemented; targets disabled | 34 mocked AKS checks, real Helm 4.3.0 rendering and 22 application contracts pass. Cluster/namespace onboarding and live installation/upgrade/failure acceptance remain outstanding. |
+| Private Data Platform | Implemented | Databricks Premium/ADF v2/ADLS composition, private connectivity and managed identities compile; 41 mocked domain checks pass. Manual ADF staging/optional Job launch and a parameterized Databricks bundle are also implemented. Endpoint approvals, workspace/UC onboarding, native bundle validation and a controlled data-flow run remain mandatory. |
 | Discovery and saved-run handoff | Implemented | Local coverage/failure/provenance tests and supplied ADO evidence. Discovery does not establish deploy permissions. |
 | Event flow prerequisite resolution | Implemented | Create / Reuse / Manage / Blocked rules and local recheck tests; actual Azure creation/reuse remains unaccepted. |
 | Preview stage and diagrams | Implemented | Azure stack validation/What-If path and guarded artifact reader; local mocked contracts pass. Successful live What-If is not established by the reviewed records. |
 | Template Specs and Deployment Stacks | Implemented | Frozen bundles, ownership, drift checks and publication/apply paths tested locally. Real publication, deny permissions, private agents and workload readiness remain required. |
 | Network discovery and agent Mermaid | Implemented | Broader visible scopes, deterministic checks, evidence/grammar validation and image-only rendering tested locally. Effective connectivity and complete tenant visibility are not inferred. |
 | AVNM IPAM/network delivery | Implemented, profile disabled | Bounded retained-reservation/create-only flow and local contracts. Live pool/provider acceptance, general lifecycle and automatic workload binding remain open. |
-| Codex/AHP/MCP workflows | Implemented | Native startup/account/MCP handshake and local contracts recorded; live sign-in/inference acceptance outstanding. AHP is coordination-only, not a general host. |
+| Codex/AHP/MCP workflows | Implemented; live sign-in/catalog verified | Rebuilt portal's ChatGPT authentication and GPT-6.1 Sol/Ultra catalog verified on Codex 0.160.0 (4 October). Completed inference and cloud-backed review acceptance remain outstanding. AHP is coordination-only, not a general host. |
+| DNS/drift operations pilot | Implemented; locally verified | Dynamic authenticated subscription picker, bounded ARM evidence, deterministic rules/matrices/graph, local-reference comparisons, two structured Codex handlers and editable proposal previews. Live domain acceptance, accepted baselines and cloud execution are outstanding. [Guide](operations-workflows.md). |
 | Tag governance | Implemented, Apply disabled | Shared collector/rules, structured advice, drafts and protected pipeline source tested locally. Ownership/type qualification and live change verification remain required. |
 | AI-assisted Bicep drafts | Implemented | Typed module bindings and emitted source compiled locally. Drafts remain unqualified; production parameter resolution and admission are incomplete. |
 | Recovery rules and policy UI | Implemented | Offline assessor and policy annotations tested; caller assertions remain unverified and never authorize execution. |
-| Durable before/after timeline and restore execution | Planned | Completed portal runs reload Preview. Trusted retained-release reader, verified final diagram and protected restore executor are absent. |
+| Before/What-If/after IaC comparison | Implemented; locally verified | Pipeline Microsoft Azure MCP + nested ARM/child probes, profile coverage gates, before-state drift fingerprint, hash-bound portal reader and Codex review. See [nested coverage](nested-iac-evidence.md) and [workflow](agentic-iac.md). No live acceptance claimed. |
+| Durable retained-release store and restore execution | Planned | ADO artifact retention is used for the new phase history. No universal final-state proof, backup or protected restore executor. |
 | Blob copy local runtime | Implemented | Recorded real Functions/Azurite transfer and recovery evidence. Not every clean-machine/architecture installation path is qualified; Azure runtime acceptance remains outstanding. |
 | Event flow and starter application runtimes | Implemented | Source/package/compile contracts recorded. Hosted triggers, delivery, private access, identity propagation and product smoke need Azure acceptance. |
 | Cost estimates | Implemented with gaps | Dated references, freshness rules and exclusions exist. Newer products explicitly lack complete estimates; no live billing or enforced budget integration. |

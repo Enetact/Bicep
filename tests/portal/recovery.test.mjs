@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { recoveryView } from '../../src/SelfService.Portal/wwwroot/recovery.mjs';
 const catalog = JSON.parse(readFileSync(new URL('../../config/recovery-capabilities.json', import.meta.url)));
-test('all fourteen workflow policies display without execution controls', () => {
-  assert.equal(catalog.policies.length, 14);
+test('all registered workflow policies display without execution controls', () => {
+  assert.equal(catalog.policies.length, 17);
   for (const policy of catalog.policies) { const view = recoveryView(catalog, policy.id); assert.equal(view.canExecute, false); assert.ok(view.exclusions.length); }
 });
 test('policy selection isolates application and tag prerequisites', () => {

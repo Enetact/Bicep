@@ -1,5 +1,7 @@
 # Platform Studio: local Windows self-service portal
 
+**4 October 2026 source update:** nine workload cards and 36 disabled targets now include [Private Data Platform](../workloads/private-data-platform/README.md). Its proposed diagram, summaries, registration pair and recovery policy are integrated. Rebuild source/packages before testing this increment; the dated seven-product package results below do not validate the new product.
+
 [Wiki home](README.md) · [Getting started](getting-started.md) · [Status](completion-status.md)
 
 **Recovery policies:** configure a workload and expand its recovery rules, or select a workflow under Pipeline activity → Recovery policies. These views work without sign-in and expose exclusions/requirements only; they do not assess a saved run or execute a restore. [Recovery rules](recovery-rules.md) also documents the offline source-checkout assessor. Rebuild/restart older portal processes and packages to load this increment.
@@ -9,7 +11,28 @@
 **Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
 
 
-**ADO setup:** connects the existing ADO browser identity to a reviewed registration workflow for all root pipeline YAML files. It creates missing definitions without queuing runs or changing GitHub source/permissions. See [registration guide and public-repo boundaries](ado-pipeline-registration.md).
+**ADO setup:** connects the existing ADO browser identity to a reviewed registration workflow for all root pipeline YAML files. It creates missing definitions without queuing runs or changing GitHub source/permissions. Private repositories use the separate GitHub connection described below. See [registration and source-access boundaries](ado-pipeline-registration.md).
+
+## GitHub browser sign-in
+
+For a private repository, install GitHub CLI once from the repository root:
+
+```powershell
+./scripts/Install-GitHubCli.ps1
+```
+
+The script installs official GitHub CLI 2.102.0 for Windows ARM64 or x64 into ignored `.tools/github-cli`, verifying its SHA-256 against the official release checksums. A normal `gh.exe` installation on PATH or under Program Files also works. An administrator can set `Portal.GitHubCliPath` or `STUDIO_Portal__GitHubCliPath` to an absolute `gh.exe` path. The web UI cannot install executables or accept arbitrary CLI commands. Published packages include the installer under `repository/scripts`; run it there to use the packaged repository root.
+
+1. In **Connections → GitHub**, choose **Sign in to GitHub**. The server starts the fixed `gh auth login --hostname github.com --web --git-protocol https --skip-ssh-key --clipboard=false` device flow.
+2. Copy the one-time code shown in the panel and open **Continue GitHub sign-in**. Complete GitHub account selection and consent yourself. The portal polls its own status and verifies the returned credential against `https://api.github.com/user` before showing **Connected as …**. Login expires after ten minutes; cancellation terminates the owned CLI process.
+3. If already authenticated with the local CLI, choose **Use existing GitHub CLI login** instead. No new consent flow is launched; the account is still verified. This attachment is explicit for each portal browser session.
+4. Connect Azure DevOps separately, then select **ADO setup → Check registration**. Repository metadata, the main commit and root Git tree are read with the GitHub credential. Exact source hashes and review/apply checks remain enforced.
+
+GitHub CLI uses its normal local credential store, which persists across portal restarts and can change the terminal's active GitHub account. It prefers OS secure storage, but can fall back to a plaintext local configuration file; the portal never requests `--insecure-storage`. Review the [official CLI authentication behavior](https://cli.github.com/manual/gh_auth_login). The CLI's OAuth grant can be broader than this portal's read-only GET operations. Organization SSO/OAuth restrictions may still require approval. Credentials and raw CLI output never reach page JavaScript, reports or source; only username, device code and sanitized status are projected. Inherited `GH_*`/`GITHUB_*` credential overrides are removed from child processes.
+
+**Disconnect GitHub** cancels an in-progress flow, drops this browser's account attachment and invalidates pending registration reviews. It does not run `gh auth logout` or disconnect Azure, ADO or Codex. To remove the persistent CLI credential, use `gh auth logout --hostname github.com` from the installed CLI yourself. Revoking an OAuth authorization is a separate GitHub account action. Changing the active CLI account or losing credential access invalidates the portal attachment on the next source check; it never silently falls back from failed authenticated reads to anonymous reads.
+
+GitHub source access does not grant ADO checkout access. Maintain the ADO GitHub App/service connection's access to the private repository independently. Sign-in does not register definitions, queue pipelines, deploy Azure resources or alter repository visibility.
 
 **Network delivery update:** the portal now includes Network discovery, evidence-bound agent diagram rendering and reviewed AVNM pipeline submission. Setup for the real pool, protected pipeline and manual acceptance is in [the network runbook](network-discovery-and-diagrams.md). These capabilities are implemented; live cloud/model acceptance remains pending.
 
@@ -19,24 +42,26 @@
 
 The portal adds a browser workspace to the seven registered ADO workload routes. It adapts the palette, typography and card conventions of Microsoft's [Azure Skills landing page](https://github.com/microsoft/azure-skills/tree/117b038edfef5d7af09848b8ffcd355f28f19956/landing-page). That upstream Astro site is a skills/install website, not an authenticated deployment application. Our local ASP.NET Core host supplies the application, session, authentication and ADO integration. This deliberately uses a small static frontend rather than adding Astro, Tailwind, Blazor and a second application build chain. See [attribution](../src/SelfService.Portal/THIRD-PARTY-NOTICES.md).
 
+**Live IaC comparison:** workload Preview now captures live before-state through the pipeline's Microsoft Azure MCP collector, then retains predicted and observed-after phases for the portal and Codex. See [workflow, dependencies and manual acceptance](agentic-iac.md). Rebuild older portal binaries to include the new view.
+
 ## What is available
 
 - Workload-specific resource, dependency and dated cost descriptions read from the generated YAML menus; targets and approved regions read from repository configuration.
 - Discover, Preview, and Preview-and-deploy requests sent to the dedicated Discover/Deploy definitions for each offering. Disabled targets cannot deploy through the UI or API.
 - Recent successful main discovery picker; review verifies the definition, YAML path, repository, age and selected instance/environment. Pipeline-side manifest/hash/provenance checks remain authoritative.
-- Browser Microsoft sign-in for separate Azure and ADO audiences, consent/MFA on Microsoft pages, themed return page, waiting/completion/cancellation/error states, and local disconnect.
+- Microsoft sign-in through **Local authentication — Azure CLI** or a registered Entra public-client app. Both have separate Azure/ADO audiences, Microsoft consent/MFA, waiting/completion/cancellation/error states and local disconnect. The themed callback belongs to the registered-app method; CLI uses Microsoft's CLI callback.
 - Registered-subscription access check; it does not expand the deployment catalog based on everything a user can access.
-- Eight project-local skills read from `.agents/skills`, plus [42 Microsoft Azure skill definitions](azure-skill-discovery.md) and supporting files bundled under `vendor/azure-skills`. The library displays guidance as text; six bounded [Codex agent workflows](agent-workflows.md) have separate readiness and Run controls.
+- Eight project-local skills read from `.agents/skills`, plus [42 Microsoft Azure skill definitions](azure-skill-discovery.md) and supporting files bundled under `vendor/azure-skills`. The library displays guidance as text; seven bounded [Codex agent workflows](agent-workflows.md) have separate readiness and Run controls.
 - Microsoft skill cards show **No pipeline associated yet**. A separate Azure browser-authenticated read-only inventory adapter collects approved subscription metadata, with service views and a networking profile. These are supporting facts, not full execution of each upstream workflow.
 - Saved discovery analysis invoking the existing deterministic analyzer and displaying its Markdown-as-text and containment diagrams. No model or Azure connection is required.
 - [Connected diagrams](portal-diagrams.md): inline visible-resource topology, proposed component diagrams for all seven workload configurations, same-subscription inventory comparison and a guarded reader for saved ADO Preview changes. Search, pagination, full-name details and SVG export are included.
 - Run submission, status polling and ADO links for logs, approvals, Summary/Extensions and artifact downloads. Run history in the portal lasts for the current page session; ADO retains the actual history.
 
-This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. The scoped MCP evidence bridge and Codex agent reviews are implemented with separate ChatGPT sign-in; live inference acceptance is pending. The [AVNM allocation path](network-discovery-and-diagrams.md) can request provider-assigned space and create a separate spoke through protected ADO stages after platform setup. Automatic workload placement/binding, runtime skill installation, general-purpose artifact browsing and in-portal environment approval remain unimplemented. The portal reads only the named `deployment-preview` artifact for the connected workload Preview diagram. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
+This is a **single-user desktop companion**, listening only on localhost. It is not a LAN/web-hosted multi-user identity service. The scoped MCP evidence bridge and Codex agent reviews are implemented with separate ChatGPT sign-in; live inference acceptance is pending. The [AVNM allocation path](network-discovery-and-diagrams.md) can request provider-assigned space and create a separate spoke through protected ADO stages after platform setup. Automatic workload placement/binding, runtime skill installation, general-purpose artifact browsing and in-portal environment approval remain unimplemented. The legacy Preview view reads `deployment-preview`; the new [IaC phase view](agentic-iac.md) reads its named hash-bound projection from `deployment-preview` and `deployment-result`. Skills ship as a reviewed offline bundle. Resources are still provisioned in Azure by ADO, not on your computer.
 
 ## Run from source, in order
 
-Requirements: Windows 11 ARM64 or x64, PowerShell 7.4+, Git checkout, .NET SDK compatible with `global.json` (currently 10.0.300), and Node.js 22+ for analysis. Normal portal browsing and ADO requests do not require Node, Azure CLI, Bicep, Docker or Functions locally. Internet is needed for package restore, Microsoft sign-in and ADO/Azure calls. The Azure pipelines retain their existing agent/tool/network requirements.
+Requirements: Windows 11 ARM64 or x64, PowerShell 7.4+, Git checkout, .NET SDK compatible with `global.json` (currently 10.0.300), and Node.js 22+ for analysis. **Local authentication requires an installed Windows Azure CLI 2.54+; use a current Microsoft-supported release.** Registered-app authentication does not require Azure CLI. Bicep, Docker and Functions are not needed for portal browsing or ADO requests. Internet is needed for restore, Microsoft sign-in and ADO/Azure calls. Azure pipelines retain their existing agent/tool/network requirements.
 
 From the `Bicep` repository root:
 
@@ -47,7 +72,7 @@ From the `Bicep` repository root:
 
 If a prerequisite is absent, use `./scripts/Setup-Portal.ps1 -InstallMissing`. This uses native-architecture winget packages for .NET 10 SDK or Node LTS and reports when to reopen PowerShell to refresh PATH. Existing incompatible installations are reported for upgrade, not silently replaced. PowerShell and winget themselves must already be available.
 
-The browser opens `http://localhost:5087`. Without an Entra registration you can already browse workloads/skills and analyze saved discovery. Connect buttons explain the missing setup and remain disabled.
+The browser opens `http://localhost:5087`. You can browse workloads/skills and analyze saved discovery without signing in. **Connections → Local authentication — Azure CLI → Sign in locally — Azure CLI** works without a custom app registration when Azure CLI is installed. Only the registered-app method requires the registration below.
 
 ```powershell
 ./scripts/Test-Portal.ps1
@@ -58,7 +83,28 @@ Start writes an ownership receipt and logs under `.local/portal`. Stop verifies 
 
 ## Configure Microsoft browser sign-in
 
-A platform administrator must create a **separate, single-tenant Microsoft Entra app registration for this local desktop companion**. Do not reuse the ADO deployment service principal's client ID.
+Choose either local CLI authentication or registered-app authentication. Both use your existing user permissions. Neither changes the pipeline service connection or enables deployment targets.
+
+### Local authentication — Azure CLI
+
+1. Install [Microsoft Azure CLI for Windows](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows), if absent, then restart the portal to refresh PATH. The portal supports the official MSI/ZIP `az.cmd` layout and `az.exe`. For a non-PATH installation, set `Portal.AzureCliPath` to the absolute `az.cmd`/`az.exe` path in ignored `portal.local.json`, or `STUDIO_Portal__AzureCliPath`. The UI does not run an installer or accept arbitrary executables/commands.
+2. Open **Connections** and select **Local authentication — Azure CLI** (the default). Leave Tenant ID empty to use the tenant returned by Microsoft/CLI. For a guest account or another directory, enter that tenant GUID before signing in; disconnect before changing it.
+3. Click **Sign in locally — Azure CLI**. The backend invokes `az login --allow-no-subscriptions` in an isolated cache, opens your default browser, and waits up to five minutes. Complete account selection, consent and MFA on Microsoft's page. The UI polls for completion; **Cancel sign-in** terminates the owned helper and cleans an unsuccessful new session.
+4. Azure becomes **Local auth · Azure CLI · Azure token connected** only after token acquisition/tenant/expiry checks. The active account and returned tenant appear in Connections. Open Network discovery, DNS & drift or Tag governance and refresh scopes to retrieve visible subscriptions. Resource permissions and coverage are checked by each workflow. The workload catalog and its deployment allowlist remain platform-controlled.
+5. Click **Connect Azure DevOps** to request a separate ADO token from the same isolated CLI session. Your ADO organization must recognize that tenant/account, and your user needs the operation's existing permissions. A token alone is not proof of project access; access is checked when reading ADO or reviewing a request. ADO failure can leave the Azure connection usable.
+6. **Disconnect Microsoft** clears both audiences, evidence/review tickets and this session's CLI cache. It leaves the separate Codex connection, normal terminal `az login`, browser cookies and tenant consent unchanged. Connect Codex separately under Agent workflows. Sign-in never runs an agent, queues a pipeline or grants permissions.
+
+Implementation: `POST /api/local-auth/{azure|ado}` accepts only an optional tenant GUID. `AzureCliIdentity.Begin/Complete` runs login and qualifies the returned account; `Token/Acquire` obtains the requested audience and renews before expiry through CLI. `BrowserIdentity` routes the existing `ITokenProvider` calls to CLI or MSAL. CLI receives fixed argument arrays through the installed Python/native executable, without a command shell. `GET /api/auth` returns mode/account/tenant/status, never tokens. Auth operations preserve loopback Host, Origin and CSRF protections.
+
+Each browser owns `.local/portal/azure-cli/<random-id>` as `AZURE_CONFIG_DIR`, with Windows permissions restricted to the current user and SYSTEM. This directory contains sensitive refresh credentials and must remain ignored. The app does not reuse your normal Azure CLI cache. WAM and the interactive subscription selector are disabled **only for that child process**, so authentication can complete in a browser without a hidden terminal prompt. Tokens are renewed using `expires_on` UTC; account/tenant changes require reconnection. Only Azure public cloud is supported by the fixed ARM/ADO adapters.
+
+Disconnect and session expiry remove the owned cache. The governed `Stop-Portal.ps1` also invokes `Clear-PortalAzureCli.ps1` to verify and stop any surviving CLI helper and remove its credentials after stopping the portal. Abrupt OS/app termination can leave a protected ignored cache; retain the process receipt and run the stop script before restarting. Cleanup refuses linked paths and unverified processes. Never upload `.local`, token cache files or full CLI authentication output. MSAL registration remains available when tenant policy does not permit Azure CLI authentication; neither method bypasses Conditional Access.
+
+Microsoft references: [CLI interactive authentication and browser mode](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli-interactively), [CLI configuration/environment isolation](https://learn.microsoft.com/en-us/cli/azure/azure-cli-configuration), and [ADO tokens using Azure CLI](https://learn.microsoft.com/en-us/azure/devops/cli/entra-tokens?view=azure-devops).
+
+### Registered Entra application
+
+For this alternative, a platform administrator creates a **separate, single-tenant Microsoft Entra app registration for the local desktop companion**. Do not reuse the ADO deployment service principal's client ID.
 
 1. In the tenant connected to your ADO organization, register the app and record its Directory/tenant ID and Application/client ID.
 2. Under Authentication, add **Mobile and desktop applications** and the redirect URI **`http://localhost`**. MSAL selects an ephemeral loopback port for the response. This is different from the portal's port 5087. Do not register the portal as a SPA or confidential web app; no client secret is used.
@@ -73,7 +119,7 @@ A platform administrator must create a **separate, single-tenant Microsoft Entra
 
 If already running, stop the portal before setup/build, then restart. Setup saves only nonsecret identifiers in ignored `src/SelfService.Portal/portal.local.json`. You can copy `portal.example.json` to that name to configure Organization, Project, Port, RepositoryRoot or NodePath. Environment overrides use `STUDIO_Portal__ClientId`, `STUDIO_Portal__TenantId`, etc. Configuration is local and never editable through an HTTP endpoint.
 
-In **Connections**, click Connect Azure DevOps. Microsoft opens in the system browser; the user selects their account, accepts requested consent and completes MFA. The portal waits up to five minutes and updates automatically. Cancellation or a denied/failed request can be retried. Azure connection is optional and must use the same account. Tenant Conditional Access may block browser public-client flows; this implementation does not bypass it or implement WAM fallback. Disconnect clears the app's in-memory cache, not Microsoft's browser cookies or tenant consent.
+In **Connections**, select **Browser authentication — registered Entra app**, then click Connect Azure DevOps. Microsoft opens in the system browser; select your account, accept consent and complete MFA. The portal waits up to five minutes and updates automatically. Cancellation or a denied/failed request can be retried. Azure connection is optional and must use the same account. Tenant Conditional Access may block browser public-client flows; this implementation does not bypass it or implement WAM fallback. Disconnect Microsoft clears the app's in-memory cache, not browser cookies, tenant consent or Codex.
 
 Sources: [MSAL interactive acquisition](https://learn.microsoft.com/en-us/entra/msal/dotnet/acquiring-tokens/desktop-mobile/acquiring-tokens-interactively), [system browser and loopback](https://learn.microsoft.com/en-us/entra/msal/dotnet/acquiring-tokens/using-web-browsers), [ADO Entra delegated authentication](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/entra-oauth?view=azure-devops).
 
@@ -123,7 +169,8 @@ Leave IDs blank for offline use or enter your registration IDs. Never add a clie
 |---|---|
 | `src/SelfService.Portal/Program.cs` | Loopback host, origin/CSRF/session checks, safe errors, API routes and one-use confirmation tickets. |
 | `Catalog.cs` | Read generated menu descriptions, targets, regions and local skills; validate selection; build allowlisted ADO payload. |
-| `BrowserIdentity.cs` | MSAL public-client browser flow, token acquisition/renewal, cancellation and per-session cache clearing. |
+| `BrowserIdentity.cs` | Shared token routing, MSAL public-client browser flow, cancellation, Microsoft disconnect and session evidence clearing. |
+| `AzureCliIdentity.cs` | Optional local CLI browser login, protected per-browser cache, fixed process arguments, cancellation/renewal, tenant/account qualification and cleanup. |
 | `AdoGateway.cs` | Resolve definitions, verify handoff, submit once, read status and approved-subscription access. |
 | `AzureDiscovery.cs` | Fixed ARM GET collections for the selected upstream skill profile; scoped pagination, projected fields, explicit partial coverage and local reports. |
 | `AnalysisRunner.cs` | Size-bound file upload, isolated evidence directory, fixed analyzer command with bounded execution and safe error handling. |
@@ -139,7 +186,7 @@ sequenceDiagram
     participant ADO as Azure DevOps
     Developer->>UI: Connect ADO
     UI->>Host: CSRF-protected sign-in request
-    Host->>Entra: MSAL system-browser authorization / PKCE
+    Host->>Entra: Selected CLI or MSAL system-browser authorization
     Developer->>Entra: Account, consent and MFA
     Entra->>Host: Loopback callback and token exchange
     UI->>Host: Poll sign-in state

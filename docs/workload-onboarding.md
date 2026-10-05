@@ -1,12 +1,14 @@
 # Adding and operating self-service workload products
 
+**Private Data Platform:** follow its [full prerequisites, parameters and acceptance guide](../workloads/private-data-platform/README.md). Its dedicated `dataplat` Discover/Deploy pair reuses approved network/DNS/NAT/browser authentication. Workspace identities, Unity Catalog and manual notebook execution are separate runtime acceptance steps; they are not created by Azure RBAC.
+
 [Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
 
 **AI-assisted source authoring:** [Design Bicep source draft](bicep-source-drafts.md) can produce main/stack/parameter files from local module contracts. Treat these as source proposals and complete the same registration, adapter, naming, ownership, test and platform qualification steps below. Production parameters are still resolved by the existing pipeline adapters.
 
 ## Current catalog and delivery status
 
-The catalog contains seven workload types: Blob copy, Event flow, Private Storage Workspace, Key Vault, Observability, HTTP Functions API and Service Bus worker. Each has four disabled environment profiles and dedicated Discover/Deploy YAML roots. The five additions are implemented in source; platform onboarding, price qualification, ADO definition registration and live Azure acceptance remain required. A menu or successful local compilation is not production acceptance.
+The catalog contains eight workload types: Blob copy, Event flow, Private Storage Workspace, Key Vault, Observability, HTTP Functions API, Service Bus worker and Private Data Platform. Each has four disabled environment profiles and dedicated Discover/Deploy YAML roots. The five additions are implemented in source; platform onboarding, price qualification, ADO definition registration and live Azure acceptance remain required. A menu or successful local compilation is not production acceptance.
 
 | Offering | Instance / YAML slug | Application delivery | What it owns |
 |---|---|---|---|

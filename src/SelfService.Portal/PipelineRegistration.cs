@@ -16,9 +16,9 @@ public record RegistrationInventory(string Repository, string Branch, string Com
 public record RegistrationReview(RegistrationSelection Selection, string CatalogHash, string Commit, RegistrationSeed Seed, DateTimeOffset Expires);
 public record RegistrationOutcome(string Yaml, string Name, string Status, int? Id, string Detail);
 
-// Only fixed ADO definition GET/POST and anonymous GitHub GET routes. No queue, update,
+// Only fixed ADO definition GET/POST and GitHub GET routes. No queue, update,
 // delete, permissions, service-endpoint creation or GitHub write operation exists here.
-public sealed class PipelineRegistration(HttpClient http, ITokenProvider identity, Catalog catalog, PortalOptions options)
+public sealed class PipelineRegistration(HttpClient http, ITokenProvider identity, Catalog catalog, PortalOptions options, IGitHubIdentity? github = null)
 {
     static readonly SemaphoreSlim ApplyGate = new(1, 1);
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
@@ -60,14 +60,19 @@ public sealed class PipelineRegistration(HttpClient http, ITokenProvider identit
             !roots.SequenceEqual(entries.Select(e => e.Yaml).Order())) throw new PortalException("Registration catalog must cover every root pipeline exactly once, with unique names.", 409);
         return new(repository, branch!, Hash(configText + JsonSerializer.Serialize(entries)), entries);
     }
-    async Task<(JsonElement Body, string? Next)> Send(string url, BrowserSession? session, object? body, CancellationToken ct)
+    async Task<(JsonElement Body, string? Next)> Send(string url, BrowserSession? session, object? body, CancellationToken ct, string? githubToken = null)
     {
         using var request = new HttpRequestMessage(body is null ? HttpMethod.Get : HttpMethod.Post, url);
         if (session is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await identity.Token(session, "ado"));
-        else { request.Headers.UserAgent.ParseAdd("PlatformStudio-Registration/1.0"); request.Headers.Add("X-GitHub-Api-Version", "2022-11-28"); }
+        else {
+            if (request.RequestUri is not { Scheme: "https", Host: "api.github.com", IsDefaultPort: true } || body is not null) throw new PortalException("Invalid GitHub source route.");
+            request.Headers.UserAgent.ParseAdd("PlatformStudio-Registration/1.0"); request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
+            if (githubToken is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", githubToken);
+        }
         if (body is not null) request.Content = JsonContent.Create(body);
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        if (!response.IsSuccessStatusCode) throw new PortalException($"{(session is null ? "Public GitHub read" : "ADO registration request")} returned HTTP {(int)response.StatusCode}. Check access, published source and rate limits. No automatic retry.", 502);
+        if (!response.IsSuccessStatusCode) throw new PortalException($"{(session is null ? "GitHub source read" : "ADO registration request")} returned HTTP {(int)response.StatusCode}. " +
+            (session is null ? "For private repositories, connect GitHub in Connections and ensure the account and organization consent allow repository access. " : "") + "Check access, published source and rate limits. No automatic retry.", 502);
         using var stream = await response.Content.ReadAsStreamAsync(ct); using var bytes = new MemoryStream();
         var buffer = new byte[8192]; int n;
         while ((n = await stream.ReadAsync(buffer, ct)) > 0) { if (bytes.Length + n > 8 * 1024 * 1024) throw new PortalException("Registration response exceeded its limit; inventory is incomplete.", 502); bytes.Write(buffer, 0, n); }
@@ -116,21 +121,22 @@ public sealed class PipelineRegistration(HttpClient http, ITokenProvider identit
         if (!blobs.TryGetValue(e.Yaml, out var sha) || sha != e.BlobSha) return new(e.Yaml, e.Name, e.Category, "Source not published", null, "Push/merge this exact YAML to GitHub main, or update the local catalog/package.");
         return new(e.Yaml, e.Name, e.Category, "Missing", null, "Ready to register; registration does not run this pipeline.");
     }
-    async Task<(string Commit, Dictionary<string, string> Blobs)> Published(PipelineCatalog local, CancellationToken ct)
+    async Task<(string Commit, Dictionary<string, string> Blobs)> Published(PipelineCatalog local, BrowserSession session, CancellationToken ct)
     {
         var api = "https://api.github.com/repos/" + local.Repository;
-        var repo = (await Send(api, null, null, ct)).Body;
-        if (repo.GetProperty("private").GetBoolean()) throw new PortalException("This adapter supports public GitHub repositories only.", 409);
-        var commit = (await Send(api + "/commits/main", null, null, ct)).Body;
+        var token = github is null ? null : await github.Token(session, ct);
+        var repo = (await Send(api, null, null, ct, token)).Body;
+        if (repo.GetProperty("private").GetBoolean() && token is null) throw new PortalException("Connect GitHub in Connections to check this private repository.", 401);
+        var commit = (await Send(api + "/commits/main", null, null, ct, token)).Body;
         var sha = Text(commit, "sha")!; var treeSha = Text(Part(Part(commit, "commit"), "tree"), "sha")!;
         if (!Regex.IsMatch(sha ?? "", "^[0-9a-f]{40}$") || !Regex.IsMatch(treeSha ?? "", "^[0-9a-f]{40}$")) throw new PortalException("GitHub commit could not be qualified.", 502);
-        var tree = (await Send(api + "/git/trees/" + treeSha, null, null, ct)).Body; // Root entries only, no recursive truncation.
+        var tree = (await Send(api + "/git/trees/" + treeSha, null, null, ct, token)).Body; // Root entries only, no recursive truncation.
         if (tree.GetProperty("truncated").GetBoolean()) throw new PortalException("GitHub tree is incomplete.", 502);
         return (sha!, tree.GetProperty("tree").EnumerateArray().Where(x => Text(x, "type") == "blob" && Text(x, "mode") == "100644").ToDictionary(x => Text(x, "path")!, x => Text(x, "sha")!));
     }
     public async Task<RegistrationInventory> Inventory(BrowserSession session, CancellationToken ct)
     {
-        var local = LocalCatalog(); var definitions = await Definitions(session, ct); var published = await Published(local, ct);
+        var local = LocalCatalog(); var definitions = await Definitions(session, ct); var published = await Published(local, session, ct);
         return new(local.Repository, local.Branch, published.Commit, local.Hash,
             definitions.Select(d => Seed(d, local)).OfType<RegistrationSeed>().ToArray(),
             local.Entries.Select(e => Classify(e, local, definitions, published.Blobs)).ToArray());

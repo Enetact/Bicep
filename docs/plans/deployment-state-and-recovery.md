@@ -1,5 +1,8 @@
 # Deployment evidence timeline and reviewed recovery
 
+**Implemented subset, 4 October 2026:** [shared agentic IaC](../agentic-iac.md) now supplies per-run before/What-If/after artifacts, existing-only Bicep inventory, projected comparisons and an optional Codex visualizer review. Live acceptance remains outstanding. This does not implement the broader retained-release store, complete resource reconstruction or recovery executor proposed below.
+
+
 **27 September 2026 — source audit and implementation design, not a delivered rollback feature.** The existing Preview/Deploy path is implemented; a durable before/after timeline and recovery execution are not. This plan extends the [workflow standard](../agent-workflow-standard.md) and [deployment Preview](../deployment-preview.md). No target enablement, new pipeline registration or Azure change follows from this document.
 
 **Subsequent rules increment implemented:** [Recovery rules](../recovery-rules.md) documents fourteen registered policies, an executable offline assessor, portal policy views and Preview/receipt annotations. This delivers the policy portion of R2, not retained-baseline verification or recovery execution. The original source audit below remains the pre-increment baseline. Planned `config/recovery-capabilities.json` now exists; its `executionEnabled` must remain false. The current assessor lives in `scripts/recovery-common.ps1`; the proposed `SelfService.Lifecycle` library is not introduced by this increment.

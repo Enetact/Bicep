@@ -1,5 +1,14 @@
 # Bicep Preview and Deploy
 
+**Nested evidence update, 4 October 2026:** the dedicated Deploy path now captures reviewed nested ARM properties and child-resource configurations. Unresolved desired expressions and incomplete probes block qualification; the retained before-state fingerprint is rechecked before Apply. Old approvals require a new Preview. See [coverage, limits and manual acceptance](nested-iac-evidence.md).
+
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** Private AKS uses the existing Bicep Preview summary and proposed/What-If portal diagrams. Helm publishes a separate Extensions README plus rendered Kubernetes manifests, before-state and kubectl diff; it does not currently render that diff in the portal. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**Private Data Platform:** `azure-pipelines-dataplat-deploy.yml` uses this same Preview-first path. It validates saved and live shared prerequisites, creates a resource/property report and uses the protected infrastructure-only Release path. Root firewall/network/identity changes and ADF execution/connectivity modifications require migration review. [Onboarding and exact resources](../workloads/private-data-platform/README.md).
+
 [Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
 
 The [connected portal diagram](portal-diagrams.md) can now load this pipeline's published `deployment-preview` artifact by run ID, including while Deploy waits for approval. It projects resource actions and retains blocked/uncertain status; ADO's full README, pipeline guards and approval checks remain authoritative. This adds no pipeline stage or automatic deployment.

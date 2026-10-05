@@ -1,8 +1,11 @@
+import { renderIac } from './iac.mjs';
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
+import { setupOperations } from './operations.mjs';
 import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
+import { setupGitHub } from './github.mjs';
 import { renderRecovery } from './recovery.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
@@ -12,7 +15,7 @@ const runs = [], diagramUrls = [];
 let selectionVersion = 0;
 let refreshAgents;
 let recoveryCatalog;
-function clearPreview() { selectionVersion++; $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
+function clearPreview() { selectionVersion++; $('iac-analysis').replaceChildren(); $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
   renderTopology($('workload-diagram'), proposedTopology(chosen, t, $('region').value, data.topologies.products[chosen.id]));
@@ -23,7 +26,14 @@ function drawProposal() {
 async function loadPreview(product, runId) {
   const version = ++selectionVersion;
   $('preview-diagram').replaceChildren(); $('preview-message').textContent = 'Reading the saved Preview artifact from Azure DevOps…';
+  $('iac-analysis').replaceChildren();
   try {
+    try {
+      const iac = await api(`iac/${product}/${runId}/${$('environment').value}/preview`);
+      if(version!==selectionVersion||chosen?.id!==product)return;
+      if(iac.provenance.region!==$('region').value)throw new Error('IaC evidence is for another region.');
+      renderIac($('iac-analysis'),iac);
+    } catch(e) { if(version===selectionVersion)$('iac-analysis').textContent=`Before/after evidence unavailable: ${e.message}`; }
     const report = await api(`preview/${product}/${runId}`);
     if (version !== selectionVersion || chosen?.id !== product) return;
     if (report.environment !== $('environment').value) throw new Error(`This Preview is for ${report.environment}. Select that environment to view it.`);
@@ -32,8 +42,8 @@ async function loadPreview(product, runId) {
     $('preview-message').textContent = `Saved evidence from run ${runId}. Compare with the proposed components above; this does not confirm deployment.`;
   } catch (e) { if (version === selectionVersion) $('preview-message').textContent = `Preview unavailable: ${e.message}`; }
 }
-async function api(path, body) {
-  const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body) });
+async function api(path, body, signal) {
+  const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
   const text = await res.text(); const result = text ? JSON.parse(text) : {};
   if (!res.ok) throw new Error(result.error ?? `Request failed (${res.status}).`); return result;
 }
@@ -67,23 +77,43 @@ function selectionChanged() {
 function updateGates() {
   if (!data) return;
   const waiting = auth.state === 'Waiting for Microsoft';
-  $('connect-ado').disabled = !data.configured || waiting; $('connect-azure').disabled = !data.configured || waiting;
+  const local = $('auth-mode').value === 'local-cli';
+  const ready = local ? auth.localCliAvailable : data.configured;
+  $('auth-mode').disabled = waiting || !!auth.mode;
+  $('local-auth-tenant').disabled = waiting || !!auth.mode;
+  $('local-auth-settings').hidden = !local;
+  $('setup').hidden = local || data.configured;
+  $('connect-local').disabled = !auth.localCliAvailable || waiting || auth.connected.includes('azure');
+  $('connect-ado').disabled = !ready || waiting || auth.connected.includes('ado'); $('connect-azure').disabled = !ready || waiting || auth.connected.includes('azure');
+  $('local-cli-status').textContent = auth.localCliAvailable ? 'Azure CLI found on this device · local authentication available' : 'Azure CLI not found. Install Microsoft Azure CLI, then restart the portal to refresh PATH. See docs/local-portal.md.';
   $('subscriptions').disabled = !auth.connected.includes('azure');
   $('review').disabled = !chosen || !auth.connected.includes('ado') || ($('operation').value !== 'discover' && !$('discovery-run').value);
   $('refresh-discovery').disabled = !auth.connected.includes('ado'); $('cancel-login').hidden = !waiting;
   $('run-skill-discovery').disabled = !discoverySkill || !auth.connected.includes('azure') || discoveryBusy;
   $('load-preview').disabled = !chosen || !auth.connected.includes('ado');
+  $('load-iac-after').disabled = !chosen || !auth.connected.includes('ado');
 }
 async function refreshAuth() {
   auth = await api('auth'); $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
-  $('ado-state').textContent = auth.connected.includes('ado') ? 'Connected · delegated access' : 'Not connected';
-  $('azure-state').textContent = auth.connected.includes('azure') ? 'Connected · delegated access' : 'Not connected';
+  if (auth.mode) $('auth-mode').value = auth.mode;
+  const method = auth.mode === 'local-cli' ? 'Local auth · Azure CLI' : 'Registered app';
+  $('auth-context').textContent = auth.mode ? `${method} · ${auth.account ?? 'Sign-in pending'}${auth.tenantId ? ' · Tenant ' + auth.tenantId : ''}` : 'Microsoft and Codex authenticate separately.';
+  $('ado-state').textContent = auth.connected.includes('ado') ? `${method} · ADO token connected; project permissions checked on use` : 'Not connected';
+  $('azure-state').textContent = auth.connected.includes('azure') ? `${method} · Azure token connected; resource access checked on use` : 'Not connected';
   $('auth-detail').textContent = auth.error ?? (auth.state === 'Waiting for Microsoft' ? 'Your default browser is opening Microsoft sign-in. Complete account selection, consent and MFA there. This page will update automatically.' : auth.state === 'Connected' ? 'Connection complete. You can return to Workloads.' : 'Click Connect to open Microsoft sign-in. Cancelled or failed sign-in can be retried.');
   if (auth.state !== 'Waiting for Microsoft') { clearInterval(loginTimer); loginTimer = null; }
   updateGates();
   if (refreshAgents) await refreshAgents();
 }
-for (const audience of ['ado', 'azure']) action('connect-' + audience, async () => { await api('auth/' + audience, {}); await refreshAuth(); if (!loginTimer && auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => { clearInterval(loginTimer); notice(e.message, true); }), 2000); });
+async function connectMicrosoft(audience) {
+  const local = $('auth-mode').value === 'local-cli';
+  await api((local ? 'local-auth/' : 'auth/') + audience, local ? { tenantId: $('local-auth-tenant').value.trim() || null } : {});
+  await refreshAuth();
+  if (!loginTimer && auth.state === 'Waiting for Microsoft') loginTimer = setInterval(() => refreshAuth().catch(e => { clearInterval(loginTimer); notice(e.message, true); }), 2000);
+}
+$('auth-mode').addEventListener('change', updateGates);
+action('connect-local', () => connectMicrosoft('azure'));
+for (const audience of ['ado', 'azure']) action('connect-' + audience, () => connectMicrosoft(audience));
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
 action('disconnect', async () => { await api('disconnect', {}); window.dispatchEvent(new Event('platform-disconnected')); await refreshAuth(); });
 action('subscriptions', async () => { const subscriptions = await api('subscriptions'); $('subscription-list').replaceChildren(...subscriptions.map(s => make('p', `${s.name} · ${s.state}`))); if (!subscriptions.length) $('subscription-list').textContent = 'No registered subscriptions are visible to this account.'; });
@@ -126,6 +156,19 @@ action('run-skill-discovery', async () => {
 });
 $('download-discovery').addEventListener('click', () => { if (!discoveryReport) return; const url = URL.createObjectURL(new Blob([JSON.stringify(discoveryReport, null, 2)], { type: 'application/json' })); const a = make('a'); a.href = url; a.download = `azure-discovery-${discoveryReport.id}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); });
 for (const id of ['environment', 'region', 'operation', 'discovery-run']) $(id).addEventListener('change', selectionChanged);
+action('load-iac-after', async () => {
+  const id=Number($('preview-run-id').value);if(!chosen||!Number.isSafeInteger(id)||id<1)throw new Error('Select a workload and a positive Deploy run ID.');
+  const version=++selectionVersion, product=chosen.id, environment=$('environment').value;
+  $('iac-analysis').replaceChildren();$('preview-diagram').replaceChildren();$('preview-message').textContent=`Loading observed evidence from run ${id}…`;
+  try {
+    const report=await api(`iac/${product}/${id}/${environment}/after`);
+    if(version!==selectionVersion||chosen?.id!==product)return;
+    if(report.provenance.region!==$('region').value)throw new Error('IaC evidence is for another region.');
+    renderIac($('iac-analysis'),report);$('preview-message').textContent=`Saved observed-after evidence from run ${id}; inspect comparison coverage and the deployment receipt.`;
+  } catch(e) {if(version===selectionVersion)$('preview-message').textContent=`Observed-after evidence unavailable: ${e.message}`;throw e;}
+});
+window.addEventListener('platform-iac-review',()=>page('agents'));
+window.addEventListener('platform-disconnected',clearPreview);
 action('load-preview', async () => {
   const id = Number($('preview-run-id').value);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Enter the positive run ID of a Preview / Deploy pipeline.');
@@ -182,7 +225,7 @@ action('analyze', async () => {
 try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
-  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'] };
+  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
   $('products').replaceChildren(...data.products.map(p => {
     const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top');
     const [icon, label] = productLabels[p.id] ?? ['◈', 'WORKLOAD'];
@@ -196,7 +239,9 @@ try {
   refreshAgents = setupAgents({ api, data, notice });
   setupNetwork({ api, data, notice, page });
   setupTagging({ api, data, notice, page });
+  setupOperations({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
+  setupGitHub({ api, notice });
   try {
     recoveryCatalog = await api('recovery/policies');
     options($('recovery-workflow'), recoveryCatalog.policies, p => p.name);

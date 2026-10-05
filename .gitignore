@@ -6,6 +6,7 @@ artifacts/
 
 # Local runtime, Codex homes, portable tools and emulator data.
 # Agent source remains in src/; .local/portal/agents contains runtime copies only.
+# .local/portal/azure-cli contains isolated local-auth credentials; never publish it.
 .local/
 .tools/
 .azure/
@@ -21,6 +22,8 @@ local.settings.json
 !.env.example
 **/portal.local.json
 **/auth.json
+# GitHub CLI credential file if a developer uses a repository-local GH_CONFIG_DIR.
+**/hosts.yml
 **/accessTokens.json
 **/azureProfile.json
 **/service_principal_entries.json
@@ -38,6 +41,8 @@ local.settings.json
 .codex/tmp/
 .codex/shell_snapshots/
 .codex/history.jsonl
+.codex/models_cache.json
+.codex/session_index.jsonl
 .codex/*.sqlite*
 
 # Test evidence and local editor state. Test source/fixtures remain versioned.
@@ -53,3 +58,20 @@ coverage/
 .idea/
 *.user
 *.suo
+
+# Databricks/ADF scripts, notebooks and bundle templates are source: keep them.
+# Ignore only deployment state, credentials, Python environments and caches.
+**/.databricks/
+**/__pycache__/
+**/.venv/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.ipynb_checkpoints/
+*.py[cod]
+**/.databrickscfg
+
+# Developer Kubernetes/Helm credentials and caches. Reviewed charts remain source.
+**/.kube/
+**/.helm/
+kubeconfig.local*
+helm-registry.local.json

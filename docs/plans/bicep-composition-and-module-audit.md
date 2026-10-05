@@ -1,5 +1,7 @@
 # Bicep composition and module audit
 
+**4 October 2026 update:** [Private AKS Foundation and Helm](../../workloads/private-aks/README.md) now have specialized source implementation and local contracts. The AKS module is audited but remains excluded from generic AI source drafts until its dedicated identity/network bindings can be resolved safely. The roadmap below describes the original source-draft increment.
+
 Reviewed 27 September 2026 against the current source. This records implemented behavior, the source-draft increment and the remaining expansion plan. It does not qualify any Azure deployment. The user selected reviewable source drafts before deployment qualification; module registry adoption remains deferred.
 
 ## Audit conclusion

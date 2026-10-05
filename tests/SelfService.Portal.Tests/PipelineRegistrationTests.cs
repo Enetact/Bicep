@@ -16,6 +16,7 @@ public sealed class PipelineRegistrationTests
         return new() { RepositoryRoot = dir!.FullName };
     }
     sealed class Tokens : ITokenProvider { public Task<string> Token(BrowserSession s, string audience) { Assert.Equal("ado", audience); return Task.FromResult("synthetic-ado-token"); } }
+    sealed class GitHubTokens : IGitHubIdentity { public Task<string?> Token(BrowserSession s, CancellationToken ct) => Task.FromResult<string?>("synthetic-github-token"); }
     static JsonElement Definition(int id, string name, string yaml, string repo = "Enetact/Bicep") => Element(new {
         id, name, path = "\\", process = new { type = 2, yamlFilename = yaml }, queue = new { id = 9 },
         repository = new { id = repo, type = "GitHub", url = "https://github.com/" + repo, defaultBranch = "refs/heads/main",
@@ -31,10 +32,12 @@ public sealed class PipelineRegistrationTests
         {
             object body; var uri = r.RequestUri!;
             if (uri.Host == "api.github.com") {
-                Assert.Null(r.Headers.Authorization); Assert.Equal(HttpMethod.Get, r.Method);
+                if (Fault == "private") Assert.Equal("synthetic-github-token", r.Headers.Authorization!.Parameter); else Assert.Null(r.Headers.Authorization);
+                Assert.Equal(HttpMethod.Get, r.Method);
+                if (Fault == "private-denied") return new(HttpStatusCode.NotFound);
                 if (uri.AbsolutePath.EndsWith("/commits/main")) body = new { sha = Commit, commit = new { tree = new { sha = new string('b', 40) } } };
                 else if (uri.AbsolutePath.Contains("/git/trees/")) body = new { truncated = Fault == "truncated", tree = Local.Entries.Where(e => Fault != "missing-source" || e.Yaml != "azure-pipelines-network.yml").Select(e => new { path = e.Yaml, type = "blob", mode = "100644", sha = Fault == "source-drift" ? new string('c', 40) : e.BlobSha }) };
-                else body = new { @private = false };
+                else body = new { @private = Fault is "private" or "private-unconnected" };
             } else {
                 Assert.Equal("dev.azure.com", uri.Host); Assert.Equal("synthetic-ado-token", r.Headers.Authorization!.Parameter);
                 if (r.Method == HttpMethod.Post) {
@@ -61,7 +64,7 @@ public sealed class PipelineRegistrationTests
         }
     }
     static (PipelineRegistration Service, Handler Handler, BrowserSession Session) Setup(string fault = "") {
-        var options = Options(); var handler = new Handler { Fault = fault }; var service = new PipelineRegistration(new(handler), new Tokens(), new(options), options);
+        var options = Options(); var handler = new Handler { Fault = fault }; var service = new PipelineRegistration(new(handler), new Tokens(), new(options), options, fault == "private" ? new GitHubTokens() : null);
         handler.Local = service.LocalCatalog(); return (service, handler, new(options));
     }
     static async Task<string> Review(PipelineRegistration service, BrowserSession s, params string[] files) =>
@@ -70,16 +73,31 @@ public sealed class PipelineRegistrationTests
     [Fact] public async Task AllRootPipelinesAreCataloguedAndExistingSeedIsReused() {
         var (service, h, s) = Setup(); using (s) {
             var inventory = await service.Inventory(s, CancellationToken.None);
-            Assert.Equal(20, inventory.Pipelines.Length); Assert.Equal(19, inventory.Pipelines.Count(p => p.Status == "Missing")); Assert.Single(inventory.Pipelines, p => p.Status == "Existing"); Assert.Single(inventory.Sources); Assert.Equal(0, h.Posts);
+            Assert.Equal(25, inventory.Pipelines.Length); Assert.Equal(24, inventory.Pipelines.Count(p => p.Status == "Missing")); Assert.Single(inventory.Pipelines, p => p.Status == "Existing"); Assert.Single(inventory.Sources); Assert.Equal(0, h.Posts);
+        }
+    }
+    [Fact] public async Task PrivateRepositoryUsesGitHubTokenOnlyForGitHubAndKeepsSourceChecks() {
+        var (service, h, s) = Setup("private"); using (s) {
+            var inventory = await service.Inventory(s, CancellationToken.None);
+            Assert.Equal(24, inventory.Pipelines.Count(p => p.Status == "Missing")); Assert.Equal(0, h.Posts);
+            var ticket = await Review(service, s, "azure-pipelines-network.yml");
+            await service.Apply(s, ticket, CancellationToken.None); Assert.Equal(1, h.Posts);
+        }
+    }
+    [Theory] [InlineData("private-unconnected")] [InlineData("private-denied")]
+    public async Task PrivateRepositoryWithoutAccessBlocksWithConnectionGuidance(string fault) {
+        var (service, h, s) = Setup(fault); using (s) {
+            var error = await Assert.ThrowsAsync<PortalException>(() => service.Inventory(s, CancellationToken.None));
+            Assert.Contains("GitHub", error.Message); Assert.Contains("Connections", error.Message); Assert.Equal(0, h.Posts);
         }
     }
     [Fact] public async Task AllMissingDefinitionsAreCreatedOnceWithoutRunningOrCopyingSecrets() {
         var (service, h, s) = Setup(); using (s) {
             var files = (await service.Inventory(s, CancellationToken.None)).Pipelines.Where(p => p.Status == "Missing").Select(p => p.Yaml).ToArray();
             var ticket = await Review(service, s, files); var result = Element(await service.Apply(s, ticket, CancellationToken.None));
-            Assert.Equal("Completed", result.GetProperty("status").GetString()); Assert.Equal(19, h.Posts); Assert.False(result.GetProperty("runsQueued").GetBoolean());
+            Assert.Equal("Completed", result.GetProperty("status").GetString()); Assert.Equal(24, h.Posts); Assert.False(result.GetProperty("runsQueued").GetBoolean());
             Assert.All((await service.Inventory(s, CancellationToken.None)).Pipelines, p => Assert.Equal("Existing", p.Status));
-            await Assert.ThrowsAsync<PortalException>(() => service.Apply(s, ticket, CancellationToken.None)); Assert.Equal(19, h.Posts);
+            await Assert.ThrowsAsync<PortalException>(() => service.Apply(s, ticket, CancellationToken.None)); Assert.Equal(24, h.Posts);
         }
     }
     [Theory][InlineData("source-drift")][InlineData("missing-source")]

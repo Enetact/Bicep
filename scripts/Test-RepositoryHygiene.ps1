@@ -20,26 +20,41 @@ try {
 
     $privateProbes=@(
         '.local/portal/agents/example/auth.json','artifacts/portal-agents/example/evidence.json',
+        '.local/portal/azure-cli/example/msal_token_cache.bin','.local/portal/azure-cli/example/owner.json',
         'src/SelfService.Portal/portal.local.json','src/BlobTransfer/local.settings.json',
         '.env','.env.development','.codex/auth.json','.codex/sessions/example.jsonl',
         '.codex/state.sqlite-wal','credentials/msal_token_cache.bin','credentials/client.pfx',
         'src/SelfService.Portal/bin/Release/app.dll','tests/example/TestResults/run.trx',
-        'playwright-report/index.html','test-results/browser/screenshot.png'
+        'playwright-report/index.html','test-results/browser/screenshot.png',
+        '.kube/config','.helm/registry/config.json','kubeconfig.local.yaml','helm-registry.local.json',
+        '.codex/models_cache.json','.codex/session_index.jsonl',
+        'workloads/private-data-platform/databricks/.databricks/bundle/dev/terraform/terraform.tfstate',
+        'workloads/private-data-platform/databricks/.databrickscfg',
+        'workloads/private-data-platform/databricks/.venv/pyvenv.cfg',
+        'workloads/private-data-platform/databricks/src/__pycache__/batch.cpython-313.pyc',
+        'workloads/private-data-platform/databricks/.pytest_cache/v/cache/nodeids',
+        'workloads/private-data-platform/databricks/.ruff_cache/cache',
+        'workloads/private-data-platform/notebooks/.ipynb_checkpoints/acceptance-checkpoint.ipynb',
+        'artifacts/data-platform/recipes/example/databricks.yml'
     )
     $ignored=@(Get-IgnoredPaths $privateProbes)
     foreach($path in $privateProbes){if($path -notin $ignored){throw "Generated/private path is not ignored: $path"}}
 
     # Evaluate real first-party source independently of Git's normal ignored-file filtering.
-    $sourceRoots=@('src','scripts','workloads','modules','environments','platform','pipelines','.agents','config','schemas','self-service')
+    $sourceRoots=@('src','scripts','workloads','modules','environments','platform','pipelines','.agents','config','schemas','self-service','charts')
     $sourceFiles=@(foreach($folder in $sourceRoots){
         Get-ChildItem -LiteralPath (Join-Path $root $folder) -Recurse -File |
-            Where-Object {$_.Extension -in @('.cs','.csproj','.js','.mjs','.ps1','.bicep','.bicepparam') -and $_.FullName -notmatch '[\\/](bin|obj|node_modules|\.local|\.tools|artifacts|TestResults)[\\/]'} |
+            Where-Object {$_.Extension -in @('.cs','.csproj','.js','.mjs','.ps1','.py','.sql','.ipynb','.bicep','.bicepparam','.yaml','.yml') -and $_.FullName -notmatch '[\\/](bin|obj|node_modules|\.local|\.tools|artifacts|TestResults|\.databricks|\.venv|__pycache__|\.pytest_cache|\.ruff_cache|\.ipynb_checkpoints)[\\/]'} |
             ForEach-Object {[IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/')}
     })
     $sourceFiles+=@('src/SelfService.Portal/portal.example.json','config/portal-topologies.json',
         '.agents/skills/platform-change-review/SKILL.md','.agents/skills/platform-request-design/SKILL.md',
         'tests/SelfService.Portal.Tests/AgentTests.cs','tests/portal/diagram-fixture-server.mjs',
-        '.env.example','.codex/AGENTS.md','.codex/skills/example/SKILL.md','.codex/config.toml')
+        '.env.example','.codex/AGENTS.md','.codex/skills/example/SKILL.md','.codex/config.toml',
+        'workloads/private-data-platform/databricks/bundle.template.json',
+        'workloads/private-data-platform/databricks/sample.csv',
+        'workloads/private-data-platform/notebooks/source.ipynb',
+        'workloads/private-data-platform/databricks/src/transform.sql')
     $hiddenSource=@(Get-IgnoredPaths $sourceFiles)
     if($hiddenSource.Count){throw "Source files incorrectly ignored:`n$($hiddenSource -join "`n")"}
 

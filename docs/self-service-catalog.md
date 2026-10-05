@@ -1,5 +1,18 @@
 # Self-service catalog and how it works
 
+**4 October 2026 — private GitHub source:** Connections now provides a GitHub CLI device flow and explicit existing-login attachment. ADO setup can use the verified GitHub account for private repository metadata and source hashes. ADO checkout keeps its own GitHub connection; authentication does not start a workflow. See [setup and credential lifetime](local-portal.md#github-browser-sign-in).
+
+**Nested IaC evidence — 4 October 2026:** dedicated workload Preview/Deploy now uses [nested property and child-resource probes](nested-iac-evidence.md), unresolved desired-state coverage gates and an observed-state fingerprint. The portal and agent review retain the coverage evidence. New Preview evidence is required before deployment; this adds no pipeline root or cloud permissions.
+
+**4 October 2026 — operations suite first increment:** [DNS & drift](operations-workflows.md) adds dynamic Azure subscription selection, read-only DNS evidence, deterministic analysis/comparison, optional AHP/Codex review and editable non-executable proposals. This is a portal operations capability, with a shared offline CLI; it adds no workload target or ADO pipeline root. [O0/O1 acceptance gates and O2–O6](plans/operations-workflow-suite.md) remain open as documented.
+
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** The current catalog has nine types, 36 disabled workload targets, 18 dedicated menus and 25 root pipelines. Four additional disabled Helm profiles govern application releases. AKS discovery uses the shared product adapter; Helm does not consume a subscription inventory as Kubernetes state. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
+**4 October 2026 addition:** [Private Data Platform](../workloads/private-data-platform/README.md) adds Databricks Premium, ADF v2 and ADLS Gen2 through the existing product adapter. Current catalog: nine types, 36 disabled targets, 18 dedicated menus and 25 total roots. Earlier dated counts below describe their original increments. [Manual data recipes](../workloads/private-data-platform/recipes.md) add pre-bound staging/native Job orchestration and a local Databricks bundle exporter. Data-plane onboarding and live Azure acceptance remain outstanding.
+
 [Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
 
 **Lifecycle boundary:** saved What-If diagrams and deployment verification receipts exist; a durable before/after timeline and rollback buttons do not. The [deployment state and recovery plan](plans/deployment-state-and-recovery.md) maps each product and operations workflow to eligible configuration restoration, compensation or manual recovery. It adds no catalog offering or pipeline yet.
@@ -11,7 +24,7 @@ The [recovery rules layer](recovery-rules.md) now implements that policy mapping
 
 **Operations workflow:** [Tag governance](tag-governance.md) discovers visible subscription tags, provides deterministic checks and optional structured agent advice, and prepares reviewed ADO or source-owned changes. It is separate from the seven deployment products.
 
-**Pipeline registration:** use the portal **ADO setup** menu for all 20 root entry points, including the fourteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
+**Pipeline registration:** use the portal **ADO setup** menu for all 25 root entry points, including the eighteen workload menus. Shared templates are not separate ADO definitions. See [setup, source checks and conflicts](ado-pipeline-registration.md).
 
 **Network capability update, 27 September 2026:** Network discovery is a separate portal workspace with registered/selected/management-group/accessible-tenant scopes and an AVNM allocation request menu. Agent Mermaid can now render after evidence/grammar validation. The separate `azure-pipelines-network.yml` does not add a workload product or enable any of the 28 targets. See [contracts and tests](network-discovery-and-diagrams.md).
 
@@ -25,13 +38,13 @@ The [Agent workflows menu](agent-workflows.md) adds six review/draft workflows: 
 
 The portal's separate [Azure Skills library](azure-skill-discovery.md) contains 42 Microsoft skill definitions with **No pipeline associated yet** labels and read-only Azure discovery profiles. They do not register additional deployable products. The original two workload routes retain their ADO manifest contracts; five additional products use typed discovery v2.
 
-The [local Platform Studio website](local-portal.md) now presents this same catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Entra registration and live authentication/ADO acceptance remain required.
+The [local Platform Studio website](local-portal.md) presents this catalog with selected-workload descriptions, a discovery-run picker and explicit ADO request review. It also exposes local skill guidance and deterministic saved-discovery analysis. The UI does not itself provision Azure resources or enable targets. Microsoft authentication can use the local Azure CLI button without a custom registration, or a registered Entra app. Live authentication/ADO acceptance remains required.
 
 The [connected diagram views](portal-diagrams.md) add observed Azure inventory, conceptual component diagrams for every selected product, and resource-action diagrams from the registered workload's saved ADO Preview artifact. Conceptual components are separate from exact Azure resource IDs; no name-based reuse or deployment approval is inferred.
 
 Saved artifacts can now be examined with the [offline analysis workflow](self-service-analysis.md). It adds coverage/findings and observed/proposed containment diagrams for the selected workload. This is reporting, not another Azure product or deployment approval. The shared Discover template publishes it under `subscription-discovery/analysis/`; actual ADO rendering remains an acceptance step.
 
-A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for seven instances are 28 targets, representing seven products.
+A **workload type** is a supported implementation, such as `blob-transfer`. An **instance** is its named deployment, such as `blobcopy`. A **target** binds an instance and environment to reviewed Azure scope, topology, identity and ADO resources. Four environments for eight instances are 32 targets, representing eight products.
 
 | Item | Blob copy | Event flow |
 |---|---|---|

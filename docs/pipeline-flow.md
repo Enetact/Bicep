@@ -1,5 +1,10 @@
 # Pipeline flow and refactor
 
+**4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
+
+
+**AKS/Helm increment — 4 October 2026:** AKS foundation reuses the shared Discover → ARM What-If → protected stack deployment. Helm uses a separate manual `azure-pipelines-helm.yml` Preview/Deploy flow with exact chart/source bindings, same-run artifacts, cluster-state drift checks and rollout verification. Its kubectl diff is not ARM What-If or an exact Helm three-way patch. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
+
 [Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)
 
 **Recovery policy evidence:** workload Preview now publishes `recovery-policy.json` and an explanatory summary section; the deployment coordinator annotates its final receipt after resolving the target policy. Eligibility remains `Not assessed`, with no recovery executor. [Recovery rules](recovery-rules.md) describes the offline rule checks and portal views. No recovery YAML or queue-time option is registered.
@@ -11,7 +16,7 @@
 
 The separate [AVNM network allocation flow](network-discovery-and-diagrams.md) uses `azure-pipelines-network.yml`, registered as **Network - AVNM allocation**. Its manual menu defaults to read-only Plan. Reservation requires the protected `platform-network-allocation` environment; the optional create path adds exact-prefix PreviewNetwork and separately approved ApplyNetwork stages. It publishes `network-plan`, `network-reservation`, `network-preview` and `network-binding`. These are connectivity evidence, not substitutes for workload discovery manifests or deployment approval. Existing workload pipelines below retain their own flow.
 
-**Seven-product routing:** fourteen dedicated menu roots now feed the existing Discover and Preview/Deploy templates. Five offerings use the shared product adapter and bundle schema v3; infrastructure-only offerings have no application package and use Release directly in the dedicated flow. See [exact menus and methods](workload-onboarding.md). Existing Blob copy/Event flow adapters and older generic sequencing remain compatibility paths.
+**Eight-product routing:** sixteen dedicated menu roots now feed the existing Discover and Preview/Deploy templates. Six offerings use the shared product adapter and bundle schema v3; infrastructure-only offerings have no application package and use Release directly in the dedicated flow. See [exact menus and methods](workload-onboarding.md). Existing Blob copy/Event flow adapters and older generic sequencing remain compatibility paths.
 
 [Platform Studio](local-portal.md) is an optional local entry point to these same four dedicated YAML definitions. It resolves definition IDs, reviews allowlisted parameters, pins a selected discovery run and queues main only after confirmation. It adds no YAML stages and cannot bypass disabled targets, artifact checks or ADO environment approvals. Live integration acceptance is pending registration.
 
@@ -136,3 +141,5 @@ From the repository root, validate configuration/source changes in this order:
 ```
 
 After merge, run Discover on main and inspect its artifact, then select that matching successful run in Deploy. Enable dev first only after platform onboarding. Verify server-expanded stages and resource authorization before approving Azure actions. Local checks cannot prove ADO expansion, UI rendering, permissions or Azure behavior. See [dated validation evidence](validation.md).
+
+The Private Data Platform ADO deploy creates manual ADF recipe definitions through Bicep; it does not execute data pipelines. Workspace notebook/job publication remains an explicit Databricks bundle operation, then the reviewed Job ID is bound through source and fresh ADO Preview. See [recipe setup and ownership](../workloads/private-data-platform/recipes.md).

@@ -27,15 +27,20 @@ try{
     $socket.ConnectAsync([uri]"ws://localhost:$Port/api/agent/ahp",$timeout.Token).GetAwaiter().GetResult()|Out-Null
     $r=Invoke-AgentRpc 1 initialize @{channel='ahp-root://';protocolVersions=@('0.9.0');clientId='portal-contract-test'}
     if($r.result.protocolVersion -ne '0.9.0'){throw 'AHP initialize failed.'}
+    $model=$r.result.snapshots[0].state.agents[0].models[0]
+    if($model.id -cne 'gpt-6.1-sol' -or $model.name -cne 'GPT-6.1 Sol'){throw 'AHP model advertisement mismatch.'}
     $channel='ahp-session:/'+[guid]::NewGuid().ToString()
     $r=Invoke-AgentRpc 2 createSession @{channel=$channel;provider='codex'}
     if($r.error){throw 'AHP session creation failed.'}
     $r=Invoke-AgentRpc 3 subscribe @{channel=$channel}
-    if($r.result.snapshot.state.platformStudio.workflows.Count -ne 6){throw 'AHP workflow readiness projection failed.'}
+    $state=$r.result.snapshot.state.platformStudio
+    $expected=(Invoke-WebRequest "$origin/api/agent/status" -WebSession $portalSession).Content|ConvertFrom-Json
+    if($state.workflows.Count -ne $expected.workflows.Count -or $state.workflows.Count -eq 0){throw 'AHP workflow readiness projection failed.'}
+    if($state.policy.model -cne 'gpt-6.1-sol' -or $state.policy.effort -cne 'ultra' -or $state.policy.serviceTier -cne 'default'){throw 'AHP model policy mismatch.'}
     $r=Invoke-AgentRpc 4 subscribe @{channel='ahp-session:/'+[guid]::NewGuid().ToString()}
     if(!$r.error){throw 'Cross-session channel was not rejected.'}
     $r=Invoke-AgentRpc 5 dispatchAction @{channel=$channel;action=@{type='chat/turnStarted'}}
     if(!$r.error){throw 'Arbitrary model dispatch was not rejected.'}
     $socket.CloseAsync([Net.WebSockets.WebSocketCloseStatus]::NormalClosure,'Done',$timeout.Token).GetAwaiter().GetResult()|Out-Null
-    Write-Host 'PASS: 5 AHP coordination checks; no login, inference, Azure or ADO calls.'
+    Write-Host 'PASS: 7 AHP coordination/policy checks; no login, inference, Azure or ADO calls.'
 }finally{$socket.Dispose();$timeout.Dispose()}
