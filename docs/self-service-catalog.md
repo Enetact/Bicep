@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+**4 October 2026 — private GitHub source:** Connections now provides a GitHub CLI device flow and explicit existing-login attachment. ADO setup can use the verified GitHub account for private repository metadata and source hashes. ADO checkout keeps its own GitHub connection; authentication does not start a workflow. See [setup and credential lifetime](local-portal.md#github-browser-sign-in).
+
 **Nested IaC evidence — 4 October 2026:** dedicated workload Preview/Deploy now uses [nested property and child-resource probes](nested-iac-evidence.md), unresolved desired-state coverage gates and an observed-state fingerprint. The portal and agent review retain the coverage evidence. New Preview evidence is required before deployment; this adds no pipeline root or cloud permissions.
 
 **4 October 2026 — operations suite first increment:** [DNS & drift](operations-workflows.md) adds dynamic Azure subscription selection, read-only DNS evidence, deterministic analysis/comparison, optional AHP/Codex review and editable non-executable proposals. This is a portal operations capability, with a shared offline CLI; it adds no workload target or ADO pipeline root. [O0/O1 acceptance gates and O2–O6](plans/operations-workflow-suite.md) remain open as documented.

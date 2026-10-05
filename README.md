@@ -21,6 +21,7 @@ Platform Studio is a local Windows web application for discovering Azure resourc
 | **Design Bicep** | Compose reviewable source drafts from local module contracts, with explicit required settings and qualification before deployment. |
 | **Govern tags** | Subscription resource/tag views, deterministic findings, editable drafts and a protected ADO change path. |
 | **Deliver through ADO** | Reviewed pipeline registration, saved discovery, Preview summaries, immutable bundle checks, Template Spec publication and stack deployment. |
+| **Connect private GitHub source** | Browser sign-in through local GitHub CLI, verified account status and authenticated source checks in ADO setup. ADO retains its separate repository connection. [Setup](docs/local-portal.md#github-browser-sign-in). |
 | **Assess recovery rules** | Seventeen workflow policies, portal explanations and an offline assessor. Restore execution is not implemented. |
 
 Explore the [platform overview](docs/platform-overview.md) for architecture, identity boundaries, skills and current limitations.

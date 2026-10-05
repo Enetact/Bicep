@@ -1,5 +1,7 @@
 # Security and RBAC
 
+**Local GitHub authentication:** the portal has a separate GitHub CLI connection for private-source checks. Tokens stay server-side and are sent only to fixed GitHub HTTPS GET routes with redirects disabled; ADO tokens never cross to GitHub. GitHub CLI retains its normal local credential store (secure OS storage preferred, plaintext fallback possible). Portal disconnect detaches the browser and clears registration reviews without logging the terminal out. OAuth grants can be broader than the portal's reads. See [the GitHub authentication boundary](local-portal.md#github-browser-sign-in). ADO's repository connection must separately retain private-repository authorization.
+
 **4 October 2026 — shared IaC evidence:** the dedicated workload Deploy path now captures live before/What-If/after state using pinned Microsoft Azure MCP and scoped ARM reads, renders projected comparisons in the portal and supports an explicit AHP/Codex visualizer review. See [the component contract, identity boundaries, reuse steps and manual acceptance](agentic-iac.md). This does not implement restore execution or establish live Azure acceptance.
 
 

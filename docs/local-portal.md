@@ -11,7 +11,28 @@
 **Tag governance update (27 September 2026):** subscription evidence, deterministic checks, structured Codex advice, editable drafts, source proposals and two manual ADO pipelines are implemented locally. Apply is disabled until onboarding and live acceptance. See [the tagging guide](tag-governance.md) for current methods, source structure, permissions and limits. Earlier dated verification records remain historical.
 
 
-**ADO setup:** connects the existing ADO browser identity to a reviewed registration workflow for all root pipeline YAML files. It creates missing definitions without queuing runs or changing GitHub source/permissions. See [registration guide and public-repo boundaries](ado-pipeline-registration.md).
+**ADO setup:** connects the existing ADO browser identity to a reviewed registration workflow for all root pipeline YAML files. It creates missing definitions without queuing runs or changing GitHub source/permissions. Private repositories use the separate GitHub connection described below. See [registration and source-access boundaries](ado-pipeline-registration.md).
+
+## GitHub browser sign-in
+
+For a private repository, install GitHub CLI once from the repository root:
+
+```powershell
+./scripts/Install-GitHubCli.ps1
+```
+
+The script installs official GitHub CLI 2.102.0 for Windows ARM64 or x64 into ignored `.tools/github-cli`, verifying its SHA-256 against the official release checksums. A normal `gh.exe` installation on PATH or under Program Files also works. An administrator can set `Portal.GitHubCliPath` or `STUDIO_Portal__GitHubCliPath` to an absolute `gh.exe` path. The web UI cannot install executables or accept arbitrary CLI commands. Published packages include the installer under `repository/scripts`; run it there to use the packaged repository root.
+
+1. In **Connections → GitHub**, choose **Sign in to GitHub**. The server starts the fixed `gh auth login --hostname github.com --web --git-protocol https --skip-ssh-key --clipboard=false` device flow.
+2. Copy the one-time code shown in the panel and open **Continue GitHub sign-in**. Complete GitHub account selection and consent yourself. The portal polls its own status and verifies the returned credential against `https://api.github.com/user` before showing **Connected as …**. Login expires after ten minutes; cancellation terminates the owned CLI process.
+3. If already authenticated with the local CLI, choose **Use existing GitHub CLI login** instead. No new consent flow is launched; the account is still verified. This attachment is explicit for each portal browser session.
+4. Connect Azure DevOps separately, then select **ADO setup → Check registration**. Repository metadata, the main commit and root Git tree are read with the GitHub credential. Exact source hashes and review/apply checks remain enforced.
+
+GitHub CLI uses its normal local credential store, which persists across portal restarts and can change the terminal's active GitHub account. It prefers OS secure storage, but can fall back to a plaintext local configuration file; the portal never requests `--insecure-storage`. Review the [official CLI authentication behavior](https://cli.github.com/manual/gh_auth_login). The CLI's OAuth grant can be broader than this portal's read-only GET operations. Organization SSO/OAuth restrictions may still require approval. Credentials and raw CLI output never reach page JavaScript, reports or source; only username, device code and sanitized status are projected. Inherited `GH_*`/`GITHUB_*` credential overrides are removed from child processes.
+
+**Disconnect GitHub** cancels an in-progress flow, drops this browser's account attachment and invalidates pending registration reviews. It does not run `gh auth logout` or disconnect Azure, ADO or Codex. To remove the persistent CLI credential, use `gh auth logout --hostname github.com` from the installed CLI yourself. Revoking an OAuth authorization is a separate GitHub account action. Changing the active CLI account or losing credential access invalidates the portal attachment on the next source check; it never silently falls back from failed authenticated reads to anonymous reads.
+
+GitHub source access does not grant ADO checkout access. Maintain the ADO GitHub App/service connection's access to the private repository independently. Sign-in does not register definitions, queue pipelines, deploy Azure resources or alter repository visibility.
 
 **Network delivery update:** the portal now includes Network discovery, evidence-bound agent diagram rendering and reviewed AVNM pipeline submission. Setup for the real pool, protected pipeline and manual acceptance is in [the network runbook](network-discovery-and-diagrams.md). These capabilities are implemented; live cloud/model acceptance remains pending.
 

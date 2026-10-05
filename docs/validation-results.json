@@ -1,4 +1,19 @@
 {
+  "githubCliAuthentication20261004": {
+    "date": "2026-10-04",
+    "guide": "docs/local-portal.md#github-browser-sign-in",
+    "backendTests": { "passed": 271, "skipped": 1, "failed": 0 },
+    "actualReleaseAppRebuiltAndRestarted": true,
+    "actualAppHttpChecks": 42,
+    "actualAppAhpChecks": 7,
+    "githubCli": { "version": "2.102.0", "architecture": "arm64", "officialChecksumVerified": true },
+    "realDevicePromptAndCancellationVerified": true,
+    "liveUserConsentAccepted": false,
+    "livePrivateRepositoryReadAccepted": false,
+    "pipelinesQueued": false,
+    "portablePackagesRebuilt": false,
+    "testReceipt": "artifacts/test-results/portal-github.trx"
+  },
   "localCliAuthentication20261004": {
     "date": "2026-10-04",
     "guide": "docs/local-portal.md",

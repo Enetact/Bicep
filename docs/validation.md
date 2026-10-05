@@ -1,5 +1,13 @@
 # Validation evidence
 
+## 4 October 2026 - GitHub CLI browser authentication and private source
+
+- Added Connections controls for GitHub device sign-in, existing CLI attachment, verified username, cancellation and disconnect. Private-source reads use the attached account without changing ADO checkout credentials or pipeline YAML.
+- **271 backend tests passed, one optional native Codex test skipped, zero failures**. New cases cover verified account binding, changed/expired credentials, cancellation, session overlap, fixed commands, sanitized status, private-source access and separation from ADO tokens. Receipt: `artifacts/test-results/portal-github.trx`.
+- Rebuilt and restarted the **normal Release application** with `Setup-Portal.ps1` / `Start-Portal.ps1`; zero build warnings/errors. **42 real HTTP smoke checks** and **seven AHP coordination/policy checks** passed against this app. No model or Azure/ADO operation was started by these checks.
+- Installed official GitHub CLI **2.102.0 ARM64**, with release SHA-256 verification. Tested the actual UI/CLI device flow: a real code and GitHub continuation link appeared; cancellation removed the prompt and ended the owned CLI process. This live check found and fixed delayed pipe buffering. Shutdown checks also exposed Windows path normalization and concurrent receipt deletion races, corrected before the successful final restart. The final app listens on IPv4 and IPv6 loopback port 5087.
+- GitHub user consent, authenticated private-repository read and live ADO registration remain **manual acceptance**. Mocked successful account/source reads are not a live authentication claim. No pipeline was queued, repository published or Azure resource deployed. Portable ARM64/x64 packages were not rebuilt; installer source supports both architectures, with ARM64 exercised here.
+
 ## 4 October 2026 - Local Azure CLI authentication
 
 Implemented the real Connections UI button, shared-token-provider routing, optional tenant selection, private per-browser CLI cache, audience/tenant/expiry qualification, cancellation, renewal and governed cleanup. Microsoft disconnect clears Azure/ADO evidence without disconnecting Codex. Network/tagging discovery uses the returned tenant; deployment catalog enablement and pipeline service connections are unchanged. See [the operating guide](local-portal.md#configure-microsoft-browser-sign-in).
