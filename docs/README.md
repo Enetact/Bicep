@@ -13,6 +13,9 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Understand the suite | [Platform overview](platform-overview.md) → [Current status](completion-status.md) |
 | Preview or deploy a workload | [Workload catalog](workload-catalog.md) → [ADO onboarding](self-service.md) → [Preview](deployment-preview.md) |
 | Compare live infrastructure before and after a deployment | [Shared agentic IaC workflow](agentic-iac.md) |
+| Configure stack identity and understand future named resource previews | [Stack naming and resource-preview implementation plan](plans/stack-naming-and-resource-previews.md) |
+| Calculate and validate resource names offline | [Naming foundation and local commands](resource-naming.md) |
+| Validate a new stack-instance draft or review workload naming bindings | [Draft registry](../self-service/instances/README.md) → [Workload binding review](plans/stack-naming-bindings.md) |
 | Inspect nested properties and unresolved What-If evidence | [Nested discovery and qualification](nested-iac-evidence.md) |
 | Discover networks and explain topology | [Network discovery](network-discovery-and-diagrams.md) → [Diagrams](portal-diagrams.md) → [Agent workflows](agent-workflows.md) |
 | Analyze or change tags | [Tag governance](tag-governance.md) → [Permissions](security-and-rbac.md) |
@@ -99,6 +102,8 @@ The reference for developing, operating and extending Platform Studio. This wiki
 Plans can contain both delivered increments and future phases. A planned entry does not register a pipeline, enable a target or grant permission to deploy.
 
 ## Evidence and historical references
+
+The [discovery test README and issue log](testing/README.md) records authenticated portal/ADO tests, reproducible bugs and setup blockers from 4 October 2026, including successful Discover runs on merged `main` and incomplete portal DNS coverage.
 
 Use the [validation log](validation.md) and [validation results](validation-results.json) for dated commands, test counts, artifacts and observed ADO behavior. Historical evidence may be stored locally or in ADO and is not necessarily included in a fresh clone.
 
