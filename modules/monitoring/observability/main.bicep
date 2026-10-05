@@ -1,11 +1,15 @@
 param name string
+@description('Concrete workbook GUID; default preserves the original legacy seed.')
+param workbookName string = guid(resourceGroup().id, name)
+@description('Concrete query-rule name; default preserves legacy naming.')
+param alertName string = '${name}-heartbeat'
 param location string
 param tags object
 param workspaceId string
 @minLength(1)
 param actionGroupIds string[]
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
- name: guid(resourceGroup().id, name)
+ name: workbookName
  location: location
  tags: tags
  kind: 'shared'
@@ -17,7 +21,7 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
  }
 }
 resource alert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
- name: '${name}-heartbeat'
+ name: alertName
  location: location
  tags: tags
  properties: {

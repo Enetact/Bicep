@@ -5,6 +5,7 @@
   "type": "object", "additionalProperties": false,
   "required": ["schemaVersion", "kind", "ruleSetVersion", "context", "status", "deploymentAuthorized", "coverage", "findings", "graph", "limitations"],
   "properties": {
+    "observedNames": {"type":"array","maxItems":5000,"items":{"type":"object","additionalProperties":false,"required":["id","name","fullName","type","parentId","status","evidenceRefs"],"properties":{"id":{"type":"string"},"name":{"type":"string"},"fullName":{"type":"string"},"type":{"type":"string"},"parentId":{"type":"string"},"status":{"const":"Observed in saved discovery"},"evidenceRefs":{"$ref":"#/$defs/refs"}}}},
     "schemaVersion": {"const": 1}, "kind": {"const": "platform-offline-analysis"},
     "ruleSetVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
     "status": {"enum": ["partial", "blocked"]}, "deploymentAuthorized": {"const": false},

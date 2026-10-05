@@ -1,4 +1,34 @@
 {
+  "namingIntegrationGroupA20261004": {
+    "date": "2026-10-04",
+    "qualifiedLocalBindingProducts": ["private-storage", "key-vault", "observability"],
+    "nodeNamingCasesPassed": 99,
+    "namingSchemaChecksPassed": 3,
+    "stackTemplatesCompiled": 3,
+    "standardAndLegacyEnvironmentPairsCompiled": 12,
+    "offlineAnalysisCasesPassed": 38,
+    "focusedDotnetTestsPassed": 74,
+    "pipelineContractChecksPassed": 169,
+    "yamlFilesParsed": 42,
+    "moduleContractsVerified": 17,
+    "actualReleaseBuildPassed": true,
+    "isolatedReleaseHttpChecksPassed": 9,
+    "freshDiscoveryGeneratesNameArtifacts": true,
+    "sourceRegistryEntries": 0,
+    "savedWhatIfArtifactsRewritten": false,
+    "protectedNamingDeployTransportImplemented": false,
+    "browserVisualAcceptance": false,
+    "primaryPortalRestarted": false,
+    "azureOrAdoCallsPerformed": false,
+    "receipts": [
+      "artifacts/naming-tests/receipt.json",
+      "artifacts/naming-integration/bicep/receipt.json",
+      "artifacts/naming-integration/naming-portal.trx",
+      "artifacts/naming-integration/http-receipt.json",
+      "artifacts/analysis-tests/run-LcYpwg/results.json"
+    ],
+    "guide": "docs/resource-naming.md"
+  },
   "namingInstanceDrafts20261004": {
     "date": "2026-10-04",
     "phase": "N1/N2 in progress: offline naming and draft-instance contracts; no runtime integration",

@@ -14,6 +14,8 @@ Implemented source offering; all four targets remain disabled pending platform o
 
 ## Onboarding and ownership
 
+The optional sealed `resourceNames` parameter now accepts a standard-v2 workbook/alert map from [the shared naming adapter](../../docs/resource-naming.md). The new workbook uses the immutable instance UUID; its display name can change independently. Omitting the map retains legacy GUID/name expressions. All four standard/legacy environment pairs compile locally. The portal draft and fresh discovery artifacts are informational; protected Preview/Deploy transport of this map is still pending and targets remain disabled.
+
 Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Alert evaluations and existing workspace ingestion/retention; notification and query charges may apply.
 
 Empty fields and REPLACE values are deliberate onboarding blockers. Complete owner/cost-center, principal and shared-dependency bindings through platform review; do not guess IDs or address ranges. This product owns only its dedicated resource group and resources within it. Shared networking, DNS, monitoring and action groups are referenced and retain their own owner. Missing shared resources do not become an automatic Create action. Existing unrelated resource groups are not adopted.

@@ -22,6 +22,7 @@ builder.WebHost.ConfigureKestrel(k => { k.ListenLocalhost(options.Port); k.Limit
 builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("System.Net.Http", LogLevel.None);
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
+builder.Services.AddSingleton<NamingPlan>();
 builder.Services.AddSingleton<IAzureCliRunner, AzureCliRunner>().AddSingleton<AzureCliIdentity>();
 builder.Services.AddSingleton<IGitHubCliRunner, GitHubCliRunner>();
 builder.Services.AddHttpClient<GitHubIdentity>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30))
@@ -70,6 +71,7 @@ app.Use(async (context, next) =>
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
 app.UseDefaultFiles(); app.UseStaticFiles();
 app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Session(c).Csrf, configured = options.AuthenticationConfigured,
+    naming = new { draftCalculations = true, deploymentSubmission = false },
     packagedCatalog = options.RepositoryRoot == Path.Combine(AppContext.BaseDirectory, "repository"),
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
     products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
@@ -108,6 +110,7 @@ app.MapGet("/api/runs/{product}/{id:int}", async (HttpContext c, string product,
 app.MapGet("/api/preview/{product}/{id:int}", async (HttpContext c, string product, int id, AdoGateway ado) => await ado.Preview(Session(c), product, id, c.RequestAborted));
 app.MapGet("/api/iac/{product}/{id:int}/{environment}/{phase}", async (HttpContext c,string product,int id,string environment,string phase,AdoGateway ado) => { if(phase is not ("preview" or "after"))throw new PortalException("Select preview or after evidence."); return await ado.Iac(Session(c),product,id,environment,phase=="after",c.RequestAborted); });
 app.MapPost("/api/analysis", async (AnalysisUpload upload, AnalysisRunner runner, HttpContext c) => await runner.Run(upload, c.RequestAborted));
+app.MapPost("/api/naming/draft", async (JsonElement request, NamingPlan naming, HttpContext c) => await naming.Generate(request, c.RequestAborted));
 app.MapPost("/api/skill-discovery", async (SkillDiscoveryRequest request, AzureDiscovery discovery, HttpContext c) => await discovery.Discover(Session(c), request, c.RequestAborted));
 app.MapGet("/api/network/scopes", async (NetworkDiscovery network, HttpContext c) => await network.Scopes(Session(c), c.RequestAborted));
 app.MapGet("/api/tags/config", (TaggingService tags) => tags.Configuration());

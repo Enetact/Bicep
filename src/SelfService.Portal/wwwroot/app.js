@@ -1,4 +1,5 @@
 import { renderIac } from './iac.mjs';
+import { renderNamingEditor, renderResourceNames } from './naming.mjs';
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
 import { setupOperations } from './operations.mjs';
@@ -19,6 +20,11 @@ function clearPreview() { selectionVersion++; $('iac-analysis').replaceChildren(
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
   renderTopology($('workload-diagram'), proposedTopology(chosen, t, $('region').value, data.topologies.products[chosen.id]));
+  if (data.naming?.draftCalculations === true) {
+    let naming = $('naming-draft');
+    if (!naming) { naming = make('section'); naming.id = 'naming-draft'; $('workload-diagram').before(naming); }
+    renderNamingEditor(naming, api, chosen, t, $('region').value);
+  }
   $('workload-observed').hidden = !discoveryReport || discoveryReport.subscriptionId.toLowerCase() !== t.subscriptionId.toLowerCase();
   $('workload-observed-diagram').replaceChildren();
   if (!$('workload-observed').hidden) renderTopology($('workload-observed-diagram'), observedTopology(discoveryReport));
@@ -218,7 +224,12 @@ async function pollRuns() {
 }
 async function fileBase64(input) { const f = input.files[0]; if (!f || f.size > 16 * 1024 * 1024) throw new Error('Choose both JSON files, at most 16 MiB each.'); const bytes = new Uint8Array(await f.arrayBuffer()); let text = ''; for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(text); }
 action('analyze', async () => {
+  let names = $('analysis-names');
+  if (!names) { names = make('section'); names.id = 'analysis-names'; $('analysis-text').before(names); }
+  names.replaceChildren();
   const result = await api('analysis', { manifest: await fileBase64($('manifest')), inventory: await fileBase64($('inventory')) });
+  if (Array.isArray(result.report.observedNames)) renderResourceNames(names, result.report.observedNames, 'Names generated from saved discovery', `Collected ${result.report.context.generatedUtc}. Inventory SHA-256: ${result.report.context.inventorySha256}. Offline provenance; review collection coverage.`);
+  for (const draft of result.namingDrafts?.drafts ?? []) { const proposed = make('section'); names.append(proposed); renderResourceNames(proposed, draft.plan.resources, `Calculated source draft: ${draft.plan.intent.stackDisplayName}`, result.namingDrafts.coverage); }
   $('analysis-result').hidden = false; $('analysis-text').textContent = result.markdown; $('analysis-location').textContent = `Saved to artifacts/portal-analysis/${result.id}/report. Offline evidence only. Showing ${result.diagrams.length} of ${result.diagramCount} diagram pages; all pages are in the saved report.`;
   diagramUrls.splice(0).forEach(URL.revokeObjectURL); $('diagrams').replaceChildren(...result.diagrams.map((svg, i) => { const img = make('img'); img.alt = `Observed and proposed resource containment, page ${i + 1}. Network reachability is unverified.`; const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); diagramUrls.push(url); img.src = url; return img; }));
 });

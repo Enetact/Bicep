@@ -1,5 +1,7 @@
 # Subscription discovery, dropdowns and standard names
 
+**Generated resource names — 4 October 2026:** each new shared discovery analysis adds `observed-resource-names.json` from validated inventory IDs and `proposed-resource-names.json` from matching reviewed source drafts. Both are hashed in the analysis report manifest and summarized in its generated README. The registry currently has no entries, so proposed names remain explicitly empty. Portal upload analysis displays these categories separately; explicit reanalysis creates a new report without rewriting old evidence. This is not an Azure What-If result or an ownership/allocation decision. See [the naming guide and current rollout boundary](resource-naming.md).
+
 **AKS/Helm increment — 4 October 2026:** AKS discovery inventories Azure resource metadata through the shared product reader. It does not fetch cluster credentials, enumerate pods or prove free subnet addresses. Kubernetes before-state is collected separately by the Helm pipeline after namespace/identity/private-agent onboarding. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
 
 **Private Data Platform:** its dedicated discovery menu uses the same inventory artifact. The product validator requires two dedicated Databricks subnets and an existing regional browser-auth endpoint, plus shared DNS/monitoring/network checks. Missing resources block this reuse-only profile; they do not trigger automatic network creation. See [the workload contract](../workloads/private-data-platform/README.md).

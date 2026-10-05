@@ -30,6 +30,7 @@ public sealed class AnalysisRunner(PortalOptions options)
             if (process.ExitCode != 0) throw new PortalException("Analysis rejected the input. Check schema, selection and inventory hash using the analysis guide.");
             var diagrams = Directory.GetFiles(output, "*.svg").Order().ToArray();
             return new { id, report = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(output, "analysis.json"), cancellation)),
+                namingDrafts = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(output, "proposed-resource-names.json"), cancellation)),
                 markdown = await File.ReadAllTextAsync(Path.Combine(output, "README.md"), cancellation),
                 diagramCount = diagrams.Length, diagrams = diagrams.Take(10).Select(File.ReadAllText).ToArray() };
         }

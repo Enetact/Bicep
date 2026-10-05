@@ -1,5 +1,21 @@
 # Validation evidence
 
+## 4 October 2026 - First naming integration group and generated discovery artifacts
+
+Added reviewed component adapters and optional sealed Bicep name maps for Private Storage, Key Vault and Observability. Legacy defaults remain in place. New discovery analyses derive observed name/type/parent rows from validated inventory IDs, generate separate matching source-draft calculations and bind both files in the report manifest. The checked-in registry remains empty. Existing saved summaries/What-If artifacts were not edited. Portal source displays the generated categories separately and offers a non-deploying local naming editor, gated by backend capabilities.
+
+Local verification completed:
+
+- `Test-Naming.ps1`: **99 Node cases** (46 core, 28 instance, 16 workload, 9 discovery-draft), PowerShell adapters and three schema checks. Tests include mismatched discovery scope, empty registry, immutable workbook identity and unsupported workloads.
+- `Test-NamingBicep.ps1` with the standalone compiler: **three stacks and 12 standard-v2/legacy environment pairs** compiled; legacy parameter files contain no naming override. This verifies additive parameter compilation, not server-side resource identities or runtime behavior.
+- Offline analysis: **38 cases**; existing analysis schema validation covered five report documents. Tests verify both generated name-file hashes and refusal to overwrite prior evidence. Pipeline validation passed **169 infrastructure contracts and 42 YAML parses**. Generated service catalog still validates 36 registered selections; all **17 compiled module contracts** match source.
+- Focused .NET suite: **74 passed**, no failures/skips, covering naming adapter, Bicep drafts, portal contracts and Preview diagram handling.
+- Actual Release application rebuilt with **zero warnings/errors**. `Test-NamingPortal.ps1` ran that app on separate port 5099 and passed **nine HTTP checks**, including three naming products, unsupported-product rejection, CSRF rejection, generated discovery upload and the UI asset. Its separate cookie session performed no authentication. The candidate stopped afterward; primary portal ownership receipt was unchanged. No browser visual or x64 package acceptance is claimed.
+
+Evidence: `artifacts/naming-tests/receipt.json`, `artifacts/naming-integration/bicep/receipt.json`, `artifacts/naming-integration/naming-portal.trx`, `artifacts/naming-integration/http-receipt.json`, `artifacts/analysis-tests/run-LcYpwg/results.json` and `artifacts/pipeline-tests/`. Initial sandbox artifact-write denials were resolved by authorized local reruns. An HTTP test fixture, retained test headers and a missing test import were corrected before successful final runs; these were test-harness issues, not live authentication failures.
+
+No Azure/ADO/model calls, deployments, target enabling, existing-name changes or authenticated portal restart. Remaining six workload groups, registered request binding, protected Preview/Deploy name-plan transport, browser acceptance and authentication-preserving activation remain open in [the phase plan](plans/stack-naming-and-resource-previews.md).
+
 ## 4 October 2026 - Draft stack-instance contract and binding review
 
 Added `scripts/naming/instances.mjs`, its bounded CLI, the `Test-StackInstanceRegistry` PowerShell adapter, structural schema and empty source registry. The validator calculates only RG/subscription-stack identities; rejects duplicate IDs/naming tuples across workloads; validates current private-only product selections; and checks immutable identity against an explicitly supplied previous registry. No previous version means `transitionChecked: false`. All entries remain non-executable drafts. Receipts bind the catalog/policy/registry and explicitly deny deployment/allocation authorization.

@@ -1,4 +1,7 @@
 targetScope = 'subscription'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete new-instance name map; null preserves the legacy deployment path.')
+param resourceNames ResourceNames?
 param workloadResourceGroupName string
 param workload string
 @allowed(['dev', 'qa', 'uat', 'prod'])
@@ -20,6 +23,7 @@ module composition './main.bicep' = {
  scope: group
  params: {
   workload: workload
+  resourceNames: resourceNames
   environmentName: environmentName
   location: location
   owner: owner

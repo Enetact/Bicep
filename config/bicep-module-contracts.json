@@ -513,7 +513,7 @@
     {
       "id": "monitoring-observability",
       "path": "modules/monitoring/observability/main.bicep",
-      "sourceSha256": "4f8fc8da5d6fbecbc2a8ff4d11794e1665c4189b2c089076f76ae38af269b662",
+      "sourceSha256": "1ef1feeb64b6c43e16e531ca9791ddc47ebde3b417907f52c726e0ca23fccc37",
       "draftSelectable": true,
       "parameters": {
         "actionGroupIds": {
@@ -523,6 +523,13 @@
           },
           "minLength": 1
         },
+        "alertName": {
+          "type": "string",
+          "defaultValue": "[format('{0}-heartbeat', parameters('name'))]",
+          "metadata": {
+            "description": "Concrete query-rule name; default preserves legacy naming."
+          }
+        },
         "location": {
           "type": "string"
         },
@@ -531,6 +538,13 @@
         },
         "tags": {
           "type": "object"
+        },
+        "workbookName": {
+          "type": "string",
+          "defaultValue": "[guid(resourceGroup().id, parameters('name'))]",
+          "metadata": {
+            "description": "Concrete workbook GUID; default preserves the original legacy seed."
+          }
         },
         "workspaceId": {
           "type": "string"

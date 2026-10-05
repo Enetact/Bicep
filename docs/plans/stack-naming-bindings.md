@@ -1,6 +1,6 @@
 # Workload naming binding review
 
-4 October 2026. Source review for N1/N3; **these are integration requirements, not implemented standard-v2 Bicep bindings**. The resolver classifies types, but module expansion, repeated roles and runtime bindings still need qualified name maps. No Bicep names changed during this review.
+4 October 2026. Source review for N1/N3, updated after the first integration group. **Private Storage, Key Vault and Observability now have optional typed standard-v2 bindings**, compiled across all four environments alongside legacy parameters. Their workload drafts enumerate reviewed owned components; principal-dependent RBAC identities remain unresolved. Existing defaults are retained. The other six rows below remain integration requirements. Full qualification also requires frozen Preview/Deploy bindings and live acceptance; local compilation alone does not complete N3.
 
 All nine [registered compositions](../../config/workloads.json) use subscription stack wrappers that create a dedicated resource group. [The existing stack adapter](../../scripts/stack-service-common.ps1) uses subscription-scoped Deployment Stacks. The new draft registry therefore reserves both identities at subscription scope. Template Spec publication remains a separate shared platform concern, not a per-instance rename.
 
