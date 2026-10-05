@@ -1,5 +1,46 @@
 # Validation evidence
 
+## 4 October 2026 - Draft stack-instance contract and binding review
+
+Added `scripts/naming/instances.mjs`, its bounded CLI, the `Test-StackInstanceRegistry` PowerShell adapter, structural schema and empty source registry. The validator calculates only RG/subscription-stack identities; rejects duplicate IDs/naming tuples across workloads; validates current private-only product selections; and checks immutable identity against an explicitly supplied previous registry. No previous version means `transitionChecked: false`. All entries remain non-executable drafts. Receipts bind the catalog/policy/registry and explicitly deny deployment/allocation authorization.
+
+`./scripts/Test-Naming.ps1` passed **74 cases** (46 naming + 28 instance), both PowerShell adapters' golden/rejection checks and **three schema checks**. Tests include two instances of the same workload/environment, every current type/environment combination, append/display-name changes, rejected identity changes/removal, cross-product collisions, catalog/schema consistency, CLI limits and malformed input. `./scripts/Test-PlatformContracts.ps1` passed **37 existing cases**. A separate read-only load through `Assert-ServiceTarget` and `Get-PlatformIntentTargets` validated/resolved all **36** legacy targets with **zero enabled**. No legacy target or Bicep file was changed.
+
+Receipts: `artifacts/naming-tests/receipt.json`, `instance-receipt.json`, and `artifacts/platform-tests/0881308d9332434eb8e2fe2773e2d91e/results.json`. The sandbox blocked artifact writes on the first attempts; authorized local reruns completed successfully. These are offline checks, not live Azure or full application acceptance.
+
+[The binding review](plans/stack-naming-bindings.md) records repeated endpoint owner/service roles, derived module names and runtime contracts for all nine compositions. Corrected the inventory to classify AKS's explicitly named node RG separately from Azure-assigned child resources. Executable full-workload bindings, request/target compatibility, CI transition enforcement and portal/pipeline integration remain open. No Azure/model call, ADO write/run, app rebuild/restart or authentication change was performed.
+
+## 4 October 2026 - Offline naming foundation implementation
+
+Implemented the standard-v2 policy, pure resolver and bounded CLI, request/plan schemas, PowerShell adapter, example and source-classification inventory. The design review clarified scoped ordinals, explicit parent identity, unresolved scope and unverified availability. Existing adapters retain legacy naming; no Bicep/portal/pipeline entry calls this resolver yet.
+
+`./scripts/Test-Naming.ps1` passed **46 core/CLI tests**, the PowerShell golden-vector and invalid-input checks, and **two JSON schema checks**. Tests cover deterministic names/digests, 24-character storage budgets, Key Vault compact fallback, identity differences, nested/extension IDs, references, malformed input, unknown conditions, collisions and CLI limits. All 47 explicitly declared ARM types have policy classifications. Receipts: `artifacts/naming-tests/receipt.json`, `sample-plan.json`, `source-inventory.json`. An initial artifacts-directory sandbox denial required an authorized local rerun; it was not an application test failure.
+
+No Azure/model calls, ADO runs, target changes, app rebuild or restart. Current authentication was left intact. This verifies the offline foundation only; full workload role/inline/runtime inventory remains N1 work. See [the guide](resource-naming.md) and [phase status](plans/stack-naming-and-resource-previews.md).
+
+## 4 October 2026 - Stack naming and named-preview design
+
+Reviewed the current catalog/request model, conceptual and saved Preview projections, naming/adoption helpers, stack identity, Bicep resource/module patterns and portal credential lifecycle. Found 47 distinct explicitly declared ARM resource types under modules/workloads; inline and provider-generated children require the implementation inventory. Consulted Microsoft naming rules, CAF convention/abbreviation guidance and Bicep name generation.
+
+Delivered [the N0 design and authorized phased implementation plan](plans/stack-naming-and-resource-previews.md). This is documentation/design work only: no naming code, new resolver, pipeline run, rebuild, restart, authentication migration or Azure operation was performed. Existing test evidence remains separately dated; this entry does not rerun or promote those results. Documentation links/JSON and source manifest are checked for this change.
+
+## 4 October 2026 - Discovery follow-up acceptance
+
+- Downloaded real discovery artifacts for ADO runs 25/26 through existing authentication. Both passed the shared `Read-DiscoveryManifest` hash/target checks and `Assert-DiscoveryRun` checks against live ADO metadata. A modified copy was rejected by both the script and portal analyzer. This closes the earlier raw-download/integrity gap; no Deploy job ran.
+- Portal discovery selection accepted Event flow/dev run 26 for a reviewed Preview-only request and rejected the same run for QA. No request was confirmed. The real Event flow pair produced a local report and topology page, preserving Proposed/Unverified semantics and offline provenance.
+- Management-group discovery reconciled Tenant Root Group descendants with the one visible enabled subscription. Collection remained Partial due to DNS HTTP 400. Raw pipeline diagnostics show Microsoft.Network NotRegistered; registration was not attempted.
+- **36 offline analysis cases and five schema validations passed**. No rebuild, restart, new pipeline run or Azure mutation. Live Codex remains untested.
+- Found two additional issues: an ADO artifact host outside the portal Preview reader's allowlist (Preview impact still needs live qualification), and the previous analysis report remaining visible after a rejected replacement. Evidence, reproduction and acceptance criteria are in [the test README](testing/README.md), D-007/D-008.
+
+## 4 October 2026 - Authenticated discovery on merged main
+
+- Ran against the normal Release portal with the user's completed Azure/ADO and GitHub connections; no app restart or code change. Local source `305e6e23edd5916ab1f0e77d83bc96296bf15d98`; ADO main source `3d88537d72bde25cdfbdf834acccb4f980610e88` after PR 21. UTC receipts fall on 5 October.
+- **271 backend tests passed, one optional native Codex test skipped, zero failed** with `--no-build`; **42 HTTP checks and seven AHP policy checks passed**. `Test-ServiceDiscovery.ps1` failed early because its temporary helper fixture omits `data-platform-common.ps1`; later cases were not verified.
+- Live portal registered/tenant-visible network and visualizer-skill discovery rendered saved partial evidence. Direct DNS collection returned HTTP 400. Tag inventory/matrix succeeded (five scope/resource items, 14 findings). DNS/drift kept failed coverage Unknown and disclosed the missing baseline.
+- ADO **Blob copy run 25 and Event flow run 26 succeeded**, publishing `subscription-discovery`; run 26 exercised portal review/queue/status. Extensions summaries and artifact file lists were inspected. DNS ARM inventory fallback succeeded in pipelines; raw artifact download/integrity and Deploy consumer acceptance remain open. Event flow declared Create prerequisites without applying them and reported unregistered workload providers.
+- Post-merge private GitHub source inspection found all 25 root YAML files: six existing ADO definitions and 19 missing. No definitions or Azure resources changed. Codex readiness was Not connected; no model inference occurred.
+- Detailed run links, evidence paths, six issue/follow-up records and reproduction instructions: [discovery test README](testing/README.md). This supersedes earlier unverified Azure/ADO/private-source discovery boundaries only for the paths exercised here; deployment and live AI acceptance remain open.
+
 ## 4 October 2026 - GitHub CLI browser authentication and private source
 
 - Added Connections controls for GitHub device sign-in, existing CLI attachment, verified username, cancellation and disconnect. Private-source reads use the attached account without changing ADO checkout credentials or pipeline YAML.

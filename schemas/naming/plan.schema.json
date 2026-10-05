@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://platform-studio.local/schemas/naming/plan.schema.json",
+  "title": "Calculated names only; no availability or execution authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profile",
+    "intent",
+    "policySha256",
+    "inputSha256",
+    "resources",
+    "deploymentAuthorized",
+    "allocationAuthorized",
+    "limitations",
+    "planSha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "platform.naming-plan/v1"
+    },
+    "profile": {
+      "const": "standard-v2"
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namingProfile",
+        "stackDisplayName",
+        "stackAcronym",
+        "instanceId",
+        "instanceOrdinal",
+        "environment",
+        "exposure",
+        "region",
+        "subscriptionId",
+        "namespaceSalt"
+      ],
+      "properties": {
+        "namingProfile": {
+          "const": "standard-v2"
+        },
+        "stackDisplayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "stackAcronym": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]{1,3}$"
+        },
+        "instanceId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "instanceOrdinal": {
+          "type": "string",
+          "pattern": "^(0[1-9]|[1-9][0-9])$"
+        },
+        "environment": {
+          "enum": [
+            "dev",
+            "qa",
+            "uat",
+            "prod"
+          ]
+        },
+        "exposure": {
+          "enum": [
+            "internal",
+            "external"
+          ]
+        },
+        "region": {
+          "const": "eastus2"
+        },
+        "subscriptionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "namespaceSalt": {
+          "type": "string",
+          "pattern": "^[a-z0-9]{0,16}$"
+        }
+      }
+    },
+    "policySha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "inputSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "planSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "resources": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "componentKey",
+          "armType",
+          "parentKey",
+          "name",
+          "fullName",
+          "resourceId",
+          "scope",
+          "role",
+          "condition",
+          "status",
+          "format",
+          "classification",
+          "ownership",
+          "availability",
+          "reason"
+        ],
+        "properties": {
+          "componentKey": {
+            "type": "string"
+          },
+          "armType": {
+            "type": "string"
+          },
+          "parentKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fullName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition": {
+            "enum": [
+              "included",
+              "excluded",
+              "unknown"
+            ]
+          },
+          "status": {
+            "enum": [
+              "Calculated",
+              "Referenced",
+              "ExplicitException",
+              "Unresolved",
+              "Excluded",
+              "ProviderAssigned"
+            ]
+          },
+          "format": {
+            "enum": [
+              "compact",
+              "separated",
+              "preserved",
+              null
+            ]
+          },
+          "classification": {
+            "enum": [
+              "convention",
+              "shared",
+              "providerRequired",
+              "applicationContract"
+            ]
+          },
+          "ownership": {
+            "enum": [
+              "UnverifiedReference",
+              "ProposedOnly"
+            ]
+          },
+          "availability": {
+            "const": "Unknown"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "deploymentAuthorized": {
+      "const": false
+    },
+    "allocationAuthorized": {
+      "const": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

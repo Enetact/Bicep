@@ -26,7 +26,11 @@ Platform Studio is a local Windows web application for discovering Azure resourc
 
 Explore the [platform overview](docs/platform-overview.md) for architecture, identity boundaries, skills and current limitations.
 
+**Live discovery acceptance, 4 October 2026:** Blob copy and Event flow Discover succeeded on merged `main`. Portal network/skill/DNS discovery exposed an unresolved DNS API coverage gap; tagging succeeded. See the [test README and issue log](docs/testing/README.md) for results, reproducible failures and remaining acceptance scope.
+
 **Phased implementation:** [the operations workflow plan](docs/plans/operations-workflow-suite.md) now has an O0–O1 DNS/drift analysis pilot. Live acceptance and accepted deployment baselines remain open. Access review, private diagnostics, data promotion, AKS maintenance, pipeline analysis and qualified DNS/drift execution are subsequent phases, not enabled actions.
+
+**Stack naming implementation started:** the [offline naming foundation](docs/resource-naming.md) calculates versioned environment/type/acronym/exposure/region names with resource-specific exceptions and deterministic suffixes. Its draft-instance validator checks duplicate identities and immutable naming fields across saved versions. The [cross-application plan](docs/plans/stack-naming-and-resource-previews.md) tracks remaining target, Bicep, pipeline and named-preview integrations. Current deployed naming and portal behavior remain unchanged; draft validation does not deploy resources.
 
 Agent workflows use **GPT-6.1 Sol (`gpt-6.1-sol`), Ultra reasoning and Standard speed** through the existing AHP coordination and Codex app-server integration. The connected account must advertise the requested model and effort; execution blocks if the provider substitutes settings. See [agent setup and acceptance](docs/agent-workflows.md).
 

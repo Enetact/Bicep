@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "intent": {
+    "namingProfile": "standard-v2",
+    "stackDisplayName": "Payments workspace",
+    "stackAcronym": "pay",
+    "instanceId": "11111111-1111-4111-8111-111111111111",
+    "instanceOrdinal": "01",
+    "environment": "dev",
+    "exposure": "internal",
+    "region": "eastus2",
+    "subscriptionId": "22222222-2222-4222-8222-222222222222",
+    "namespaceSalt": ""
+  },
+  "components": [
+    {
+      "key": "group",
+      "armType": "Microsoft.Resources/resourceGroups",
+      "mode": "convention",
+      "condition": "included",
+      "role": "primary"
+    },
+    {
+      "key": "host",
+      "armType": "Microsoft.Storage/storageAccounts",
+      "mode": "convention",
+      "condition": "included",
+      "role": "host",
+      "parentKey": "group"
+    },
+    {
+      "key": "blob",
+      "armType": "Microsoft.Storage/storageAccounts/blobServices",
+      "mode": "fixed",
+      "condition": "included",
+      "explicitName": "default",
+      "parentKey": "host"
+    },
+    {
+      "key": "incoming",
+      "armType": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "mode": "fixed",
+      "condition": "included",
+      "explicitName": "incoming",
+      "parentKey": "blob"
+    }
+  ]
+}

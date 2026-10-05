@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://platform-studio.local/schemas/naming/instances.schema.json",
+  "title": "Offline stack instance draft registry; not a deployment target",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "namingPolicySha256",
+    "instances"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "namingPolicySha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "instances": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workloadType",
+          "state",
+          "intent"
+        ],
+        "properties": {
+          "workloadType": {
+            "enum": [
+              "blob-transfer",
+              "logic-app-event-grid",
+              "private-storage",
+              "key-vault",
+              "observability",
+              "http-functions",
+              "service-bus-worker",
+              "private-data-platform",
+              "private-aks"
+            ]
+          },
+          "state": {
+            "const": "draft"
+          },
+          "intent": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "namingProfile",
+              "stackDisplayName",
+              "stackAcronym",
+              "instanceId",
+              "instanceOrdinal",
+              "environment",
+              "exposure",
+              "region",
+              "subscriptionId",
+              "namespaceSalt"
+            ],
+            "properties": {
+              "namingProfile": {
+                "const": "standard-v2"
+              },
+              "stackDisplayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "stackAcronym": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]{1,3}$"
+              },
+              "instanceId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "instanceOrdinal": {
+                "type": "string",
+                "pattern": "^(0[1-9]|[1-9][0-9])$"
+              },
+              "environment": {
+                "enum": [
+                  "dev",
+                  "qa",
+                  "uat",
+                  "prod"
+                ]
+              },
+              "exposure": {
+                "enum": [
+                  "internal",
+                  "external"
+                ]
+              },
+              "region": {
+                "const": "eastus2"
+              },
+              "subscriptionId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "namespaceSalt": {
+                "type": "string",
+                "pattern": "^[a-z0-9]{0,16}$"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

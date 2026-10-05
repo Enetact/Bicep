@@ -1,5 +1,11 @@
 # Implementation and verification status
 
+**Naming foundation — 4 October 2026:** the [offline resolver and draft-instance validator](resource-naming.md), policy, schemas, PowerShell adapters and explicit ARM source inventory are implemented. Latest checks passed 74 core/CLI cases, adapter checks, three schema validations and 37 existing platform-contract cases; 36 unchanged legacy targets resolve and none is enabled. N1/N2 remain in progress for full workload bindings and request/target integration; N3–N8 remain pending in [the plan](plans/stack-naming-and-resource-previews.md). Existing Bicep names, live portal behavior and authentication are unchanged. Draft validation is not deployable instance registration.
+
+**Authenticated discovery acceptance — 4 October 2026:** Blob copy and Event flow Discover succeeded on merged `main` in ADO runs 25/26. Private GitHub source checks and live tag discovery passed. Portal DNS collections remain Partial (HTTP 400), the discovery PowerShell fixture fails on a missing helper, and 19 pipeline definitions remain unregistered. Codex is disconnected in the tested browser session. This establishes bounded read-only discovery evidence, not deployment acceptance. See [the test README and issue log](testing/README.md).
+
+**Follow-up:** Both raw discovery artifacts now pass integrity and live ADO provenance checks. Portal handoff accepts matching dev evidence and rejects QA mismatch; real-artifact analysis and one-subscription management-group traversal were exercised. Additional artifact-host compatibility and stale-analysis-display issues are recorded. Deploy execution and live AI acceptance remain open.
+
 **AKS/Helm increment — 4 October 2026:** AKS foundation source, catalog, portal topology and dedicated menus are implemented. The separate Helm pipeline produces Kubernetes render/diff artifacts and guarded deployment receipts. Targets remain disabled; no live cluster, Helm rollout or ADO acceptance is established. Helm launches from native ADO; no separate portal Kubernetes diff screen or agent executor was added. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
 
 [Wiki home](README.md) · [Overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Validation history](validation.md)

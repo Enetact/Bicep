@@ -1,0 +1,659 @@
+{
+  "schemaVersion": 1,
+  "id": "standard-v2",
+  "reviewedDate": "2026-10-04",
+  "sources": [
+    "https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules",
+    "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations"
+  ],
+  "environments": [
+    "dev",
+    "qa",
+    "uat",
+    "prod"
+  ],
+  "regions": {
+    "eastus2": "eus2"
+  },
+  "exposures": {
+    "internal": "int",
+    "external": "ext"
+  },
+  "hash": {
+    "algorithm": "sha256-base32",
+    "length": 6,
+    "alphabet": "abcdefghijklmnopqrstuvwxyz234567"
+  },
+  "rules": {
+    "Microsoft.Resources/resourceGroups": {
+      "classification": "convention",
+      "abbreviation": "rg",
+      "minLength": 1,
+      "maxLength": 90,
+      "scope": "subscription",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Resources/deploymentStacks": {
+      "classification": "convention",
+      "abbreviation": "stack",
+      "minLength": 1,
+      "maxLength": 90,
+      "scope": "subscription",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Network/virtualNetworks": {
+      "classification": "convention",
+      "abbreviation": "vnet",
+      "minLength": 2,
+      "maxLength": 64,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Network/networkSecurityGroups": {
+      "classification": "convention",
+      "abbreviation": "nsg",
+      "minLength": 1,
+      "maxLength": 80,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.Network/privateEndpoints": {
+      "classification": "convention",
+      "abbreviation": "pe",
+      "minLength": 2,
+      "maxLength": 64,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks": {
+      "classification": "convention",
+      "abbreviation": "link",
+      "minLength": 1,
+      "maxLength": 80,
+      "scope": "child",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.OperationalInsights/workspaces": {
+      "classification": "convention",
+      "abbreviation": "log",
+      "minLength": 4,
+      "maxLength": 63,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Insights/components": {
+      "classification": "convention",
+      "abbreviation": "appi",
+      "minLength": 1,
+      "maxLength": 260,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Insights/metricAlerts": {
+      "classification": "convention",
+      "abbreviation": "alert",
+      "minLength": 1,
+      "maxLength": 260,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.Insights/scheduledQueryRules": {
+      "classification": "convention",
+      "abbreviation": "sqr",
+      "minLength": 1,
+      "maxLength": 260,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.Web/serverfarms": {
+      "classification": "convention",
+      "abbreviation": "asp",
+      "minLength": 1,
+      "maxLength": 60,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Web/sites": {
+      "classification": "convention",
+      "abbreviation": "app",
+      "minLength": 2,
+      "maxLength": 60,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": true,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "function": "f",
+        "logic": "l"
+      },
+      "roleAbbreviations": {
+        "function": "func",
+        "logic": "logic"
+      }
+    },
+    "Microsoft.ManagedIdentity/userAssignedIdentities": {
+      "classification": "convention",
+      "abbreviation": "id",
+      "minLength": 3,
+      "maxLength": 128,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.Databricks/accessConnectors": {
+      "classification": "convention",
+      "abbreviation": "ac",
+      "minLength": 3,
+      "maxLength": 64,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "application": "a",
+        "host": "h",
+        "events": "e",
+        "lake": "l",
+        "root": "r",
+        "blob": "b",
+        "queue": "q",
+        "table": "t",
+        "file": "f",
+        "dfs": "d",
+        "sites": "s",
+        "vault": "v",
+        "topic": "o",
+        "servicebus": "u",
+        "databricks": "k",
+        "datafactory": "y",
+        "adfportal": "z",
+        "integration": "i"
+      }
+    },
+    "Microsoft.Databricks/workspaces": {
+      "classification": "convention",
+      "abbreviation": "dbw",
+      "minLength": 3,
+      "maxLength": 64,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.DataFactory/factories": {
+      "classification": "convention",
+      "abbreviation": "adf",
+      "minLength": 3,
+      "maxLength": 63,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": true,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.EventGrid/topics": {
+      "classification": "convention",
+      "abbreviation": "egt",
+      "minLength": 3,
+      "maxLength": 50,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.KeyVault/vaults": {
+      "classification": "convention",
+      "abbreviation": "kv",
+      "minLength": 3,
+      "maxLength": 24,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": true,
+      "globalNamespace": true,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.ServiceBus/namespaces": {
+      "classification": "convention",
+      "abbreviation": "sb",
+      "minLength": 6,
+      "maxLength": 50,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": true,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Storage/storageAccounts": {
+      "classification": "convention",
+      "abbreviation": "st",
+      "minLength": 3,
+      "maxLength": 24,
+      "scope": "resourceGroup",
+      "format": "compact",
+      "compactFallback": false,
+      "globalNamespace": true,
+      "pattern": "^[a-z0-9]+$",
+      "roles": {
+        "primary": "p",
+        "host": "h",
+        "events": "e",
+        "source": "s",
+        "lake": "l",
+        "package": "k",
+        "receipts": "r"
+      }
+    },
+    "Microsoft.ContainerService/managedClusters": {
+      "classification": "convention",
+      "abbreviation": "aks",
+      "minLength": 1,
+      "maxLength": 63,
+      "scope": "resourceGroup",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p"
+      }
+    },
+    "Microsoft.Network/virtualNetworks/subnets": {
+      "classification": "convention",
+      "abbreviation": "snet",
+      "minLength": 1,
+      "maxLength": 80,
+      "scope": "child",
+      "format": "separated",
+      "compactFallback": false,
+      "globalNamespace": false,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "roles": {
+        "primary": "p",
+        "integration": "i",
+        "endpoints": "e",
+        "host": "h",
+        "container": "c",
+        "aks": "a"
+      }
+    },
+    "Microsoft.Authorization/roleAssignments": {
+      "classification": "providerRequired",
+      "exception": "guid",
+      "scope": "extension",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Insights/workbooks": {
+      "classification": "providerRequired",
+      "exception": "guid",
+      "scope": "resourceGroup",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Network/privateDnsZones": {
+      "classification": "providerRequired",
+      "exception": "dns",
+      "scope": "resourceGroup",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Storage/storageAccounts/blobServices": {
+      "classification": "providerRequired",
+      "exception": "default",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Storage/storageAccounts/fileServices": {
+      "classification": "providerRequired",
+      "exception": "default",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Storage/storageAccounts/queueServices": {
+      "classification": "providerRequired",
+      "exception": "default",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Storage/storageAccounts/tableServices": {
+      "classification": "providerRequired",
+      "exception": "default",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.ServiceBus/namespaces/networkRuleSets": {
+      "classification": "providerRequired",
+      "exception": "default",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Web/sites/config": {
+      "classification": "providerRequired",
+      "exception": "webConfig",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Web/sites/basicPublishingCredentialsPolicies": {
+      "classification": "providerRequired",
+      "exception": "publishing",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.Network/privateEndpoints/privateDnsZoneGroups": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.DataFactory/factories/datasets": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.DataFactory/factories/integrationRuntimes": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.DataFactory/factories/linkedservices": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.DataFactory/factories/managedVirtualNetworks": {
+      "classification": "providerRequired",
+      "exception": "default",
+      "scope": "child",
+      "reason": "Azure-required identity or service child name; do not reformat."
+    },
+    "Microsoft.DataFactory/factories/managedVirtualNetworks/managedPrivateEndpoints": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.DataFactory/factories/pipelines": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.EventGrid/topics/eventSubscriptions": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Insights/diagnosticSettings": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "extension",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.ServiceBus/namespaces/queues": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Storage/storageAccounts/blobServices/containers": {
+      "classification": "applicationContract",
+      "exception": "storageChild",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Storage/storageAccounts/fileServices/shares": {
+      "classification": "applicationContract",
+      "exception": "storageChild",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Storage/storageAccounts/queueServices/queues": {
+      "classification": "applicationContract",
+      "exception": "storageChild",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Network/networkManagers": {
+      "classification": "shared",
+      "exception": "shared",
+      "scope": "resourceGroup",
+      "reason": "Existing platform-owned resource; no naming or allocation authority."
+    },
+    "Microsoft.Network/networkManagers/ipamPools": {
+      "classification": "shared",
+      "exception": "shared",
+      "scope": "child",
+      "reason": "Existing platform-owned resource; no naming or allocation authority."
+    },
+    "Microsoft.Network/networkManagers/ipamPools/staticCidrs": {
+      "classification": "shared",
+      "exception": "shared",
+      "scope": "child",
+      "reason": "Existing platform-owned resource; no naming or allocation authority."
+    },
+    "Microsoft.ContainerService/managedClusters/agentPools": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Network/networkSecurityGroups/securityRules": {
+      "classification": "applicationContract",
+      "exception": "contract",
+      "scope": "child",
+      "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    }
+  },
+  "limitations": [
+    "Conservative naming subset; reserved-word and service availability checks remain Azure acceptance.",
+    "No ownership, availability, deployment or allocation authorization is conferred.",
+    "Explicit application-contract exceptions are displayed, not certified by this resolver."
+  ]
+}
