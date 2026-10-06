@@ -61,6 +61,35 @@ This is a **single-user desktop companion**, listening only on localhost. It is 
 
 ## Run from source, in order
 
+### Combined lifecycle command
+
+From the `Bicep` repository root in PowerShell 7.4+, use [Manage-Portal.ps1](../scripts/Manage-Portal.ps1):
+
+```powershell
+./scripts/Manage-Portal.ps1 -Action Status
+./scripts/Manage-Portal.ps1 -Action Restart
+```
+
+`Restart` checks the registered main process and configured port, calls `Stop-Portal.ps1`, confirms the portal is stopped, runs `Setup-Portal.ps1` (prerequisites, locked restore and Release build), then calls `Start-Portal.ps1` and verifies the owned listener and bootstrap workload count. It covers the backend and web UI: HTML/CSS/JavaScript live in the portal's `wwwroot`, with no separate frontend bundler. Refresh the browser after restarting. This does not publish new portable ZIP packages.
+
+| Option | Behavior |
+|---|---|
+| No arguments / `-Action Status` | Read-only process, ownership, listener and bootstrap status. Does not verify provider sign-ins. |
+| `-Action Start` | Requires a stopped portal with no receipt, then builds and starts it. |
+| `-Action Stop` | Runs governed stop/session cleanup, then verifies the stopped state. |
+| `-Action Restart` | Stops, rebuilds and starts. A failure halts the sequence; a failed build leaves the portal stopped. |
+| `-WhatIf` | Inspects status and describes the requested action without stopping, building or starting. |
+| `-NoBrowser` | Prevents opening a browser during Start/Restart. |
+| `-InstallMissing` | For Start/Restart, allows Setup to install missing .NET/Node prerequisites. If PATH needs refreshing, setup stops and asks for a new PowerShell window. |
+
+Status distinguishes Ready, Unhealthy, Stopped, StaleReceipt, UnownedListener, OwnershipMismatch and Unknown. Unknown inspection, mismatched ownership and an unrelated listener block lifecycle changes. A stale receipt can be cleaned through Stop/Restart. If Windows hides the running executable or command line, Status reports Unknown and blocks mutations; run it under the account that launched the portal. Bootstrap count mismatches report expected and received counts. Settings use `portal.local.json` and `STUDIO_Portal__Port` consistently with the existing launcher. The script defaults to Status so merely inspecting it does not sign users out.
+
+Stop/Restart clear portal-owned sessions: reconnect Azure/ADO and Codex afterward. GitHub can usually use **Use existing GitHub CLI login**. Reports are retained. This command manages the main source portal only; it does not manage the separate review instance, desktop Codex, Functions/Azurite or Windows distribution packages. It performs no Azure deployment or pipeline submission.
+
+Local orchestration regression tests: `./scripts/Test-PortalLifecycle.ps1`. These use isolated synthetic process/build adapters and do not restart a real app. Real startup readiness is checked by the lifecycle command itself; synthetic tests do not establish connected provider acceptance.
+
+### Individual scripts
+
 Requirements: Windows 11 ARM64 or x64, PowerShell 7.4+, Git checkout, .NET SDK compatible with `global.json` (currently 10.0.300), and Node.js 22+ for analysis. **Local authentication requires an installed Windows Azure CLI 2.54+; use a current Microsoft-supported release.** Registered-app authentication does not require Azure CLI. Bicep, Docker and Functions are not needed for portal browsing or ADO requests. Internet is needed for restore, Microsoft sign-in and ADO/Azure calls. Azure pipelines retain their existing agent/tool/network requirements.
 
 From the `Bicep` repository root:

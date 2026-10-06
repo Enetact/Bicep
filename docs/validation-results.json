@@ -1,4 +1,24 @@
 {
+  "portalLifecycleReadinessFix20261005": {
+    "date": "2026-10-05",
+    "cause": "PSCustomObject.Count counted workload dictionary as one; launcher correctly used AsHashtable",
+    "regressionReproducedBeforeFix": true,
+    "syntheticScenariosPassed": 16,
+    "liveBootstrapProducts": 9,
+    "expectedCatalogProducts": 9,
+    "actualRestartPerformed": false,
+    "liveProcessOwnership": "Unknown in tool security context: executable and command line unreadable",
+    "receipt": "artifacts/portal-lifecycle/4348a55ad8c948df8048312755e76d32/receipt.json"
+  },
+  "portalLifecycle20261005": {
+    "date": "2026-10-05",
+    "script": "scripts/Manage-Portal.ps1",
+    "syntheticScenariosPassed": 14,
+    "actualStatusCheck": "StaleReceipt; recorded process absent and configured port free",
+    "actualRestartPerformed": false,
+    "authenticationChanged": false,
+    "receipt": "artifacts/portal-lifecycle/8c21d173f3c74119a95db637653d7d6a/receipt.json"
+  },
   "namingPreviewIntegration20261005": {
     "date": "2026-10-05",
     "sourceBase": "d6e7db3",

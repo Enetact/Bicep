@@ -707,3 +707,20 @@ The actual ARM64 Release app was rebuilt with zero warnings/errors and started o
 Browser review covered the workload catalog, Blob copy Discover/Preview configuration, Connections, Network discovery, Agent workflows, Pipeline activity and Tag governance. A synthetic draft reproduced input loss and UUID regeneration when changing the workload Action. The [UI/UX review](plans/portal-ui-ux-review.md) records the source cause, authentication lifecycle, prioritized findings and U1–U5 design/acceptance plan. These improvements are proposed, not implemented.
 
 No Azure/ADO/Codex calls, resource deployment, target enablement, primary restart, new distribution package, or full regression-suite rerun occurred in this review. Connected and cross-device accessibility acceptance remain separate work.
+
+## Combined portal lifecycle — 5 October 2026
+
+`Manage-Portal.ps1` provides read-only Status plus Start, Stop and Restart, composing the existing ownership-aware scripts. Start/Restart restore and build the actual portal Release app, including its web UI assets; they do not publish distribution packages. The orchestrator rejects unknown ownership/listener inspection and refuses to continue after an unsuccessful stop, build or readiness check.
+
+- `Test-PortalLifecycle.ps1`: **14 synthetic lifecycle scenarios passed**, covering default Status, WhatIf, restart order, running Start rejection, PID/start-time mismatch, denied inspection, foreign listener, unhealthy bootstrap, failed build, cold start, Stop, stale-receipt recovery, failed Stop and post-start readiness failure. Receipt: `artifacts/portal-lifecycle/8c21d173f3c74119a95db637653d7d6a/receipt.json`. Synthetic helpers do not stop, build or start actual services.
+- Actual read-only Status returned **StaleReceipt**: the recorded main process was absent and port 5087 was free at inspection. No receipt was removed, session cleared or app restarted by this test.
+- PowerShell parsing, changed documentation links, JSON syntax and source-manifest verification were checked. No cloud requests, pipeline submission, deployment or provider reauthentication occurred. Actual combined restart acceptance remains to be performed when a primary restart is desired.
+
+## Portal post-start readiness correction — 5 October 2026
+
+The user ran the combined Restart: restore, Release build and Start succeeded, but the wrapper incorrectly reported Unhealthy. Its default JSON parser treated the keyed workloads object as one PSCustomObject; Start correctly used `ConvertFrom-Json -AsHashtable` and counted nine entries. The original array-shaped synthetic fixture missed this defect.
+
+- Changed the fixture to a multi-entry keyed catalog and reproduced the exact failure before fixing the wrapper parser. Genuine count mismatches now include expected/received counts.
+- **16 lifecycle scenarios passed**, including the production-shaped dictionary, incomplete bootstrap catalog and unavailable process metadata. Receipt: `artifacts/portal-lifecycle/4348a55ad8c948df8048312755e76d32/receipt.json`.
+- Read-only real bootstrap returned nine products against nine registered workloads. The user-started process remained running. This tool security context cannot read its executable path/command line; Status now correctly reports Unknown rather than OwnershipMismatch for unreadable metadata. Run Status under the account that launched the portal for full ownership verification. No guard was bypassed.
+- No further build/restart, session cleanup, provider login or cloud action was performed. The fix is in the PowerShell script and takes effect on its next invocation. Manifest and whitespace checks passed.

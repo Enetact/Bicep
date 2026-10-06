@@ -30,6 +30,8 @@ Setup checks prerequisites, restores locked packages and builds Release. Start o
 
 The application is a single-user localhost service. Ownership receipts and logs live under `.local/portal/`; generated reports live under ignored `artifacts/`. The portal lifecycle does not start or stop Functions/Azurite.
 
+For subsequent rebuilds, use `./scripts/Manage-Portal.ps1 -Action Restart` for the combined stop → Release build → start → readiness check. Use `-Action Status` to inspect without changing sessions. Restart requires reconnecting portal Azure/ADO and Codex sessions; GitHub can usually reuse its CLI login. See [all lifecycle options](local-portal.md#combined-lifecycle-command).
+
 ## Connect only what your task needs
 
 | Task | Connection and setup |
