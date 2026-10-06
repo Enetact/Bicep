@@ -149,6 +149,7 @@ if ($PSCmdlet.ParameterSetName -eq 'Profile' -and (Get-TargetWorkloadType $targe
         try{$report.prerequisiteOwnership=Get-LogicPrerequisiteOwnership $target}
         catch{$report.discoveryStatus='Partial';$report.prerequisiteOwnership=@{status='Failed';stackExists=$false;managedResourceIds=@()};$report.warnings+=('Stack ownership read failed: '+$_.Exception.Message)}
         $report.prerequisitePlan=Get-LogicPrerequisitePlan $target $report
+        Add-LogicNamingDiscovery $target $report
         Write-ServiceJson $report.prerequisitePlan (Join-Path $OutputDirectory prerequisite-plan.json)
     }
     Write-ServiceJson $report (Join-Path $OutputDirectory inventory.json)

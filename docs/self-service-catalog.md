@@ -1,5 +1,9 @@
 # Self-service catalog and how it works
 
+**5 October 2026 — optional named Preview:** dedicated workload Deploy menus now include `namingInstanceId` (default `legacy`). Source-reviewed draft UUIDs matching workload/environment/subscription/region may be selected for **Preview only**. Prepare freezes and revalidates the complete name map and stack identity; named Deploy is rejected. The portal exposes the same reviewed choices, while its local editor creates a draft for source review. The registry is empty until platform review adds entries. See [naming setup and boundaries](resource-naming.md).
+
+**4 October 2026 — naming first integration group:** fresh discovery analyses generate observed resource names and separate matching source-draft name artifacts. Private Storage, Key Vault and Observability have optional typed Bicep maps and a local portal draft editor in source; the isolated Release candidate passed HTTP checks. These drafts cannot be submitted to ADO yet, and the authenticated primary portal was not restarted. See [the naming guide](resource-naming.md) for evidence, generated files and remaining rollout gates.
+
 **4 October 2026 — private GitHub source:** Connections now provides a GitHub CLI device flow and explicit existing-login attachment. ADO setup can use the verified GitHub account for private repository metadata and source hashes. ADO checkout keeps its own GitHub connection; authentication does not start a workflow. See [setup and credential lifetime](local-portal.md#github-browser-sign-in).
 
 **Nested IaC evidence — 4 October 2026:** dedicated workload Preview/Deploy now uses [nested property and child-resource probes](nested-iac-evidence.md), unresolved desired-state coverage gates and an observed-state fingerprint. The portal and agent review retain the coverage evidence. New Preview evidence is required before deployment; this adds no pipeline root or cloud permissions.

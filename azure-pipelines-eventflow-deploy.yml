@@ -32,6 +32,12 @@ parameters:
     default: "eastus2"
     values:
       - "eastus2"
+  - name: namingInstanceId
+    displayName: "Naming instance (reviewed UUID; drafts are Preview-only)"
+    type: string
+    default: "legacy"
+    values:
+      - "legacy"
   - name: executionMode
     displayName: "Run stages"
     type: string
@@ -75,6 +81,7 @@ extends:
   parameters:
     workloadType: logic-app-event-grid
     executionMode: ${{ parameters.executionMode }}
+    namingInstanceId: ${{ parameters.namingInstanceId }}
     workloadName: ${{ parameters.workloadName }}
     environment: ${{ parameters.environment }}
     region: ${{ parameters.region }}

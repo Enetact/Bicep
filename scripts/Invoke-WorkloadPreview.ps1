@@ -3,8 +3,9 @@
 param([Parameter(Mandatory)][ValidateSet('Prepare','Preview','VerifyBundle')][string]$Action,
     [Parameter(Mandatory)][string]$Directory,[string]$DiscoveryDirectory='',
     [string]$Workload='',[string]$EnvironmentName='',[string]$SubscriptionAlias='',[string]$NetworkProfile='',
-    [string]$ReleaseId='',[string]$BoundServiceConnection='',[string]$BundleDirectory='')
+    [string]$ReleaseId='',[string]$BoundServiceConnection='',[string]$BundleDirectory='',[string]$NamingInstanceId='')
 . "$PSScriptRoot/workload-preview-common.ps1"
+if($NamingInstanceId -ceq 'legacy'){$NamingInstanceId=''}
 if($Action -eq 'VerifyBundle'){
     $null=Assert-PreviewMatchesBundle $Directory (Read-ServiceBundle $BundleDirectory)
     Write-Host 'Deployment bundle matches this run''s successful infrastructure preview.'
@@ -14,7 +15,7 @@ $status='Blocked';$errorText=''
 try {
     if($Action -eq 'Prepare'){
         $target=Read-ServiceTarget $Workload $EnvironmentName $SubscriptionAlias $NetworkProfile -AllowDisabled
-        New-WorkloadPreviewInputs $target $DiscoveryDirectory $Directory $ReleaseId
+        New-WorkloadPreviewInputs $target $DiscoveryDirectory $Directory $ReleaseId $NamingInstanceId
         $status='Prepared; Azure validation pending'
     }else{
         if($env:BUILD_SOURCEBRANCH -cne 'refs/heads/main' -or $env:BUILD_REASON -cne 'Manual'){throw 'Preview requires a manually queued main run.'}

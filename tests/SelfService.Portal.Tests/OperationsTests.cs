@@ -151,6 +151,20 @@ public sealed class OperationsTests
         using var handler=new Handler((r,n)=>Response(new{value=Array.Empty<object>()}));using var cts=new CancellationTokenSource();cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>new PrivateDnsReader(new(handler)).Collect("test-only","tenant",[Sub],cts.Token));Assert.Equal(0,handler.Calls);
     }
+    [Theory][InlineData(false)][InlineData(true)]
+    public async Task DnsMetadataFallbackRetainsFailedCoverage(bool found)
+    {
+        using var handler=new Handler((r,n)=>r.RequestUri!.AbsolutePath.EndsWith("/privateDnsZones")
+            ? Response(new{},HttpStatusCode.BadRequest)
+            : r.RequestUri.AbsolutePath.EndsWith("/resources")
+                ? Response(new{value=found?new[]{new{id=Zone,name="example.internal",type="Microsoft.Network/privateDnsZones",properties=new{secret="SECRET"}}}:[]})
+                : Response(new{value=Array.Empty<object>()}));
+        var result=await new PrivateDnsReader(new(handler)).Collect("test-only","tenant",[Sub],CancellationToken.None);
+        Assert.Contains(result.Coverage,c=>c.Kind=="Zones"&&c.Status=="Failed");
+        Assert.Contains(result.Coverage,c=>c.Kind=="Zone metadata fallback"&&c.Issue!.Contains("identities only"));
+        Assert.Equal(found?1:0,result.Resources.Length);Assert.DoesNotContain("SECRET",JsonSerializer.Serialize(result));
+        OperationsJson.Verify(result);
+    }
     [Fact] public void NewWorkflowsReuseCurrentPolicyAndHavePinnedSkills()
     {
         Assert.All(new[]{"private-dns","drift"},id=>{var w=AgentWorkflows.Find(id);Assert.Equal("operations",w.Scope);Assert.Equal("azure",w.Audience);});

@@ -199,6 +199,34 @@ Case 'Prepare compiles freezes discovery and full release without Azure access' 
     Check ($readme.Contains('Recovery rules') -and $readme.Contains('No restore executor is registered'))
     Check ($script:calls.Count -eq 0)
 }
+Case 'named Prepare freezes real resolver output rejects tampering and cannot deploy' {
+    $intent=(Get-Content (Join-Path (Get-ProjectRoot) tests/naming/request.example.json) -Raw|ConvertFrom-Json -AsHashtable).intent
+    $intent.subscriptionId=$target.subscriptionId
+    $draft=New-WorkloadNamingDraft @{workloadType='blob-transfer';intent=$intent}
+    # Isolate source registration, not the resolver, preparation or frozen-input reader.
+    function Get-RegisteredNamingDraft($Target,[string]$InstanceId){Check ($InstanceId -ceq $intent.instanceId);return $draft}
+    function Invoke-Bicep {param([string[]]$Arguments)
+        $file=$Arguments[[Array]::IndexOf($Arguments,'--outfile')+1]
+        $value=if($Arguments[0] -eq 'build-params'){@{parameters=$parameters}}elseif($Arguments[1].EndsWith('stack.bicep')){$template}else{@{resources=@()}}
+        Write-ServiceJson $value $file
+    }
+    $script:calls.Clear();$folder=Join-Path $root named
+    New-WorkloadPreviewInputs $target (Join-Path $dir discovery) $folder '43' $intent.instanceId
+    $prepared=Read-WorkloadPreviewInputs $folder
+    Check (!$prepared.target.enabled -and $prepared.receipt.files.Count -eq 10)
+    Check ($prepared.target.resourceGroup -ceq $draft.parameterPatch.parameters.workloadResourceGroupName.value)
+    Check ($prepared.stack.stackId -ceq @($draft.plan.resources|Where-Object componentKey -eq stack)[0].resourceId)
+    Reject {Assert-PreviewMatchesBundle $folder $bundle} 'Preview-only'
+    Write-WorkloadPreviewReadme $folder 'Prepared'
+    Check ((Get-Content (Join-Path $folder README.md) -Raw).Contains($draft.parameterPatch.parameters.resourceNames.value.hostStorage))
+    $changed=Clone $prepared.parameters.parameters;$changed.resourceNames.value.hostStorage='tampered'
+    Reject {Assert-NamingPreviewParameters $prepared.target $changed $draft} 'Frozen naming'
+    $before=$draft.draftSha256;$draft.draftSha256='changed'
+    try{Reject {Read-WorkloadPreviewInputs $folder} 'changed since preparation'}finally{$draft.draftSha256=$before}
+    Add-Content (Join-Path $folder naming-draft.json) ' '
+    Reject {Read-WorkloadPreviewInputs $folder} 'integrity'
+    Check ($script:calls.Count -eq 0)
+}
 $script:iacCalls=[Collections.Generic.List[string]]::new();$script:iacAfterFailure=$false;$script:iacFingerprint=('a'*64);$script:iacQualified=$true
 function Invoke-WorkloadIacEvidence([string]$Action,[string]$Directory,[string]$InputDirectory='',[string]$WhatIfPath='') {
     $script:iacCalls.Add($Action)

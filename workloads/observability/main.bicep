@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Reviewed concrete name map for a new standard-v2 instance; null preserves legacy naming. Not yet accepted by self-service deployment requests.')
+param resourceNames ResourceNames?
 param workload string
 @allowed(['dev', 'qa', 'uat', 'prod'])
 param environmentName string
@@ -16,7 +19,7 @@ var stem = '${workload}-${environmentName}'
 var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
 module monitoring '../../modules/monitoring/observability/main.bicep' = {
  name: 'monitoring'
- params: { name: 'mon-${stem}', location: location, tags: tags, workspaceId: existingLogAnalyticsWorkspaceId, actionGroupIds: alertActionGroupIds }
+ params: { name: resourceNames.?displayName ?? 'mon-${stem}', workbookName: resourceNames.?workbook ?? guid(resourceGroup().id, 'mon-${stem}'), alertName: resourceNames.?alert ?? 'mon-${stem}-heartbeat', location: location, tags: tags, workspaceId: existingLogAnalyticsWorkspaceId, actionGroupIds: alertActionGroupIds }
 }
 
 output workbookId string = monitoring.outputs.workbookId

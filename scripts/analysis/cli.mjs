@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { analyzeDiscovery, canonical, digest } from './core.mjs';
 import { renderAnalysis } from './render.mjs';
+import { discoveryNamingDrafts, draftSummary } from './naming-drafts.mjs';
 
 const MAX_BYTES = 16 * 1024 * 1024;
 function read(file) {
@@ -23,6 +24,10 @@ try {
   const inv = read(path.join(input, 'inventory.json')); const man = read(path.join(input, 'manifest.json'));
   const report = analyzeDiscovery({ manifest: man.value, inventory: inv.value, inventoryBytes: inv.bytes, manifestBytes: man.bytes, workload: options['--workload'], environment: options['--environment'], evaluatedUtc: options['--at'] ?? new Date().toISOString() });
   const files = renderAnalysis(report);
+  const sourceJson = relative => read(new URL(relative, import.meta.url)).value;
+  const naming = discoveryNamingDrafts(report, man.value, sourceJson('../../self-service/instances/registry.json'), sourceJson('../../config/naming-policy.json'), sourceJson('../../config/workloads.json'));
+  files.set('proposed-resource-names.json', canonical(naming) + '\n');
+  files.set('README.md', files.get('README.md') + draftSummary(naming));
   const hashes = Object.fromEntries([...files].map(([name, content]) => [name, digest(content)]));
   // Reserve the output directory only after input validation; mkdir is exclusive.
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.mkdirSync(output);

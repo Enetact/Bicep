@@ -56,7 +56,7 @@ export function proposedTopology(product, target, region, definition) {
 }
 export function previewTopology(report) {
   if (report.kind !== 'portal-preview-diagram' || !Array.isArray(report.resources)) throw new Error('Invalid Preview diagram report.');
-  const observed = observedTopology({ subscriptionId: report.subscriptionId, collections: [{ resources: report.resources.map(r => ({ id: r.id, name: name(r.id) })) }] });
+  const observed = observedTopology({ subscriptionId: report.subscriptionId, collections: [{ resources: report.resources.map(r => ({ id: r.id, name: r.fullName || r.name || name(r.id), type: r.type })) }] });
   const actions = new Map(report.resources.map(r => [key(r.id), r.action]));
   const certainty = new Map(report.resources.map(r => [key(r.id), r.certainty]));
   for (const n of observed.nodes) if (actions.has(n.id)) {

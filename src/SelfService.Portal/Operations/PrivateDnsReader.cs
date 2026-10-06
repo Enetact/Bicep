@@ -43,6 +43,14 @@ public sealed class PrivateDnsReader(HttpClient http)
         {
             ct.ThrowIfCancellationRequested(); var scope = $"/subscriptions/{sub}";
             var zones = await Read(scope, "Zones", "/providers/Microsoft.Network/privateDnsZones", DnsVersion, "Microsoft.Network/privateDnsZones");
+            if (coverage.Any(c => c.Scope == scope && c.Kind == "Zones" && c.Status is not ("Succeeded" or "SucceededEmpty")))
+            {
+                var fallback = await List(token, scope + "/resources?api-version=2021-04-01", scope, "Zone metadata fallback", ct);
+                coverage.Add(fallback.Coverage with { Issue = DnsInventoryFallback.Limitation + " " + fallback.Coverage.Issue });
+                var recovered = DnsInventoryFallback.Zones(fallback.Values, sub);
+                foreach (var row in recovered) { var item = Project(row, null); if (resources.Count < 5000) resources.TryAdd(item.Id, item); }
+                zones = zones.Concat(recovered).DistinctBy(r => Text(r, "id"), StringComparer.OrdinalIgnoreCase).ToArray();
+            }
             foreach (var zone in zones.Take(50))
             {
                 var id = Text(zone, "id");

@@ -1,5 +1,7 @@
 # HTTP Functions API
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 Implemented source offering; all four targets remain disabled pending platform onboarding and live Azure acceptance.
 
 1 private .NET 10 HTTP Function App on a dedicated Linux B1 plan, identity, host/package storage, 4 private endpoints, diagnostics and a separately versioned health API sample. Entra authentication is required.

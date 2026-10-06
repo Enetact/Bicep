@@ -15,6 +15,7 @@ foreach($rid in $Runtime){
     Copy-Item -LiteralPath (Join-Path $root 'bicepconfig.json') -Destination $snapshot
     New-Item -ItemType Directory -Path (Join-Path $snapshot 'scripts') -Force|Out-Null
     Copy-Item -LiteralPath (Join-Path $root 'scripts/analysis') -Destination (Join-Path $snapshot 'scripts') -Recurse
+    Copy-Item -LiteralPath (Join-Path $root 'scripts/naming') -Destination (Join-Path $snapshot 'scripts') -Recurse
     Copy-Item -LiteralPath (Join-Path $root 'scripts/Install-GitHubCli.ps1') -Destination (Join-Path $snapshot 'scripts')
     Get-ChildItem $root -Filter 'azure-pipelines*.yml'|Copy-Item -Destination $snapshot
     Copy-Item -LiteralPath (Join-Path $root 'docs/local-portal.md') -Destination (Join-Path $dest 'README.md')

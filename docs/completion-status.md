@@ -1,6 +1,6 @@
 # Implementation and verification status
 
-**Naming foundation — 4 October 2026:** the [offline resolver and draft-instance validator](resource-naming.md), policy, schemas, PowerShell adapters and explicit ARM source inventory are implemented. Latest checks passed 74 core/CLI cases, adapter checks, three schema validations and 37 existing platform-contract cases; 36 unchanged legacy targets resolve and none is enabled. N1/N2 remain in progress for full workload bindings and request/target integration; N3–N8 remain pending in [the plan](plans/stack-naming-and-resource-previews.md). Existing Bicep names, live portal behavior and authentication are unchanged. Draft validation is not deployable instance registration.
+**5 October 2026 — discovery and named Preview integration:** all nine workload compositions now accept typed standard-v2 name maps. Fresh discovery generates observed identities and matching source-draft candidates; the dedicated Deploy menus can freeze a reviewed instance into **Preview only**. Names shown for Azure changes come from returned What-If resource IDs. Existing evidence is never edited. All targets remain disabled, the source draft registry remains empty, and named Deploy is explicitly rejected. Local verification is recorded below; live ADO/Azure Preview and Codex inference acceptance remain outstanding. See [the guide](resource-naming.md) and [validation log](validation.md).
 
 **Authenticated discovery acceptance — 4 October 2026:** Blob copy and Event flow Discover succeeded on merged `main` in ADO runs 25/26. Private GitHub source checks and live tag discovery passed. Portal DNS collections remain Partial (HTTP 400), the discovery PowerShell fixture fails on a missing helper, and 19 pipeline definitions remain unregistered. Codex is disconnected in the tested browser session. This establishes bounded read-only discovery evidence, not deployment acceptance. See [the test README and issue log](testing/README.md).
 
@@ -10,7 +10,7 @@
 
 [Wiki home](README.md) · [Overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Validation history](validation.md)
 
-**Source/configuration reviewed: 4 October 2026.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. The data-platform increment adds local validation; no new cloud acceptance is established.
+**Naming/discovery source review: 5 October 2026; broader source review retained from 4 October.** This is the current capability summary. The [validation log](validation.md) retains dated test runs and historical milestones; [validation results](validation-results.json) retains their machine-readable records. The data-platform increment adds local validation; no new cloud acceptance is established.
 
 ## Current inventory
 

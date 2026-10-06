@@ -1,5 +1,7 @@
 # Observability
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 Implemented source offering; all four targets remain disabled pending platform onboarding and live Azure acceptance.
 
 1 Azure Monitor workbook and 1 scheduled query alert referencing an approved existing Log Analytics workspace and action group. Does not alter shared workspace networking or diagnostic settings on other resources.
@@ -13,6 +15,8 @@ Implemented source offering; all four targets remain disabled pending platform o
 - Package kind: `infrastructure`. Infrastructure-only products do not contain an application ZIP.
 
 ## Onboarding and ownership
+
+The optional sealed `resourceNames` parameter now accepts a standard-v2 workbook/alert map from [the shared naming adapter](../../docs/resource-naming.md). The new workbook uses the immutable instance UUID; its display name can change independently. Omitting the map retains legacy GUID/name expressions. All four standard/legacy environment pairs compile locally. The portal draft and fresh discovery artifacts are informational; protected Preview/Deploy transport of this map is still pending and targets remain disabled.
 
 Platform-reviewed existing network/DNS and monitoring bindings, owner, cost center and deployment identity are required. No automatic address allocation. Alert evaluations and existing workspace ingestion/retention; notification and query charges may apply.
 

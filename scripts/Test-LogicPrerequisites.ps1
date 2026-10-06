@@ -22,6 +22,23 @@ foreach($read in @('networkQuery','privateDnsQuery','resourceQuery','prerequisit
         Check ($p.status -eq 'Blocked' -and $p.resources.Count -eq 0 -and $p.bicep.Count -eq 0)
     }
 }
+Case 'fresh named prerequisite evidence matches concrete names and rejects changed policy' {
+    $intent=(Get-Content (Join-Path (Get-ProjectRoot) tests/naming/request.example.json) -Raw|ConvertFrom-Json -AsHashtable).intent
+    $intent.subscriptionId=$t.subscriptionId
+    $draft=New-WorkloadNamingDraft @{workloadType='logic-app-event-grid';intent=$intent}
+    function Get-RegisteredNamingDraft($Target,[string]$InstanceId){return $draft}
+    $named=Clone $t;$named.enabled=$false;$named.resourceGroup=$draft.parameterPatch.parameters.workloadResourceGroupName.value
+    $view=Clone $empty;$view.namingDraft=$draft
+    $plan=Get-LogicPrerequisitePlan $named $view
+    $names=$draft.parameterPatch.parameters.resourceNames.value
+    Check ($plan.status -ceq 'Ready' -and $plan.bicep.vnetName -ceq $names.vnet -and $plan.bicep.integrationNsgName -ceq $names.integrationNsg -and $plan.bicep.workspaceName -ceq $names.workspace)
+    $inventory=Clone $empty
+    $inventory.namedPrerequisiteProfiles=@(@{instanceId=$intent.instanceId;selectionHash=(Get-ValueHash $named);namingDraftSha256=$draft.draftSha256;plan=$plan;ownership=$empty.prerequisiteOwnership})
+    function Get-RegisteredNamingDraft($Target,[string]$InstanceId){return $draft}
+    Check ((Get-ValueHash (Get-LogicPrerequisitePlan $named $inventory)) -ceq (Get-ValueHash $plan))
+    $inventory.namedPrerequisiteProfiles[0].namingDraftSha256='changed'
+    Reject {Get-LogicPrerequisitePlan $named $inventory}
+}
 Case 'old inventory without ownership evidence cannot resolve automatic prerequisites' {
     $bad=Clone $empty;$bad.Remove('prerequisiteOwnership');Check ((Get-LogicPrerequisitePlan $t $bad).status -eq 'Blocked')
 }

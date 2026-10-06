@@ -1,4 +1,7 @@
 targetScope = 'subscription'
+import { ResourceNames } from './naming.bicep'
+@description('Concrete standard-v2 name candidates; null preserves legacy names. Effective settings govern conditional resources.')
+param resourceNames ResourceNames?
 param workloadResourceGroupName string
 @minLength(3)
 @maxLength(10)
@@ -34,6 +37,7 @@ module composition './main.bicep' = {
  name: 'workload'
  scope: group
  params: {
+    resourceNames: resourceNames
   workload: workload
   environmentName: environmentName
   location: location

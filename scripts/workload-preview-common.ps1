@@ -3,6 +3,7 @@
 . "$PSScriptRoot/platform-contract.ps1"
 . "$PSScriptRoot/service-cost-common.ps1"
 . "$PSScriptRoot/recovery-common.ps1"
+. "$PSScriptRoot/naming-preview-common.ps1"
 function Invoke-WorkloadIacEvidence([string]$Action,[string]$Directory,[string]$InputDirectory='',[string]$WhatIfPath='') {
     & "$PSScriptRoot/Invoke-IacAnalysis.ps1" -Action $Action -Directory $Directory -InputDirectory $InputDirectory -WhatIfPath $WhatIfPath
 }
@@ -14,10 +15,16 @@ function Get-PreviewParameters($Target,$Parameters,[string]$ReleaseId) {
     if((Get-WorkloadDefinition $type).packageKind -in @('functions','productFunctions')){$p.parameters.packageBlobName=@{value="releases/$ReleaseId.zip"}}
     return $p
 }
-function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$Directory,[string]$ReleaseId) {
+function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$Directory,[string]$ReleaseId,[string]$NamingInstanceId='') {
     if($ReleaseId -cnotmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$'){throw 'Invalid preview release ID.'}
     $root=Get-ProjectRoot;$type=Get-TargetWorkloadType $Target;$definition=Get-WorkloadDefinition $type
     $manifest=Read-DiscoveryManifest $DiscoveryDirectory $Target $Target.serviceConnection
+    $naming=$null
+    if($NamingInstanceId){
+        $naming=Get-RegisteredNamingDraft $Target $NamingInstanceId
+        $Target=$Target|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
+        $Target.enabled=$false;$Target.resourceGroup=$naming.parameterPatch.parameters.workloadResourceGroupName.value
+    }
     New-Item -ItemType Directory -Path $Directory -Force|Out-Null
     Write-ServiceJson $Target (Join-Path $Directory target.json)
     # Informational recovery rules, not an approval artifact or proof of a retained baseline.
@@ -38,13 +45,21 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
     if(Test-ProductWorkload $type){Assert-ProductDiscovery $Target $p.parameters $DiscoveryDirectory}
     if($type -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $Target $p.parameters $DiscoveryDirectory}
     $stackTemplate=Get-Content (Join-Path $Directory stack-template.json) -Raw|ConvertFrom-Json -AsHashtable
-    Write-ServiceJson (New-StackContract $Target $stackTemplate) (Join-Path $Directory stack.json)
+    $stack=New-StackContract $Target $stackTemplate
+    if($naming){
+        $p.parameters.resourceNames=$naming.parameterPatch.parameters.resourceNames
+        Write-ServiceJson $p (Join-Path $Directory parameters.json)
+        Write-ServiceJson $naming (Join-Path $Directory naming-draft.json)
+        Set-NamingPreviewStack $stack $naming
+    }
+    Write-ServiceJson $stack (Join-Path $Directory stack.json)
     Write-ServiceJson (Get-PreviewParameters $Target $p $ReleaseId) (Join-Path $Directory effective.parameters.json)
     $cost=if(Test-ProductWorkload $type){Get-ProductCostEstimate $Target $p.parameters}elseif($type -eq 'logic-app-event-grid'){Get-LogicCostEstimate $p.parameters}else{Get-ServiceCostEstimate $p.parameters}
     Write-ServiceJson $cost (Join-Path $Directory cost-estimate.json)
     New-Item -ItemType Directory -Path (Join-Path $Directory discovery) -Force|Out-Null
     foreach($f in @('manifest.json','inventory.json')){Copy-Item (Join-Path $DiscoveryDirectory $f) (Join-Path $Directory "discovery/$f") -Force}
     $files=@{};foreach($f in @('target.json','main.json','parameters.json','stack-template.json','stack.json','effective.parameters.json','cost-estimate.json','discovery/manifest.json','discovery/inventory.json')){$files[$f]=Get-ServiceHash (Join-Path $Directory $f)}
+    if($naming){$files['naming-draft.json']=Get-ServiceHash (Join-Path $Directory naming-draft.json)}
     $commit=& git -C $root rev-parse HEAD
     if($LASTEXITCODE -ne 0){throw 'Preview source provenance unavailable.'}
     Write-ServiceJson @{schemaVersion=1;kind='workload-preview-inputs';releaseId=$ReleaseId;sourceCommit=$commit;runId=$env:BUILD_BUILDID;files=$files;discoverySource=$manifest.source;createdUtc=[DateTimeOffset]::UtcNow.ToString('O')} (Join-Path $Directory preview-inputs.json)
@@ -52,19 +67,33 @@ function New-WorkloadPreviewInputs($Target,[string]$DiscoveryDirectory,[string]$
 function Read-WorkloadPreviewInputs([string]$Directory) {
     $r=Get-Content (Join-Path $Directory preview-inputs.json) -Raw|ConvertFrom-Json -AsHashtable
     $expected=@('target.json','main.json','parameters.json','stack-template.json','stack.json','effective.parameters.json','cost-estimate.json','discovery/manifest.json','discovery/inventory.json')
+    if($r.files.Contains('naming-draft.json')){$expected+='naming-draft.json'}
     if($r.schemaVersion -ne 1 -or $r.kind -cne 'workload-preview-inputs' -or $r.files.Count -ne $expected.Count){throw 'Invalid preview input contract.'}
     foreach($f in $expected){if(!$r.files.Contains($f) -or (Get-ServiceHash (Resolve-ServicePath $Directory $f)) -cne $r.files[$f]){throw "Preview input integrity failure: $f"}}
     $target=Get-Content (Join-Path $Directory target.json) -Raw|ConvertFrom-Json -AsHashtable
     Assert-ServiceTarget $target $target.workload $target.environmentName -AllowDisabled
     $p=Get-Content (Join-Path $Directory parameters.json) -Raw|ConvertFrom-Json -AsHashtable
-    Assert-ServiceParameters $target $p.parameters
+    $naming=$null
+    if($r.files.Contains('naming-draft.json')){
+        $saved=Get-Content (Join-Path $Directory naming-draft.json) -Raw|ConvertFrom-Json -AsHashtable
+        $naming=Get-RegisteredNamingDraft $target $saved.plan.intent.instanceId
+        if((Get-ValueHash $saved) -cne (Get-ValueHash $naming)){throw 'Naming draft/policy/source has changed since preparation.'}
+        Assert-NamingPreviewParameters $target $p.parameters $naming
+    }else{Assert-ServiceParameters $target $p.parameters}
     $manifest=Read-DiscoveryManifest (Join-Path $Directory discovery) $target $target.serviceConnection
-    if(Test-ProductWorkload (Get-TargetWorkloadType $target)){Assert-ProductDiscovery $target $p.parameters (Join-Path $Directory discovery)}
+    if(Test-ProductWorkload (Get-TargetWorkloadType $target)){
+        $discoveryParameters=$p.parameters|ConvertTo-Json -Depth 100|ConvertFrom-Json -AsHashtable
+        if($naming){$discoveryParameters.Remove('resourceNames')}
+        Assert-ProductDiscovery $target $discoveryParameters (Join-Path $Directory discovery)
+    }
     if((Get-TargetWorkloadType $target) -eq 'logic-app-event-grid'){Assert-LogicDiscoveryResources $target $p.parameters (Join-Path $Directory discovery)}
     if((Get-ValueHash $manifest.source) -cne (Get-ValueHash $r.discoverySource)){throw 'Preview discovery provenance mismatch.'}
     $stack=Get-Content (Join-Path $Directory stack.json) -Raw|ConvertFrom-Json -AsHashtable
     $template=Get-Content (Join-Path $Directory stack-template.json) -Raw|ConvertFrom-Json -AsHashtable
-    Assert-StackContract $stack $target $template
+    if($naming){
+        $expectedStack=New-StackContract $target $template;Set-NamingPreviewStack $expectedStack $naming
+        if((Get-ValueHash $stack) -cne (Get-ValueHash $expectedStack)){throw 'Naming stack identity mismatch.'}
+    }else{Assert-StackContract $stack $target $template}
     $effective=Get-Content (Join-Path $Directory effective.parameters.json) -Raw|ConvertFrom-Json -AsHashtable
     if((Get-ValueHash $effective) -cne (Get-ValueHash (Get-PreviewParameters $target $p $r.releaseId))){throw 'Preview did not evaluate the full release.'}
     if($env:TF_BUILD -eq 'True' -and ($r.runId -cne $env:BUILD_BUILDID -or $r.sourceCommit -cne $env:BUILD_SOURCEVERSION)){throw 'Preview belongs to a different run or commit.'}
@@ -108,6 +137,7 @@ function Get-WorkloadPreviewFingerprint($Plan) {
 }
 function Assert-PreviewMatchesBundle([string]$PreviewDirectory,$Bundle) {
     $preview=Read-WorkloadPreviewInputs $PreviewDirectory
+    if($preview.receipt.files.Contains('naming-draft.json')){throw 'Named instance drafts are Preview-only; deployment registration is not enabled.'}
     $approved=Get-Content (Join-Path $PreviewDirectory azure/preview-plan.json) -Raw|ConvertFrom-Json -AsHashtable
     if($approved.kind -cne 'full-release-preview' -or $approved.schemaVersion -ne 1 -or $approved.deployable -isnot [bool] -or !$approved.deployable -or $approved.inputHash -cne $preview.hash){throw 'A successful current-run preview is required.'}
     if($approved.fingerprint -cne (Get-WorkloadPreviewFingerprint $approved) -or $approved.sourceCommit -cne $preview.receipt.sourceCommit -or $approved.runId -cne $preview.receipt.runId){throw 'Preview plan integrity failure.'}
@@ -158,6 +188,12 @@ function Write-WorkloadPreviewReadme([string]$Directory,[string]$Status,[string]
     }
     if(Test-Path (Join-Path $Directory target.json)){$t=Get-Content (Join-Path $Directory target.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Workload: $(ConvertTo-PreviewCell (Get-TargetWorkloadType $t)) / $(ConvertTo-PreviewCell $t.workload) / $(ConvertTo-PreviewCell $t.environmentName).","Subscription: $(ConvertTo-PreviewCell $t.subscriptionId). Resource group: $(ConvertTo-PreviewCell $t.resourceGroup).","Deployment enabled: $($t.enabled). Disabled targets can be previewed but cannot deploy.",'')}
     if(Test-Path (Join-Path $Directory cost-estimate.json)){$cost=Get-Content (Join-Path $Directory cost-estimate.json) -Raw|ConvertFrom-Json -AsHashtable;$lines+=@("Cost status: $(ConvertTo-PreviewCell $cost.status). Fixed monthly subtotal USD: $(ConvertTo-PreviewCell $cost['fixedMonthlySubtotalUsd']); usage is additional. See cost-estimate.json.",'')}
+    if(Test-Path (Join-Path $Directory naming-draft.json)){
+        $names=Get-Content (Join-Path $Directory naming-draft.json) -Raw|ConvertFrom-Json -AsHashtable
+        $lines+=@('## Frozen naming candidates (Preview only)','',(ConvertTo-PreviewCell $names.coverage),"Draft SHA-256: $(ConvertTo-PreviewCell $names.draftSha256)",'','| Calculated name | Resource type | Candidate ID |','|---|---|---|')
+        foreach($r in $names.plan.resources){$lines+="| $(ConvertTo-PreviewCell $r.fullName) | $(ConvertTo-PreviewCell $r.armType) | $(ConvertTo-PreviewCell $r.resourceId) |"}
+        $lines+=@('','These are frozen input candidates, not Azure changes. Conditional resources may be absent. Deployment is disabled for named drafts.','')
+    }
     $onboardingPath=Join-Path $Directory onboarding-requirements.json
     if(Test-Path -LiteralPath $onboardingPath){
         $onboarding=Get-Content -LiteralPath $onboardingPath -Raw|ConvertFrom-Json -AsHashtable

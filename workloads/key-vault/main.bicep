@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Reviewed concrete name map for a new standard-v2 instance; null preserves legacy naming. Not yet accepted by self-service deployment requests.')
+param resourceNames ResourceNames?
 param workload string
 @allowed(['dev', 'qa', 'uat', 'prod'])
 param environmentName string
@@ -18,11 +21,11 @@ var stem = '${workload}-${environmentName}'
 var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
 module vault '../../modules/security/key-vault/main.bicep' = {
  name: 'vault'
- params: { name: 'kv-${stem}-${take(uniqueString(resourceGroup().id), 4)}', location: location, tags: tags, workspaceId: existingLogAnalyticsWorkspaceId, readerPrincipalId: readerPrincipalObjectId }
+ params: { name: resourceNames.?vault ?? 'kv-${stem}-${take(uniqueString(resourceGroup().id), 4)}', location: location, tags: tags, workspaceId: existingLogAnalyticsWorkspaceId, readerPrincipalId: readerPrincipalObjectId }
 }
 module endpoint '../../modules/network/private-endpoint/main.bicep' = {
  name: 'pe-vault'
- params: { name: 'pe-${stem}-vault', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: vault.outputs.id, groupIds: ['vault'], privateDnsZoneIds: [privateDnsZoneIds.vault] }
+ params: { name: resourceNames.?vaultEndpoint ?? 'pe-${stem}-vault', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: vault.outputs.id, groupIds: ['vault'], privateDnsZoneIds: [privateDnsZoneIds.vault] }
 }
 
 output vaultName string = vault.outputs.name

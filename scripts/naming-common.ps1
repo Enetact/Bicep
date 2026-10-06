@@ -19,7 +19,7 @@ function Test-StackInstanceRegistry {
 function Invoke-NamingContract {
     [CmdletBinding()]
     param([Parameter(Mandatory)][Collections.IDictionary]$Request,
-          [Parameter(Mandatory)][ValidateSet('cli.mjs','instances-cli.mjs')][string]$EntryPoint)
+          [Parameter(Mandatory)][ValidateSet('cli.mjs','instances-cli.mjs','workload-cli.mjs')][string]$EntryPoint)
     $node=(Get-Command node -ErrorAction Stop).Source
     $start=[Diagnostics.ProcessStartInfo]::new($node)
     $start.ArgumentList.Add((Join-Path $PSScriptRoot "naming/$EntryPoint"))
@@ -43,4 +43,10 @@ function Invoke-NamingContract {
         if($result.Length -gt 8MB){throw 'Naming response exceeds 8 MiB.'}
         return ($result|ConvertFrom-Json -AsHashtable -Depth 30)
     } finally {$process.Dispose()}
+}
+
+function New-WorkloadNamingDraft {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][Collections.IDictionary]$Request)
+    Invoke-NamingContract -Request $Request -EntryPoint 'workload-cli.mjs'
 }

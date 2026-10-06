@@ -13,3 +13,5 @@
 .tag-scroll{overflow:auto;max-height:650px}.tag-table{width:100%;border-collapse:collapse;font-size:.85rem}.tag-table th,.tag-table td{padding:12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border,#ddd);white-space:pre-line}.tag-table small{overflow-wrap:anywhere}.tag-table td p{margin:4px 0}#tag-edits{overflow-wrap:anywhere;margin:20px 0}#agent-tag-advice label{display:block;margin:12px 0}#agent-tag-advice input,.tag-table input{width:auto;margin-right:8px}
 
 #agent-draft-goal{resize:vertical;min-height:100px}
+
+.resource-names{min-width:0;max-width:100%;overflow-wrap:anywhere}.resource-names-scroll{max-width:100%;overflow:auto;max-height:650px}.resource-names table{width:100%;min-width:740px;table-layout:fixed;border-collapse:collapse;font-size:13px}.resource-names th,.resource-names td{padding:12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);white-space:pre-line;overflow-wrap:anywhere}.resource-names th:last-child,.resource-names td:last-child{width:36%}

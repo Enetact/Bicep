@@ -1,0 +1,18 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { digest } from '../../scripts/naming/core.mjs';
+import { discoveryNamingDrafts, draftSummary } from '../../scripts/analysis/naming-drafts.mjs';
+const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url)));
+const policy=read('../../config/naming-policy.json'),catalog=read('../../config/workloads.json'),intent=read('./request.example.json').intent;
+const entry=()=>({workloadType:'private-storage',state:'draft',intent:{...intent}});
+const context={workloadType:'private-storage',environment:'dev',subscriptionId:intent.subscriptionId,inventorySha256:'e'.repeat(64)};
+const run=(entries=[],selection={region:'eastus2'})=>discoveryNamingDrafts({context},{selection},{schemaVersion:1,namingPolicySha256:digest(policy),instances:entries},policy,catalog);
+test('empty registry never invents proposal names',()=>{const r=run();assert.deepEqual(r.drafts,[]);assert.equal(r.deploymentAuthorized,false);assert.match(draftSummary(r),/No proposed names were invented/);});
+test('matching saved scope generates deterministic names and keeps observed hash',()=>{const r=run([entry()]);assert.equal(r.drafts.length,1);assert.equal(r.context.inventorySha256,context.inventorySha256);assert.equal(r.drafts[0].plan.intent.instanceId,intent.instanceId);});
+for(const [field,value]of [['environment','qa'],['subscriptionId','99999999-9999-4999-8999-999999999999']])test(`another ${field} cannot borrow discovery naming`,()=>{const e=entry();e.intent[field]=value;assert.equal(run([e]).drafts.length,0);});
+test('missing or different saved region cannot bind a draft',()=>{assert.equal(run([entry()],{}).drafts.length,0);assert.equal(run([entry()],{region:'westus'}).drafts.length,0);});
+test('another workload draft is not selected',()=>{const e=entry();e.workloadType='key-vault';assert.equal(run([e]).drafts.length,0);});
+test('duplicate registry identities rejected before any artifact is generated',()=>assert.throws(()=>run([entry(),entry()]),/Duplicate/));
+test('AKS source draft now generates a qualified concrete binding map',()=>{const e=entry();e.workloadType='private-aks';const r=discoveryNamingDrafts({context:{...context,workloadType:'private-aks'}},{selection:{region:'eastus2'}},{schemaVersion:1,namingPolicySha256:digest(policy),instances:[e]},policy,catalog);assert.equal(r.drafts.length,1);assert.equal(r.pending.length,0);});
+test('hostile display text remains escaped in generated Markdown',()=>{const e=entry();e.intent.stackDisplayName='<script>|[link](https://evil.test)';const summary=draftSummary(run([e]));assert(!summary.includes('<script>'));assert(!summary.includes('[link]'));});

@@ -1,5 +1,7 @@
 # Shared agentic IaC evidence workflow
 
+**Named Preview evidence:** optional source-registered naming drafts freeze the intended resource group and map before What-If. Portal artifact loading regenerates that draft from the reviewed source, checks its digest and binds the IaC scope. The existing agent evidence projection includes actual full names parsed from validated observed/predicted resource IDs. Candidate names remain separate; AHP advice cannot infer existence, ownership, reachability or Deploy authorization. Live named Preview/agent acceptance remains pending.
+
 [Wiki](README.md) · [Preview and Deploy](deployment-preview.md) · [Agent workflows](agent-workflows.md) · [Recovery boundaries](recovery-rules.md)
 
 Implemented in source on 4 October 2026. The dedicated workload Deploy pipelines now use a common **live before → Azure What-If → observed after** evidence component. The portal renders these phases and can send the exact selected artifact to the existing AHP/Codex agent, using the bundled Microsoft `azure-resource-visualizer` skill. Local tests and an actual installed Azure MCP handshake are verified; a live Azure/ADO/Codex end-to-end run remains a manual acceptance task.

@@ -1,5 +1,7 @@
 # Service Bus worker
 
+**Optional naming / Preview:** this workload accepts the shared typed `resourceNames` map; omission preserves legacy names. All four standard/legacy environment pairs compile locally. Use a source-reviewed instance in the dedicated Deploy menu with Preview only; the map and stack identity are frozen and checked. Existing/shared IDs and application children remain contracts. Named Deploy is blocked. See [setup, generated names and acceptance limits](../../docs/resource-naming.md).
+
 Implemented source offering; all four targets remain disabled pending platform onboarding and live Azure acceptance.
 
 1 private Premium Service Bus namespace and work queue with DLQ/duplicate detection, private .NET 10 Function worker on Linux B1, identity, receipt/host/package storage, 5 private endpoints and diagnostics. Includes an idempotent receipt sample.

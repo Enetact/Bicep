@@ -1,5 +1,9 @@
 # Discovery acceptance and issue log
 
+## 5 October 2026 — local fixes and named Preview validation
+
+D-002 is fixed and all 80 discovery regression cases now execute. D-001 has bounded metadata fallback in both portal collectors, with original DNS failures retained as incomplete evidence; live API health is unresolved. D-003 uses UseNode@1 in shared Discover. D-007 now accepts the observed constrained ADO artifact host pattern, with malicious-host/token-forwarding tests. D-008 passed a real rebuilt-app browser sequence: valid report → tampered input rejection with old report hidden → valid reanalysis with notice cleared. These are local fixes, not a repeat of the historical authenticated acceptance below. The test candidate used port 5099 and isolated cookies; the authenticated primary portal was preserved. See [current validation](../validation.md).
+
 [Wiki](../README.md) · [Current status](../completion-status.md) · [Validation history](../validation.md)
 
 ## 4 October 2026 — authenticated discovery

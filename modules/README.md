@@ -1,5 +1,7 @@
 # Reusable resource modules
 
+The naming increment adds optional concrete names for derived plans, AKS identities/managed groups, Databricks connectors and workload networking. Legacy defaults remain. Workload compositions own the typed maps; generic modules do not recompute naming policy. The 17 compiled module contracts have been regenerated. See [naming](../docs/resource-naming.md).
+
 **AKS/Helm increment — 4 October 2026:** The catalog now includes `compute/private-aks/main.bicep` (17 modules total). Its specialized network/identity profile is excluded from generic AI draft selection; 12 modules remain draft-selectable. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
 
 The [compiler-derived module contracts](../config/bicep-module-contracts.json) inventory all 16 shared Bicep files. The [source-draft workflow](../docs/bicep-source-drafts.md) can compose 12; IPAM reservation stays in its separate governed workflow; the three data-platform modules remain excluded from generic drafts until independently qualified. The [module audit](../docs/plans/bicep-composition-and-module-audit.md) lists current fixed settings, missing identity/access/DNS-link/monitoring modules and parameterization priorities. These planned additions are not implemented merely by appearing in the audit. Run `./scripts/Update-BicepModuleContracts.ps1 -Check` after module changes.

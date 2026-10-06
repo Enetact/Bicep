@@ -1,7 +1,7 @@
 // Pure saved-evidence analysis. No filesystem, Azure, network or process access.
 import { createHash } from 'node:crypto';
 
-export const RULE_VERSION = '1.0.0';
+export const RULE_VERSION = '1.1.0';
 export const MAX_RESOURCES = 5000;
 const kinds = new Map([[1, ['blob-transfer-discovery', 'blob-transfer']], [2, ['workload-discovery', 'logic-app-event-grid']]]);
 const productProviders = {
@@ -35,6 +35,8 @@ function resource(v) {
   return v.toLowerCase();
 }
 function resourceType(id) { const p = id.split('/'); return p.length === 5 ? 'microsoft.resources/resourcegroups' : [p[6], ...p.slice(7).filter((_, i) => i % 2 === 0)].join('/'); }
+
+import { observedNames } from './names.mjs';
 
 export function analyzeDiscovery({ manifest, inventory, inventoryBytes, manifestBytes, workload, environment, evaluatedUtc }) {
   requireValue(object(manifest) && object(inventory), 'Expected manifest and inventory objects.');
@@ -153,7 +155,8 @@ export function analyzeDiscovery({ manifest, inventory, inventoryBytes, manifest
     context: { workloadType: type, workload: instance, environment: env, subscriptionId, generatedUtc, evaluatedUtc: now, manifestSha256: digest(manifestBytes), inventorySha256: digest(inventoryBytes), provenance: 'UnverifiedOffline', scope: 'SavedSubscriptionOnly' },
     status: requiredFailures ? 'blocked' : 'partial', deploymentAuthorized: false,
     coverage, findings,
+    observedNames: observedNames(inventory, id => { const key = resource(id); requireValue(key.split('/')[2] === subscriptionId, 'Resource names outside saved subscription.'); return key; }),
     graph: { nodes: [...nodes.values()].map(n => ({ ...n, states: n.states.sort(), evidenceRefs: n.evidenceRefs.sort() })).sort((a, b) => a.resourceId < b.resourceId ? -1 : a.resourceId > b.resourceId ? 1 : 0), edges: edges.sort((a, b) => a.from + a.to < b.from + b.to ? -1 : a.from + a.to > b.from + b.to ? 1 : 0) },
-    limitations: ['Offline consistency only; no authenticated ADO or live Azure checks.', 'Query completeness and ownership are saved claims, not independent proof.', 'Network/DNS inventory may include shared resources; unrelated ARM catalog resources are omitted.', 'Only resource containment is drawn; DNS resolution, routing, private connectivity and runtime health are unverified.', 'Proposed actions come from saved prerequisites, not a new allocation or permission decision.']
+    limitations: ['Offline consistency only; no authenticated ADO or live Azure checks.', 'Query completeness and ownership are saved claims, not independent proof.', 'Network/DNS inventory may include shared resources; unrelated ARM catalog resources are omitted from the workload graph but retained in the separate collected-name table without any ownership claim.', 'Only resource containment is drawn; DNS resolution, routing, private connectivity and runtime health are unverified.', 'Proposed actions come from saved prerequisites, not a new allocation or permission decision.']
   };
 }

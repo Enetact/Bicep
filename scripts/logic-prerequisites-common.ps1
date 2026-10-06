@@ -1,4 +1,5 @@
 # Resolve prerequisite lifecycle from successful scoped inventory, never from a failed lookup.
+. "$PSScriptRoot/logic-naming-discovery.ps1"
 function Read-LogicPrerequisitePolicy($Target) {
     $path=Join-Path (Get-ProjectRoot) config/logic-prerequisites.json
     if(!(Test-Path -LiteralPath $path)){return $null}
@@ -9,15 +10,26 @@ function Read-LogicPrerequisitePolicy($Target) {
 function Get-LogicZoneNames {
     return [ordered]@{blob='privatelink.blob.core.windows.net';queue='privatelink.queue.core.windows.net';table='privatelink.table.core.windows.net';file='privatelink.file.core.windows.net';sites='privatelink.azurewebsites.net';topic='privatelink.eventgrid.azure.net'}
 }
-function Get-LogicPrerequisiteOwnership($Target) {
+function Get-LogicPrerequisiteOwnership($Target,$NamingDraft=$null) {
     $contract=New-StackContract $Target @{'$schema'='https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#';resources=@()}
+    if($NamingDraft){Set-NamingPreviewStack $contract $NamingDraft}
     $stack=Get-WorkloadStack @{target=$Target;stack=$contract}
     return @{status='Succeeded';stackExists=($null -ne $stack);managedResourceIds=@(if($stack){$stack.properties.resources|ForEach-Object {$_.id}})}
 }
 function Get-LogicPrerequisitePlan($Target,$Inventory,$Policy=(Read-LogicPrerequisitePolicy $Target)) {
+    $Inventory=Get-LogicInventoryView $Target $Inventory
     if(!$Policy){throw 'Configure config/logic-prerequisites.json before resolving prerequisites.'}
     $rg="/subscriptions/$($Target.subscriptionId)/resourceGroups/$($Target.resourceGroup)"
     $stem="$($Target.workload)-$($Target.environmentName)"
+    $vnetName="vnet-$stem";$nsgName="nsg-vnet-$stem-integration";$workspaceName="log-$stem"
+    $integrationName="snet-integration";$endpointName="snet-private-endpoints";$linkName="link-$stem"
+    if($Inventory.Contains('namingDraft')){
+        $current=Get-RegisteredNamingDraft $Target $Inventory.namingDraft.plan.intent.instanceId
+        if((Get-ValueHash $current) -cne (Get-ValueHash $Inventory.namingDraft)){throw 'Named prerequisite source changed; rerun Discover.'}
+        $names=$Inventory.namingDraft.parameterPatch.parameters.resourceNames.value
+        $vnetName=$names.vnet;$nsgName=$names.integrationNsg;$workspaceName=$names.workspace
+        $integrationName=$names.integrationSubnet;$endpointName=$names.endpointSubnet;$linkName=$names.dnsLink
+    }
     $region=if($Target.parameterOverrides.Contains('location')){$Target.parameterOverrides.location}else{'eastus2'}
     $prefixes=$Policy.environments[$Target.environmentName]
     $plan=@{schemaVersion=1;mode='discover-or-create';status='Ready';subscriptionId=$Target.subscriptionId;resourceGroup=$Target.resourceGroup;policyHash=(Get-ValueHash $Policy);selectionHash=(Get-ValueHash $Target);resources=@();blockers=@();bicep=@{};parameters=@{};candidates=@{networks=@($Inventory.networks);privateDnsZones=@($Inventory.privateDnsZones);workspaces=@($Inventory.resources|Where-Object {$_.type -ieq 'Microsoft.OperationalInsights/workspaces'})}}
@@ -27,8 +39,8 @@ function Get-LogicPrerequisitePlan($Target,$Inventory,$Policy=(Read-LogicPrerequ
     if($Inventory.subscription.id -ine $Target.subscriptionId){throw 'Prerequisite inventory subscription mismatch.'}
     $managed=@($Inventory.prerequisiteOwnership.managedResourceIds)
     $overrides=$Target.parameterOverrides
-    $vnetId="$rg/providers/Microsoft.Network/virtualNetworks/vnet-$stem"
-    $integration="$vnetId/subnets/snet-integration";$endpoints="$vnetId/subnets/snet-private-endpoints"
+    $vnetId="$rg/providers/Microsoft.Network/virtualNetworks/$vnetName"
+    $integration="$vnetId/subnets/$integrationName";$endpoints="$vnetId/subnets/$endpointName"
     $explicitNetwork=$overrides.Contains('integrationSubnetId') -or $overrides.Contains('privateEndpointSubnetId')
     if($explicitNetwork){
         if(!$overrides.Contains('integrationSubnetId') -or !$overrides.Contains('privateEndpointSubnetId')){$plan.blockers+='Select both existing subnets together.'}
@@ -57,8 +69,8 @@ function Get-LogicPrerequisitePlan($Target,$Inventory,$Policy=(Read-LogicPrerequ
     }
     foreach($pair in @(@('virtualNetwork',$vnetId),@('integrationSubnet',$integration),@('privateEndpointSubnet',$endpoints))){$plan.resources+=@{kind=$pair[0];id=$pair[1];action=$networkAction;reason=$(if($networkAction -eq 'Create'){'No matching resource in successful scoped inventory.'}elseif($networkAction -eq 'Manage'){'Already owned by this stack; retain its Bicep declaration.'}else{'Existing approved resource; reference without adoption.'})}}
     $createNetwork=$networkAction -in @('Create','Manage')
-    if($createNetwork -and $vnetId -ine "$rg/providers/Microsoft.Network/virtualNetworks/vnet-$stem"){$plan.blockers+='Managed network name does not match this workload.'}
-    if($createNetwork){$plan.resources+=@{kind='integrationNsg';id="$rg/providers/Microsoft.Network/networkSecurityGroups/nsg-vnet-$stem-integration";action=$networkAction;reason='Owned integration subnet network security group.'}}
+    if($createNetwork -and $vnetId -ine "$rg/providers/Microsoft.Network/virtualNetworks/$vnetName"){$plan.blockers+='Managed network name does not match this workload.'}
+    if($createNetwork){$plan.resources+=@{kind='integrationNsg';id="$rg/providers/Microsoft.Network/networkSecurityGroups/$nsgName";action=$networkAction;reason='Owned integration subnet network security group.'}}
     $zones=Get-LogicZoneNames;$zoneIds=@{};$createdZones=@()
     foreach($key in $zones.Keys){
         $expected="$rg/providers/Microsoft.Network/privateDnsZones/$($zones[$key])"
@@ -72,9 +84,9 @@ function Get-LogicPrerequisitePlan($Target,$Inventory,$Policy=(Read-LogicPrerequ
         if($action -eq 'Blocked'){$plan.blockers+="DNS $key is missing, ambiguous or incompatible with the selected scope; never create at an unverified shared ID."}
         $zoneIds[$key]=$id
         $plan.resources+=@{kind="dns.$key";id=$id;action=$action;reason=$(if($action -eq 'Create'){'Absent in successful DNS inventory; create workload-owned zone and link.'}elseif($action -eq 'Manage'){'Retain stack-owned zone and link.'}else{'Reference selected existing zone; verify VNet link before apply.'})}
-        if($action -in @('Create','Manage')){$createdZones+=$zones[$key];$plan.resources+=@{kind="dnsLink.$key";id="$id/virtualNetworkLinks/link-$stem";action=$action;reason='Link owned zone to selected VNet; registration disabled.'}}
+        if($action -in @('Create','Manage')){$createdZones+=$zones[$key];$plan.resources+=@{kind="dnsLink.$key";id="$id/virtualNetworkLinks/$linkName";action=$action;reason='Link owned zone to selected VNet; registration disabled.'}}
     }
-    $expectedWorkspace="$rg/providers/Microsoft.OperationalInsights/workspaces/log-$stem"
+    $expectedWorkspace="$rg/providers/Microsoft.OperationalInsights/workspaces/$workspaceName"
     $explicit=$overrides.Contains('existingLogAnalyticsWorkspaceId')
     $workspace=if($explicit){$overrides.existingLogAnalyticsWorkspaceId}else{$expectedWorkspace}
     $workspaceMatches=@($Inventory.resources|Where-Object {$_.id -ieq $workspace -and $_.type -ieq 'Microsoft.OperationalInsights/workspaces'})
@@ -82,7 +94,8 @@ function Get-LogicPrerequisitePlan($Target,$Inventory,$Policy=(Read-LogicPrerequ
     if($workspace -notmatch ('^/subscriptions/'+[regex]::Escape($Target.subscriptionId)+'/resourceGroups/[^/]+/providers/Microsoft.OperationalInsights/workspaces/[^/]+$') -or ($workspaceMatches.Count -eq 1 -and $workspaceMatches[0].location -ine $region) -or ($action -eq 'Manage' -and $workspace -ine $expectedWorkspace)){$action='Blocked'}
     if($action -eq 'Blocked'){$plan.blockers+='Selected monitoring workspace was not found uniquely in the approved region/scope.'}
     $plan.resources+=@{kind='workspace';id=$workspace;action=$action;reason=$(if($action -eq 'Create'){'No matching workspace; create a workload-owned PerGB2018 workspace with 30-day retention.'}elseif($action -eq 'Manage'){'Retain stack-owned workspace.'}else{'Reference selected existing workspace.'})}
-    $plan.bicep=@{createNetwork=$createNetwork;createWorkspace=($action -in @('Create','Manage'));createDnsZoneNames=@($createdZones);vnetName="vnet-$stem";workspaceName="log-$stem";vnetId=$vnetId;linkName="link-$stem";vnetAddressPrefix=$prefixes.vnetAddressPrefix;integrationSubnetPrefix=$prefixes.integrationSubnetPrefix;privateEndpointSubnetPrefix=$prefixes.privateEndpointSubnetPrefix}
+    $plan.bicep=@{createNetwork=$createNetwork;createWorkspace=($action -in @('Create','Manage'));createDnsZoneNames=@($createdZones);vnetName=$vnetName;workspaceName=$workspaceName;vnetId=$vnetId;linkName=$linkName;vnetAddressPrefix=$prefixes.vnetAddressPrefix;integrationSubnetPrefix=$prefixes.integrationSubnetPrefix;privateEndpointSubnetPrefix=$prefixes.privateEndpointSubnetPrefix}
+    if($Inventory.Contains('namingDraft')){$plan.bicep.integrationNsgName=$nsgName;$plan.bicep.integrationSubnetName=$integrationName;$plan.bicep.privateEndpointSubnetName=$endpointName}
     $plan.parameters=@{integrationSubnetId=$integration;privateEndpointSubnetId=$endpoints;privateDnsZoneIds=$zoneIds;existingLogAnalyticsWorkspaceId=$workspace}
     if($plan.blockers.Count){$plan.status='Blocked'}
     return $plan
@@ -98,6 +111,7 @@ function Test-LogicCidrOverlap([string]$Left,[string]$Right) {
 }
 function Set-LogicDiscoveredPrerequisites($Target,$P,[string]$Directory,[string]$OutputDirectory='') {
     $inventory=Get-Content (Join-Path $Directory inventory.json) -Raw|ConvertFrom-Json -AsHashtable
+    $inventory=Get-LogicInventoryView $Target $inventory
     if(!$inventory.Contains('prerequisitePlan')){return} # Backward-compatible existing-only artifacts.
     $plan=Get-LogicPrerequisitePlan $Target $inventory
     if((Get-ValueHash $plan) -cne (Get-ValueHash $inventory.prerequisitePlan)){throw 'Prerequisite policy/selection changed since discovery; rerun Discover.'}
@@ -110,6 +124,7 @@ function Set-LogicDiscoveredPrerequisites($Target,$P,[string]$Directory,[string]
     $P.prerequisitePlan=@{value=$plan.bicep}
 }
 function Assert-LogicResolvedPrerequisites($Target,$P,$Inventory) {
+    $Inventory=Get-LogicInventoryView $Target $Inventory
     $plan=Get-LogicPrerequisitePlan $Target $Inventory
     if($plan.status -cne 'Ready' -or (Get-ValueHash $plan) -cne (Get-ValueHash $Inventory.prerequisitePlan)){throw 'Saved prerequisite plan is blocked or no longer matches policy.'}
     if((Get-ValueHash $P.prerequisitePlan.value) -cne (Get-ValueHash $plan.bicep)){throw 'Effective prerequisite creation flags differ from discovery.'}

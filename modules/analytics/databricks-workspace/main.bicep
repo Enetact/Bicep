@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 param name string
+param accessConnectorName string = '${name}-access'
+param rootAccessConnectorName string = '${name}-root-access'
 param location string
 param tags object
 param managedResourceGroupName string
@@ -10,14 +12,14 @@ param containerSubnetName string
 param workspaceId string
 
 resource connector 'Microsoft.Databricks/accessConnectors@2023-05-01' = {
-  name: '${name}-access'
+  name: accessConnectorName
   location: location
   tags: tags
   identity: { type: 'SystemAssigned' }
   properties: {}
 }
 resource rootConnector 'Microsoft.Databricks/accessConnectors@2023-05-01' = {
-  name: '${name}-root-access'
+  name: rootAccessConnectorName
   location: location
   tags: tags
   identity: { type: 'SystemAssigned' }

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { analyzeDiscovery, canonical } from '../../scripts/analysis/core.mjs';
+import { analyzeDiscovery, canonical, digest } from '../../scripts/analysis/core.mjs';
 import { renderAnalysis } from '../../scripts/analysis/render.mjs';
 import { fixture, input, at, vnet, subnet, dns, rg } from './fixtures.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -46,7 +46,9 @@ test('managed resource cannot silently become external reuse', () => { const f =
 test('owned Manage preserved', () => { const f = fixture('logic-app-event-grid', true); f.inventory.prerequisiteOwnership.managedResourceIds = [vnet, subnet]; f.inventory.prerequisitePlan.resources.forEach(r => r.action = 'Manage'); const r = analyze(f); assert(r.graph.nodes.filter(n => n.states.includes('Proposed')).every(n => n.action === 'Manage' && n.ownership === 'ReportedOwned')); });
 test('Create contradicting observed existence blocked', () => { const f = fixture('logic-app-event-grid', true); f.inventory.prerequisitePlan.resources[0].action = 'Create'; assert.equal(analyze(f).status, 'blocked'); });
 test('Manage without ownership blocked', () => { const f = fixture('logic-app-event-grid', true); f.inventory.prerequisitePlan.resources[0].action = 'Manage'; assert.equal(analyze(f).status, 'blocked'); });
-test('unrelated ARM resources excluded from workload graph', () => { const f = fixture('logic-app-event-grid'); f.inventory.resources = [{ id: `${rg}/providers/Microsoft.Web/sites/unrelated-app` }]; assert(!canonical(analyze(f)).includes('unrelated-app')); });
+test('collected catalog names remain separate from workload ownership graph', () => { const f = fixture('logic-app-event-grid'); f.inventory.resources = [{ id: `${rg}/providers/Microsoft.Web/sites/unrelated-app` }]; const r=analyze(f); assert(!canonical(r.graph).includes('unrelated-app')); assert(r.observedNames.some(n=>n.name==='unrelated-app')); assert(r.observedNames.every(n=>!Object.hasOwn(n,'ownership'))); });
+test('names retain original ID casing, child scope and deduplicate repeated evidence', () => { const f=fixture('logic-app-event-grid',true); f.inventory.resources=[{id:subnet}]; f.inventory.networks[0].subnets[0].id=subnet.replace('/integration','/Integration'); const r=analyze(f); const n=r.observedNames.filter(n=>n.id.toLowerCase()===subnet.toLowerCase()); assert.equal(n.length,1); assert.equal(n[0].name,'Integration'); assert.equal(n[0].fullName,'vnet-example/Integration'); assert.equal(n[0].parentId,vnet); assert.equal(n[0].evidenceRefs.length,2); });
+test('names artifact generated with frozen context and coverage, never fabricated for empty discovery', () => { const r=analyze(fixture()); const file=JSON.parse(renderAnalysis(r).get('observed-resource-names.json')); assert.deepEqual(file.resources,[]); assert.equal(file.context.inventorySha256,r.context.inventorySha256); assert.deepEqual(file.coverage,r.coverage); assert.equal(file.deploymentAuthorized,false); });
 test('raw errors, credentials and hostile names never copied', () => { const f = fixture('blob-transfer', true); f.inventory.warnings = ['SECRET-CANARY']; f.inventory.privateDnsQuery.error = 'SECRET-CANARY'; f.inventory.networks[0].name = '<script>SECRET-CANARY</script>'; f.inventory.networks[0].connectionString = 'SECRET-CANARY'; const values = [...renderAnalysis(analyze(f)).values()].join(''); assert(!values.includes('SECRET-CANARY')); assert(!values.includes('<script')); });
 test('unsafe resource identifiers rejected', () => { const f = fixture('blob-transfer', true); f.inventory.networks[0].id += '?token=SECRET-CANARY'; assert.throws(() => analyze(f), /identifier/); });
 test('cross-scope resource rejected', () => { const f = fixture('blob-transfer', true); f.inventory.privateDnsZones[0].id = dns.replace('11111111', '22222222'); assert.throws(() => analyze(f), /scope/); });
@@ -59,6 +61,13 @@ test('CLI writes receipt and refuses evidence overwrite', () => {
   fs.writeFileSync(path.join(inp, 'inventory.json'), f.inventoryBytes); fs.writeFileSync(path.join(inp, 'manifest.json'), f.manifestBytes);
   const args = [path.join(root, 'scripts/analysis/cli.mjs'), '--input', inp, '--output', out, '--at', at];
   const run = spawnSync(process.execPath, args, { encoding: 'utf8' }); assert.equal(run.status, 0, run.stderr); assert(fs.existsSync(path.join(out, 'report-manifest.json')));
+  const receipt = JSON.parse(fs.readFileSync(path.join(out, 'report-manifest.json')));
+  for (const name of ['observed-resource-names.json', 'proposed-resource-names.json']) {
+    assert.equal(receipt.files[name], digest(fs.readFileSync(path.join(out, name))));
+  }
+  const proposed = JSON.parse(fs.readFileSync(path.join(out, 'proposed-resource-names.json')));
+  assert.equal(proposed.deploymentAuthorized, false);
+  assert.equal(proposed.context.inventorySha256, digest(f.inventoryBytes));
   const again = spawnSync(process.execPath, args, { encoding: 'utf8' }); assert.equal(again.status, 1); assert(again.stderr.includes('never overwritten'));
 });
 test('CLI hides parser source snippets', () => { const inp = path.join(directory, 'bad-input'); fs.mkdirSync(inp); fs.writeFileSync(path.join(inp, 'inventory.json'), '{SECRET-CANARY'); const run = spawnSync(process.execPath, [path.join(root, 'scripts/analysis/cli.mjs'), '--input', inp, '--output', path.join(directory, 'bad-output')], { encoding: 'utf8' }); assert.equal(run.status, 1); assert(!run.stderr.includes('SECRET-CANARY')); assert(!fs.existsSync(path.join(directory, 'bad-output'))); });

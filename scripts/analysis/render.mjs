@@ -7,6 +7,7 @@ const label = n => `${n.label} | ${n.states.join('+')} | ${n.action}`;
 export function renderAnalysis(report) {
   const files = new Map();
   files.set('analysis.json', canonical(report) + '\n');
+  files.set('observed-resource-names.json', canonical({ schema: 'platform.observed-resource-names/v1', context: report.context, coverage: report.coverage, resources: report.observedNames, deploymentAuthorized: false }) + '\n');
   const nodes = report.graph.nodes;
   const lines = ['# Self-service saved-evidence analysis', '', `Workload: **${md(report.context.workload)} / ${md(report.context.environment)}** (${report.context.workloadType}).`, '',
     `Assessment: **${report.status}**. Provenance: **UnverifiedOffline**. **This report does not authorize deployment.**`, '',
@@ -35,7 +36,10 @@ export function renderAnalysis(report) {
     }
     svg.push('</svg>'); files.set(`topology-${number}.svg`, svg.join('\n') + '\n');
   }
-  lines.push('## Findings', '', '| Rule | Outcome | Required | Explanation |', '|---|---|---|---|', ...report.findings.map(f => `| ${md(f.ruleId)} | ${f.outcome} | ${f.required} | ${md(f.message)} |`), '', '## Limits and next step', '', ...report.limitations.map(l => `- ${l}`), '', 'Use the existing Deploy Preview and authenticated discovery handoff for deployment decisions. Correct blockers and collect missing evidence; do not use this report as a substitute for approval.', '');
+  lines.push('## Resource names generated from this discovery', '', 'These names are parsed from the collected resource IDs, with original casing and parent context. No proposed name or creation decision is inferred from absence. Collection coverage above still applies.', '',
+    '| Observed name | Type | Parent | Resource ID |', '|---|---|---|---|',
+    ...report.observedNames.map(r => `| ${md(r.fullName)} | ${md(r.type)} | ${md(r.parentId)} | ${md(r.id)} |`), '',
+    '## Findings', '', '| Rule | Outcome | Required | Explanation |', '|---|---|---|---|', ...report.findings.map(f => `| ${md(f.ruleId)} | ${f.outcome} | ${f.required} | ${md(f.message)} |`), '', '## Limits and next step', '', ...report.limitations.map(l => `- ${l}`), '', 'Use the existing Deploy Preview and authenticated discovery handoff for deployment decisions. Correct blockers and collect missing evidence; do not use this report as a substitute for approval.', '');
   files.set('README.md', lines.join('\n'));
   return files;
 }

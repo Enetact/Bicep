@@ -1,6 +1,6 @@
 # Self-service expansion and enhancement plan
 
-**4 October 2026 — stack naming and named previews:** [the cross-application design](plans/stack-naming-and-resource-previews.md) records the authorized N1–N8 sequence. N1 has a tested [offline naming foundation](resource-naming.md), and N2 has a tested non-executable draft-instance contract with collision and checked-transition guards. Full workload bindings, target/instance registration, Bicep/ADO propagation, portal naming views and authenticated restart remain open. No deployment or existing-resource rename is authorized by this increment.
+**5 October 2026 — named Preview delivered locally:** all nine optional name maps, source-registry Preview selection, frozen integrity checks, generated names and bounded browser checks are implemented. Named Deploy, portal registration, immutable-transition CI enforcement, restart handoff and live acceptance remain future gates. See [the phase plan](plans/stack-naming-and-resource-previews.md). No saved evidence is backfilled.
 
 **4 October 2026 — local authentication:** the portal now offers a local Azure CLI browser sign-in button, isolated credential cache, separate Azure/ADO audiences and returned-tenant discovery. Registered-app authentication remains available. This removes the custom-registration prerequisite for local CLI users; live tenant/ADO acceptance and operation-specific onboarding remain open. See [setup and limits](local-portal.md#configure-microsoft-browser-sign-in).
 

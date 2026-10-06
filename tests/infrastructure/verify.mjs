@@ -236,7 +236,7 @@ for(const [type,definition] of Object.entries(json('config/workloads.json').work
     assert.equal(specific.extends.template,'pipelines/deploy-entry.yml');assert.equal(specific.extends.parameters.workloadType,type);
     assert.equal(specific.resources.pipelines[0].source,json('self-service/pipeline-settings.json').workloadDiscoveryPipelineNames[type]);
     assert.equal(specific.resources.pipelines[0].trigger,'none');assert.equal(specific.resources.pipelines[0].branch,'refs/heads/main');
-    const supplied=substitute(specific.extends.parameters,bind(specific,{}));assert.deepEqual(Object.keys(supplied).sort(),['workloadType','workloadName','environment','region','discoveryPipelineId','discoveryRunId','executionMode'].sort());
+    const supplied=substitute(specific.extends.parameters,bind(specific,{}));assert.deepEqual(Object.keys(supplied).sort(),['workloadType','workloadName','environment','region','discoveryPipelineId','discoveryRunId','executionMode','namingInstanceId'].sort());
     assert.throws(()=>expand(deployFile,{workloadName:type==='blob-transfer'?'eventflow':'blobcopy'}),/Disallowed value/);
   });
   for(const target of targets.filter(t=>(t.workloadType||'blob-transfer')===type)){
@@ -306,6 +306,12 @@ check('Helm Apply consumes only current-run Preview under the matching protected
     const steps=deploy.jobs[0].strategy.runOnce.deploy.steps;assert(steps.some(s=>s.download==='current'&&s.artifact==='helm-preview'));
     assert(steps.some(s=>s.inputs?.inlineScript?.includes('-Mode Deploy')));
   }
+});
+check('offline analysis schema covers every registered workload',()=>assert.deepEqual(json('schemas/analysis/offline-analysis.schema.json').properties.context.properties.workloadType.enum.sort(),Object.keys(json('config/workloads.json').workloads).sort()));
+check('named Preview cannot select Deploy in the shared template',()=>{
+  const template=read('pipelines/templates/self-service-two-stage.yml');
+  assert(template.includes('$env:NAMING_INSTANCE_ID')&&template.includes('$env:EXECUTION_MODE'));
+  assert(template.includes('Named instance drafts are Preview-only'));
 });
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');

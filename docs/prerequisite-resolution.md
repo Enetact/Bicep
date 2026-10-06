@@ -1,5 +1,7 @@
 # Discover, reuse or create Event flow prerequisites
 
+**5 October 2026:** new Discover runs generate observed names and matching source-reviewed naming drafts. Event flow also reads separate ownership and prerequisite plans for named instances in the selected scope; policy/identity changes require fresh Discover. Portal DNS inventory and DNS/drift have a bounded ARM metadata fallback that retains failed direct DNS coverage. Successful metadata recovery does not prove records, links or resolution. See [naming integration](resource-naming.md).
+
 Event flow now resolves networking, private DNS and Log Analytics from the selected subscription's saved discovery. Discovery reads Azure; the conditional Bicep modules create missing prerequisites only when Deploy applies the workload Deployment Stack. This applies to `logic-app-event-grid`; Blob copy retains its existing network-profile behavior.
 
 ## Decisions saved with discovery

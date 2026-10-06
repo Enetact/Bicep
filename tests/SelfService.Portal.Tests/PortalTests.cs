@@ -16,6 +16,21 @@ public sealed class PortalTests
     }
     static PortalOptions Options() => new() { RepositoryRoot = Root() };
     static RunRequest Request(string op = "preview") => new("blobcopy", "dev", "eastus2", op, 91);
+    [Fact] public void CandidateBuildCookiesDoNotOverwriteTheAuthenticatedDefaultPortal()
+    {
+        using var primary=new Sessions(new(){Port=5087});using var candidate=new Sessions(new(){Port=5099});
+        var first=new Microsoft.AspNetCore.Http.DefaultHttpContext();primary.Get(first);
+        var second=new Microsoft.AspNetCore.Http.DefaultHttpContext();candidate.Get(second);
+        Assert.StartsWith("portal-session=",first.Response.Headers.SetCookie.ToString());
+        Assert.StartsWith("portal-session-5099=",second.Response.Headers.SetCookie.ToString());
+    }
+    [Fact] public void UnregisteredNamedDraftCannotBeSubmittedOrUsedForDiscovery()
+    {
+        var catalog=new Catalog(Options());
+        Assert.Throws<PortalException>(()=>catalog.Validate(Request() with{NamingInstanceId=Guid.NewGuid().ToString()}));
+        Assert.Throws<PortalException>(()=>catalog.Validate(Request("discover") with{NamingInstanceId=Guid.NewGuid().ToString()}));
+        Assert.DoesNotContain("namingInstanceId",JsonSerializer.Serialize(catalog.Payload(Request())));
+    }
     [Fact] public void RecoveryMetadataCoversProductsWithoutAuthorizingExecution()
     {
         var catalog = new Catalog(Options()); var rules = catalog.RecoveryPolicies;

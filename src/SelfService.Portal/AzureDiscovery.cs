@@ -58,6 +58,14 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
                 collections.Add(await Collect(token, item.Item1, $"{scope}/providers/Microsoft.Network/{item.Item2}?api-version={item.Item3}", [], timeout.Token));
             // DNS links are child resources: absent/denied reads must remain explicit evidence.
             var zones = collections.Single(c => c.Name == "Private DNS zones");
+            if (zones.Status is not ("Succeeded" or "SucceededEmpty"))
+            {
+                var inventory = collections[0];
+                var recovered = DnsInventoryFallback.Zones(inventory.Resources.Select(r => JsonSerializer.SerializeToElement(r)), subscription);
+                collections.Add(new("Private DNS zone metadata (ARM inventory fallback)", inventory.Status, inventory.Pages, recovered.Length,
+                    DnsInventoryFallback.Limitation + " " + inventory.Issue, recovered.Cast<object>().ToArray()));
+                zones = zones with { Resources = zones.Resources.Concat(recovered.Cast<object>()).DistinctBy(r => Text(JsonSerializer.SerializeToElement(r), "id"), StringComparer.OrdinalIgnoreCase).ToArray() };
+            }
             foreach (var zone in zones.Resources.Take(50))
             {
                 var zoneId = Text(JsonSerializer.SerializeToElement(zone), "id");

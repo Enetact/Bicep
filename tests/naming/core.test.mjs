@@ -70,7 +70,9 @@ test('source inventory covers declared ARM types and inline review locations exi
   for (const x of data.inlineAndServiceContracts) assert(fs.existsSync(new URL('../../' + x.file, import.meta.url)));
   const nodeGroup = data.inlineAndServiceContracts.find(x => x.field === 'properties.nodeResourceGroup');
   assert.equal(nodeGroup.classification, 'explicitManagedScope');
-  assert.match(fs.readFileSync(new URL('../../' + nodeGroup.file, import.meta.url), 'utf8'), /nodeResourceGroup:\s*'\$\{resourceGroup\(\)\.name\}-aks-managed'/);
+  const module = fs.readFileSync(new URL('../../' + nodeGroup.file, import.meta.url), 'utf8');
+  assert.match(module, /param nodeResourceGroupName string = '\$\{resourceGroup\(\)\.name\}-aks-managed'/);
+  assert.match(module, /nodeResourceGroup:\s*nodeResourceGroupName/);
 });
 test('every convention profile resolves a legal representative name', () => {
   for (const [type, rule] of Object.entries(policy.rules).filter(([, r]) => r.classification === 'convention')) {

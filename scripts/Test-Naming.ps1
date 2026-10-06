@@ -3,7 +3,7 @@
 param()
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
-& node --test (Join-Path $root 'tests/naming/core.test.mjs') (Join-Path $root 'tests/naming/instances.test.mjs')
+& node --test (Join-Path $root 'tests/naming/core.test.mjs') (Join-Path $root 'tests/naming/instances.test.mjs') (Join-Path $root 'tests/naming/workload.test.mjs') (Join-Path $root 'tests/naming/discovery-drafts.test.mjs')
 if($LASTEXITCODE -ne 0){throw 'Naming core/CLI tests failed.'}
 . (Join-Path $PSScriptRoot 'naming-common.ps1')
 $request=Get-Content (Join-Path $root 'tests/naming/request.example.json') -Raw|ConvertFrom-Json -AsHashtable

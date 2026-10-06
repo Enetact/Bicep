@@ -1,4 +1,7 @@
 targetScope = 'resourceGroup'
+import { ResourceNames } from './naming.bicep'
+@description('Reviewed concrete name map for a new standard-v2 instance; null preserves legacy naming. Not yet accepted by self-service deployment requests.')
+param resourceNames ResourceNames?
 param workload string
 @allowed(['dev', 'qa', 'uat', 'prod'])
 param environmentName string
@@ -16,7 +19,7 @@ param privateDnsZoneIds object
 param consumerPrincipalObjectId string
 var stem = '${workload}-${environmentName}'
 var tags = union(customTags, { workload: workload, environment: environmentName, owner: owner, costCenter: costCenter, releaseActivated: string(releaseActivated), deploymentPrincipal: deploymentPrincipalObjectId })
-var storageName = 'st${workload}${environmentName}${take(uniqueString(subscription().id, resourceGroup().id), 6)}'
+var storageName = resourceNames.?storage ?? 'st${workload}${environmentName}${take(uniqueString(subscription().id, resourceGroup().id), 6)}'
 module storage '../../modules/storage/storage-account/main.bicep' = {
  name: 'storage'
  params: { name: storageName, location: location, tags: tags, skuName: environmentName == 'prod' ? 'Standard_ZRS' : 'Standard_LRS', containers: ['workspace'], queueNames: ['work'], workspaceId: existingLogAnalyticsWorkspaceId }
@@ -36,7 +39,7 @@ resource queueAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 module storageEndpoints '../../modules/network/private-endpoint/main.bicep' = [for service in ['blob', 'queue']: {
  name: 'pe-${service}'
- params: { name: 'pe-${stem}-${service}', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: storage.outputs.id, groupIds: [service], privateDnsZoneIds: [privateDnsZoneIds[service]] }
+ params: { name: (service == 'blob' ? resourceNames.?blobEndpoint : resourceNames.?queueEndpoint) ?? 'pe-${stem}-${service}', location: location, tags: tags, subnetId: privateEndpointSubnetId, targetResourceId: storage.outputs.id, groupIds: [service], privateDnsZoneIds: [privateDnsZoneIds[service]] }
 }]
 
 output storageAccountName string = storage.outputs.name

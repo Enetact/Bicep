@@ -87,6 +87,19 @@ public sealed class AzureDiscoveryTests
         var vnet = report.GetProperty("collections")[1].GetProperty("resources")[0]; Assert.StartsWith("Unknown", vnet.GetProperty("subnetsEvidence").GetString());
         Assert.DoesNotContain("SECRET", report.GetRawText());
     }
+    [Theory][InlineData("dnsFallbackEmpty", 0)][InlineData("dnsFallbackNonempty", 1)]
+    public async Task DnsFallbackRecoversMetadataButNeverHidesProviderFailure(string scenario, int count)
+    {
+        var (service, _, session) = Service(scenario);
+        var report = Json(await service.Discover(session, Request("azure--azure-resource-visualizer"), CancellationToken.None));
+        Assert.Equal("Partial", report.GetProperty("status").GetString());
+        var collections = report.GetProperty("collections").EnumerateArray().ToArray();
+        Assert.Equal("Failed", collections.Single(c => c.GetProperty("name").GetString() == "Private DNS zones").GetProperty("status").GetString());
+        var fallback = collections.Single(c => c.GetProperty("name").GetString()!.Contains("fallback"));
+        Assert.Equal(count, fallback.GetProperty("resources").GetArrayLength());
+        Assert.Contains("identities only", fallback.GetProperty("issue").GetString());
+        Assert.DoesNotContain("SECRET", report.GetRawText());
+    }
     sealed class Handler(string scenario) : HttpMessageHandler
     {
         public List<string> Requests = [];
@@ -98,6 +111,9 @@ public sealed class AzureDiscoveryTests
                 return Task.FromResult(new HttpResponseMessage(scenario == "notFound" ? HttpStatusCode.NotFound : HttpStatusCode.Forbidden) { Content = new StringContent("SECRET upstream diagnostics") });
             if (scenario == "invalidJson") return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("SECRET invalid JSON") });
             object Resource(string type) => new { id = $"/subscriptions/{Subscription}/resourceGroups/example/providers/{type}/example", type, name = "example", location = "eastus2", tags = new { password = "SECRET" }, properties = new { connectionString = "SECRET" } };
+            if (scenario.StartsWith("dnsFallback") && request.RequestUri.AbsolutePath.EndsWith("/privateDnsZones"))
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
+            if (scenario.StartsWith("dnsFallback")) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { value = scenario == "dnsFallbackNonempty" && request.RequestUri.AbsolutePath.EndsWith("/resources") ? new[] { Resource("Microsoft.Network/privateDnsZones") } : Array.Empty<object>() }) });
             if (scenario == "invalidSchema") value = new { error = "SECRET" };
             else if (scenario == "outOfScope") value = new { value = new[] { new { id = "/subscriptions/other/resourceGroups/foreign", type = "Microsoft.Storage/storageAccounts" } } };
             else if (scenario == "network") value = new { value = request.RequestUri.AbsolutePath.EndsWith("virtualNetworks") ? new[] { Resource("Microsoft.Network/virtualNetworks") } : Array.Empty<object>() };

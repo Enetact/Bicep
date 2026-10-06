@@ -36,7 +36,9 @@
       "globalNamespace": false,
       "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
       "roles": {
-        "primary": "p"
+        "primary": "p",
+        "nodes": "nodes",
+        "databricks": "databricks"
       }
     },
     "Microsoft.Resources/deploymentStacks": {
@@ -128,7 +130,22 @@
         "databricks": "k",
         "datafactory": "y",
         "adfportal": "z",
-        "integration": "i"
+        "integration": "i",
+        "root-blob": "rootblob",
+        "root-dfs": "rootdfs",
+        "runtime-blob": "runtimeblob",
+        "runtime-queue": "runtimequeue",
+        "runtime-table": "runtimetable",
+        "runtime-file": "runtimefile",
+        "event-blob": "eventblob",
+        "event-queue": "eventqueue",
+        "host-blob": "hostblob",
+        "host-queue": "hostqueue",
+        "host-table": "hosttable",
+        "upload-blob": "uploadblob",
+        "upload-queue": "uploadqueue",
+        "destination-blob": "destinationblob",
+        "destination-dfs": "destinationdfs"
       }
     },
     "Microsoft.Network/privateDnsZones/virtualNetworkLinks": {
@@ -220,7 +237,10 @@
         "databricks": "k",
         "datafactory": "y",
         "adfportal": "z",
-        "integration": "i"
+        "integration": "i",
+        "delivery": "delivery",
+        "deadletter": "deadletter",
+        "backlog": "backlog"
       }
     },
     "Microsoft.Insights/scheduledQueryRules": {
@@ -252,7 +272,11 @@
         "databricks": "k",
         "datafactory": "y",
         "adfportal": "z",
-        "integration": "i"
+        "integration": "i",
+        "failures": "failures",
+        "quarantine": "quarantine",
+        "review": "review",
+        "heartbeat": "heartbeat"
       }
     },
     "Microsoft.Web/serverfarms": {
@@ -440,7 +464,9 @@
         "source": "s",
         "lake": "l",
         "package": "k",
-        "receipts": "r"
+        "receipts": "r",
+        "root": "d",
+        "upload": "u"
       }
     },
     "Microsoft.ContainerService/managedClusters": {
