@@ -131,6 +131,74 @@ public sealed class AzureCliIdentity(PortalOptions options, IAzureCliRunner runn
 {
     public bool Available => runner.Available;
     static string Resource(string audience) => audience switch { "azure" => "https://management.azure.com/", "ado" => "499b84ac-1321-427f-aa17-267ca6975798", _ => throw new PortalException("Unknown sign-in service.") };
+    // The restart handoff supplies only this portal's protected, verified cache.
+    // Restoring files is not authentication: attach audiences only after fresh CLI
+    // account/token checks. Browser state and token dictionaries are never restored.
+    public async Task Resume(BrowserSession s, IReadOnlyDictionary<string, byte[]> files)
+    {
+        if (!await s.Gate.WaitAsync(0)) throw new PortalException("Another session action is in progress.", 409);
+        LocalCliSession? cli = null;
+        var cliHeld = false;
+        try
+        {
+            if (s.Cli is not null || s.Account is not null || !s.Connected.IsEmpty || s.AzureTenantId is not null)
+                throw new PortalException("Disconnect Microsoft before restoring a saved sign-in.", 409);
+            if (!Available) throw new PortalException("Install Microsoft Azure CLI and restart the portal, then retry local authentication.", 409);
+            var names = new[] { "azureProfile.json", "msal_token_cache.bin", "msal_http_cache.bin" };
+            if (files is null || files.Count is < 2 or > 3 || !files.ContainsKey(names[0]) || !files.ContainsKey(names[1]) ||
+                files.Keys.Any(k => !names.Contains(k, StringComparer.Ordinal)) ||
+                files.Values.Any(v => v is null || v.Length is <= 0 or > 8 * 1024 * 1024) || files.Values.Sum(v => (long)v.Length) > 16 * 1024 * 1024)
+                throw new PortalException("Saved Microsoft authentication files are incomplete or outside the supported limits.", 409);
+            var profile = files["azureProfile.json"].AsMemory();
+            if (profile.Span.StartsWith(new byte[] { 0xef, 0xbb, 0xbf })) profile = profile[3..];
+            using var document = JsonDocument.Parse(profile);
+            var defaults = document.RootElement.GetProperty("subscriptions").EnumerateArray()
+                .Where(a => a.TryGetProperty("isDefault", out var selected) && selected.ValueKind == JsonValueKind.True).ToArray();
+            if (defaults.Length != 1) throw new PortalException("Saved Microsoft authentication has no unambiguous selected account.", 401);
+            var expected = AccountValue(defaults[0]);
+            if (!string.IsNullOrWhiteSpace(options.TenantId) && (!Guid.TryParse(options.TenantId, out var configuredTenant) || configuredTenant.ToString() != expected.Tenant))
+                throw new PortalException("Saved Microsoft authentication does not match the configured tenant. Reconnect Microsoft.", 401);
+            cli = new LocalCliSession(options.RepositoryRoot);
+            s.ClearMicrosoftEvidence(); s.Cli = cli; s.State = "Checking saved Microsoft sign-in"; s.Error = null;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cli.Lifetime.Token); timeout.CancelAfter(TimeSpan.FromSeconds(90));
+            await cli.Gate.WaitAsync(timeout.Token); cliHeld = true;
+            foreach (var (name, bytes) in files) await File.WriteAllBytesAsync(Path.Combine(cli.DirectoryPath, name), bytes, timeout.Token);
+            var account = await Account(cli, timeout.Token);
+            if (account.Tenant != expected.Tenant || account.Id != expected.Id) throw new PortalException("Saved Microsoft account or tenant changed. Reconnect Microsoft.", 401);
+            cli.TenantId = account.Tenant; cli.Username = account.Name; cli.AccountId = account.Id;
+            var restored = new List<string>();
+            foreach (var audience in new[] { "azure", "ado" })
+            {
+                try { _ = await Acquire(cli, audience, timeout.Token); restored.Add(audience); }
+                catch (OperationCanceledException) { throw; }
+                catch { /* One audience may need consent; independently verify the other. */ }
+            }
+            var final = await Account(cli, timeout.Token);
+            if (final.Tenant != expected.Tenant || final.Id != expected.Id || restored.Count == 0)
+                throw new PortalException("Saved Microsoft sign-in could not be restored. Reconnect Microsoft.", 401);
+            timeout.Token.ThrowIfCancellationRequested();
+            s.AzureTenantId = account.Tenant;
+            foreach (var audience in restored) s.Connected[audience] = true;
+            s.State = "Connected";
+            s.Error = restored.Count == 2 ? null : restored.Contains("azure")
+                ? "Azure is restored. Connect Azure DevOps to renew its access."
+                : "Azure DevOps is restored. Connect Azure to renew its access.";
+        }
+        catch (Exception error)
+        {
+            if (cli is not null)
+            {
+                s.Cli = null; s.AzureTenantId = null; s.Connected.Clear();
+                if (cliHeld) { cli.Gate.Release(); cliHeld = false; }
+                try { await cli.DisposeAsync(); }
+                catch { s.State = "Renewal required"; s.Error = "Saved Microsoft authentication cleanup failed. Stop the portal before retrying."; throw new PortalException(s.Error, 409); }
+                s.State = "Renewal required"; s.Error = "Saved Microsoft sign-in needs renewal. Reconnect Microsoft.";
+            }
+            if (cli is null && error is PortalException portal) throw portal;
+            throw new PortalException("Saved Microsoft sign-in could not be restored. Reconnect Microsoft.", 401);
+        }
+        finally { if (cliHeld) cli!.Gate.Release(); s.Gate.Release(); }
+    }
     public void Begin(BrowserSession s, string audience, string? tenant)
     {
         _ = Resource(audience);
@@ -187,6 +255,10 @@ public sealed class AzureCliIdentity(PortalOptions options, IAzureCliRunner runn
     async Task<(string Tenant, string Name, string Id)> Account(LocalCliSession cli, CancellationToken ct)
     {
         var value = await runner.Run(cli.DirectoryPath, ["account", "show", "--output", "json", "--only-show-errors"], ct);
+        return AccountValue(value);
+    }
+    static (string Tenant, string Name, string Id) AccountValue(JsonElement value)
+    {
         var tenant = value.GetProperty("tenantId").GetString(); var user = value.GetProperty("user");
         if (!Guid.TryParse(tenant, out var parsed) || value.GetProperty("environmentName").GetString() != "AzureCloud" || user.GetProperty("type").GetString() != "user")
             throw new PortalException("Use an interactive Microsoft user in Azure public cloud for local authentication.", 401);

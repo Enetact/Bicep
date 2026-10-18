@@ -8,6 +8,21 @@ namespace SelfService.Portal.Tests;
 
 public sealed class GitHubIdentityTests
 {
+    [Fact] public async Task RestartResumeRevalidatesExistingCredentialWithoutInteractiveLogin()
+    {
+        var runner = new Runner(); var handler = new Handler(); var identity = new GitHubIdentity(new(handler), runner);
+        using var session = new BrowserSession(new()); await identity.Resume(session, CancellationToken.None);
+        Assert.Equal(new[] { GitHubCommand.Token }, runner.Commands); Assert.Equal(1, handler.Calls);
+        Assert.True(Status(identity, session).GetProperty("connected").GetBoolean());
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(session, CancellationToken.None));
+    }
+    [Fact] public async Task RestartResumeRejectsUnverifiedCredential()
+    {
+        var runner = new Runner(); var handler = new Handler { Status = HttpStatusCode.Unauthorized }; var identity = new GitHubIdentity(new(handler), runner);
+        using var session = new BrowserSession(new());
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(session, CancellationToken.None));
+        Assert.False(Status(identity, session).GetProperty("connected").GetBoolean()); Assert.DoesNotContain(GitHubCommand.Login, runner.Commands);
+    }
     sealed class Runner : IGitHubCliRunner
     {
         public bool Available { get; set; } = true;

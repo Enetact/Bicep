@@ -1,5 +1,7 @@
 # Platform Studio wiki
 
+For a fresh local rebuild that preserves eligible sign-ins, use [the protected restart script and recovery guide](portal-fresh-restart.md).
+
 [Repository home](../README.md) · [Getting started](getting-started.md) · [Platform overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Status](completion-status.md)
 
 The reference for developing, operating and extending Platform Studio. This wiki lives in the repository so documentation and implementation can be reviewed in the same pull request. It does not require a separate GitHub Wiki repository or publishing service.
@@ -20,6 +22,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Inspect nested properties and unresolved What-If evidence | [Nested discovery and qualification](nested-iac-evidence.md) |
 | Discover networks and explain topology | [Network discovery](network-discovery-and-diagrams.md) → [Diagrams](portal-diagrams.md) → [Agent workflows](agent-workflows.md) |
 | Connect Azure Bicep, Azure, ADO, GitHub and Learn tools for orchestration | [MCP providers, credentials and exact plans](provider-mcp.md) → [Agent workflows](agent-workflows.md) |
+| Verify parameterized AVM generation through AHP and Codex without deployment | [End-to-end results, fixes and offline checks](avm-end-to-end-validation.md) |
 | Analyze or change tags | [Tag governance](tag-governance.md) → [Permissions](security-and-rbac.md) |
 | Analyze DNS and compare observed/desired properties | [DNS and drift workspace](operations-workflows.md) → [Phased operations plan](plans/operations-workflow-suite.md) |
 | Understand recovery | [Recovery rules](recovery-rules.md) → [State and recovery plan](plans/deployment-state-and-recovery.md) |

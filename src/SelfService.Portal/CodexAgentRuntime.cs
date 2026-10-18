@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 
@@ -53,20 +55,83 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         }
         return null;
     }
-    public static async Task<CodexAgentRuntime> Start(PortalOptions options, CancellationToken ct)
+    public static void ValidateRestoredAuthentication(byte[] authentication)
     {
-        var exe = FindExecutable(options.CodexPath) ?? throw new PortalException("Install Codex CLI or configure Portal:CodexPath to its native codex.exe. See the agent workflows guide.", 409);
-        var home = Path.Combine(options.RepositoryRoot, ".local", "portal", "agents", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(home);
-        // New per-browser home: do not copy desktop auth or inherit desktop plugins, MCP servers or hooks.
-        await File.WriteAllTextAsync(Path.Combine(home, "config.toml"), AgentPolicy.BootstrapConfiguration, ct);
-        var start = new ProcessStartInfo(exe) { WorkingDirectory = home, UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
-        start.ArgumentList.Add("app-server"); start.ArgumentList.Add("--listen"); start.ArgumentList.Add("stdio://");
-        ConfigureEnvironment(start.Environment, home);
-        var runtime = new CodexAgentRuntime(Process.Start(start) ?? throw new PortalException("Codex could not start.", 503), home);
         try
         {
+            if (authentication.Length is <= 0 or > 64 * 1024) throw new InvalidOperationException();
+            using var document = JsonDocument.Parse(authentication, new JsonDocumentOptions { MaxDepth = 8 });
+            var auth = document.RootElement;
+            if (auth.ValueKind != JsonValueKind.Object ||
+                auth.TryGetProperty("auth_mode", out var mode) && (mode.ValueKind != JsonValueKind.String || mode.GetString() != "chatgpt") ||
+                auth.TryGetProperty("OPENAI_API_KEY", out var key) && key.ValueKind != JsonValueKind.Null ||
+                !auth.TryGetProperty("tokens", out var tokens) || tokens.ValueKind != JsonValueKind.Object)
+                throw new InvalidOperationException();
+            foreach (var name in new[] { "id_token", "access_token", "refresh_token" })
+                if (!tokens.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
+                    throw new InvalidOperationException();
+            void Unique(JsonElement element)
+            {
+                if (element.ValueKind == JsonValueKind.Object)
+                {
+                    var names = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        if (!names.Add(property.Name)) throw new InvalidOperationException();
+                        Unique(property.Value);
+                    }
+                }
+                else if (element.ValueKind == JsonValueKind.Array) foreach (var value in element.EnumerateArray()) Unique(value);
+            }
+            Unique(auth);
+        }
+        catch { throw new PortalException("Saved Codex authentication is invalid or unsupported. Connect Codex again.", 409); }
+    }
+    // Restore only a host-supplied credential cache. Configuration and tool policy are always rebuilt.
+    public static string PrepareHome(PortalOptions options, byte[]? restoredAuthentication = null)
+    {
+        if (restoredAuthentication is not null) ValidateRestoredAuthentication(restoredAuthentication);
+        var root = Path.GetFullPath(Path.Combine(options.RepositoryRoot, ".local", "portal", "agents"));
+        for (var parent = new DirectoryInfo(root); parent is not null; parent = parent.Parent)
+            if (parent.Exists && parent.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                throw new PortalException("Codex runtime home cannot use a linked directory.", 409);
+        var home = Path.Combine(root, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(home);
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var acl = new DirectorySecurity(); acl.SetAccessRuleProtection(true, false);
+                foreach (var sid in new[] { WindowsIdentity.GetCurrent().User!, new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null) })
+                    acl.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                new DirectoryInfo(home).SetAccessControl(acl);
+            }
+            else File.SetUnixFileMode(home, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            File.WriteAllText(Path.Combine(home, "config.toml"), AgentPolicy.BootstrapConfiguration, new UTF8Encoding(false));
+            if (restoredAuthentication is not null) File.WriteAllBytes(Path.Combine(home, "auth.json"), restoredAuthentication);
+            return home;
+        }
+        catch
+        {
+            File.Delete(Path.Combine(home, "auth.json"));
+            throw;
+        }
+    }
+    public static async Task<CodexAgentRuntime> Start(PortalOptions options, CancellationToken ct, byte[]? restoredAuthentication = null)
+    {
+        var exe = FindExecutable(options.CodexPath) ?? throw new PortalException("Install Codex CLI or configure Portal:CodexPath to its native codex.exe. See the agent workflows guide.", 409);
+        ct.ThrowIfCancellationRequested();
+        // New per-browser home: never copy desktop configuration, plugins, MCP servers or hooks.
+        var home = PrepareHome(options, restoredAuthentication);
+        CodexAgentRuntime? runtime = null;
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            var start = new ProcessStartInfo(exe) { WorkingDirectory = home, UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
+            start.ArgumentList.Add("app-server"); start.ArgumentList.Add("--listen"); start.ArgumentList.Add("stdio://");
+            ConfigureEnvironment(start.Environment, home);
+            runtime = new CodexAgentRuntime(Process.Start(start) ?? throw new PortalException("Codex could not start.", 503), home);
             await File.WriteAllTextAsync(Path.Combine(home, "process.json"), JsonSerializer.Serialize(new { pid = runtime.process.Id, parentPid = Environment.ProcessId,
                 executable = exe, startedUtc = runtime.process.StartTime.ToUniversalTime() }), ct);
             var initialized = await runtime.Call("initialize", new { clientInfo = new { name = "platform_studio", title = "Platform Studio", version = "1.0.0" }, capabilities = new { experimentalApi = true } }, ct);
@@ -78,7 +143,12 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
             await runtime.Write(new { method = "initialized" }, ct);
             return runtime;
         }
-        catch { await runtime.DisposeAsync(); throw; }
+        catch
+        {
+            if (runtime is not null) await runtime.DisposeAsync();
+            else File.Delete(Path.Combine(home, "auth.json"));
+            throw;
+        }
     }
     // The inference child receives OS paths only. Provider credentials belong to the
     // session-owned MCP broker, never ambient process inheritance.
@@ -92,6 +162,13 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     {
         var status = await ReadStatus(Call, LoginId is not null, RuntimeVersion, ct);
         if (JsonSerializer.SerializeToElement(status).GetProperty("authenticated").GetBoolean()) LoginId = null;
+        return status;
+    }
+    public static async Task<object> ReadRestoredStatus(Func<string, object, CancellationToken, Task<JsonElement>> call, string? runtimeVersion, CancellationToken ct)
+    {
+        var status = JsonSerializer.SerializeToElement(await ReadStatus(call, false, runtimeVersion, ct));
+        if (!status.GetProperty("authenticated").GetBoolean() || !status.GetProperty("ready").GetBoolean())
+            throw new PortalException("Saved Codex sign-in could not restore the required account and model readiness. Connect Codex again.", 409);
         return status;
     }
     // Shared by the live protocol path and deterministic catalog/authentication regression tests.
@@ -142,6 +219,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         var status = JsonSerializer.SerializeToElement(await Status(ct));
         if (!status.GetProperty("ready").GetBoolean()) throw new PortalException("Connect Codex before running an agent workflow.", 401);
         var configuration = await Call("config/read", new { cwd = Home, includeLayers = false }, ct);
+        AgentPolicy.ValidateToolOutputBudget(configuration);
         var serverNames = configuration.GetProperty("config").TryGetProperty("mcp_servers", out var configured) && configured.ValueKind == JsonValueKind.Object
             ? configured.EnumerateObject().Select(p => p.Name).ToArray() : [];
         var thread = await Call("thread/start", new { model = AgentPolicy.Model, serviceTier = AgentPolicy.Tier,

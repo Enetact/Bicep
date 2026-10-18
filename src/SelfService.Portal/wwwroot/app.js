@@ -256,6 +256,15 @@ action('analyze', async () => {
 });
 try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
+  const restartProof = /^#resume=([A-Fa-f0-9]{64})$/.exec(location.hash)?.[1];
+  if (restartProof) {
+    history.replaceState(null, '', location.pathname + location.search);
+    notice('Restoring and verifying your cached connections…');
+    try {
+      const result = await api('auth/resume', { proof: restartProof });
+      notice(result.errors.length ? result.errors.join(' ') : 'Your cached connections are ready. Workflow evidence, plans and approvals were cleared.', result.errors.length > 0);
+    } catch { notice('Cached connections could not be restored. Use Connections to reconnect, or reopen the private resume link.', true); }
+  }
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
   const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
   $('products').replaceChildren(...data.products.map(p => {

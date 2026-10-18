@@ -50,6 +50,7 @@ public static class AgentHostChannel
                     else if (!initialized) throw new PortalException("Initialize the AHP connection first.");
                     else if (method == "dispatchAction" && channel is not null && requested == channel && broker is not null)
                     {
+                        using var resumeAction = session.ResumeGate.BeginAction();
                         var action = p.GetProperty("action"); var kind = action.GetProperty("type").GetString();
                         var payload = action.GetProperty("request");
                         result = kind switch

@@ -10,6 +10,7 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public string Csrf { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     public DateTimeOffset Created { get; } = DateTimeOffset.UtcNow;
     public SemaphoreSlim Gate { get; } = new(1, 1);
+    public SessionResumeGate ResumeGate { get; } = new();
     public IPublicClientApplication? Client { get; } = options.AuthenticationConfigured ? PublicClientApplicationBuilder.Create(options.ClientId)
         .WithAuthority($"https://login.microsoftonline.com/{options.TenantId}").WithRedirectUri("http://localhost").Build() : null;
     public IAccount? Account { get; set; }

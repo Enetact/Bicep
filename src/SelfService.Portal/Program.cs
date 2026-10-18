@@ -2,6 +2,11 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using SelfService.Portal;
 
+if (args.FirstOrDefault() is "--checkpoint-credentials" or "--get-resume-proof")
+{
+    Environment.ExitCode = PortalCredentialCheckpoint.RunCommand(args); return;
+}
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args,
     ContentRootPath = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? AppContext.BaseDirectory : null });
 builder.Configuration.AddJsonFile(Path.Combine(builder.Environment.ContentRootPath, "portal.local.json"), optional: true).AddEnvironmentVariables("STUDIO_");
@@ -55,6 +60,7 @@ app.Use(async (context, next) =>
     context.Response.Headers.XContentTypeOptions = "nosniff"; context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers.CacheControl = "no-store";
     if (context.Request.Host.Value != $"localhost:{options.Port}") { context.Response.StatusCode = 403; return; }
+    IDisposable? resumeAction = null;
     try
     {
         if (context.Request.Path.StartsWithSegments("/api"))
@@ -63,6 +69,7 @@ app.Use(async (context, next) =>
             var s = context.RequestServices.GetRequiredService<Sessions>().Get(context); context.Items["session"] = s;
             if (context.Request.Method != "GET" && (context.Request.Headers.Origin != options.Origin || context.Request.Headers["X-Portal-CSRF"] != s.Csrf))
                 throw new PortalException("Session or request origin is invalid. Reload the portal.", 403);
+            if (context.Request.Method != "GET" && context.Request.Path != "/api/auth/resume") resumeAction = s.ResumeGate.BeginAction();
         }
         await next(context);
     }
@@ -70,6 +77,7 @@ app.Use(async (context, next) =>
     catch (SelfService.Tagging.TagException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (SelfService.Operations.OperationsException e) { context.Response.StatusCode = 409; await context.Response.WriteAsJsonAsync(new { error = e.Message }); }
     catch (Exception) { context.Response.StatusCode = 500; await context.Response.WriteAsJsonAsync(new { error = "Operation could not complete. For a queue request, check ADO runs before retrying; it may have been accepted." }); }
+    finally { resumeAction?.Dispose(); }
 });
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
 app.UseDefaultFiles(); app.UseStaticFiles();
@@ -80,10 +88,47 @@ app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Se
     products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
     discoveryScopes = catalog.Products.SelectMany(p => p.Targets).DistinctBy(t => t.SubscriptionId).Select(t => new { id = t.SubscriptionId, name = t.Subscription }) });
 app.MapGet("/api/auth", (HttpContext c, AzureCliIdentity cli) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Cli?.Username ?? s.Account?.Username, tenantId = s.AzureTenantId, mode = s.Cli is not null ? "local-cli" : s.Account is not null ? "registered-app" : null, localCliAvailable = cli.Available, connected = s.Connected.Keys.ToArray() }; });
+app.MapPost("/api/auth/resume", async (HttpContext c, PortalResumeRequest request, AzureCliIdentity cli, AgentWorkflows agents, GitHubIdentity github, McpProviderBroker broker) =>
+{
+    var s = Session(c);
+    if (!s.ResumeGate.TryBeginResume()) throw new PortalException("Another session action is active. Wait before restoring restart credentials.", 409);
+    try
+    {
+        var cache = new PortalCredentialCheckpoint(options.RepositoryRoot, options.Port);
+        using var handoff = cache.Open(request.Proof, s.Csrf, s.Cli is not null || s.Account is not null || s.Login is not null || s.Agent.Runtime is not null || s.GitHub.UserId is not null || s.GitHub.Login is not null);
+        var restored = new List<string>(); var errors = new List<string>();
+        if (handoff.Data.AzureFiles.Count != 0)
+        {
+            try { await cli.Resume(s, handoff.Data.AzureFiles); handoff.AzureRestored(); restored.AddRange(s.Connected.Keys); if (s.Error is not null) errors.Add(s.Error); }
+            catch { errors.Add("Microsoft cached sign-in could not be verified. Reconnect Microsoft in Connections."); }
+        }
+        if (handoff.Data.CodexAuth is { } auth)
+        {
+            try { await agents.Resume(s, auth, c.RequestAborted); handoff.CodexRestored(); restored.Add("codex"); }
+            catch { errors.Add("Codex cached sign-in could not be verified. Reconnect Codex in Agent workflows."); }
+        }
+        if (handoff.Data.AttachGitHub)
+        {
+            try { if (s.GitHub.UserId is null) await github.Resume(s, c.RequestAborted); restored.Add("github"); }
+            catch { errors.Add("GitHub CLI sign-in could not be verified. Use Connections to reconnect."); }
+            finally { handoff.GitHubAttempted(); }
+        }
+        // Catalog discovery recreates provider clients; no model turn, tool call or saved plan is run.
+        foreach (var provider in new[] { "bicep", "learn", "azure", "ado", "github" })
+        {
+            if (provider == "azure" && !s.Connected.ContainsKey("azure") || provider == "ado" && !s.Connected.ContainsKey("ado") || provider == "github" && s.GitHub.UserId is null) continue;
+            try { await broker.Connect(s, provider, c.RequestAborted); if (!s.Mcp.Connections.TryGetValue(provider, out var connection) || connection.State != "ready") errors.Add($"{provider} tool catalog needs reconnection in Connections."); }
+            catch { errors.Add($"{provider} tool catalog needs reconnection in Connections."); }
+        }
+        cache.RecordResult(s, errors); handoff.Complete();
+        return Results.Ok(new { restored, errors, message = "Fresh session created. Workflow evidence, plans and approvals were cleared." });
+    }
+    finally { s.ResumeGate.EndResume(); }
+});
 app.MapPost("/api/local-auth/{audience}", (HttpContext c, string audience, LocalAuthRequest request, AzureCliIdentity cli) => { cli.Begin(Session(c), audience, request.TenantId); return Results.Accepted(); });
 app.MapPost("/api/auth/{audience}", (HttpContext c, string audience, BrowserIdentity identity) => { identity.Begin(Session(c), audience); return Results.Accepted(); });
 app.MapPost("/api/cancel-login", (HttpContext c) => { try { Session(c).Login?.Cancel(); } catch (ObjectDisposedException) { } return Results.Ok(); });
-app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { await identity.SignOut(Session(c)); return Results.Ok(); });
+app.MapPost("/api/disconnect", async (HttpContext c, BrowserIdentity identity) => { var s = Session(c); await identity.SignOut(s); if (OperatingSystem.IsWindows()) new PortalCredentialCheckpoint(options.RepositoryRoot, options.Port).Forget(s.Csrf, "microsoft"); return Results.Ok(); });
 app.MapGet("/api/github/status", (HttpContext c, GitHubIdentity identity) => identity.Status(Session(c)));
 app.MapPost("/api/github/connect", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), false); return Results.Ok(); });
 app.MapPost("/api/github/attach", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), true); return Results.Ok(); });
@@ -159,7 +204,7 @@ app.MapPost("/api/mcp/plans/{id}/run", (HttpContext c, string id, McpPlanConsent
 app.MapGet("/api/agent/ahp", async (HttpContext c, AgentWorkflows agents, McpProviderBroker broker) => await AgentHostChannel.Handle(c, Session(c), agents, options, broker));
 app.MapPost("/api/agent/connect", async (HttpContext c, AgentWorkflows agents) => await agents.Connect(Session(c), c.RequestAborted));
 app.MapPost("/api/agent/cancel", (HttpContext c) => { Session(c).Agent.Run?.Cancel(); return Results.Ok(); });
-app.MapPost("/api/agent/disconnect", async (HttpContext c) => { await Session(c).Agent.DisposeAsync(); return Results.Ok(); });
+app.MapPost("/api/agent/disconnect", async (HttpContext c) => { var s = Session(c); await s.Agent.DisposeAsync(); if (OperatingSystem.IsWindows()) new PortalCredentialCheckpoint(options.RepositoryRoot, options.Port).Forget(s.Csrf, "codex"); return Results.Ok(); });
 app.MapPost("/api/agent/cancel-login", async (HttpContext c) => { if (Session(c).Agent.Runtime is { } r) await r.CancelLogin(c.RequestAborted); return Results.Ok(); });
 app.MapPost("/api/agent/run", async (HttpContext c, AgentRequest request, AgentWorkflows agents) => await agents.Run(Session(c), request, c.RequestAborted));
 app.MapGet("/api/agent/resource-groups/{subscription}", async (HttpContext c, string subscription, AzureDiscovery azure) => await azure.ResourceGroups(Session(c), subscription, c.RequestAborted));

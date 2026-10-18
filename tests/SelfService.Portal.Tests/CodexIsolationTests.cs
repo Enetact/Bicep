@@ -56,6 +56,28 @@ public sealed class CodexIsolationTests
         Assert.All(features, name => Assert.Matches("(?m)^" + name + "\\s*=\\s*false\\s*$", AgentPolicy.BootstrapConfiguration));
         Assert.Contains("[apps._default]", AgentPolicy.BootstrapConfiguration);
     }
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"config\":null}")]
+    [InlineData("{\"config\":{}}")]
+    [InlineData("{\"config\":{\"tool_output_token_limit\":null}}")]
+    [InlineData("{\"config\":{\"tool_output_token_limit\":\"16384\"}}")]
+    [InlineData("{\"config\":{\"tool_output_token_limit\":0}}")]
+    [InlineData("{\"config\":{\"tool_output_token_limit\":10000}}")]
+    [InlineData("{\"config\":{\"tool_output_token_limit\":32768}}")]
+    [InlineData("{\"config\":{\"tool_output_token_limit\":16384,\"tool_output_token_limit\":16384}}")]
+    public void MissingAmbiguousOrAlteredNativeToolBudgetsCannotPassPreflight(string response)
+    {
+        using var configuration = JsonDocument.Parse(response);
+        Assert.Throws<PortalException>(() => AgentPolicy.ValidateToolOutputBudget(configuration.RootElement));
+    }
+    [Fact] public void ExplicitBoundedNativeToolBudgetIsRequiredInBothPolicies()
+    {
+        Assert.Equal(16384, AgentPolicy.ToolOutputTokenLimit);
+        AgentPolicy.ValidateToolOutputBudget(Json(new { config = new { tool_output_token_limit = AgentPolicy.ToolOutputTokenLimit } }));
+        Assert.Matches("(?m)^tool_output_token_limit\\s*=\\s*16384\\s*$", AgentPolicy.BootstrapConfiguration);
+        Assert.Equal(AgentPolicy.ToolOutputTokenLimit, Json(AgentPolicy.IsolatedThreadConfiguration([])).GetProperty("tool_output_token_limit").GetInt32());
+    }
     [Fact] public void BrokerNamespaceRemainsDirectlyVisibleForCodeModeOnlyModelsWithoutEnablingCodeHost()
     {
         var thread = Json(AgentPolicy.IsolatedThreadConfiguration([]));
@@ -130,7 +152,11 @@ public sealed class CodexIsolationTests
         var status = await runtime.Call("mcpServerStatus/list", new { threadId, limit = 100, detail = "full" }, timeout.Token);
         Assert.Contains(status.GetProperty("data").EnumerateArray(), entry => entry.GetProperty("name").GetString() == "disabled_fixture" && entry.GetProperty("runtimeStatus").GetString() == "disabled");
         var configuration = await runtime.Call("config/read", new { cwd = runtime.Home, includeLayers = false }, timeout.Token);
+        AgentPolicy.ValidateToolOutputBudget(configuration);
         Assert.Equal(new[] { AgentPolicy.ToolNamespace }, configuration.GetProperty("config").GetProperty("features").GetProperty("code_mode").GetProperty("direct_only_tool_namespaces").EnumerateArray().Select(value => value.GetString()));
+        await runtime.Call("config/value/write", new { keyPath = "tool_output_token_limit", value = 8192, mergeStrategy = "upsert", filePath = Path.Combine(runtime.Home, "config.toml") }, timeout.Token);
+        var altered = await runtime.Call("config/read", new { cwd = runtime.Home, includeLayers = false }, timeout.Token);
+        Assert.Throws<PortalException>(() => AgentPolicy.ValidateToolOutputBudget(altered));
         Assert.False(runtime.InferenceAttempted);
     }
 }

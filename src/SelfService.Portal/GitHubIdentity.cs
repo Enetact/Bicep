@@ -93,6 +93,27 @@ public sealed class GitHubIdentity(HttpClient http, IGitHubCliRunner runner) : I
 {
     // CLI login alters one local user's active credential; serialize interactive flows across browser sessions.
     static readonly SemaphoreSlim LoginGate = new(1, 1);
+    public async Task Resume(BrowserSession s, CancellationToken ct)
+    {
+        if (!await LoginGate.WaitAsync(0, ct)) throw new PortalException("A GitHub sign-in is already active.", 409);
+        try
+        {
+            long epoch;
+            lock (s.GitHub.Sync)
+            {
+                if (s.GitHub.Disposed || s.GitHub.Login is not null || s.GitHub.UserId is not null) throw new PortalException("Use a fresh GitHub session for restart resume.", 409);
+                epoch = ++s.GitHub.Epoch;
+            }
+            var credential = await Credential(ct);
+            lock (s.GitHub.Sync)
+            {
+                if (s.GitHub.Disposed || s.GitHub.Epoch != epoch) throw new PortalException("GitHub connection changed during restart resume.", 409);
+                ct.ThrowIfCancellationRequested(); s.GitHub.UserId = credential.Id; s.GitHub.User = credential.Login;
+                s.GitHub.State = "Connected"; s.GitHub.Error = s.GitHub.Code = null;
+            }
+        }
+        finally { LoginGate.Release(); }
+    }
     public object Status(BrowserSession s) { lock (s.GitHub.Sync) return new { available = runner.Available, state = s.GitHub.State, connected = s.GitHub.UserId is not null,
         user = s.GitHub.User, code = s.GitHub.Code, error = s.GitHub.Error, waiting = s.GitHub.Login is not null, verificationUrl = "https://github.com/login/device" }; }
     public void Begin(BrowserSession s, bool useExisting)

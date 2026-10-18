@@ -17,23 +17,29 @@ public sealed class AgentMcpBridge : IAsyncDisposable
     readonly Task serving;
     readonly Func<bool> authorized;
     readonly HashSet<string> read = [];
+    readonly BicepEvidenceView? composition;
     readonly ConcurrentQueue<object> audit = new();
     public IReadOnlyList<object> Audit => audit.ToArray();
-    public bool EvidenceRead => read.Contains("platform_evidence") && read.Contains("platform_skill");
+    public bool EvidenceRead => read.Contains("platform_skill") && (composition?.BaseRead ?? read.Contains("platform_evidence"));
+    public object? CompositionCoverage => composition?.Coverage;
     public object[] Tools { get; private set; } = [];
     Func<string, JsonElement, CancellationToken, Task<object>>? providerHandler;
-    AgentMcpBridge(McpServer server, McpClient client, Task serving, CancellationTokenSource lifetime, Func<bool> authorized)
-    { this.server = server; this.client = client; this.serving = serving; this.lifetime = lifetime; this.authorized = authorized; }
-    public static async Task<AgentMcpBridge> Create(string evidence, string skill, Func<bool> authorized, CancellationToken ct)
+    AgentMcpBridge(McpServer server, McpClient client, Task serving, CancellationTokenSource lifetime, Func<bool> authorized, BicepEvidenceView? composition)
+    { this.server = server; this.client = client; this.serving = serving; this.lifetime = lifetime; this.authorized = authorized; this.composition = composition; }
+    public static async Task<AgentMcpBridge> Create(string evidence, string skill, Func<bool> authorized, CancellationToken ct, BicepEvidenceView? composition = null)
     {
         var upstream = new Pipe(); var downstream = new Pipe();
         var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
         string Guard(string content) => authorized() ? content : throw new InvalidOperationException("Session disconnected.");
+        string CompositionEvidence(string? moduleId = null, string? setting = null, string? section = null, int? page = null) => Guard(composition!.Read(moduleId, setting, section, page));
+        var evidenceTool = composition is null
+            ? McpServerTool.Create(() => Guard(evidence), new() { Name = "platform_evidence", Description = "Read the frozen evidence and scope of this workflow. Contains no credentials. Missing evidence remains unknown." })
+            : McpServerTool.Create((Func<string?, string?, string?, int?, string>)CompositionEvidence, new() { Name = "platform_evidence", Description = "Read this frozen Bicep context index with {} first. Read each selected module's complete contract using {moduleId}. Read approved settings with {setting}, or resources/network pages with {section,page}. No filesystem, new discovery or scope override. Every selected contract must be read before proposing source." });
         var server = McpServer.Create(new StreamServerTransport(upstream.Reader.AsStream(), downstream.Writer.AsStream()), new McpServerOptions
         {
             ServerInfo = new() { Name = "platform-studio-evidence", Version = "1.0.0" },
             ToolCollection = [
-                McpServerTool.Create(() => Guard(evidence), new() { Name = "platform_evidence", Description = "Read the frozen evidence and scope of this workflow. Contains no credentials. Missing evidence remains unknown." }),
+                evidenceTool,
                 McpServerTool.Create(() => Guard(skill), new() { Name = "platform_skill", Description = "Read the selected pinned skill and this adapter's coverage limitations." })
             ]
         });
@@ -41,7 +47,7 @@ public sealed class AgentMcpBridge : IAsyncDisposable
         try
         {
             var client = await McpClient.CreateAsync(new StreamClientTransport(upstream.Writer.AsStream(), downstream.Reader.AsStream()), cancellationToken: ct);
-            var bridge = new AgentMcpBridge(server, client, serving, lifetime, authorized);
+            var bridge = new AgentMcpBridge(server, client, serving, lifetime, authorized, composition);
             var tools = await client.ListToolsAsync(cancellationToken: ct);
             bridge.Tools = tools.Select(t => (object)new { type = "function", name = t.Name, description = t.Description, inputSchema = t.JsonSchema }).ToArray();
             return bridge;
@@ -55,12 +61,22 @@ public sealed class AgentMcpBridge : IAsyncDisposable
         var name = request.GetProperty("tool").GetString() ?? "";
         var args = request.GetProperty("arguments");
         var providerTool = providerHandler is not null && name is "platform_mcp_catalog" or "platform_mcp_call" or "platform_mcp_plan" or "platform_mcp_run";
+        var compositionEvidence = composition is not null && name == "platform_evidence";
         if (!authorized() || name is not ("platform_evidence" or "platform_skill") && !providerTool ||
-            args.ValueKind != JsonValueKind.Object || !providerTool && args.EnumerateObject().Any() ||
-            request.TryGetProperty("namespace", out var ns) && ns.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined) && (ns.ValueKind != JsonValueKind.String || ns.GetString() != AgentPolicy.ToolNamespace) || Audit.Count >= (providerHandler is null ? 12 : 48))
+            args.ValueKind != JsonValueKind.Object || !providerTool && !compositionEvidence && args.EnumerateObject().Any() ||
+            request.TryGetProperty("namespace", out var ns) && ns.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined) && (ns.ValueKind != JsonValueKind.String || ns.GetString() != AgentPolicy.ToolNamespace) || Audit.Count >= (providerHandler is not null ? 48 : composition is not null ? 32 : 12))
         {
             audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name is "platform_evidence" or "platform_skill" ? name : "unregistered", success = false, reason = "Policy rejected tool, arguments, session or call budget" });
             throw new PortalException("Agent requested an unauthorized or excessive tool call. Review stopped.", 403);
+        }
+        if (compositionEvidence)
+        {
+            try { composition!.ValidateRequest(args); }
+            catch (PortalException)
+            {
+                audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false, reason = "Invalid frozen Bicep evidence selection" });
+                throw;
+            }
         }
         if (providerTool)
         {
@@ -81,10 +97,11 @@ public sealed class AgentMcpBridge : IAsyncDisposable
                 return new { success = false, contentItems = new[] { new { type = "inputText", text = "Invalid orchestration tool arguments. Read the advertised schema and correct the request." } } };
             }
         }
-        var result = await client.CallToolAsync(name, new Dictionary<string, object?>(), cancellationToken: ct);
+        var arguments = compositionEvidence ? args.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value.Clone()) : new Dictionary<string, object?>();
+        var result = await client.CallToolAsync(name, arguments, cancellationToken: ct);
         var success = result.IsError != true;
         audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success });
-        if (success) read.Add(name);
+        if (success) { if (compositionEvidence) composition!.MarkRead(args); read.Add(name); }
         return new { success, contentItems = result.Content.OfType<TextContentBlock>().Select(x => new { type = "inputText", text = x.Text }).ToArray() };
     }
     public void EnableProviders(McpProviderBroker broker, BrowserSession session)

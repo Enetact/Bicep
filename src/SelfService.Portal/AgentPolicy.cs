@@ -11,9 +11,10 @@ public static class AgentPolicy
     public const string Speed = "Standard";
     public const string Tier = "default"; // Codex app-server: explicit standard speed, never inherit Fast.
     public const string ToolNamespace = "platform_studio";
+    public const int ToolOutputTokenLimit = 16384;
     public static object Descriptor => new { model = Model, displayName = DisplayName, effort = Effort, effortDisplayName = EffortDisplayName, serviceTier = Tier, speed = Speed };
     static readonly string[] DisabledFeatures = ["apps", "plugins", "goals", "hooks", "memories", "multi_agent", "remote_plugin", "code_mode_host", "code_mode_only_strict_3p_tools", "shell_tool", "shell_snapshot", "unified_exec", "skill_mcp_dependency_install", "computer_use", "browser_use", "in_app_browser", "image_generation", "workspace_dependencies", "enable_mcp_apps", "codex_apps_mcp_2026_07_28"];
-    public static string BootstrapConfiguration => $"model = \"{Model}\"\nmodel_reasoning_effort = \"{Effort}\"\nservice_tier = \"{Tier}\"\ncli_auth_credentials_store = \"file\"\nweb_search = \"disabled\"\nproject_doc_max_bytes = 0\n[features]\n" +
+    public static string BootstrapConfiguration => $"model = \"{Model}\"\nmodel_reasoning_effort = \"{Effort}\"\nservice_tier = \"{Tier}\"\ntool_output_token_limit = {ToolOutputTokenLimit}\ncli_auth_credentials_store = \"file\"\nweb_search = \"disabled\"\nproject_doc_max_bytes = 0\n[features]\n" +
         string.Join("\n", DisabledFeatures.Select(name => $"{name} = false")) + $"\n[features.code_mode]\nenabled = false\ndirect_only_tool_namespaces = [\"{ToolNamespace}\"]\n[apps._default]\nenabled = false\n";
     public static object Isolation => IsolatedThreadConfiguration([]);
     public static Dictionary<string, object> IsolatedThreadConfiguration(IEnumerable<string> configuredServerNames)
@@ -22,7 +23,7 @@ public static class AgentPolicy
         features["code_mode"] = new { enabled = false, direct_only_tool_namespaces = new[] { ToolNamespace } };
         var isolation = new Dictionary<string, object>
     {
-        ["model_reasoning_effort"] = Effort, ["service_tier"] = Tier,
+        ["model_reasoning_effort"] = Effort, ["service_tier"] = Tier, ["tool_output_token_limit"] = ToolOutputTokenLimit,
         ["web_search"] = "disabled", ["project_doc_max_bytes"] = 0,
         ["features"] = features,
         ["agents"] = new { enabled = false }, ["apps"] = new { _default = new { enabled = false } },
@@ -33,6 +34,14 @@ public static class AgentPolicy
         var servers = configuredServerNames.Distinct(StringComparer.Ordinal).ToDictionary(name => name, _ => new { enabled = false }, StringComparer.Ordinal);
         if (servers.Count > 0) isolation["mcp_servers"] = servers;
         return isolation;
+    }
+    public static void ValidateToolOutputBudget(JsonElement configuration)
+    {
+        if (configuration.ValueKind != JsonValueKind.Object || !configuration.TryGetProperty("config", out var config) || config.ValueKind != JsonValueKind.Object)
+            throw new PortalException("Codex tool output budget could not be verified. Workflow blocked.", 409);
+        var values = config.EnumerateObject().Where(p => p.Name == "tool_output_token_limit").ToArray();
+        if (values.Length != 1 || values[0].Value.ValueKind != JsonValueKind.Number || !values[0].Value.TryGetInt32(out var limit) || limit != ToolOutputTokenLimit)
+            throw new PortalException("Codex did not accept the required tool output budget. Reconnect Codex before running a workflow.", 409);
     }
     public static void ValidateMcpIsolation(JsonElement page)
     {

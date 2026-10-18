@@ -16,6 +16,16 @@ async function call(path, body, extra = {}) {
   return { response, result };
 }
 async function check(name, action) { await action(); checks.push({ name, passed: true }); }
+await check('Restart resume rejects cross-origin and missing CSRF before opening a checkpoint', async () => {
+  for (const extra of [{ origin: 'http://example.invalid' }, { 'x-portal-csrf': '' }]) {
+    const { response } = await call('auth/resume', { proof: 'invalid' }, extra); assert.equal(response.status, 403);
+  }
+});
+await check('Invalid restart capability cannot attach credentials or create plans', async () => {
+  const { response } = await call('auth/resume', { proof: 'invalid' }); assert.equal(response.status, 403);
+  const { result } = await call('auth'); assert.deepEqual(result.connected, []);
+  const plans = await call('mcp/plans'); assert.deepEqual(plans.result.plans, []);
+});
 await check('Five provider definitions and no ambient credential attachment', async () => {
   const { response, result } = await call('mcp/status');
   assert.equal(response.status, 200);
@@ -51,6 +61,6 @@ if (process.env.PLATFORM_MCP_LIVE_PUBLIC === '1') {
     }
   } finally { for (const id of ['bicep', 'learn']) await call(`mcp/${id}/disconnect`, {}); }
 }
-const directory = 'artifacts/mcp-integration'; fs.mkdirSync(directory, { recursive: true });
+const directory = process.env.PORTAL_MCP_TEST_RESULTS ?? 'artifacts/mcp-integration'; fs.mkdirSync(directory, { recursive: true });
 fs.writeFileSync(`${directory}/http.json`, JSON.stringify({ observedUtc: new Date().toISOString(), architecture: data.architecture, publicProvidersTested: process.env.PLATFORM_MCP_LIVE_PUBLIC === '1', loginStarted: false, inferenceStarted: false, externalChanges: false, checks, inventories }, null, 2));
 console.log(`PASS: ${checks.length} real MCP HTTP checks; ${inventories.map(p => `${p.provider}=${p.toolCount}`).join(', ') || 'no provider calls'}. No sign-in, inference or external changes.`);

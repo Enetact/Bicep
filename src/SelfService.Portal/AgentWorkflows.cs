@@ -55,6 +55,32 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
         }
         finally { s.Agent.Gate.Release(); }
     }
+    // Called only by the trusted, one-time restart handoff after it consumes the browser proof.
+    // No persistent cache lookup or cross-browser credential sharing happens here.
+    public async Task<object> Resume(BrowserSession s, byte[] authentication, CancellationToken ct)
+    {
+        if (!await s.Agent.Gate.WaitAsync(0, ct)) throw new PortalException("An agent action is already in progress.", 409);
+        try
+        {
+            if (s.Agent.Runtime is not null || s.Agent.Run is not null)
+                throw new PortalException("Resume requires a fresh Codex browser session.", 409);
+            CodexAgentRuntime.ValidateRestoredAuthentication(authentication);
+            try
+            {
+                s.Agent.Runtime = await CodexAgentRuntime.Start(options, ct, authentication);
+                var provider = await CodexAgentRuntime.ReadRestoredStatus(s.Agent.Runtime.Call, s.Agent.Runtime.RuntimeVersion, ct);
+                s.Agent.State = "Ready";
+                return new { resumed = true, state = s.Agent.State, provider };
+            }
+            catch
+            {
+                if (s.Agent.Runtime is { } runtime) await runtime.DisposeAsync();
+                s.Agent.Runtime = null; s.Agent.State = "Not connected";
+                throw;
+            }
+        }
+        finally { s.Agent.Gate.Release(); }
+    }
     public async Task<object> Run(BrowserSession s, AgentRequest request, CancellationToken cancellation, string hostTransport = "http")
     {
         var workflow = Find(request.Workflow);
@@ -150,7 +176,8 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             await File.WriteAllTextAsync(Path.Combine(folder, "evidence.json"), frozen, timeout.Token);
             var skillPath = Path.Combine(runtime.Home, "SKILL.md");
             await File.WriteAllTextAsync(skillPath, skill.Content, timeout.Token);
-            bridge = await AgentMcpBridge.Create(frozen, skill.Content + "\n\nADAPTER COVERAGE: " + workflow.Limits + (workflow.Scope == "iac" ? " Compare before, predicted and observed-after facts separately. Inspect qualification blockers, child probe receipts and propertyCoverage. Current observed values must never replace unresolved desired expressions; missing properties are unknown, not defaults. Suggest explicit source parameters or staged qualification where required. Nested property discovery is not proof of full template expansion. Draw only the selectedPhase diagramGraph. " + EvidenceDiagram.Instructions.Replace("For visualize or network", "For IaC") : ""), () => Authorized(s, workflow, identityEpoch) && !timeout.IsCancellationRequested, timeout.Token);
+            var composition = draftContext is null ? null : new BicepEvidenceView(draftContext);
+            bridge = await AgentMcpBridge.Create(frozen, skill.Content + "\n\nADAPTER COVERAGE: " + workflow.Limits + (workflow.Scope == "iac" ? " Compare before, predicted and observed-after facts separately. Inspect qualification blockers, child probe receipts and propertyCoverage. Current observed values must never replace unresolved desired expressions; missing properties are unknown, not defaults. Suggest explicit source parameters or staged qualification where required. Nested property discovery is not proof of full template expansion. Draw only the selectedPhase diagramGraph. " + EvidenceDiagram.Instructions.Replace("For visualize or network", "For IaC") : ""), () => Authorized(s, workflow, identityEpoch) && !timeout.IsCancellationRequested, timeout.Token, composition);
             if (workflow.Scope == "mcp") bridge.EnableProviders(mcp!, s);
             runtime.ToolHandler = bridge.Call;
             inferenceRuntime = runtime;
@@ -158,6 +185,7 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             await File.WriteAllTextAsync(Path.Combine(folder, "model-output.md"), review, timeout.Token);
             if (!bridge.EvidenceRead) throw new PortalException("Agent did not read both required evidence tools. Review rejected.", 502);
             if (!Authorized(s, workflow, identityEpoch)) throw new PortalException("Microsoft identity changed during review. Start a new workflow.", 401);
+            composition?.ValidateProposal(review);
             BicepDraftResult? draft = draftContext is null ? null : BicepDrafts.Generate(catalog.Root, draftContext, review);
             if (draft is not null)
                 foreach (var (path, content) in draft.Files)
@@ -178,7 +206,7 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
                 model = AgentPolicy.Model, reasoning = AgentPolicy.Effort, serviceTier = AgentPolicy.Tier, hostTransport, skillId = skill.Id, skillHash,
                 evidenceSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(frozen))).ToLowerInvariant(),
                 outputValidation = operationsAdvice is not null ? "Accepted operations advice; no execution authority" : draft is not null ? "Validated composition contract; unqualified source draft" : structuredReview is null ? "Advisory prose" : "Accepted structured advice", diagramStatus = diagram?.Status, diagramSha256 = diagram?.Source is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(diagram.Source))).ToLowerInvariant(),
-                toolCalls = bridge.Audit, providerPlans = workflow.Scope == "mcp" ? McpProviderBroker.Plans(s) : [], deploymentAuthorized = false, limitations = workflow.Limits };
+                toolCalls = bridge.Audit, compositionEvidence = bridge.CompositionCoverage, providerPlans = workflow.Scope == "mcp" ? McpProviderBroker.Plans(s) : [], deploymentAuthorized = false, limitations = workflow.Limits };
             await File.WriteAllTextAsync(Path.Combine(folder, "review.md"), review, timeout.Token);
             await File.WriteAllTextAsync(Path.Combine(folder, "receipt.json"), JsonSerializer.Serialize(receipt, Json), timeout.Token);
             if(structuredReview is not null) await File.WriteAllTextAsync(Path.Combine(folder,"review.json"),TagJson.Write(structuredReview),timeout.Token);
@@ -192,7 +220,7 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
             s.Agent.State = e is OperationCanceledException ? "Cancelled or timed out" : "Failed";
             await File.WriteAllTextAsync(Path.Combine(folder, "receipt.json"), JsonSerializer.Serialize(new { id, status = s.Agent.State, workflow = workflow.Id,
                 startedUtc = started, completedUtc = DateTimeOffset.UtcNow, model = AgentPolicy.Model, reasoning = AgentPolicy.Effort, serviceTier = AgentPolicy.Tier, hostTransport,
-                toolCalls = bridge?.Audit, inferenceAttempted = inferenceRuntime?.InferenceAttempted == true,
+                toolCalls = bridge?.Audit, compositionEvidence = bridge?.CompositionCoverage, inferenceAttempted = inferenceRuntime?.InferenceAttempted == true,
                 failure = e is PortalException pe ? pe.Message : e is OperationCanceledException ? "Cancelled or timed out" : "Workflow could not complete",
                 deploymentAuthorized = false }, Json), CancellationToken.None);
             // Stopping the owned child prevents a cancelled HTTP request from leaving inference running locally.

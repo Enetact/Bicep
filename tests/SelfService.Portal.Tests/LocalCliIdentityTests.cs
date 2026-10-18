@@ -17,8 +17,9 @@ public sealed class LocalCliIdentityTests
     sealed class FakeCli : IAzureCliRunner
     {
         public bool Available { get; set; } = true;
-        public bool BlockLogin, WrongTokenTenant, Expired, FailAdo;
-        public string AccountTenant = Tenant, Username = "developer@example.test";
+        public bool BlockLogin, WrongTokenTenant, Expired, FailAdo, FailAzure, FailAccountWithSensitiveError;
+        public string AccountTenant = Tenant, Username = "developer@example.test", AccountCloud = "AzureCloud", AccountType = "user";
+        public int SwitchAccountAtRead, AccountReads;
         public List<string[]> Commands = new(); public List<string> Directories = new();
         public async Task<JsonElement> Run(string directory, IReadOnlyList<string> args, CancellationToken ct)
         {
@@ -28,14 +29,126 @@ public sealed class LocalCliIdentityTests
                 if (BlockLogin) await Task.Delay(Timeout.Infinite, ct);
                 return JsonSerializer.SerializeToElement(Array.Empty<object>());
             }
-            if (args[1] == "show") return JsonSerializer.SerializeToElement(new { tenantId = AccountTenant, environmentName = "AzureCloud", user = new { name = Username, type = "user" } });
+            if (args[1] == "show")
+            {
+                if (FailAccountWithSensitiveError) throw new PortalException("synthetic-sensitive-runner-error-token", 401);
+                AccountReads++;
+                return JsonSerializer.SerializeToElement(new { tenantId = AccountTenant, environmentName = AccountCloud,
+                    user = new { name = SwitchAccountAtRead > 0 && AccountReads >= SwitchAccountAtRead ? "changed@example.test" : Username, type = AccountType } });
+            }
             if (FailAdo && args.Contains("499b84ac-1321-427f-aa17-267ca6975798")) throw new PortalException("Test denied", 401);
+            if (FailAzure && args.Contains("https://management.azure.com/")) throw new PortalException("Test denied", 401);
             return JsonSerializer.SerializeToElement(new { tenant = WrongTokenTenant ? OtherTenant : AccountTenant, tokenType = "Bearer", accessToken = "test-token-not-a-credential", expires_on = DateTimeOffset.UtcNow.AddMinutes(Expired ? -1 : 60).ToUnixTimeSeconds() });
         }
     }
     static async Task Complete(BrowserSession s)
     {
         Assert.True(await s.Gate.WaitAsync(TimeSpan.FromSeconds(5))); s.Gate.Release();
+    }
+    static Dictionary<string, byte[]> SavedFiles(string tenant = Tenant, string username = "developer@example.test") => new(StringComparer.Ordinal)
+    {
+        ["azureProfile.json"] = JsonSerializer.SerializeToUtf8Bytes(new { subscriptions = new[] { new { tenantId = tenant, environmentName = "AzureCloud", isDefault = true, user = new { name = username, type = "user" } } } }),
+        ["msal_token_cache.bin"] = System.Text.Encoding.UTF8.GetBytes("synthetic-encrypted-msal-cache")
+    };
+    [Fact] public async Task ResumeRestoresOnlyVerifiedAudiencesIntoAFreshPrivateDirectoryWithoutLogin()
+    {
+        var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        var files = SavedFiles(); files["msal_http_cache.bin"] = [1, 2, 3];
+        s.NetworkReports["stale"] = JsonSerializer.SerializeToElement(new { }); var epoch = s.MicrosoftIdentityEpoch;
+        await identity.Resume(s, files);
+        Assert.Equal("Connected", s.State); Assert.Null(s.Error); Assert.Equal(Tenant, s.AzureTenantId);
+        Assert.Equal(new[] { "ado", "azure" }, s.Connected.Keys.Order()); Assert.Empty(s.NetworkReports); Assert.True(s.MicrosoftIdentityEpoch > epoch);
+        Assert.Equal("developer@example.test", s.Cli!.AccountId); Assert.Null(s.Account);
+        Assert.DoesNotContain(fake.Commands, c => c[0] == "login");
+        Assert.Equal(2, fake.Commands.Count(c => c.Contains("get-access-token")));
+        Assert.All(fake.Directories, path => Assert.Equal(s.Cli.DirectoryPath, path));
+        foreach (var file in files) Assert.Equal(file.Value, await File.ReadAllBytesAsync(Path.Combine(s.Cli.DirectoryPath, file.Key)));
+        Assert.True(File.Exists(Path.Combine(s.Cli.DirectoryPath, "owner.json")));
+        var directory = s.Cli.DirectoryPath; await new BrowserIdentity(identity).SignOut(s); Assert.False(Directory.Exists(directory));
+    }
+    [Theory][InlineData(true, false, "ado")][InlineData(false, true, "azure")]
+    public async Task ResumeTreatsAzureAndAdoConsentIndependently(bool azureFails, bool adoFails, string restored)
+    {
+        var o = Options(); var fake = new FakeCli { FailAzure = azureFails, FailAdo = adoFails }; var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        await identity.Resume(s, SavedFiles());
+        Assert.Equal(new[] { restored }, s.Connected.Keys); Assert.Equal("Connected", s.State); Assert.NotNull(s.Error);
+        Assert.DoesNotContain(fake.Commands, c => c[0] == "login");
+        await new BrowserIdentity(identity).SignOut(s);
+    }
+    [Theory]
+    [InlineData("tenant")][InlineData("user")][InlineData("cloud")][InlineData("principal-type")][InlineData("expired")][InlineData("token-tenant")][InlineData("both-denied")][InlineData("final-account-change")]
+    public async Task ResumeRejectsChangedIdentityAndUnqualifiedTokensAndRemovesOnlyItsFreshCache(string failure)
+    {
+        var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        await using var other = new LocalCliSession(o.RepositoryRoot); var keep = Path.Combine(other.DirectoryPath, "keep.txt"); await File.WriteAllTextAsync(keep, "unrelated cache");
+        switch (failure)
+        {
+            case "tenant": fake.AccountTenant = OtherTenant; break;
+            case "user": fake.Username = "another@example.test"; break;
+            case "cloud": fake.AccountCloud = "AzureUSGovernment"; break;
+            case "principal-type": fake.AccountType = "servicePrincipal"; break;
+            case "expired": fake.Expired = true; break;
+            case "token-tenant": fake.WrongTokenTenant = true; break;
+            case "both-denied": fake.FailAzure = fake.FailAdo = true; break;
+            case "final-account-change": fake.SwitchAccountAtRead = 4; break;
+        }
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles()));
+        Assert.Null(s.Cli); Assert.Null(s.AzureTenantId); Assert.Empty(s.Connected); Assert.Equal("Renewal required", s.State);
+        Assert.All(fake.Directories, path => Assert.False(Directory.Exists(path))); Assert.True(File.Exists(keep));
+        Assert.DoesNotContain(fake.Commands, c => c[0] == "login");
+    }
+    [Theory][InlineData("../auth.json")][InlineData("auth.json")][InlineData("owner.json")][InlineData("AzureProfile.json")]
+    public async Task ResumeRejectsUnapprovedFileNamesBeforeCreatingACache(string name)
+    {
+        var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        var files = SavedFiles(); files[name] = [1];
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, files)); Assert.Null(s.Cli); Assert.Empty(fake.Commands);
+    }
+    [Theory][InlineData("missing")][InlineData("empty")][InlineData("oversize")][InlineData("malformed")][InlineData("no-default")][InlineData("ambiguous-default")]
+    public async Task ResumeRejectsIncompleteOrAmbiguousCacheBeforeStartingCli(string failure)
+    {
+        var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o); var files = SavedFiles();
+        switch (failure)
+        {
+            case "missing": files.Remove("msal_token_cache.bin"); break;
+            case "empty": files["msal_token_cache.bin"] = []; break;
+            case "oversize": files["msal_token_cache.bin"] = new byte[8 * 1024 * 1024 + 1]; break;
+            case "malformed": files["azureProfile.json"] = [1, 2, 3]; break;
+            case "no-default": files["azureProfile.json"] = JsonSerializer.SerializeToUtf8Bytes(new { subscriptions = Array.Empty<object>() }); break;
+            case "ambiguous-default":
+                var profile = JsonSerializer.Deserialize<JsonElement>(files["azureProfile.json"]).GetProperty("subscriptions")[0];
+                files["azureProfile.json"] = JsonSerializer.SerializeToUtf8Bytes(new { subscriptions = new[] { profile, profile } }); break;
+        }
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, files)); Assert.Null(s.Cli); Assert.Empty(fake.Commands);
+    }
+    [Fact] public async Task ResumeHonorsConfiguredTenantAndDoesNotExposeRawRunnerFailures()
+    {
+        var o = Options(); o.TenantId = OtherTenant; var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles())); Assert.Empty(fake.Commands); Assert.Null(s.Cli);
+        o.TenantId = Tenant; fake.FailAccountWithSensitiveError = true;
+        var error = await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles()));
+        Assert.DoesNotContain("synthetic-sensitive", error.Message); Assert.DoesNotContain("synthetic-sensitive", s.Error); Assert.Null(s.Cli);
+        Assert.All(fake.Directories, path => Assert.False(Directory.Exists(path)));
+    }
+    [Fact] public async Task ResumeCannotOverwriteAnExistingMicrosoftSessionOrOverlapAnotherAction()
+    {
+        var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        await s.Gate.WaitAsync();
+        try { await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles())); } finally { s.Gate.Release(); }
+        Assert.Empty(fake.Commands); s.Connected["azure"] = true; s.State = "Connected";
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles())); Assert.True(s.Connected.ContainsKey("azure")); Assert.Equal("Connected", s.State);
+        s.Connected.Clear();
+        fake.Available = false; await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles())); Assert.Null(s.Cli); Assert.Empty(fake.Commands);
+    }
+    [Fact] public async Task ResumePreservesAnExistingCliSessionAndAcceptsBomProfilesOnlyForFreshSessions()
+    {
+        var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        s.Cli = new LocalCliSession(o.RepositoryRoot); var existing = s.Cli; var directory = existing.DirectoryPath;
+        await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles())); Assert.Same(existing, s.Cli); Assert.True(Directory.Exists(directory)); Assert.Empty(fake.Commands);
+        await new BrowserIdentity(identity).SignOut(s);
+        var files = SavedFiles(); files["azureProfile.json"] = new byte[] { 0xef, 0xbb, 0xbf }.Concat(files["azureProfile.json"]).ToArray();
+        await identity.Resume(s, files); Assert.Equal("Connected", s.State); Assert.DoesNotContain(fake.Commands, command => command[0] == "login");
+        await new BrowserIdentity(identity).SignOut(s);
     }
     [Fact] public async Task LocalSignInNeedsNoRegistrationAndAdoUsesSeparateAudienceWithoutSecondLogin()
     {

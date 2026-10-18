@@ -11,6 +11,17 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
 {
     const string Arm = "https://management.azure.com";
     const string NetworkVersion = "2025-09-01";
+    const int ErrorBodyLimit = 16 * 1024;
+    // Only canonical diagnostic identifiers may leave an unsuccessful ARM response. Messages,
+    // details and unfamiliar code values can contain private metadata or credentials.
+    static readonly Dictionary<string, string> ErrorCodes = new[]
+    {
+        "AuthorizationFailed", "BadRequest", "Forbidden", "InternalServerError", "InvalidApiVersionParameter",
+        "InvalidAuthenticationToken", "InvalidAuthenticationTokenTenant", "InvalidResourceNamespace", "InvalidResourceType",
+        "InvalidSubscriptionRegistrationState", "MissingRegistrationForLocation", "MissingSubscriptionRegistration",
+        "NoRegisteredProviderFound", "NotFound", "ResourceGroupNotFound", "ResourceNotFound", "SubscriptionNotFound",
+        "SubscriptionNotRegistered", "SubscriptionRequestsThrottled", "TooManyRequests"
+    }.ToDictionary(code => code, StringComparer.OrdinalIgnoreCase);
     static readonly Dictionary<string, string[]> Providers = new()
     {
         ["inventory"] = [], ["network"] = [], ["compute"] = ["Microsoft.Compute/", "Microsoft.Web/"],
@@ -111,7 +122,11 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
                 using var request = new HttpRequestMessage(HttpMethod.Get, next);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                if (!response.IsSuccessStatusCode) return Failed($"HTTP {(int)response.StatusCode}; collection unavailable. This is not an empty result.");
+                if (!response.IsSuccessStatusCode)
+                {
+                    var code = await ErrorCode(response, ct);
+                    return Failed($"HTTP {(int)response.StatusCode}{(code is null ? "" : $" (ARM {code})")}; collection unavailable. This is not an empty result.");
+                }
                 using var stream = await response.Content.ReadAsStreamAsync(ct); using var bytes = new MemoryStream();
                 var buffer = new byte[8192]; int read;
                 while ((read = await stream.ReadAsync(buffer, ct)) > 0)
@@ -146,6 +161,34 @@ public sealed class AzureDiscovery(HttpClient http, ITokenProvider identity, Por
         catch (HttpRequestException) { return Failed("Azure could not be reached; remaining coverage unknown."); }
         catch (JsonException) { return Failed("Azure returned invalid JSON; coverage unknown."); }
         catch (InvalidOperationException) { return Failed("Unexpected response schema; coverage unknown."); }
+    }
+    static async Task<string?> ErrorCode(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            if (response.Content.Headers.ContentLength is > ErrorBodyLimit) return null;
+            using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var bytes = new MemoryStream();
+            var buffer = new byte[2048]; int read;
+            while ((read = await stream.ReadAsync(buffer, ct)) > 0)
+            {
+                if (bytes.Length + read > ErrorBodyLimit) return null;
+                bytes.Write(buffer, 0, read);
+            }
+            using var document = JsonDocument.Parse(bytes.ToArray(), new JsonDocumentOptions { MaxDepth = 8 });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return null;
+            var errors = root.EnumerateObject().Where(p => p.Name.Equals("error", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (errors.Length != 1 || errors[0].Name != "error" || errors[0].Value.ValueKind != JsonValueKind.Object) return null;
+            var codes = errors[0].Value.EnumerateObject().Where(p => p.Name.Equals("code", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (codes.Length != 1 || codes[0].Name != "code" || codes[0].Value.ValueKind != JsonValueKind.String) return null;
+            var code = codes[0].Value.GetString();
+            return code is { Length: > 0 and <= 128 } && ErrorCodes.TryGetValue(code, out var canonical) ? canonical : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or IOException or JsonException or OperationCanceledException or InvalidOperationException)
+        {
+            return null; // The original HTTP failure is authoritative even if diagnostics cannot be safely parsed.
+        }
     }
     static string? Text(JsonElement e, string key) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
     static JsonElement Property(JsonElement e, string key) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(key, out var v) ? v : default;

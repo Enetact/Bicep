@@ -63,6 +63,8 @@ This is a **single-user desktop companion**, listening only on localhost. It is 
 
 ### Combined lifecycle command
 
+For a fresh rebuild that retains the current portal's isolated Azure CLI and Codex sign-ins, use `./scripts/Restart-PortalFresh.ps1`. It preflights the build, verifies owned processes, creates a Windows-user-protected handoff and opens a one-time resume link. GitHub uses its existing CLI login. Registered-app MSAL memory cannot be migrated. See [cache-preserving restart, privacy and recovery](portal-fresh-restart.md). The older lifecycle commands below retain their cleanup semantics.
+
 From the `Bicep` repository root in PowerShell 7.4+, use [Manage-Portal.ps1](../scripts/Manage-Portal.ps1):
 
 ```powershell
