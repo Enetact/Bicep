@@ -15,6 +15,7 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public IAccount? Account { get; set; }
     public LocalCliSession? Cli { get; set; }
     public GitHubSession GitHub { get; } = new();
+    public McpProviderSession Mcp { get; } = new();
     public string? AzureTenantId { get; set; }
     public ConcurrentDictionary<string, bool> Connected { get; } = new();
     public string State { get; set; } = "Not connected";
@@ -26,16 +27,20 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public SemaphoreSlim NetworkGate { get; } = new(1, 1);
     public ConcurrentDictionary<string, System.Text.Json.JsonElement> NetworkReports { get; } = new();
     public long NetworkEpoch;
+    public long MicrosoftIdentityEpoch;
     public ConcurrentDictionary<string, PendingNetworkAllocation> NetworkPending { get; } = new();
     public Dictionary<string, RegistrationReview> RegistrationPending { get; } = new();
     public ConcurrentDictionary<string, SelfService.Tagging.TagInventory> TagReports { get; } = new();
     public ConcurrentDictionary<string, PendingTagQueue> TagPending { get; } = new();
     public void ClearMicrosoftEvidence()
     {
+        foreach (var provider in new[] { "azure", "ado", "bicep" })
+            if (Mcp.Connections.TryGetValue(provider, out var connection)) connection.Lifetime.Cancel();
+        Interlocked.Increment(ref MicrosoftIdentityEpoch); Agent.CancelRun();
         Connected.Clear(); Interlocked.Increment(ref NetworkEpoch); Operations.Clear(); NetworkReports.Clear(); NetworkPending.Clear(); TagReports.Clear(); TagPending.Clear();
         lock (Pending) Pending.Clear(); lock (RegistrationPending) RegistrationPending.Clear();
     }
-    public void Dispose() { Login?.Cancel(); GitHub.Dispose(); _ = Agent.DisposeAsync(); _ = CleanupCli(); }
+    public void Dispose() { Login?.Cancel(); GitHub.Dispose(); _ = Agent.DisposeAsync(); _ = Mcp.DisposeAsync(); _ = CleanupCli(); }
     async Task CleanupCli() { try { if (Cli is { } cli) await cli.DisposeAsync(); } catch { /* Governed Stop-Portal also removes owned credential caches. */ } }
 }
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
@@ -91,7 +96,7 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
             s.Account = result.Account;
             if (audience == "azure")
             {
-                if (s.AzureTenantId is not null && s.AzureTenantId != result.TenantId) { Interlocked.Increment(ref s.NetworkEpoch); s.Operations.Clear(); s.NetworkReports.Clear(); }
+                if (s.AzureTenantId is not null && s.AzureTenantId != result.TenantId) s.ClearMicrosoftEvidence();
                 s.AzureTenantId = result.TenantId;
             }
             s.Connected[audience] = true; s.State = "Connected";
@@ -109,7 +114,7 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
         if (s.Cli is not null && cliIdentity is not null) return await cliIdentity.Token(s, audience);
         if (s.Client is null || s.Account is null || !s.Connected.ContainsKey(audience)) throw new PortalException($"Connect {audience} first.", 401);
         try { return (await s.Client.AcquireTokenSilent(Scopes(audience), s.Account).ExecuteAsync()).AccessToken; }
-        catch (MsalException) { s.Connected.TryRemove(audience, out _); throw new PortalException("Session needs consent or renewal. Connect again.", 401); }
+        catch (MsalException) { s.ClearMicrosoftEvidence(); throw new PortalException("Session needs consent or renewal. Connect again.", 401); }
     }
     public async Task SignOut(BrowserSession s)
     {

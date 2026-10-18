@@ -1,5 +1,7 @@
 # Self-service expansion and enhancement plan
 
+**17 October 2026 — partial G2 module delivery:** six pinned AVM-backed wrappers and typed child inputs now extend the existing source-draft workflow, with complete local dependency packaging and a module browser. This delivers a bounded part of reusable module hardening; shared production resolution, further access/DNS adapters, automatic qualification and new deployable products remain proposed. The existing compositions and target enablement are unchanged. See [the delivered module scope](avm-module-library.md).
+
 **5 October 2026 — named Preview delivered locally:** all nine optional name maps, source-registry Preview selection, frozen integrity checks, generated names and bounded browser checks are implemented. Named Deploy, portal registration, immutable-transition CI enforcement, restart handoff and live acceptance remain future gates. See [the phase plan](plans/stack-naming-and-resource-previews.md). No saved evidence is backfilled.
 
 **4 October 2026 — local authentication:** the portal now offers a local Azure CLI browser sign-in button, isolated credential cache, separate Azure/ADO audiences and returned-tenant discovery. Registered-app authentication remains available. This removes the custom-registration prerequisite for local CLI users; live tenant/ADO acceptance and operation-specific onboarding remain open. See [setup and limits](local-portal.md#configure-microsoft-browser-sign-in).

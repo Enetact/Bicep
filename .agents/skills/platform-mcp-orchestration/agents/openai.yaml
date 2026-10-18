@@ -1,0 +1,6 @@
+interface:
+  display_name: "Connected MCP orchestration"
+  short_description: "Coordinate five providers through approved tool plans"
+  default_prompt: "Use $platform-mcp-orchestration to complete the requested scoped task through connected provider catalogs and exact execution plans."
+policy:
+  allow_implicit_invocation: true

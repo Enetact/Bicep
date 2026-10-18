@@ -19,6 +19,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Validate a new stack-instance draft or review workload naming bindings | [Draft registry](../self-service/instances/README.md) → [Workload binding review](plans/stack-naming-bindings.md) |
 | Inspect nested properties and unresolved What-If evidence | [Nested discovery and qualification](nested-iac-evidence.md) |
 | Discover networks and explain topology | [Network discovery](network-discovery-and-diagrams.md) → [Diagrams](portal-diagrams.md) → [Agent workflows](agent-workflows.md) |
+| Connect Azure Bicep, Azure, ADO, GitHub and Learn tools for orchestration | [MCP providers, credentials and exact plans](provider-mcp.md) → [Agent workflows](agent-workflows.md) |
 | Analyze or change tags | [Tag governance](tag-governance.md) → [Permissions](security-and-rbac.md) |
 | Analyze DNS and compare observed/desired properties | [DNS and drift workspace](operations-workflows.md) → [Phased operations plan](plans/operations-workflow-suite.md) |
 | Understand recovery | [Recovery rules](recovery-rules.md) → [State and recovery plan](plans/deployment-state-and-recovery.md) |
@@ -70,7 +71,9 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | [Network discovery and IPAM](network-discovery-and-diagrams.md) | Tenant/management-group collection, deterministic checks, AVNM setup and manual tests. |
 | [Connected portal diagrams](portal-diagrams.md) | Observed topology, conceptual proposals and saved Azure Preview diagrams. |
 | [Offline discovery analysis](self-service-analysis.md) | Saved inventory/manifest reports without cloud access or a model. |
-| [Codex agent workflows](agent-workflows.md) | Six explicit reviews/drafts, AHP coordination, MCP evidence, identity and receipts. |
+| [Codex agent workflows](agent-workflows.md) | Ten explicit workflows, bounded AHP orchestration, scoped MCP evidence, identity and receipts. |
+| [Connected MCP providers](provider-mcp.md) | Full five-provider catalogs, skills/instructions and support files, host-held credentials, accepted reads and human-approved ordered change plans. |
+| [AVM module library](avm-module-library.md) | Six pinned AVM-backed source modules, seven typed child collections, parameterization, dependency locks and qualification boundaries. |
 | [AI-assisted Bicep drafts](bicep-source-drafts.md) | Local module contracts, generated parameters, source downloads and qualification. |
 | [Tag governance](tag-governance.md) | Resource/tag matrix, deterministic analysis, editable drafts and protected changes. |
 | [Recovery rules](recovery-rules.md) | Seventeen policies, exclusions, portal views and non-authorizing offline checks. |

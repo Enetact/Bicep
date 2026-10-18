@@ -1,0 +1,14 @@
+{
+  "name": "platform-studio-mcp-providers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned full-capability downstream MCP providers for the session-owned Platform Studio broker",
+  "engines": { "node": ">=22.0.0" },
+  "dependencies": {
+    "@azure/mcp": "3.0.0",
+    "@azure-devops/mcp": "2.10.0"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.0"
+  }
+}

@@ -14,7 +14,7 @@ assert.equal(bootstrap.configured, false, 'Run smoke tests against an unconfigur
 const headers = { cookie, origin: base, 'x-portal-csrf': bootstrap.csrf, 'content-type': 'application/json' };
 const post = (path, data, extra = {}) => fetch(base + '/api/' + path, { method: 'POST', headers: { ...headers, ...extra }, body: JSON.stringify(data) });
 await test('Session cookie and restrictive response headers', () => { assert.match(response.headers.get('set-cookie'), /httponly/i); assert.match(response.headers.get('set-cookie'), /samesite=strict/i); assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/); assert.equal(response.headers.get('access-control-allow-origin'), null); });
-await test('Catalog and complete skill API', async () => { assert.equal(bootstrap.products.length, 9); assert.equal(bootstrap.skills.length, 52); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
+await test('Catalog and complete skill API', async () => { assert.equal(bootstrap.products.length, 9); assert.equal(bootstrap.skills.length, 53); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
 await test('Every product has a served conceptual topology', () => assert.deepEqual(Object.keys(bootstrap.topologies.products).sort(), bootstrap.products.map(p => p.id).sort()));
 await test('Diagram module and connected panels are served', async () => {
   const module = await fetch(base + '/topology.mjs'); assert.equal(module.status, 200); assert.match(module.headers.get('content-type'), /javascript/);
@@ -41,7 +41,7 @@ await test('Agent readiness is explicit and no workflow starts on authentication
   const s = await fetch(base + '/api/agent/status', { headers }).then(r => r.json());
   assert.equal(s.provider.ready, false); assert.equal(s.provider.model, 'gpt-6.1-sol'); assert.equal(s.provider.effort, 'ultra'); assert.equal(s.provider.speed, 'Standard');
   assert.deepEqual(s.policy, { model: 'gpt-6.1-sol', displayName: 'GPT-6.1 Sol', effort: 'ultra', effortDisplayName: 'Ultra', serviceTier: 'default', speed: 'Standard' });
-  assert.equal(s.workflows.length, 9); assert.ok(s.workflows.every(w => !w.ready));
+  assert.equal(s.workflows.length, 10); assert.ok(s.workflows.every(w => !w.ready));
 });
 await test('Agent menu and module are served', async () => { assert.equal((await fetch(base + '/agents.mjs')).status, 200); assert.match(await fetch(base + '/').then(r => r.text()), /id="agent-run"/); });
 await test('DNS/drift analysis exposes implemented actions without execution',async()=>{

@@ -16,9 +16,11 @@ Platform Studio is a local Windows web application for discovering Azure resourc
 | **Configure workloads** | Nine offerings with dedicated resource, dependency and cost descriptions; separate Discover and Deploy menus. |
 | **Discover and visualize** | Resource and network inventory, explicit collection coverage, observed topology, proposed components and saved Azure What-If diagrams. |
 | **Compare live IaC state** | Shared Azure MCP before/What-If/after captures, [nested property/child probes and coverage gates](docs/nested-iac-evidence.md), existing-resource Bicep snapshots and phase-specific Codex visualizer reviews. [Workflow and manual acceptance](docs/agentic-iac.md). |
-| **Review with AI** | Nine Codex review/draft workflows using scoped evidence and pinned skills; deterministic checks remain usable without a model. |
+| **Work with AI** | Ten explicit Codex workflows: nine scoped reviews/drafts and one connected-provider orchestration workflow; deterministic checks remain usable without a model. |
+| **Orchestrate MCP tools** | Discover full Azure Bicep, Azure, Azure DevOps, GitHub and Microsoft Learn catalogs; run accepted reads and prepare exact ordered plans for human-approved changes. Includes [complete provider skills, instructions and supporting files](docs/provider-mcp.md#guidance-files-and-updates). [Connections, authorization and acceptance](docs/provider-mcp.md). |
 | **Analyze Private DNS and drift** | Dynamic Azure subscription picker, DNS records/coverage matrix, configured graph, explicit reference/observed/desired comparisons and editable analysis proposals. [Implemented scope and acceptance](docs/operations-workflows.md). |
 | **Design Bicep** | Compose reviewable source drafts from local module contracts, with explicit required settings and qualification before deployment. |
+| **Use verified module building blocks** | Six pinned AVM-backed modules add identity, private registry/configuration/telemetry, NSGs and routing, with seven typed child collections. Browse their inputs in source drafting. [Module library](docs/avm-module-library.md). |
 | **Govern tags** | Subscription resource/tag views, deterministic findings, editable drafts and a protected ADO change path. |
 | **Deliver through ADO** | Reviewed pipeline registration, saved discovery, Preview summaries, immutable bundle checks, Template Spec publication and stack deployment. |
 | **Connect private GitHub source** | Browser sign-in through local GitHub CLI, verified account status and authenticated source checks in ADO setup. ADO retains its separate repository connection. [Setup](docs/local-portal.md#github-browser-sign-in). |
@@ -33,6 +35,8 @@ Explore the [platform overview](docs/platform-overview.md) for architecture, ide
 **Stack naming and Preview:** [all nine workloads](docs/resource-naming.md) have optional standard-v2 Bicep names, generated discovery-name tables and local draft previews. Dedicated Deploy menus accept a reviewed source instance for Preview only, freeze its names, and show names from fresh Azure What-If in the portal. Saved reports are never rewritten. Local Release/HTTP/browser checks passed; live named Preview and model acceptance remain pending. Named Deploy is blocked, and the authenticated primary portal has not been restarted.
 
 Agent workflows use **GPT-6.1 Sol (`gpt-6.1-sol`), Ultra reasoning and Standard speed** through the existing AHP coordination and Codex app-server integration. The connected account must advertise the requested model and effort; execution blocks if the provider substitutes settings. See [agent setup and acceptance](docs/agent-workflows.md).
+
+**17 October 2026 — provider integration:** the browser-owned MCP broker and bounded AHP `workflow-orchestration` actions are implemented in source. Providers use the connected Azure/ADO/GitHub identities; Learn is public. Full catalogs retain exact approval gates for changing, sensitive or unclassified tools. Installation, credential attachment and live provider/model acceptance are separate checks. Existing scoped reviews retain their two frozen-evidence tools. See [the provider guide](docs/provider-mcp.md).
 
 ## Start Platform Studio locally
 
@@ -50,6 +54,8 @@ Open [localhost:5087](http://localhost:5087/). You can browse workloads, skills 
 ```
 
 Azure, Azure DevOps and Codex use separate connections. In **Connections → Local authentication — Azure CLI**, click **Sign in locally — Azure CLI** to open Microsoft sign-in without a custom app registration; then connect ADO through the same account. Registered Entra app authentication remains an alternative. See [authentication and cache handling](docs/local-portal.md#configure-microsoft-browser-sign-in) and [agent setup](docs/agent-workflows.md). The pipeline service connection remains a separate identity.
+
+For connected-provider orchestration, also run `./scripts/Setup-McpProviders.ps1`, rebuild the portal, and connect each server under **Connections → MCP tool servers**. Azure MCP requires the isolated local CLI mode; GitHub MCP uses the portal's verified CLI attachment. No token is entered into the model or tool arguments. Follow [provider setup and live acceptance](docs/provider-mcp.md) before executing a real change.
 
 ## Workload catalog
 

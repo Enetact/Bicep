@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "skill": "platform-mcp-orchestration",
+  "manifestSha256": "2196a56fe48d94f7260bee205d067adfb743b4047f421053916acbc1509b6c7a",
+  "sources": [
+    {
+      "path": "instruction.md",
+      "sha256": "276d1018b153ea064d224bf011d5d6fd4698cec63c7dc2c89ef2771943eea23c",
+      "bytes": 3860
+    },
+    {
+      "path": "providers/bicep/SKILL.md",
+      "sha256": "96deb75abc2b9856cc040fe016f022d7abecaaf088548b5544163d49e8691d53",
+      "bytes": 421
+    },
+    {
+      "path": "providers/bicep/instruction.md",
+      "sha256": "98fb9064ca14ab9ad17ebf3960f56c326dc539f31ae55124ad0c5b0dad2271dc",
+      "bytes": 4412
+    },
+    {
+      "path": "providers/azure/SKILL.md",
+      "sha256": "22f8c3cce22a6240512fdba0b744858f7142a8414e103102fcef5fb44db56999",
+      "bytes": 434
+    },
+    {
+      "path": "providers/azure/instruction.md",
+      "sha256": "2eb50a71f5acc1a1bad50e1ce64a65a2d7dc5b8974f9b05fb44f77e140616f00",
+      "bytes": 2046
+    },
+    {
+      "path": "providers/ado/SKILL.md",
+      "sha256": "162cf8c735ca001770c57ce42932a74e18cb9c3ca64416c68e4be9013532d712",
+      "bytes": 407
+    },
+    {
+      "path": "providers/ado/instruction.md",
+      "sha256": "b2b10e4a3b9f3dcd230dcca01c14228ad25112497029a3705971cfe9e7e28d2a",
+      "bytes": 2009
+    },
+    {
+      "path": "providers/github/SKILL.md",
+      "sha256": "3bcc487eed7d79e24a23e811150c32bb329f18087e5e2c7edbd39e1091d5dc61",
+      "bytes": 407
+    },
+    {
+      "path": "providers/github/instruction.md",
+      "sha256": "2967377d5d2982d6e570c2c323f93fa7621c3fe0d938e0f94b7f3f1c849b3227",
+      "bytes": 2026
+    },
+    {
+      "path": "providers/learn/SKILL.md",
+      "sha256": "2acc080beb0569140601bdd84a5184dabcd9c592074de6cd912f84b7b0dd5afb",
+      "bytes": 420
+    },
+    {
+      "path": "providers/learn/instruction.md",
+      "sha256": "ccfa7ab288eee4049c689c50925df655ed0ad887b35be04614606da0fd79b843",
+      "bytes": 1752
+    },
+    {
+      "path": "references/workflows.md",
+      "sha256": "8289e6e7d276e08d405ef3f22d8860638a94fc55aae3d081579495f0991872d2",
+      "bytes": 3403
+    },
+    {
+      "path": "references/provenance.md",
+      "sha256": "28608d640b63e2582fad30f15d9027623d5deac17ac71c4c5ce3c20a052468ef",
+      "bytes": 2421
+    },
+    {
+      "path": "assets/public-read.plan.json",
+      "sha256": "79a3b905eb70798620bf47962c10122e6458a95de6578d0822fbfa9dbd6e4a26",
+      "bytes": 213
+    },
+    {
+      "path": "assets/scoped-read.plan.json",
+      "sha256": "999e36c57e77dcba40365b1303ae4ef87c7cc5e974f5732ee8546ce77fdaa960",
+      "bytes": 285
+    },
+    {
+      "path": "assets/github-branch-change.plan.json",
+      "sha256": "3912249aa3205daf5286dee93b364fc47f80a51a9fc7acbef0c9123c96476c01",
+      "bytes": 223
+    }
+  ],
+  "resources": [
+    {
+      "path": "agents/openai.yaml",
+      "sha256": "76db42eb824dd4af792f9064e44ff8edcaddf5d4b50fb10983c28b3488da8816",
+      "bytes": 329
+    }
+  ],
+  "bundleSha256": "1e3bd8ac8ed23dde2de17369c9704620bea9354d662311cec085e159a5c435a4",
+  "outputSha256": "dd699aa6ea9cc689fd527b017a53a7e8e8cad7f62d98241372b06021dd8f33a0",
+  "outputBytes": 26773
+}

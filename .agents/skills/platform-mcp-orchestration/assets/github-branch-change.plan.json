@@ -1,0 +1,5 @@
+{
+  "steps": [
+    { "provider": "github", "tool": "create_branch", "arguments": { "owner": "selected-owner", "repo": "selected-repository", "from_branch": "observed-base-branch", "branch": "requested-new-branch" } }
+  ]
+}

@@ -5,7 +5,7 @@ param([switch]$Check)
 $root=Get-ProjectRoot
 $output=Join-Path $root 'artifacts/module-audit'
 New-Item -ItemType Directory -Path $output -Force|Out-Null
-$contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*.bicep' -Recurse|Sort-Object FullName){
+$contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*.bicep' -Recurse|Where-Object {![IO.Path]::GetRelativePath((Join-Path $root modules),$_.FullName).Replace('\','/').StartsWith('avm/')}|Sort-Object FullName){
     $path=[IO.Path]::GetRelativePath($root,$file.FullName).Replace('\','/')
     $id=$path.Replace('modules/','').Replace('/main.bicep','').Replace('.bicep','').Replace('/','-')
     $compiled=Join-Path $output "$id.json"
@@ -25,3 +25,4 @@ if($Check){
     if(!(Test-Path -LiteralPath $path) -or ([IO.File]::ReadAllText($path).Replace("`r`n","`n").Trim() -cne $json.Replace("`r`n","`n").Trim())){throw 'Bicep module contracts changed. Regenerate, review and commit the contract with its source.'}
     Write-Host "PASS: $($contracts.Count) compiled module contracts match source. No Azure calls."
 }else{[IO.File]::WriteAllText($path,$json+"`n",[Text.UTF8Encoding]::new($false));Write-Host "Updated $($contracts.Count) module contracts. No Azure calls."}
+& "$PSScriptRoot/Update-AvmModuleContracts.ps1" -Check:$Check

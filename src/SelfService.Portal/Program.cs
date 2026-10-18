@@ -30,6 +30,9 @@ builder.Services.AddHttpClient<GitHubIdentity>().ConfigureHttpClient(c => c.Time
 builder.Services.AddTransient<IGitHubIdentity>(s => s.GetRequiredService<GitHubIdentity>());
 builder.Services.AddSingleton<ITokenProvider>(s => s.GetRequiredService<BrowserIdentity>());
 builder.Services.AddTransient<AgentWorkflows>();
+builder.Services.AddSingleton<IProviderMcpFactory, McpProviderFactory>();
+builder.Services.AddTransient<IProviderConnectionResolver, McpProviderCredentials>();
+builder.Services.AddTransient<McpProviderBroker>();
 builder.Services.AddTransient<OperationsService>();
 builder.Services.AddHttpClient<PrivateDnsReader>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
@@ -86,6 +89,7 @@ app.MapPost("/api/github/connect", (HttpContext c, GitHubIdentity identity) => {
 app.MapPost("/api/github/attach", (HttpContext c, GitHubIdentity identity) => { identity.Begin(Session(c), true); return Results.Ok(); });
 app.MapPost("/api/github/disconnect", (HttpContext c, GitHubIdentity identity) => { identity.Disconnect(Session(c)); return Results.Ok(); });
 app.MapGet("/api/skills/{id}", (string id, Catalog catalog) => catalog.Skills.SingleOrDefault(s => s.Id == id) ?? throw new PortalException("Unknown skill.", 404));
+app.MapGet("/api/bicep/modules", () => BicepDrafts.Catalog(options.RepositoryRoot));
 app.MapGet("/api/recovery/policies", (Catalog catalog) => catalog.RecoveryPolicies);
 app.MapGet("/api/subscriptions", async (HttpContext c, AdoGateway ado) => await ado.Subscriptions(Session(c)));
 app.MapGet("/api/discovery/{product}", async (HttpContext c, string product, AdoGateway ado) => await ado.DiscoveryRuns(Session(c), product));
@@ -143,7 +147,16 @@ app.MapPost("/api/operations/assess", (HttpContext c, OperationsAssessRequest re
 app.MapPost("/api/operations/proposals", (HttpContext c, OperationsDraftRequest request, OperationsService service) => service.Draft(Session(c), request, c.RequestAborted));
 app.MapPost("/api/operations/proposals/{id}/preview", (HttpContext c, string id) => OperationsService.Preview(Session(c), id));
 app.MapGet("/api/agent/status", async (HttpContext c, AgentWorkflows agents) => await agents.Status(Session(c), c.RequestAborted));
-app.MapGet("/api/agent/ahp", async (HttpContext c, AgentWorkflows agents) => await AgentHostChannel.Handle(c, Session(c), agents, options));
+app.MapGet("/api/mcp/status", (HttpContext c, McpProviderBroker broker) => broker.Status(Session(c)));
+app.MapGet("/api/mcp/tools", (HttpContext c, McpProviderBroker broker, string? provider, string? search, int? offset, int? limit) => broker.Catalog(Session(c), provider, search, offset ?? 0, limit ?? 20));
+app.MapPost("/api/mcp/{provider}/connect", (HttpContext c, string provider, McpProviderBroker broker) => broker.Connect(Session(c), provider, c.RequestAborted));
+app.MapPost("/api/mcp/{provider}/disconnect", (HttpContext c, string provider, McpProviderBroker broker) => broker.Disconnect(Session(c), provider, c.RequestAborted));
+app.MapGet("/api/mcp/plans", (HttpContext c) => new { plans = McpProviderBroker.Plans(Session(c)) });
+app.MapGet("/api/mcp/plans/{id}", (HttpContext c, string id, McpProviderBroker broker) => McpProviderBroker.View(broker.ReadPlan(Session(c), id)));
+app.MapPost("/api/mcp/plans", (HttpContext c, McpPlanRequest request, McpProviderBroker broker) => McpProviderBroker.View(broker.Plan(Session(c), request)));
+app.MapPost("/api/mcp/plans/{id}/approve", (HttpContext c, string id, McpPlanConsent consent, McpProviderBroker broker) => broker.Approve(Session(c), id, consent.Digest));
+app.MapPost("/api/mcp/plans/{id}/run", (HttpContext c, string id, McpPlanConsent consent, McpProviderBroker broker) => broker.Run(Session(c), id, consent.Digest, c.RequestAborted));
+app.MapGet("/api/agent/ahp", async (HttpContext c, AgentWorkflows agents, McpProviderBroker broker) => await AgentHostChannel.Handle(c, Session(c), agents, options, broker));
 app.MapPost("/api/agent/connect", async (HttpContext c, AgentWorkflows agents) => await agents.Connect(Session(c), c.RequestAborted));
 app.MapPost("/api/agent/cancel", (HttpContext c) => { Session(c).Agent.Run?.Cancel(); return Results.Ok(); });
 app.MapPost("/api/agent/disconnect", async (HttpContext c) => { await Session(c).Agent.DisposeAsync(); return Results.Ok(); });

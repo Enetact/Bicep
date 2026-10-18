@@ -27,6 +27,7 @@ try{
     $socket.ConnectAsync([uri]"ws://localhost:$Port/api/agent/ahp",$timeout.Token).GetAwaiter().GetResult()|Out-Null
     $r=Invoke-AgentRpc 1 initialize @{channel='ahp-root://';protocolVersions=@('0.9.0');clientId='portal-contract-test'}
     if($r.result.protocolVersion -ne '0.9.0'){throw 'AHP initialize failed.'}
+    if($r.result.snapshots[0].state.platformStudio.profile -cne 'workflow-orchestration' -or $r.result.snapshots[0].state.platformStudio.actions -notcontains 'platform/mcpPlan'){throw 'AHP provider orchestration advertisement failed.'}
     $model=$r.result.snapshots[0].state.agents[0].models[0]
     if($model.id -cne 'gpt-6.1-sol' -or $model.name -cne 'GPT-6.1 Sol'){throw 'AHP model advertisement mismatch.'}
     $channel='ahp-session:/'+[guid]::NewGuid().ToString()
@@ -34,6 +35,7 @@ try{
     if($r.error){throw 'AHP session creation failed.'}
     $r=Invoke-AgentRpc 3 subscribe @{channel=$channel}
     $state=$r.result.snapshot.state.platformStudio
+    if($r.result.snapshot.state.customizations.Count -ne 5 -or @($r.result.snapshot.state.customizations | Where-Object type -ne mcpServer).Count){throw 'AHP provider customization projection failed.'}
     $expected=(Invoke-WebRequest "$origin/api/agent/status" -WebSession $portalSession).Content|ConvertFrom-Json
     if($state.workflows.Count -ne $expected.workflows.Count -or $state.workflows.Count -eq 0){throw 'AHP workflow readiness projection failed.'}
     if($state.policy.model -cne 'gpt-6.1-sol' -or $state.policy.effort -cne 'ultra' -or $state.policy.serviceTier -cne 'default'){throw 'AHP model policy mismatch.'}
@@ -42,5 +44,5 @@ try{
     $r=Invoke-AgentRpc 5 dispatchAction @{channel=$channel;action=@{type='chat/turnStarted'}}
     if(!$r.error){throw 'Arbitrary model dispatch was not rejected.'}
     $socket.CloseAsync([Net.WebSockets.WebSocketCloseStatus]::NormalClosure,'Done',$timeout.Token).GetAwaiter().GetResult()|Out-Null
-    Write-Host 'PASS: 7 AHP coordination/policy checks; no login, inference, Azure or ADO calls.'
+    Write-Host 'PASS: 9 AHP coordination/orchestration/policy checks; no login, inference, Azure or ADO calls.'
 }finally{$socket.Dispose();$timeout.Dispose()}

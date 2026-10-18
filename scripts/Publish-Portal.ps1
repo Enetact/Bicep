@@ -3,6 +3,10 @@
 param([ValidateSet('win-arm64','win-x64')][string[]]$Runtime=@('win-arm64','win-x64'))
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
+& (Join-Path $PSScriptRoot 'Update-McpGuidance.ps1') -Check
+& node (Join-Path $PSScriptRoot 'mcp/verify-skill-sources.mjs')
+if($LASTEXITCODE -ne 0){throw 'Official skill source verification failed.'}
+& (Join-Path $PSScriptRoot 'Update-BicepModuleContracts.ps1') -Check
 $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
 foreach($rid in $Runtime){
     $dest=Join-Path $root "artifacts/portal-packages/$stamp/$rid"
@@ -16,6 +20,12 @@ foreach($rid in $Runtime){
     New-Item -ItemType Directory -Path (Join-Path $snapshot 'scripts') -Force|Out-Null
     Copy-Item -LiteralPath (Join-Path $root 'scripts/analysis') -Destination (Join-Path $snapshot 'scripts') -Recurse
     Copy-Item -LiteralPath (Join-Path $root 'scripts/naming') -Destination (Join-Path $snapshot 'scripts') -Recurse
+    $mcpScripts=Join-Path $snapshot 'scripts/mcp';New-Item -ItemType Directory -Path $mcpScripts -Force|Out-Null
+    foreach($file in @('package.json','package-lock.json','update-guidance.mjs','verify-skill-sources.mjs')){Copy-Item -LiteralPath (Join-Path $root "scripts/mcp/$file") -Destination $mcpScripts}
+    Copy-Item -LiteralPath (Join-Path $root 'scripts/Setup-McpProviders.ps1') -Destination (Join-Path $snapshot 'scripts')
+    Copy-Item -LiteralPath (Join-Path $root 'scripts/Update-McpGuidance.ps1') -Destination (Join-Path $snapshot 'scripts')
+    foreach($file in @('common.ps1','Setup-AvmTooling.ps1','Update-BicepModuleContracts.ps1','Update-AvmModuleContracts.ps1','Verify-AvmSources.ps1')){Copy-Item -LiteralPath (Join-Path $root "scripts/$file") -Destination (Join-Path $snapshot 'scripts')}
+    Copy-Item -LiteralPath (Join-Path $root 'AGENTS.md') -Destination $snapshot
     Copy-Item -LiteralPath (Join-Path $root 'scripts/Install-GitHubCli.ps1') -Destination (Join-Path $snapshot 'scripts')
     Get-ChildItem $root -Filter 'azure-pipelines*.yml'|Copy-Item -Destination $snapshot
     Copy-Item -LiteralPath (Join-Path $root 'docs/local-portal.md') -Destination (Join-Path $dest 'README.md')

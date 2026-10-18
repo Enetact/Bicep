@@ -1,0 +1,1000 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Pinned AVM source draft contracts, not deployment authorization",
+  "modules": [
+    {
+      "id": "avm-configuration-app-configuration",
+      "path": "modules/avm/configuration/app-configuration/main.bicep",
+      "sourceSha256": "0d928611d66128003e3d7f583cf6072bc39819701c1c2958e5a1f3f571768dad",
+      "draftSelectable": true,
+      "parameters": {
+        "keyValues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "contentType": {
+                "type": "string",
+                "allowedValues": [
+                  "application/json",
+                  "text/plain"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "value": {
+                "type": "string",
+                "maxLength": 8192
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 100,
+          "metadata": {
+            "description": "Non-secret configuration only, with explicit content types. Empty writes no configuration data. Values are visible in source/deployment history; never supply credentials. Requires reviewed data-plane RBAC and an ARM Private Link deployment path."
+          }
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved Azure region."
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 50,
+          "metadata": {
+            "description": "Explicit globally unique store name, 5-50 characters; qualify Azure naming rules and availability."
+          }
+        },
+        "replicaLocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "replicaLocation": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 10,
+          "metadata": {
+            "description": "Optional explicit replicas; empty creates none. Review tier/region availability, uniqueness and cost."
+          }
+        },
+        "skuName": {
+          "type": "string",
+          "defaultValue": "Standard",
+          "allowedValues": [
+            "Standard",
+            "Premium"
+          ],
+          "metadata": {
+            "description": "Reviewed billable service tier; Free and Developer are excluded from this private protected profile."
+          }
+        },
+        "softDeleteRetentionInDays": {
+          "type": "int",
+          "defaultValue": 7,
+          "minValue": 1,
+          "maxValue": 7,
+          "metadata": {
+            "description": "Protected soft-delete retention in days; purge protection remains enabled."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Reviewed ownership and classification tags."
+          }
+        }
+      },
+      "outputs": {
+        "endpoint": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.AppConfiguration/configurationStores",
+        "Microsoft.AppConfiguration/configurationStores/keyValues",
+        "Microsoft.AppConfiguration/configurationStores/replicas",
+        "Microsoft.Authorization/locks",
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.KeyVault/vaults",
+        "Microsoft.KeyVault/vaults/keys",
+        "Microsoft.ManagedIdentity/userAssignedIdentities",
+        "Microsoft.Network/privateEndpoints",
+        "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
+      ],
+      "definitions": {
+        "keyValue": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "value": {
+              "type": "string",
+              "maxLength": 8192
+            },
+            "contentType": {
+              "type": "string",
+              "allowedValues": [
+                "application/json",
+                "text/plain"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "replica": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "replicaLocation": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "sources": {
+        "modules/avm/configuration/app-configuration/main.bicep": "0d928611d66128003e3d7f583cf6072bc39819701c1c2958e5a1f3f571768dad",
+        "vendor/azure-verified-modules/bundle.json": "541ce2d658111359ccc226d687b9fb1ec8cd4c52c73d28c59e5af1836dae7205",
+        "vendor/azure-verified-modules/configuration-app-configuration/main.json": "52615e0dbbce6d374bd421750f5af1744d80d259bfac5c106658938c2e6d4904",
+        "vendor/azure-verified-modules/configuration-app-configuration/manifest.json": "9405d1dc0ea6801538fea96ffb78350249adfcdd6d59b8acab12aefb57af7a11",
+        "vendor/azure-verified-modules/LICENSE": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "origin": {
+        "kind": "AzureVerifiedModule",
+        "version": "0.10.1",
+        "registry": "mcr.microsoft.com/bicep/avm/res/app-configuration/configuration-store:0.10.1",
+        "sourceCommit": "f1f4ba28698437d9a683d68bf181341ad3547e48",
+        "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/f1f4ba28698437d9a683d68bf181341ad3547e48/avm/res/app-configuration/configuration-store/main.bicep",
+        "manifestDigest": "sha256:9405d1dc0ea6801538fea96ffb78350249adfcdd6d59b8acab12aefb57af7a11",
+        "templateSha256": "52615e0dbbce6d374bd421750f5af1744d80d259bfac5c106658938c2e6d4904"
+      }
+    },
+    {
+      "id": "avm-containers-container-registry",
+      "path": "modules/avm/containers/container-registry/main.bicep",
+      "sourceSha256": "9b1825d163af04e1b01a14350afd446e73cf6bf25285c4b0261725c309a635ec",
+      "draftSelectable": true,
+      "parameters": {
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved Azure region with Premium registry support."
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 50,
+          "metadata": {
+            "description": "Explicit globally unique registry name, 5-50 alphanumeric characters; validate availability before qualification."
+          }
+        },
+        "replications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "zoneRedundancy": {
+                "type": "string",
+                "allowedValues": [
+                  "Disabled",
+                  "Enabled"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 10,
+          "metadata": {
+            "description": "Optional reviewed geo-replicas, with explicit names, regions and zone profiles. Empty creates no replicas."
+          }
+        },
+        "retentionInDays": {
+          "type": "int",
+          "defaultValue": 30,
+          "minValue": 7,
+          "maxValue": 90,
+          "metadata": {
+            "description": "Untagged-manifest retention in days. After this period untagged manifests can be deleted; review the application retention requirement."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Reviewed ownership and classification tags."
+          }
+        },
+        "zoneRedundancy": {
+          "type": "string",
+          "defaultValue": "Disabled",
+          "allowedValues": [
+            "Disabled",
+            "Enabled"
+          ],
+          "metadata": {
+            "description": "Zone redundancy in a supported region; availability and cost require review."
+          }
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "loginServer": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/locks",
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.ContainerRegistry/registries",
+        "Microsoft.ContainerRegistry/registries/cacheRules",
+        "Microsoft.ContainerRegistry/registries/credentialSets",
+        "Microsoft.ContainerRegistry/registries/replications",
+        "Microsoft.ContainerRegistry/registries/scopeMaps",
+        "Microsoft.ContainerRegistry/registries/tasks",
+        "Microsoft.ContainerRegistry/registries/tokens",
+        "Microsoft.ContainerRegistry/registries/webhooks",
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.KeyVault/vaults",
+        "Microsoft.KeyVault/vaults/keys",
+        "Microsoft.ManagedIdentity/userAssignedIdentities",
+        "Microsoft.Network/privateEndpoints",
+        "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
+      ],
+      "definitions": {
+        "replica": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "location": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "zoneRedundancy": {
+              "type": "string",
+              "allowedValues": [
+                "Disabled",
+                "Enabled"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "sources": {
+        "modules/avm/containers/container-registry/main.bicep": "9b1825d163af04e1b01a14350afd446e73cf6bf25285c4b0261725c309a635ec",
+        "vendor/azure-verified-modules/bundle.json": "541ce2d658111359ccc226d687b9fb1ec8cd4c52c73d28c59e5af1836dae7205",
+        "vendor/azure-verified-modules/containers-container-registry/main.json": "239c56c43fcb59891b04ee59748978f463357e6c80c7a7825e35760eae23e4ee",
+        "vendor/azure-verified-modules/containers-container-registry/manifest.json": "2ee6ba8e32e9392ed7a5c0eee39910ce5222c35d4c463b087d0f6928139789bd",
+        "vendor/azure-verified-modules/LICENSE": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "origin": {
+        "kind": "AzureVerifiedModule",
+        "version": "0.13.1",
+        "registry": "mcr.microsoft.com/bicep/avm/res/container-registry/registry:0.13.1",
+        "sourceCommit": "f1f4ba28698437d9a683d68bf181341ad3547e48",
+        "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/f1f4ba28698437d9a683d68bf181341ad3547e48/avm/res/container-registry/registry/main.bicep",
+        "manifestDigest": "sha256:2ee6ba8e32e9392ed7a5c0eee39910ce5222c35d4c463b087d0f6928139789bd",
+        "templateSha256": "239c56c43fcb59891b04ee59748978f463357e6c80c7a7825e35760eae23e4ee"
+      }
+    },
+    {
+      "id": "avm-identity-user-assigned-identity",
+      "path": "modules/avm/identity/user-assigned-identity/main.bicep",
+      "sourceSha256": "cddee5cfe61629d45521cfd4a7731d945faeb3d35fcd5dd9663d6b9c680abb70",
+      "draftSelectable": true,
+      "parameters": {
+        "federatedIdentityCredentials": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "audiences": {
+                "type": "array",
+                "allowedValues": [
+                  "api://AzureADTokenExchange"
+                ],
+                "minLength": 1,
+                "maxLength": 1
+              },
+              "issuer": {
+                "type": "string",
+                "minLength": 9,
+                "maxLength": 2048
+              },
+              "name": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 120
+              },
+              "subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 20,
+          "metadata": {
+            "description": "Explicit trusted issuers and subjects. Empty creates no federated identity credentials. Review every trust before deployment."
+          }
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved Azure region."
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "metadata": {
+            "description": "Explicit reviewed identity name; no naming policy is inferred."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Reviewed ownership and classification tags; no secrets."
+          }
+        }
+      },
+      "outputs": {
+        "clientId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "principalId": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/locks",
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.ManagedIdentity/userAssignedIdentities",
+        "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
+      ],
+      "definitions": {
+        "federation": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 120
+            },
+            "issuer": {
+              "type": "string",
+              "minLength": 9,
+              "maxLength": 2048
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            },
+            "audiences": {
+              "type": "array",
+              "allowedValues": [
+                "api://AzureADTokenExchange"
+              ],
+              "minLength": 1,
+              "maxLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "sources": {
+        "modules/avm/identity/user-assigned-identity/main.bicep": "cddee5cfe61629d45521cfd4a7731d945faeb3d35fcd5dd9663d6b9c680abb70",
+        "vendor/azure-verified-modules/bundle.json": "541ce2d658111359ccc226d687b9fb1ec8cd4c52c73d28c59e5af1836dae7205",
+        "vendor/azure-verified-modules/identity-user-assigned-identity/main.json": "6fffc6f6e465e51af5caf59bd305d0a08316fca0e33a8214955f5cd5b43e6bf7",
+        "vendor/azure-verified-modules/identity-user-assigned-identity/manifest.json": "af3108d4973ce5252f08442e2e97b1fc6c67e19a7143ea58ba21ac1a58dc807e",
+        "vendor/azure-verified-modules/LICENSE": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+      },
+      "origin": {
+        "kind": "AzureVerifiedModule",
+        "version": "0.6.0",
+        "registry": "mcr.microsoft.com/bicep/avm/res/managed-identity/user-assigned-identity:0.6.0",
+        "sourceCommit": "a9370ad48e31b2de5a679dd630da28612ad95471",
+        "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/a9370ad48e31b2de5a679dd630da28612ad95471/avm/res/managed-identity/user-assigned-identity/main.bicep",
+        "manifestDigest": "sha256:af3108d4973ce5252f08442e2e97b1fc6c67e19a7143ea58ba21ac1a58dc807e",
+        "templateSha256": "6fffc6f6e465e51af5caf59bd305d0a08316fca0e33a8214955f5cd5b43e6bf7"
+      }
+    },
+    {
+      "id": "avm-monitoring-application-insights",
+      "path": "modules/avm/monitoring/application-insights/main.bicep",
+      "sourceSha256": "45626b2b2933971d98e7622c856a7aeec430cf684b41213184a0f980f0ab6f9e",
+      "draftSelectable": true,
+      "parameters": {
+        "applicationType": {
+          "type": "string",
+          "defaultValue": "web",
+          "allowedValues": [
+            "web",
+            "other"
+          ],
+          "metadata": {
+            "description": "Reviewed application telemetry profile."
+          }
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved Azure region."
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 260,
+          "metadata": {
+            "description": "Explicit reviewed component name; no naming policy is inferred."
+          }
+        },
+        "retentionInDays": {
+          "type": "int",
+          "defaultValue": 90,
+          "allowedValues": [
+            30,
+            60,
+            90,
+            120,
+            180,
+            270,
+            365,
+            550,
+            730
+          ],
+          "metadata": {
+            "description": "Reviewed retention profile in days; workspace retention and cost must also be qualified."
+          }
+        },
+        "samplingPercentage": {
+          "type": "int",
+          "defaultValue": 100,
+          "minValue": 1,
+          "maxValue": 100,
+          "metadata": {
+            "description": "Percentage of application telemetry sampled, 1-100. Confirm that the instrumentation honors this setting."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Reviewed ownership and classification tags."
+          }
+        },
+        "workspaceId": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved existing or composition-owned Log Analytics workspace ID. Observation alone does not authorize reuse."
+          }
+        }
+      },
+      "outputs": {
+        "applicationId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/locks",
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.Insights/components",
+        "microsoft.insights/components/linkedStorageAccounts",
+        "Microsoft.Insights/diagnosticSettings"
+      ],
+      "definitions": {},
+      "sources": {
+        "modules/avm/monitoring/application-insights/main.bicep": "45626b2b2933971d98e7622c856a7aeec430cf684b41213184a0f980f0ab6f9e",
+        "vendor/azure-verified-modules/bundle.json": "541ce2d658111359ccc226d687b9fb1ec8cd4c52c73d28c59e5af1836dae7205",
+        "vendor/azure-verified-modules/LICENSE": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+        "vendor/azure-verified-modules/monitoring-application-insights/main.json": "f599e8ef7f166cd876cbd06a48792594541e046e0eab9c0ec8d6ef959d1cbdb5",
+        "vendor/azure-verified-modules/monitoring-application-insights/manifest.json": "ab732413f1131a8915500e3b9ec12e21964b015cf7dfcdf9ce5c8ed95deba8b3"
+      },
+      "origin": {
+        "kind": "AzureVerifiedModule",
+        "version": "0.8.0",
+        "registry": "mcr.microsoft.com/bicep/avm/res/insights/component:0.8.0",
+        "sourceCommit": "4f750c70f333b2df6170e3b56ae90faa852361d2",
+        "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/4f750c70f333b2df6170e3b56ae90faa852361d2/avm/res/insights/component/main.bicep",
+        "manifestDigest": "sha256:ab732413f1131a8915500e3b9ec12e21964b015cf7dfcdf9ce5c8ed95deba8b3",
+        "templateSha256": "f599e8ef7f166cd876cbd06a48792594541e046e0eab9c0ec8d6ef959d1cbdb5"
+      }
+    },
+    {
+      "id": "avm-network-network-security-group",
+      "path": "modules/avm/network/network-security-group/main.bicep",
+      "sourceSha256": "24982d7f90b2f2295449f51a23d2ac423ba6298eea9efe1d40c290bb750d0a14",
+      "draftSelectable": true,
+      "parameters": {
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved Azure region."
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "metadata": {
+            "description": "Explicit name for a new workload-owned NSG. Never pass an existing shared NSG name to adopt it."
+          }
+        },
+        "securityRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "properties": {
+                "type": "object",
+                "properties": {
+                  "access": {
+                    "type": "string",
+                    "allowedValues": [
+                      "Allow",
+                      "Deny"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 140
+                  },
+                  "destinationAddressPrefix": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "destinationPortRange": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 11
+                  },
+                  "direction": {
+                    "type": "string",
+                    "allowedValues": [
+                      "Inbound",
+                      "Outbound"
+                    ]
+                  },
+                  "priority": {
+                    "type": "int",
+                    "minValue": 100,
+                    "maxValue": 4096
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "allowedValues": [
+                      "*",
+                      "Ah",
+                      "Esp",
+                      "Icmp",
+                      "Tcp",
+                      "Udp"
+                    ]
+                  },
+                  "sourceAddressPrefix": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "sourcePortRange": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 11
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 100,
+          "metadata": {
+            "description": "Reviewed custom rules; empty retains Azure default NSG rules. Names and priorities must be unique; review effective traffic and address/port syntax."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Reviewed ownership and classification tags."
+          }
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/locks",
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.Insights/diagnosticSettings",
+        "Microsoft.Network/networkSecurityGroups"
+      ],
+      "definitions": {
+        "ruleProperties": {
+          "type": "object",
+          "properties": {
+            "priority": {
+              "type": "int",
+              "minValue": 100,
+              "maxValue": 4096
+            },
+            "access": {
+              "type": "string",
+              "allowedValues": [
+                "Allow",
+                "Deny"
+              ]
+            },
+            "direction": {
+              "type": "string",
+              "allowedValues": [
+                "Inbound",
+                "Outbound"
+              ]
+            },
+            "protocol": {
+              "type": "string",
+              "allowedValues": [
+                "*",
+                "Ah",
+                "Esp",
+                "Icmp",
+                "Tcp",
+                "Udp"
+              ]
+            },
+            "sourceAddressPrefix": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "sourcePortRange": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 11
+            },
+            "destinationAddressPrefix": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "destinationPortRange": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 11
+            },
+            "description": {
+              "type": "string",
+              "nullable": true,
+              "maxLength": 140
+            }
+          },
+          "additionalProperties": false
+        },
+        "securityRule": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "properties": {
+              "$ref": "#/definitions/ruleProperties"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "sources": {
+        "modules/avm/network/network-security-group/main.bicep": "24982d7f90b2f2295449f51a23d2ac423ba6298eea9efe1d40c290bb750d0a14",
+        "vendor/azure-verified-modules/bundle.json": "541ce2d658111359ccc226d687b9fb1ec8cd4c52c73d28c59e5af1836dae7205",
+        "vendor/azure-verified-modules/LICENSE": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+        "vendor/azure-verified-modules/network-network-security-group/main.json": "27a286fc20375f94cec61fd07a360b318f486e63c4bffb27dc96dbc1954b2c2d",
+        "vendor/azure-verified-modules/network-network-security-group/manifest.json": "c5d7a58038a524309b5a392a2f72540eaa93466cd14659fcc8ff3ccc62b1008a"
+      },
+      "origin": {
+        "kind": "AzureVerifiedModule",
+        "version": "0.5.4",
+        "registry": "mcr.microsoft.com/bicep/avm/res/network/network-security-group:0.5.4",
+        "sourceCommit": "99f7bd7e64b6067691330b63744a999269431d2c",
+        "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/99f7bd7e64b6067691330b63744a999269431d2c/avm/res/network/network-security-group/main.bicep",
+        "manifestDigest": "sha256:c5d7a58038a524309b5a392a2f72540eaa93466cd14659fcc8ff3ccc62b1008a",
+        "templateSha256": "27a286fc20375f94cec61fd07a360b318f486e63c4bffb27dc96dbc1954b2c2d"
+      }
+    },
+    {
+      "id": "avm-network-route-table",
+      "path": "modules/avm/network/route-table/main.bicep",
+      "sourceSha256": "9a65766ecff0fa290de53fe0ea35707eebc515320f5f5ebe02a1234f3da7744f",
+      "draftSelectable": true,
+      "parameters": {
+        "applianceRoutes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "properties": {
+                "type": "object",
+                "properties": {
+                  "addressPrefix": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "nextHopIpAddress": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 45
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 100,
+          "metadata": {
+            "description": "Explicit appliance routes, each with a required reviewed next-hop IP. No appliance is created or discovered by this module."
+          }
+        },
+        "disableBgpRoutePropagation": {
+          "type": "bool",
+          "defaultValue": false,
+          "metadata": {
+            "description": "Whether the reviewed routing profile disables BGP propagation. Default preserves propagation."
+          }
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "metadata": {
+            "description": "Approved Azure region."
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "metadata": {
+            "description": "Explicit name for a new workload-owned route table; existing shared tables are not adopted."
+          }
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "properties": {
+                "type": "object",
+                "properties": {
+                  "addressPrefix": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "nextHopType": {
+                    "type": "string",
+                    "allowedValues": [
+                      "None",
+                      "VirtualNetworkGateway",
+                      "VnetLocal"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "defaultValue": [],
+          "maxLength": 100,
+          "metadata": {
+            "description": "Explicit local, gateway or drop routes. Empty adds no routes. Names and address prefixes require network review."
+          }
+        },
+        "tags": {
+          "type": "object",
+          "metadata": {
+            "description": "Reviewed ownership and classification tags."
+          }
+        }
+      },
+      "outputs": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "resourceTypes": [
+        "Microsoft.Authorization/locks",
+        "Microsoft.Authorization/roleAssignments",
+        "Microsoft.Network/routeTables"
+      ],
+      "definitions": {
+        "routeProperties": {
+          "type": "object",
+          "properties": {
+            "addressPrefix": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "nextHopType": {
+              "type": "string",
+              "allowedValues": [
+                "None",
+                "VirtualNetworkGateway",
+                "VnetLocal"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "route": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "properties": {
+              "$ref": "#/definitions/routeProperties"
+            }
+          },
+          "additionalProperties": false
+        },
+        "applianceProperties": {
+          "type": "object",
+          "properties": {
+            "addressPrefix": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "nextHopIpAddress": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 45
+            }
+          },
+          "additionalProperties": false
+        },
+        "applianceRoute": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "properties": {
+              "$ref": "#/definitions/applianceProperties"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "sources": {
+        "modules/avm/network/route-table/main.bicep": "9a65766ecff0fa290de53fe0ea35707eebc515320f5f5ebe02a1234f3da7744f",
+        "vendor/azure-verified-modules/bundle.json": "541ce2d658111359ccc226d687b9fb1ec8cd4c52c73d28c59e5af1836dae7205",
+        "vendor/azure-verified-modules/LICENSE": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+        "vendor/azure-verified-modules/network-route-table/main.json": "04406e9cc7642af8ad3764196294eda7cbdccb7f128d40cf4d4f4c788cf424d0",
+        "vendor/azure-verified-modules/network-route-table/manifest.json": "59067d0b5aed599eb7b1e778cab5961630d82115e64ffba22c7afe72f194a590"
+      },
+      "origin": {
+        "kind": "AzureVerifiedModule",
+        "version": "0.5.0",
+        "registry": "mcr.microsoft.com/bicep/avm/res/network/route-table:0.5.0",
+        "sourceCommit": "38e14b5cc5a386be8620c26c25d368e8aeaa0bf2",
+        "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/38e14b5cc5a386be8620c26c25d368e8aeaa0bf2/avm/res/network/route-table/main.bicep",
+        "manifestDigest": "sha256:59067d0b5aed599eb7b1e778cab5961630d82115e64ffba22c7afe72f194a590",
+        "templateSha256": "04406e9cc7642af8ad3764196294eda7cbdccb7f128d40cf4d4f4c788cf424d0"
+      }
+    }
+  ]
+}

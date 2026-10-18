@@ -7,6 +7,7 @@ import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
 import { setupGitHub } from './github.mjs';
+import { setupMcp } from './mcp.mjs';
 import { renderRecovery } from './recovery.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
@@ -15,6 +16,7 @@ let discoverySkill, discoveryBusy = false, discoveryReport;
 const runs = [], diagramUrls = [];
 let selectionVersion = 0;
 let refreshAgents;
+let refreshMcp;
 let recoveryCatalog;
 function clearPreview() { selectionVersion++; $('iac-analysis').replaceChildren(); $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
@@ -115,6 +117,7 @@ async function refreshAuth() {
   if (auth.state !== 'Waiting for Microsoft') { clearInterval(loginTimer); loginTimer = null; }
   updateGates();
   if (refreshAgents) await refreshAgents();
+  if (refreshMcp) await refreshMcp();
 }
 async function connectMicrosoft(audience) {
   const local = $('auth-mode').value === 'local-cli';
@@ -271,6 +274,7 @@ try {
   setupOperations({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
   setupGitHub({ api, notice });
+  refreshMcp = setupMcp({ api, notice });
   try {
     recoveryCatalog = await api('recovery/policies');
     options($('recovery-workflow'), recoveryCatalog.policies, p => p.name);

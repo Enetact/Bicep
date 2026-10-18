@@ -1,0 +1,6 @@
+{
+  "steps": [
+    { "provider": "bicep", "tool": "get_bicep_best_practices", "arguments": {} },
+    { "provider": "learn", "tool": "microsoft_docs_search", "arguments": { "query": "Azure Bicep modules" } }
+  ]
+}

@@ -21,7 +21,7 @@ public sealed class BicepDraftTests
     static string Proposal(params BicepNode[] nodes) => JsonSerializer.Serialize(new BicepProposal("platform.bicep-proposal/v1", "evidence-fixture", "Synthetic source proposal", nodes, ["Manual qualification required"]), Json);
     [Fact] public void EverySelectableModuleEmitsSourceForCompilation()
     {
-        var context = Context(); Assert.Equal(12, context.Modules.Length);
+        var context = Context(); Assert.Equal(18, context.Modules.Length);
         foreach (var module in context.Modules)
         {
             var result = BicepDrafts.Generate(Root, context, Proposal(Node("component", module.Id, new())));

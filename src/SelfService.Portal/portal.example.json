@@ -9,6 +9,7 @@
     "NodePath": "node",
     "CodexPath": "",
     "AzureCliPath": "",
-    "GitHubCliPath": ""
+    "GitHubCliPath": "",
+    "BicepMcpPath": ""
   }
 }

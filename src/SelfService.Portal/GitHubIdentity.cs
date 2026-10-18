@@ -34,7 +34,7 @@ public sealed class GitHubCliRunner(PortalOptions options) : IGitHubCliRunner
         foreach (var key in p.Environment.Keys.Where(k => k.StartsWith("GH_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("GITHUB_", StringComparison.OrdinalIgnoreCase) || k == "BROWSER").ToArray()) p.Environment.Remove(key);
         p.Environment["GH_PROMPT_DISABLED"] = "1"; p.Environment["GH_NO_UPDATE_NOTIFIER"] = "1"; p.Environment["NO_COLOR"] = "1";
         foreach (var arg in command switch {
-            GitHubCommand.Login => new[] { "auth", "login", "--hostname", "github.com", "--web", "--git-protocol", "https", "--skip-ssh-key", "--clipboard=false" },
+            GitHubCommand.Login => new[] { "auth", "login", "--hostname", "github.com", "--web", "--git-protocol", "https", "--skip-ssh-key", "--clipboard=false", "--scopes", "workflow" },
             GitHubCommand.Token => new[] { "auth", "token", "--hostname", "github.com" },
             _ => throw new PortalException("Unsupported GitHub command.") }) p.ArgumentList.Add(arg);
         return p;
@@ -134,6 +134,7 @@ public sealed class GitHubIdentity(HttpClient http, IGitHubCliRunner runner) : I
     }
     public void Disconnect(BrowserSession s)
     {
+        if (s.Mcp.Connections.TryGetValue("github", out var connection)) connection.Lifetime.Cancel();
         lock (s.GitHub.Sync) { s.GitHub.Epoch++; s.GitHub.Login?.Cancel(); s.GitHub.UserId = null; s.GitHub.User = null; s.GitHub.Code = null; s.GitHub.Error = null; s.GitHub.State = "Not connected"; }
         lock (s.RegistrationPending) s.RegistrationPending.Clear();
     }

@@ -34,9 +34,11 @@ if($p){
         }
     }
     & (Join-Path $PSScriptRoot 'Stop-PortalGitHubCli.ps1') -PortalPid $record.pid -PortalStartedUtc $record.startedUtc
+    & (Join-Path $PSScriptRoot 'Stop-PortalMcp.ps1') -PortalPid $record.pid -PortalStartedUtc $record.startedUtc
     Stop-Process -Id $p.Id
     $p.WaitForExit(10000)|Out-Null
 }
+& (Join-Path $PSScriptRoot 'Stop-PortalMcp.ps1') -PortalPid $record.pid -PortalStartedUtc $record.startedUtc
 & (Join-Path $PSScriptRoot 'Clear-PortalAzureCli.ps1') -PortalPid $record.pid -PortalStartedUtc $record.startedUtc
 Remove-Item -LiteralPath $receipt
 Write-Host 'Portal stopped; local reports and logs preserved.'

@@ -23,6 +23,8 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     public string? LoginId { get; private set; }
     public Func<JsonElement, CancellationToken, Task<object>>? ToolHandler { get; set; }
     public bool Alive => !process.HasExited;
+    public bool InferenceAttempted { get; private set; }
+    public bool TurnInProgress { get; private set; }
 
     CodexAgentRuntime(Process child, string home)
     {
@@ -61,8 +63,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         var start = new ProcessStartInfo(exe) { WorkingDirectory = home, UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
         start.ArgumentList.Add("app-server"); start.ArgumentList.Add("--listen"); start.ArgumentList.Add("stdio://");
-        start.Environment["CODEX_HOME"] = home;
-        foreach (var key in start.Environment.Keys.Where(k => k.Contains("API_KEY", StringComparison.OrdinalIgnoreCase) || k.StartsWith("OPENAI_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("AZURE_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("CODEX_", StringComparison.OrdinalIgnoreCase) && k != "CODEX_HOME").ToArray()) start.Environment.Remove(key);
+        ConfigureEnvironment(start.Environment, home);
         var runtime = new CodexAgentRuntime(Process.Start(start) ?? throw new PortalException("Codex could not start.", 503), home);
         try
         {
@@ -78,6 +79,14 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
             return runtime;
         }
         catch { await runtime.DisposeAsync(); throw; }
+    }
+    // The inference child receives OS paths only. Provider credentials belong to the
+    // session-owned MCP broker, never ambient process inheritance.
+    public static void ConfigureEnvironment(IDictionary<string, string?> environment, string home)
+    {
+        var allowed = new HashSet<string>(["PATH", "PATHEXT", "SYSTEMROOT", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH"], StringComparer.OrdinalIgnoreCase);
+        foreach (var key in environment.Keys.Where(k => !allowed.Contains(k)).ToArray()) environment.Remove(key);
+        environment["CODEX_HOME"] = home;
     }
     public async Task<object> Status(CancellationToken ct)
     {
@@ -127,29 +136,46 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         if (LoginId is not null) await Call("account/login/cancel", new { loginId = LoginId }, ct);
         LoginId = null;
     }
-    public async Task<string> Review(string skillPath, string skillName, object[] tools, CancellationToken ct, bool structured = false)
+    public async Task<string> Review(string skillPath, string skillName, object[] tools, CancellationToken ct, bool structured = false, bool orchestration = false)
     {
+        InferenceAttempted = false;
         var status = JsonSerializer.SerializeToElement(await Status(ct));
         if (!status.GetProperty("ready").GetBoolean()) throw new PortalException("Connect Codex before running an agent workflow.", 401);
-        // Any inherited MCP server is forbidden: our only tool path is the per-run in-memory bridge.
-        var servers = await Call("mcpServerStatus/list", new { limit = 100 }, ct);
-        if (servers.GetProperty("data").GetArrayLength() != 0 || servers.TryGetProperty("nextCursor", out var next) && next.ValueKind == JsonValueKind.String)
-            throw new PortalException("Unexpected Codex MCP configuration. Workflow blocked.", 409);
+        var configuration = await Call("config/read", new { cwd = Home, includeLayers = false }, ct);
+        var serverNames = configuration.GetProperty("config").TryGetProperty("mcp_servers", out var configured) && configured.ValueKind == JsonValueKind.Object
+            ? configured.EnumerateObject().Select(p => p.Name).ToArray() : [];
         var thread = await Call("thread/start", new { model = AgentPolicy.Model, serviceTier = AgentPolicy.Tier,
             cwd = Home, runtimeWorkspaceRoots = Array.Empty<string>(), approvalPolicy = "never", approvalsReviewer = "user", sandbox = "read-only",
             ephemeral = true, allowProviderModelFallback = false, personality = "none", environments = Array.Empty<object>(), selectedCapabilityRoots = Array.Empty<object>(),
-            config = AgentPolicy.Isolation, developerInstructions = AgentPolicy.Instructions, dynamicTools = tools }, ct);
+            config = AgentPolicy.IsolatedThreadConfiguration(serverNames), developerInstructions = orchestration ? AgentPolicy.OrchestrationInstructions : AgentPolicy.Instructions,
+            dynamicTools = new[] { new { type = "namespace", name = AgentPolicy.ToolNamespace, description = "Platform Studio's host-mediated evidence and authorized provider broker tools.", tools } } }, ct);
         AgentPolicy.ValidateThread(thread);
         activeThread = thread.GetProperty("thread").GetProperty("id").GetString();
         finalText = ""; turnFinished = new(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
+            await VerifyMcpIsolation(Call, activeThread!, ct);
+            InferenceAttempted = true; // A failed configuration preflight must not discard a valid login.
+            TurnInProgress = true;
             await Call("turn/start", new { threadId = activeThread, model = AgentPolicy.Model, effort = AgentPolicy.Effort,
                 serviceTier = AgentPolicy.Tier, serviceTierForTurn = AgentPolicy.Tier,
-                input = new object[] { new { type = "text", text = "Review the selected platform workflow. First call platform_skill and platform_evidence; apply the pinned skill within read-only limits. " + (structured ? "Return only the skill's strict JSON review contract, not Markdown." : "Return Markdown evidence review; do not execute scripts.") }, new { type = "skill", name = skillName, path = skillPath } } }, ct);
+                input = new object[] { new { type = "text", text = orchestration ? "Read platform_skill and platform_evidence. Complete the requested task using connected MCP providers through the broker. Discover exact schemas first. Execute useful reads, propose concrete changes as exact plans, and execute only plans the human has already approved. Report plan IDs and observed receipts." : "Review the selected platform workflow. First call platform_skill and platform_evidence; apply the pinned skill within read-only limits. " + (structured ? "Return only the skill's strict JSON review contract, not Markdown." : "Return Markdown evidence review; do not execute scripts.") }, new { type = "skill", name = skillName, path = skillPath } } }, ct);
             return await turnFinished.Task.WaitAsync(ct);
         }
         finally { activeThread = null; ToolHandler = null; }
+    }
+    public static async Task VerifyMcpIsolation(Func<string, object, CancellationToken, Task<JsonElement>> call, string threadId, CancellationToken ct)
+    {
+        string? cursor = null;
+        var cursors = new HashSet<string>(StringComparer.Ordinal);
+        for (var page = 0; page < 20; page++)
+        {
+            var result = await call("mcpServerStatus/list", new { threadId, cursor, limit = 100, detail = "full" }, ct);
+            AgentPolicy.ValidateMcpIsolation(result);
+            if (!result.TryGetProperty("nextCursor", out var next) || next.ValueKind == JsonValueKind.Null) return;
+            if (next.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(cursor = next.GetString()) || !cursors.Add(cursor)) break;
+        }
+        throw new PortalException("Codex MCP inventory exceeded its verification limit. Workflow blocked.", 409);
     }
     async Task DrainErrors() { try { var buffer = new char[4096]; while (await process.StandardError.ReadAsync(buffer, lifetime.Token) > 0) { } } catch { } }
     async Task Read()
@@ -182,6 +208,7 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
                             { finalText = p.GetProperty("item").GetProperty("text").GetString() ?? ""; if (finalText.Length > 100_000) throw new InvalidDataException(); }
                             if (method.GetString() == "turn/completed")
                             {
+                                TurnInProgress = false;
                                 if (p.GetProperty("turn").GetProperty("status").GetString() == "completed" && finalText.Length > 0) turnFinished?.TrySetResult(finalText);
                                 else turnFinished?.TrySetException(new PortalException("Codex did not complete the review. No success or approval is inferred.", 502));
                             }

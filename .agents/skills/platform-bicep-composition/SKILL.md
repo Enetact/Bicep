@@ -11,6 +11,12 @@ Call `platform_skill` and `platform_evidence`. The evidence contains a `platform
 
 Recommend the smallest useful composition for the goal. Reuse the listed local modules. Distinguish their declared resources, defaults and hidden runtime dependencies. Include private endpoints, DNS, monitoring and access requirements in the design or report them as gaps. Do not claim an incomplete composition is production ready. The selected product supplies context; it does not restrict the proposal to that product's existing fixed Bicep. No new module implementation can be invented: name missing capabilities in `gaps`.
 
+The updated host can supply six reviewed `avm-` contracts for user-assigned identity, private Container Registry, private App Configuration, Application Insights, NSGs and route tables. Select them only when they appear in this frozen context; an older running host can still supply its legacy catalog. These are platform wrappers around pinned official AVM release artifacts. Their `origin` identifies the version/source, and `sources` binds the complete local dependency/license closure packaged by the deterministic emitter. This scoped workflow does not independently call provider MCPs: AVM research and source adoption use the separate orchestration workflow and reviewed authoring tools.
+
+For child features, bind the exact typed collection as `Input` unless a compatible approved setting exists. Omitted optional collections remain empty. Sealed child properties, required fields, enums and bounds must be preserved in the generated parameter types; values stay data. Upstream conditional resource types are a capability inventory, not proof that the wrapper enables every child. Never create another writer for an existing shared parent, subnet or route association.
+
+Report service prerequisites explicitly: reviewed federation trust; private endpoints/DNS and Entra grants for ACR/App Configuration; workspace and Azure Monitor Private Link for Application Insights; effective NSG/route behavior and ownership. App Configuration key-values are non-secret configuration only, require data-plane write RBAC and an ARM Private Link/pass-through deployment path, and must never contain credentials. Region/SKU availability, costs, names and child uniqueness remain qualification checks. New source modules are not new registered deployment products.
+
 Return only JSON matching this shape (all fields are required except the optional fields in each binding):
 
 ```json

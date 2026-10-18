@@ -2,3 +2,5 @@
 * text=auto eol=lf
 # Preserve the exact upstream bytes recorded by the Azure Skills provenance manifest.
 vendor/azure-skills/** -text
+# OCI manifests and template layer digests bind the exact official AVM bytes.
+vendor/azure-verified-modules/** -text
