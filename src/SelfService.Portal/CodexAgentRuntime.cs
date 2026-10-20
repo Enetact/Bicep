@@ -4,6 +4,9 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
+using SelfService.Telemetry;
+
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SelfService.Portal.Tests")]
 
 namespace SelfService.Portal;
 
@@ -17,16 +20,14 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     readonly Task reader;
     long sequence;
     int disposed;
-    TaskCompletionSource<string>? turnFinished;
-    string? activeThread;
-    string finalText = "";
+    readonly AgentTurnHandoff turns = new();
     public string Home { get; }
     public string? RuntimeVersion { get; private set; }
     public string? LoginId { get; private set; }
     public Func<JsonElement, CancellationToken, Task<object>>? ToolHandler { get; set; }
     public bool Alive => !process.HasExited;
     public bool InferenceAttempted { get; private set; }
-    public bool TurnInProgress { get; private set; }
+    public bool TurnInProgress => turns.InProgress;
 
     CodexAgentRuntime(Process child, string home)
     {
@@ -118,6 +119,16 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         }
     }
     public static async Task<CodexAgentRuntime> Start(PortalOptions options, CancellationToken ct, byte[]? restoredAuthentication = null)
+    {
+        using var operation = PlatformTelemetry.Start("codex.start").Tag("platform.provider", "codex").Tag("platform.process.kind", "codex-app-server");
+        try
+        {
+            var runtime = await StartCore(options, ct, restoredAuthentication);
+            operation.Success(); return runtime;
+        }
+        catch (Exception e) { operation.Fail(e); throw; }
+    }
+    static async Task<CodexAgentRuntime> StartCore(PortalOptions options, CancellationToken ct, byte[]? restoredAuthentication)
     {
         var exe = FindExecutable(options.CodexPath) ?? throw new PortalException("Install Codex CLI or configure Portal:CodexPath to its native codex.exe. See the agent workflows guide.", 409);
         ct.ThrowIfCancellationRequested();
@@ -215,32 +226,55 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
     }
     public async Task<string> Review(string skillPath, string skillName, object[] tools, CancellationToken ct, bool structured = false, bool orchestration = false)
     {
-        InferenceAttempted = false;
-        var status = JsonSerializer.SerializeToElement(await Status(ct));
-        if (!status.GetProperty("ready").GetBoolean()) throw new PortalException("Connect Codex before running an agent workflow.", 401);
-        var configuration = await Call("config/read", new { cwd = Home, includeLayers = false }, ct);
-        AgentPolicy.ValidateToolOutputBudget(configuration);
-        var serverNames = configuration.GetProperty("config").TryGetProperty("mcp_servers", out var configured) && configured.ValueKind == JsonValueKind.Object
-            ? configured.EnumerateObject().Select(p => p.Name).ToArray() : [];
-        var thread = await Call("thread/start", new { model = AgentPolicy.Model, serviceTier = AgentPolicy.Tier,
-            cwd = Home, runtimeWorkspaceRoots = Array.Empty<string>(), approvalPolicy = "never", approvalsReviewer = "user", sandbox = "read-only",
-            ephemeral = true, allowProviderModelFallback = false, personality = "none", environments = Array.Empty<object>(), selectedCapabilityRoots = Array.Empty<object>(),
-            config = AgentPolicy.IsolatedThreadConfiguration(serverNames), developerInstructions = orchestration ? AgentPolicy.OrchestrationInstructions : AgentPolicy.Instructions,
-            dynamicTools = new[] { new { type = "namespace", name = AgentPolicy.ToolNamespace, description = "Platform Studio's host-mediated evidence and authorized provider broker tools.", tools } } }, ct);
-        AgentPolicy.ValidateThread(thread);
-        activeThread = thread.GetProperty("thread").GetProperty("id").GetString();
-        finalText = ""; turnFinished = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var review = PlatformTelemetry.Start("codex.review").Tag("platform.provider", "codex");
+        AgentTurnHandoff.Turn? turn = null;
         try
         {
-            await VerifyMcpIsolation(Call, activeThread!, ct);
-            InferenceAttempted = true; // A failed configuration preflight must not discard a valid login.
-            TurnInProgress = true;
-            await Call("turn/start", new { threadId = activeThread, model = AgentPolicy.Model, effort = AgentPolicy.Effort,
-                serviceTier = AgentPolicy.Tier, serviceTierForTurn = AgentPolicy.Tier,
-                input = new object[] { new { type = "text", text = orchestration ? "Read platform_skill and platform_evidence. Complete the requested task using connected MCP providers through the broker. Discover exact schemas first. Execute useful reads, propose concrete changes as exact plans, and execute only plans the human has already approved. Report plan IDs and observed receipts." : "Review the selected platform workflow. First call platform_skill and platform_evidence; apply the pinned skill within read-only limits. " + (structured ? "Return only the skill's strict JSON review contract, not Markdown." : "Return Markdown evidence review; do not execute scripts.") }, new { type = "skill", name = skillName, path = skillPath } } }, ct);
-            return await turnFinished.Task.WaitAsync(ct);
+            InferenceAttempted = false;
+            var status = JsonSerializer.SerializeToElement(await Status(ct));
+            if (!status.GetProperty("ready").GetBoolean()) throw new PortalException("Connect Codex before running an agent workflow.", 401);
+            var configuration = await Call("config/read", new { cwd = Home, includeLayers = false }, ct);
+            AgentPolicy.ValidateToolOutputBudget(configuration);
+            var serverNames = configuration.GetProperty("config").TryGetProperty("mcp_servers", out var configured) && configured.ValueKind == JsonValueKind.Object
+                ? configured.EnumerateObject().Select(p => p.Name).ToArray() : [];
+            var thread = await Call("thread/start", new { model = AgentPolicy.Model, serviceTier = AgentPolicy.Tier,
+                cwd = Home, runtimeWorkspaceRoots = Array.Empty<string>(), approvalPolicy = "never", approvalsReviewer = "user", sandbox = "read-only",
+                ephemeral = true, allowProviderModelFallback = false, personality = "none", environments = Array.Empty<object>(), selectedCapabilityRoots = Array.Empty<object>(),
+                config = AgentPolicy.IsolatedThreadConfiguration(serverNames), developerInstructions = orchestration ? AgentPolicy.OrchestrationInstructions : AgentPolicy.Instructions,
+                dynamicTools = new[] { new { type = "namespace", name = AgentPolicy.ToolNamespace, description = "Platform Studio's host-mediated evidence and authorized provider broker tools.", tools } } }, ct);
+            AgentPolicy.ValidateThread(thread);
+            var activeThread = thread.GetProperty("thread").GetProperty("id").GetString()!;
+            await VerifyMcpIsolation(Call, activeThread, ct);
+            var result = await ObserveInvocation(async parent =>
+            {
+                turn = turns.Begin(activeThread, parent, ToolHandler, ct, lifetime.Token);
+                InferenceAttempted = true; // A failed configuration preflight must not discard a valid login.
+                turn.InProgress = true;
+                await Call("turn/start", new { threadId = activeThread, model = AgentPolicy.Model, effort = AgentPolicy.Effort,
+                    serviceTier = AgentPolicy.Tier, serviceTierForTurn = AgentPolicy.Tier,
+                    input = new object[] { new { type = "text", text = orchestration ? "Read platform_skill and platform_evidence. Complete the requested task using connected MCP providers through the broker. Discover exact schemas first. Execute useful reads, propose concrete changes as exact plans, and execute only plans the human has already approved. Report plan IDs and observed receipts." : "Review the selected platform workflow. First call platform_skill and platform_evidence; apply the pinned skill within read-only limits. " + (structured ? "Return only the skill's strict JSON review contract, not Markdown." : "Return Markdown evidence review; do not execute scripts.") }, new { type = "skill", name = skillName, path = skillPath } } }, ct);
+                return await turn.Finished.Task.WaitAsync(ct);
+            });
+            review.Success(); return result;
         }
-        finally { activeThread = null; ToolHandler = null; }
+        catch (Exception e) { review.Fail(e); throw; }
+        finally { if (turn is not null) turns.End(turn); ToolHandler = null; }
+    }
+    /// <summary>
+    /// Observes one host-invoked agent turn. Codex's internal model calls and token usage
+    /// are opaque; this boundary never infers chat spans, response models or token usage.
+    /// </summary>
+    internal static async Task<string> ObserveInvocation(Func<ActivityContext, Task<string>> invoke)
+    {
+        using var operation = PlatformTelemetry.Start("invoke_agent platform-studio", ActivityKind.Client)
+            .Tag("gen_ai.operation.name", "invoke_agent").Tag("gen_ai.provider.name", "openai")
+            .Tag("gen_ai.agent.name", "platform-studio").Tag("gen_ai.request.model", AgentPolicy.Model);
+        try
+        {
+            var result = await invoke(operation.Activity?.Context ?? Activity.Current?.Context ?? default);
+            operation.Success(); return result;
+        }
+        catch (Exception e) { operation.Fail(e); throw; }
     }
     public static async Task VerifyMcpIsolation(Func<string, object, CancellationToken, Task<JsonElement>> call, string threadId, CancellationToken ct)
     {
@@ -270,9 +304,10 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
                 {
                     if (message.TryGetProperty("id", out var id))
                     {
-                        if (method.GetString() == "item/tool/call" && ToolHandler is not null && message.GetProperty("params").GetProperty("threadId").GetString() == activeThread)
+                        if (method.GetString() == "item/tool/call" && message.TryGetProperty("params", out var parameters) &&
+                            parameters.TryGetProperty("threadId", out var requestedThread) && turns.Find(requestedThread.GetString()) is { Handler: not null } turn)
                         {
-                            var result = await ToolHandler(message.GetProperty("params").Clone(), lifetime.Token);
+                            var result = await turns.Invoke(turn, parameters.Clone());
                             await Write(new { id = id.Clone(), result }, lifetime.Token);
                         }
                         else await Write(new { id = id.Clone(), error = new { code = -32601, message = "This agent host permits only its scoped read-only tools." } }, lifetime.Token);
@@ -280,15 +315,15 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
                     else if (message.TryGetProperty("params", out var p))
                     {
                         if (method.GetString() == "account/login/completed") LoginId = null;
-                        if (p.TryGetProperty("threadId", out var t) && t.GetString() == activeThread)
+                        if (p.TryGetProperty("threadId", out var t) && turns.Find(t.GetString()) is { } turn)
                         {
                             if (method.GetString() == "item/completed" && p.GetProperty("item").GetProperty("type").GetString() == "agentMessage")
-                            { finalText = p.GetProperty("item").GetProperty("text").GetString() ?? ""; if (finalText.Length > 100_000) throw new InvalidDataException(); }
+                            { turn.FinalText = p.GetProperty("item").GetProperty("text").GetString() ?? ""; if (turn.FinalText.Length > 100_000) throw new InvalidDataException(); }
                             if (method.GetString() == "turn/completed")
                             {
-                                TurnInProgress = false;
-                                if (p.GetProperty("turn").GetProperty("status").GetString() == "completed" && finalText.Length > 0) turnFinished?.TrySetResult(finalText);
-                                else turnFinished?.TrySetException(new PortalException("Codex did not complete the review. No success or approval is inferred.", 502));
+                                turn.InProgress = false;
+                                if (p.GetProperty("turn").GetProperty("status").GetString() == "completed" && turn.FinalText.Length > 0) turn.Finished.TrySetResult(turn.FinalText);
+                                else turn.Finished.TrySetException(new PortalException("Codex did not complete the review. No success or approval is inferred.", 502));
                             }
                         }
                     }
@@ -304,17 +339,24 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         finally
         {
             foreach (var pair in pending) pair.Value.TrySetException(new PortalException("Codex agent host disconnected.", 503));
-            turnFinished?.TrySetException(new PortalException("Codex agent host disconnected.", 503));
+            turns.Disconnected();
         }
     }
     public async Task<JsonElement> Call(string method, object parameters, CancellationToken ct)
     {
+        // W3C parentage is observed inside this host. The private Codex protocol does not
+        // advertise trace-context injection; neither telemetry credentials nor baggage cross it.
+        using var operation = PlatformTelemetry.Start("codex.request", ActivityKind.Client)
+            .Tag("rpc.system", "jsonrpc").Tag("rpc.service", "codex.app-server").Tag("rpc.method", ObservedMethod(method));
         var id = Interlocked.Increment(ref sequence); var promise = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id] = promise;
-        try { await Write(new { id, method, @params = parameters }, ct); return await promise.Task.WaitAsync(TimeSpan.FromSeconds(45), ct); }
-        catch (TimeoutException) { throw new PortalException("Codex protocol request timed out. Disconnect and reconnect Codex.", 504); }
+        try { await Write(new { id, method, @params = parameters }, ct); var result = await promise.Task.WaitAsync(TimeSpan.FromSeconds(45), ct); operation.Success(); return result; }
+        catch (TimeoutException e) { operation.Fail(e); throw new PortalException("Codex protocol request timed out. Disconnect and reconnect Codex.", 504); }
+        catch (Exception e) { operation.Fail(e); throw; }
         finally { pending.TryRemove(id, out _); }
     }
+    internal static string ObservedMethod(string method) => method is "initialize" or "account/read" or "model/list" or "account/login/start" or "account/login/cancel" or
+        "config/read" or "thread/start" or "turn/start" or "mcpServerStatus/list" ? method : "other";
     async Task Write(object value, CancellationToken ct)
     {
         await writes.WaitAsync(ct);
@@ -331,5 +373,89 @@ public sealed class CodexAgentRuntime : IAsyncDisposable
         process.Dispose();
         // Only this runtime's credential file, never desktop credentials or arbitrary paths.
         try { File.Delete(Path.Combine(Home, "auth.json")); File.Delete(Path.Combine(Home, "process.json")); } catch (IOException) { }
+    }
+}
+
+/// <summary>
+/// Transfers only the active invocation's W3C context to the independent protocol reader.
+/// Thread identifiers are used solely for local routing and never become telemetry tags.
+/// A completed or cancelled lease cannot authorize a late callback or attach it to a sibling turn.
+/// </summary>
+internal sealed class AgentTurnHandoff
+{
+    Turn? active;
+    internal bool InProgress => Volatile.Read(ref active)?.InProgress == true;
+
+    internal Turn Begin(string thread, ActivityContext context, Func<JsonElement, CancellationToken, Task<object>>? handler,
+        CancellationToken request, CancellationToken runtime = default)
+    {
+        var turn = new Turn(thread, context, handler, request, runtime);
+        if (Interlocked.CompareExchange(ref active, turn, null) is not null)
+        { turn.Close(); throw new InvalidOperationException("An agent turn is already active."); }
+        return turn;
+    }
+
+    internal Turn? Find(string? thread)
+    {
+        var turn = Volatile.Read(ref active);
+        return turn is not null && !turn.Closed && !turn.Finished.Task.IsCompleted && !turn.Token.IsCancellationRequested && turn.Thread == thread ? turn : null;
+    }
+
+    internal void End(Turn turn)
+    {
+        Interlocked.CompareExchange(ref active, null, turn);
+        turn.Close();
+    }
+
+    internal void Disconnected() => Volatile.Read(ref active)?.Finished.TrySetException(new PortalException("Codex agent host disconnected.", 503));
+
+    internal async Task<object> Invoke(Turn turn, JsonElement parameters)
+    {
+        if (!ReferenceEquals(Find(turn.Thread), turn) || turn.Handler is null)
+            throw new PortalException("The agent turn is no longer active.", 409);
+        // The reader was started during connection, outside the later HTTP/AHP workflow.
+        // Clear its ambient context even when sampling creates no span, then restore it locally.
+        var previous = Activity.Current;
+        Activity.Current = null;
+        try
+        {
+            using var operation = PlatformTelemetry.Start("codex.tool_callback", parentContext: turn.Context)
+                .Tag("rpc.system", "jsonrpc").Tag("rpc.service", "codex.app-server").Tag("rpc.method", "item/tool/call");
+            try
+            {
+                var result = await turn.Handler(parameters, turn.Token);
+                turn.Token.ThrowIfCancellationRequested();
+                if (!ReferenceEquals(Find(turn.Thread), turn)) throw new PortalException("The agent turn is no longer active.", 409);
+                operation.Success(); return result;
+            }
+            catch (Exception e) { operation.Fail(e); throw; }
+        }
+        finally { Activity.Current = previous; }
+    }
+
+    internal sealed class Turn
+    {
+        readonly CancellationTokenSource cancellation;
+        int closed;
+        internal string Thread { get; }
+        internal ActivityContext Context { get; }
+        internal Func<JsonElement, CancellationToken, Task<object>>? Handler { get; }
+        internal CancellationToken Token { get; }
+        internal TaskCompletionSource<string> Finished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal string FinalText { get; set; } = "";
+        internal bool InProgress { get; set; }
+        internal bool Closed => Volatile.Read(ref closed) != 0;
+        internal Turn(string thread, ActivityContext context, Func<JsonElement, CancellationToken, Task<object>>? handler,
+            CancellationToken request, CancellationToken runtime)
+        {
+            Thread = thread; Context = context; Handler = handler;
+            cancellation = CancellationTokenSource.CreateLinkedTokenSource(request, runtime);
+            Token = cancellation.Token;
+        }
+        internal void Close()
+        {
+            if (Interlocked.Exchange(ref closed, 1) != 0) return;
+            InProgress = false; cancellation.Cancel(); cancellation.Dispose();
+        }
     }
 }

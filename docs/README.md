@@ -1,5 +1,9 @@
 # Platform Studio wiki
 
+**Managed DevOps Pools:** [Create a private build-agent pool](../workloads/managed-devops-pool/README.md) through the standard Discover/Preview/protected Apply flow, then qualify a consumer job before switching workload runners. Current source has eleven types, 44 disabled Azure targets and 30 registered roots. Earlier dated increments below retain their original counts.
+
+**Fabric:** [Premium workspace, connectors, private networking and deployment pipelines](../workloads/fabric/README.md) follows the standard Azure flow and a separate protected Fabric API lifecycle. Current source has ten workload types, 40 disabled Azure targets, 28 root pipelines and six MCP providers; older dated counts below retain their original scope.
+
 For a fresh local rebuild that preserves eligible sign-ins, use [the protected restart script and recovery guide](portal-fresh-restart.md).
 
 [Repository home](../README.md) · [Getting started](getting-started.md) · [Platform overview](platform-overview.md) · [Workloads](workload-catalog.md) · [Status](completion-status.md)
@@ -21,7 +25,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Validate a new stack-instance draft or review workload naming bindings | [Draft registry](../self-service/instances/README.md) → [Workload binding review](plans/stack-naming-bindings.md) |
 | Inspect nested properties and unresolved What-If evidence | [Nested discovery and qualification](nested-iac-evidence.md) |
 | Discover networks and explain topology | [Network discovery](network-discovery-and-diagrams.md) → [Diagrams](portal-diagrams.md) → [Agent workflows](agent-workflows.md) |
-| Connect Azure Bicep, Azure, ADO, GitHub and Learn tools for orchestration | [MCP providers, credentials and exact plans](provider-mcp.md) → [Agent workflows](agent-workflows.md) |
+| Connect Azure Bicep, Azure, ADO, GitHub, Fabric and Learn tools for orchestration | [MCP providers, credentials and exact plans](provider-mcp.md) → [Agent workflows](agent-workflows.md) |
 | Verify parameterized AVM generation through AHP and Codex without deployment | [End-to-end results, fixes and offline checks](avm-end-to-end-validation.md) |
 | Analyze or change tags | [Tag governance](tag-governance.md) → [Permissions](security-and-rbac.md) |
 | Analyze DNS and compare observed/desired properties | [DNS and drift workspace](operations-workflows.md) → [Phased operations plan](plans/operations-workflow-suite.md) |
@@ -34,7 +38,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 |---|---|
 | [Platform overview](platform-overview.md) | Components, evidence flow, identities, capability suite and agent boundaries. |
 | [Current implementation status](completion-status.md) | What is implemented, locally verified, observed in ADO and still awaiting live acceptance. |
-| [Workload catalog](workload-catalog.md) | Nine offerings, resource descriptions and exact pipeline entry points. |
+| [Workload catalog](workload-catalog.md) | Eleven offerings, resource descriptions and exact pipeline entry points. |
 | [Detailed catalog and method map](self-service-catalog.md) | Workload types, named instances, target contracts and original adapter methods. |
 | [Enterprise platform design](enterprise-platform.md) | Ownership, governance and bounded workload support. |
 | [Source conventions](repository-structure.md) | Module/composition placement, configuration, runtime files and test boundaries. |
@@ -44,6 +48,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Guide | What it covers |
 |---|---|
 | [Getting started](getting-started.md) | Ordered installation, upgrade, verification and packaging commands. |
+| [Local suite lifecycle](local-suite.md) | Telemetry-first start, isolated builds, protected stop/restart and optional Functions/Azurite profile. |
 | [Portal setup and authentication](local-portal.md) | Local Azure CLI sign-in, optional Entra registration, Azure/ADO connections, configuration and Windows packages. |
 | [Blob copy local development](local-development.md) | Functions/Azurite prerequisites, data, lifecycle and troubleshooting. |
 | [Exact local workflow](local-workflow.md) | Blob upload, dispatcher, queue worker, ledger and timers. |
@@ -62,7 +67,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | [Deployment Stacks and Template Specs](deployment-stacks-upgrade.md) | Publication, stack ownership and lifecycle controls. |
 | [Subscription discovery](subscription-discovery.md) | Saved manifests, naming, scope and static menu generation. |
 | [Prerequisite resolution](prerequisite-resolution.md) | Event flow Create / Reuse / Manage / Blocked decisions. |
-| [Workload onboarding](workload-onboarding.md) | Shared dependencies, identities and acceptance tests for the eight products. |
+| [Workload onboarding](workload-onboarding.md) | Shared dependencies, identities and acceptance tests for the eleven products. |
 | [Cost assumptions](self-service-costs.md) | Dated estimates, exclusions, freshness and missing-price behavior. |
 | [Security and RBAC](security-and-rbac.md) | Identity separation, permissions, protected operations and data handling. |
 
@@ -75,7 +80,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | [Connected portal diagrams](portal-diagrams.md) | Observed topology, conceptual proposals and saved Azure Preview diagrams. |
 | [Offline discovery analysis](self-service-analysis.md) | Saved inventory/manifest reports without cloud access or a model. |
 | [Codex agent workflows](agent-workflows.md) | Ten explicit workflows, bounded AHP orchestration, scoped MCP evidence, identity and receipts. |
-| [Connected MCP providers](provider-mcp.md) | Full five-provider catalogs, skills/instructions and support files, host-held credentials, accepted reads and human-approved ordered change plans. |
+| [Connected MCP providers](provider-mcp.md) | Full six-provider catalogs, skills/instructions and support files, host-held credentials, accepted reads and human-approved ordered change plans. |
 | [AVM module library](avm-module-library.md) | Six pinned AVM-backed source modules, seven typed child collections, parameterization, dependency locks and qualification boundaries. |
 | [AI-assisted Bicep drafts](bicep-source-drafts.md) | Local module contracts, generated parameters, source downloads and qualification. |
 | [Tag governance](tag-governance.md) | Resource/tag matrix, deterministic analysis, editable drafts and protected changes. |

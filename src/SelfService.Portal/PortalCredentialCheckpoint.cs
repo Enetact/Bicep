@@ -152,6 +152,16 @@ public sealed class PortalCredentialCheckpoint
         finally { Wipe(p); }
     }
 
+    public static string[] ReconnectableProviders(BrowserSession session, string? repository = null) => McpProviderBroker.Providers
+        .Where(p => p.Id switch
+        {
+            "azure" or "ado" or "fabric" => session.Connected.ContainsKey(p.Id),
+            "github" => session.GitHub.UserId is not null,
+            "bicep" or "learn" => true,
+            "aspire" => repository is not null && AspireMcpConfiguration.IsAvailable(repository),
+            _ => false
+        }).Select(p => p.Id).ToArray();
+
     public void RecordResult(BrowserSession session, IReadOnlyList<string> errors)
     {
         // Local operational evidence only: no account IDs, cookies, proofs, credentials or tool results.
@@ -164,7 +174,7 @@ public sealed class PortalCredentialCheckpoint
             {
                 schema = "platform.portal-resume-status/v1", observedUtc = DateTimeOffset.UtcNow,
                 portalPid = Environment.ProcessId, portalStartedUtc = process.StartTime.ToUniversalTime(),
-                microsoft = new { azure = session.Connected.ContainsKey("azure"), ado = session.Connected.ContainsKey("ado") },
+                microsoft = new { azure = session.Connected.ContainsKey("azure"), ado = session.Connected.ContainsKey("ado"), fabric = session.Connected.ContainsKey("fabric") },
                 codexReady = session.Agent.Runtime is not null && session.Agent.State == "Ready", githubConnected = session.GitHub.UserId is not null,
                 providers = session.Mcp.Connections.Values.OrderBy(c => c.Id).Select(c => new { id = c.Id, state = c.State, toolCount = c.Tools.Length }).ToArray(),
                 pendingPlans = session.Mcp.Plans.Count, errors

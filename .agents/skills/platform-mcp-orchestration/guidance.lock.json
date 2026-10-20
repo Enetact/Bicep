@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "skill": "platform-mcp-orchestration",
-  "manifestSha256": "2196a56fe48d94f7260bee205d067adfb743b4047f421053916acbc1509b6c7a",
+  "manifestSha256": "6a910f6759549e773621c4f686ddf802d2cd4b65409c9de9d14f0d4c8e5c9c9a",
   "sources": [
     {
       "path": "instruction.md",
-      "sha256": "276d1018b153ea064d224bf011d5d6fd4698cec63c7dc2c89ef2771943eea23c",
-      "bytes": 3860
+      "sha256": "adbbac446bce5e671244e40d580f6ef0b6678ab1fc1a4ebcc1efa1cf331bd33b",
+      "bytes": 3965
     },
     {
       "path": "providers/bicep/SKILL.md",
@@ -59,14 +59,34 @@
       "bytes": 1752
     },
     {
+      "path": "providers/fabric/SKILL.md",
+      "sha256": "fa99b31e92041f5526a5b64f51ed1a273364c7fede25e11ce77a2365297cc57b",
+      "bytes": 452
+    },
+    {
+      "path": "providers/fabric/instruction.md",
+      "sha256": "7b18c05a6e7af4c59f9f9c09a188a4b4dcfdd9cff1ccbcb868d94c60e988efb4",
+      "bytes": 2539
+    },
+    {
+      "path": "providers/aspire/SKILL.md",
+      "sha256": "399f74d21d989c650a775e27c8a56974b0d8c2ca6da038484720f901b2f3a478",
+      "bytes": 434
+    },
+    {
+      "path": "providers/aspire/instruction.md",
+      "sha256": "fac14a3bc3e47426901568b5f3741c404c481e4d4baaee965ad091a6c43a05be",
+      "bytes": 1864
+    },
+    {
       "path": "references/workflows.md",
-      "sha256": "8289e6e7d276e08d405ef3f22d8860638a94fc55aae3d081579495f0991872d2",
-      "bytes": 3403
+      "sha256": "09c95fee182df4deae156b86799550cf54bfd17937214ea8b3133dea289406a1",
+      "bytes": 4961
     },
     {
       "path": "references/provenance.md",
-      "sha256": "28608d640b63e2582fad30f15d9027623d5deac17ac71c4c5ce3c20a052468ef",
-      "bytes": 2421
+      "sha256": "227c6acc00d8ebbf7c46fe3c64a4289b9fba5982518d74a91fecab49e8f49211",
+      "bytes": 3190
     },
     {
       "path": "assets/public-read.plan.json",
@@ -87,11 +107,11 @@
   "resources": [
     {
       "path": "agents/openai.yaml",
-      "sha256": "76db42eb824dd4af792f9064e44ff8edcaddf5d4b50fb10983c28b3488da8816",
-      "bytes": 329
+      "sha256": "b139807b542960a58ea5675da85d9099a73c461a0b9a1e0a9cf739a706650b5e",
+      "bytes": 330
     }
   ],
-  "bundleSha256": "1e3bd8ac8ed23dde2de17369c9704620bea9354d662311cec085e159a5c435a4",
-  "outputSha256": "dd699aa6ea9cc689fd527b017a53a7e8e8cad7f62d98241372b06021dd8f33a0",
-  "outputBytes": 26773
+  "bundleSha256": "2d6a483de2e13c1dfa9d812bfcb4b759b363c7390788148ff64eb780de7be37f",
+  "outputSha256": "5b1ff1253480ea2449c96ca021d96e405867912b696976b5f732638953128904",
+  "outputBytes": 34616
 }

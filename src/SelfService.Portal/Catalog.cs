@@ -35,7 +35,7 @@ public sealed class Catalog(PortalOptions options)
     static JsonElement Read(string file) => JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(file));
     public string[] Regions => Read(Path.Combine(Root, "config/platform.json")).GetProperty("approvedRegions").EnumerateArray().Select(x => x.GetString()!).ToArray();
     // Explicit source allowlist: configuration describes products but cannot supply executable paths.
-    static readonly string[] ProductTypes = ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker", "private-data-platform", "private-aks"];
+    static readonly string[] ProductTypes = ["blob-transfer", "logic-app-event-grid", "private-storage", "key-vault", "observability", "http-functions", "service-bus-worker", "private-data-platform", "private-aks", "fabric", "managed-devops-pool"];
     public Product[] Products => ProductTypes.Select(type =>
     {
         var d = Read(Path.Combine(Root, "config/workloads.json")).GetProperty("workloads").GetProperty(type);

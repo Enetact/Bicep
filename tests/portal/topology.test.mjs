@@ -36,14 +36,34 @@ test('every registered product has a reviewed topology tied to actual source sym
   assert.deepEqual(Object.keys(definitions.products).sort(),Object.values(workloads).map(w=>w.menuSlug).sort());
   for(const [id,d] of Object.entries(definitions.products)){
     const type=Object.values(workloads).find(w=>w.menuSlug===id); assert.equal(d.source,type.composition);
-    const source=readFileSync(new URL('../../'+d.source,import.meta.url),'utf8');
     const ids=new Set(d.nodes.map(n=>n[0])); assert.equal(ids.size,d.nodes.length);
-    for(const n of d.nodes) assert.match(source,new RegExp(`(?:module|resource) ${n[3]} `));
+    for(const n of d.nodes){
+      const reference=n[4]||d.source;
+      assert.match(reference,/^(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.(?:bicep|ps1)$/);
+      assert(reference.split('/').every(segment=>segment!=='.'&&segment!=='..'),'Topology sources must stay inside the repository');
+      const source=readFileSync(new URL('../../'+reference,import.meta.url),'utf8');
+      const symbol=n[3].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      const declaration=reference.endsWith('.ps1')?`function ${symbol}\\(`:`(?:module|resource${n[4]?'|param':''}) ${symbol} `;
+      assert.match(source,new RegExp(declaration));
+    }
     for(const [from,to] of d.edges){assert.ok(ids.has(from));assert.ok(ids.has(to));}
     const g=proposedTopology({id,name:type.displayName},{environment:'dev',subscriptionId:'test',network:'central-private'},'eastus2',d);
     assert.equal(g.nodes.length,d.nodes.length+1);assert.ok(g.nodes.every(n=>n.status==='Proposed'));
     assert.match(g.note,/Names, counts, conditions/);
   }
+});
+
+test('Fabric dependencies retain their own source and do not become created or verified resources',()=>{
+  const definition=definitions.products.fabric;
+  const graph=proposedTopology({id:'fabric',name:workloads.fabric.displayName},{environment:'dev',subscriptionId:'test',network:'central-private'},'eastus2',definition);
+  const pool=graph.nodes.find(n=>n.id==='pool'),agents=graph.nodes.find(n=>n.id==='agents'),dns=graph.nodes.find(n=>n.id==='dns'),delivery=graph.nodes.find(n=>n.id==='delivery');
+  assert.equal(pool.type,'Required dependency');assert.match(pool.detail,/Provisioned separately.*modules\/devops\/managed-devops-pool\/main.bicep/);
+  assert.equal(agents.type,'Required dependency');assert.match(agents.detail,/never used for Fabric private endpoints/);
+  assert.match(dns.detail,/Same-VNet direct Azure DNS and private IPv4/);
+  assert.match(delivery.detail,/never inferred from this diagram.*scripts\/fabric-execution-common.ps1/);
+  assert(graph.edges.some(e=>e.from==='agents'&&e.to==='private'&&e.label.includes('separate')));
+  assert(graph.edges.some(e=>e.from==='delivery'&&e.to==='private'&&e.label.includes('deny-public promotion is blocked')));
+  assert(graph.nodes.every(n=>n.status==='Proposed'));assert.match(graph.note,/No resources have been created/);
 });
 test('Preview preserves destructive, unchanged and uncertain evidence without authorizing deployment',()=>{
   const g=previewTopology({kind:'portal-preview-diagram',subscriptionId:'test',resources:[{id:vnet,action:'Delete',certainty:'potential'},{id:pe,action:'NoChange'}],status:'Blocked',previewSucceeded:false});

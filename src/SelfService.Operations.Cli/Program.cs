@@ -1,5 +1,9 @@
 using System.Text.Json;
 using SelfService.Operations;
+using SelfService.Telemetry;
+
+return await TelemetryCommand.Run("platform-operations-cli", "operations.command", async () =>
+{
 
 // Offline consumer of the same rules as the portal. Never acquires tokens or calls Azure/ADO.
 if (args.Length is < 3 or > 4) { Console.Error.WriteLine("Usage: operations <private-dns|drift> <evidence-or-export.json> <new-output.json> [reference-export.json]"); return 2; }
@@ -20,3 +24,4 @@ try
 }
 catch(Exception e) when(e is OperationsException or JsonException or IOException or UnauthorizedAccessException)
 { Console.Error.WriteLine("Assessment failed: "+e.Message); return 1; }
+});

@@ -37,6 +37,11 @@
       "yaml": "azure-pipelines-helm.yml",
       "name": "Helm - Preview and Deploy",
       "category": "Kubernetes applications"
+    },
+    {
+      "name": "Fabric - Workspace Preview and Apply",
+      "category": "Fabric workspace lifecycle",
+      "yaml": "azure-pipelines-fabric-workspace.yml"
     }
   ]
 }

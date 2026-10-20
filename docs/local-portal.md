@@ -63,32 +63,23 @@ This is a **single-user desktop companion**, listening only on localhost. It is 
 
 ### Combined lifecycle command
 
-For a fresh rebuild that retains the current portal's isolated Azure CLI and Codex sign-ins, use `./scripts/Restart-PortalFresh.ps1`. It preflights the build, verifies owned processes, creates a Windows-user-protected handoff and opens a one-time resume link. GitHub uses its existing CLI login. Registered-app MSAL memory cannot be migrated. See [cache-preserving restart, privacy and recovery](portal-fresh-restart.md). The older lifecycle commands below retain their cleanup semantics.
-
-From the `Bicep` repository root in PowerShell 7.4+, use [Manage-Portal.ps1](../scripts/Manage-Portal.ps1):
+Use [Manage-Suite.ps1](../scripts/Manage-Suite.ps1) for the current portal and telemetry lifecycle. The default Studio profile manages the authenticated Aspire dashboard and portal; Full additionally manages the local Blob copy Functions/Azurite runtime. Every build includes all six executable entry projects and their shared libraries. The ProductFunctions Service Bus sample is built without starting a cloud-backed consumer.
 
 ```powershell
-./scripts/Manage-Portal.ps1 -Action Status
-./scripts/Manage-Portal.ps1 -Action Restart
+./scripts/Manage-Suite.ps1 -Action Status
+./scripts/Manage-Suite.ps1 -Action Restart -WhatIf
+./scripts/Manage-Suite.ps1 -Action Restart
 ```
 
-`Restart` checks the registered main process and configured port, calls `Stop-Portal.ps1`, confirms the portal is stopped, runs `Setup-Portal.ps1` (prerequisites, locked restore and Release build), then calls `Start-Portal.ps1` and verifies the owned listener and bootstrap workload count. It covers the backend and web UI: HTML/CSS/JavaScript live in the portal's `wwwroot`, with no separate frontend bundler. Refresh the browser after restarting. This does not publish new portable ZIP packages.
+Preflight and isolated builds happen before stopping the existing app. The collector is ready before application producers start. Stop/restart preserves eligible isolated Azure CLI/Codex credentials in a Windows-user-protected checkpoint; the fresh browser independently verifies Azure, ADO and Fabric audiences, Codex readiness and the active GitHub CLI account. Registered-app MSAL memory cannot be migrated. Source settings, evidence, local data and reports remain; old workflow plans and approvals do not survive. Use `-DiscardConnections` only when session cleanup is intended.
 
-| Option | Behavior |
-|---|---|
-| No arguments / `-Action Status` | Read-only process, ownership, listener and bootstrap status. Does not verify provider sign-ins. |
-| `-Action Start` | Requires a stopped portal with no receipt, then builds and starts it. |
-| `-Action Stop` | Runs governed stop/session cleanup, then verifies the stopped state. |
-| `-Action Restart` | Stops, rebuilds and starts. A failure halts the sequence; a failed build leaves the portal stopped. |
-| `-WhatIf` | Inspects status and describes the requested action without stopping, building or starting. |
-| `-NoBrowser` | Prevents opening a browser during Start/Restart. |
-| `-InstallMissing` | For Start/Restart, allows Setup to install missing .NET/Node prerequisites. If PATH needs refreshing, setup stops and asks for a new PowerShell window. |
+For separate steps, `Stop`, `Build` and `Start` use the same controller. Start automatically detects a stopped portal's pending checkpoint. `-ResumePending` remains an explicit recovery control, `-NoBrowser` preserves private shortcuts for manual opening, and `-InstallMissing` allows supported prerequisite installation. `-WhatIf` performs no installation, build, key/checkpoint writes or lifecycle mutation.
 
-Status distinguishes Ready, Unhealthy, Stopped, StaleReceipt, UnownedListener, OwnershipMismatch and Unknown. Unknown inspection, mismatched ownership and an unrelated listener block lifecycle changes. A stale receipt can be cleaned through Stop/Restart. If Windows hides the running executable or command line, Status reports Unknown and blocks mutations; run it under the account that launched the portal. Bootstrap count mismatches report expected and received counts. Settings use `portal.local.json` and `STUDIO_Portal__Port` consistently with the existing launcher. The script defaults to Status so merely inspecting it does not sign users out.
+Read the [suite guide](local-suite.md) for component scope, startup/shutdown order, failure handling and commands. The controller verifies recorded process identity, owned listeners and current bootstrap workload count. Unknown inspection or foreign/mismatched ownership blocks changes. If a producer cannot stop, telemetry stays available and the operation reports partial failure. Dashboard health, provider catalog discovery and signed-in service authorization are separate readiness states.
 
-Stop/Restart clear portal-owned sessions: reconnect Azure/ADO and Codex afterward. GitHub can usually use **Use existing GitHub CLI login**. Reports are retained. This command manages the main source portal only; it does not manage the separate review instance, desktop Codex, Functions/Azurite or Windows distribution packages. It performs no Azure deployment or pipeline submission.
+[Manage-Portal.ps1](../scripts/Manage-Portal.ps1) forwards Start/Stop/Restart to Studio and keeps its portal-only Status result for existing callers. [Get-Portal.ps1](../scripts/Get-Portal.ps1) also provides read-only portal status. The script defaults remain Status. Neither controller deploys Azure resources, queues pipelines, starts inference, adopts unrelated listeners or manages desktop Codex/review instances. HTML/CSS/JavaScript remain part of the portal's `wwwroot`, with no separate frontend bundler; these commands do not publish portable ZIP packages.
 
-Local orchestration regression tests: `./scripts/Test-PortalLifecycle.ps1`. These use isolated synthetic process/build adapters and do not restart a real app. Real startup readiness is checked by the lifecycle command itself; synthetic tests do not establish connected provider acceptance.
+The lower-level [fresh restart and checkpoint implementation](portal-fresh-restart.md) remains available for component recovery. Review Connections and Agent workflows after a resume: expired access or a cancelled browser request can leave a service or MCP catalog needing reconnection even when other accounts recovered.
 
 ### Individual scripts
 
@@ -110,7 +101,7 @@ The browser opens `http://localhost:5087`. You can browse workloads/skills and a
 ./scripts/Stop-Portal.ps1
 ```
 
-Start writes an ownership receipt and logs under `.local/portal`. Stop verifies process path, creation time and command line before stopping only that portal process. Reports remain under `artifacts/portal-analysis`. Never commit those artifacts; inventories may contain private infrastructure details. Raw uploaded files are retained locally to preserve evidence. Delete specific unwanted evidence directories yourself after review. This app does not start or stop the Functions/Azurite stack.
+Start writes an ownership receipt and logs under `.local/portal`, after starting or validating the owned Aspire collector and supplying authenticated OTLP settings. The component Stop verifies process path, creation time and command line and preserves eligible sign-ins by default; `-DiscardConnections` explicitly clears portal-owned authentication. These component scripts control only the portal and its prerequisite telemetry; use `Manage-Suite.ps1 -Profile Full` to coordinate Functions/Azurite too. Reports remain under `artifacts/portal-analysis`. Never commit those artifacts; inventories may contain private infrastructure details. Raw uploaded files are retained locally to preserve evidence. Delete specific unwanted evidence directories yourself after review.
 
 ## Configure Microsoft browser sign-in
 
@@ -129,7 +120,7 @@ Implementation: `POST /api/local-auth/{azure|ado}` accepts only an optional tena
 
 Each browser owns `.local/portal/azure-cli/<random-id>` as `AZURE_CONFIG_DIR`, with Windows permissions restricted to the current user and SYSTEM. This directory contains sensitive refresh credentials and must remain ignored. The app does not reuse your normal Azure CLI cache. WAM and the interactive subscription selector are disabled **only for that child process**, so authentication can complete in a browser without a hidden terminal prompt. Tokens are renewed using `expires_on` UTC; account/tenant changes require reconnection. Only Azure public cloud is supported by the fixed ARM/ADO adapters.
 
-Disconnect and session expiry remove the owned cache. The governed `Stop-Portal.ps1` also invokes `Clear-PortalAzureCli.ps1` to verify and stop any surviving CLI helper and remove its credentials after stopping the portal. Abrupt OS/app termination can leave a protected ignored cache; retain the process receipt and run the stop script before restarting. Cleanup refuses linked paths and unverified processes. Never upload `.local`, token cache files or full CLI authentication output. MSAL registration remains available when tenant policy does not permit Azure CLI authentication; neither method bypasses Conditional Access.
+Disconnect and session expiry remove the owned cache. Default suite/component Stop first protects eligible credentials using the checkpoint flow; `Stop-Portal.ps1 -DiscardConnections` instead invokes the ordinary credential cleanup after verifying and stopping owned helpers. Abrupt OS/app termination can leave a protected ignored cache; retain its process receipt and use the governed lifecycle for recovery. Cleanup refuses linked paths and unverified processes. Never upload `.local`, token cache files or full CLI authentication output. MSAL registration remains available when tenant policy does not permit Azure CLI authentication; neither method bypasses Conditional Access.
 
 Microsoft references: [CLI interactive authentication and browser mode](https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli-interactively), [CLI configuration/environment isolation](https://learn.microsoft.com/en-us/cli/azure/azure-cli-configuration), and [ADO tokens using Azure CLI](https://learn.microsoft.com/en-us/azure/devops/cli/entra-tokens?view=azure-devops).
 
@@ -184,7 +175,7 @@ ADO API contract: [Run Pipeline](https://learn.microsoft.com/en-us/rest/api/azur
 ./scripts/Publish-Portal.ps1
 ```
 
-Produces timestamped **win-arm64** and **win-x64** ZIPs under `artifacts/portal-packages`, with self-contained .NET runtime, application files, a read-only catalog/skill/analyzer snapshot and documentation. Pick the package matching Windows **System type**. Packages need no installed .NET SDK/runtime; Node.js 22+ remains optional unless using analysis. The copied catalog snapshot is not a Bicep development checkout and does not update itself; rebuild packages after approved platform changes. No automatic upstream skill download occurs.
+Produces timestamped **win-arm64** and **win-x64** ZIPs under `artifacts/portal-packages`, with self-contained .NET runtime, application files, a read-only catalog/skill/analyzer snapshot and documentation. Pick the package matching Windows **System type**. Packages need no installed .NET SDK/runtime; Node.js 22+ remains optional unless using analysis. The copied catalog snapshot is not a Bicep development checkout and does not update itself; rebuild packages after approved platform changes. Suite build/restart commands require the full source Git checkout; use the executable instructions below for a portable package. No automatic upstream skill download occurs.
 
 Extract to a user-writable directory. In that directory create `portal.local.json` using the shape below, then run `SelfService.Portal.exe` and open `http://localhost:5087`. The executable is a foreground server; Ctrl+C stops it. Microsoft Sign-in launches its own system-browser tab only when Connect is clicked. These packages are unsigned portable distributions, not MSIX installers.
 

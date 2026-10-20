@@ -69,7 +69,8 @@ function Invoke-RestMethod {
 function Start-Process {
     [CmdletBinding()]param($FilePath,$WindowStyle)
     $h=$global:PortalFreshFixture
-    Assert-FreshTest ($WindowStyle -eq 'Hidden' -and $FilePath -ceq ('http://localhost:5087/#resume='+$h.Proof)) 'Browser did not receive the private resume handoff.'
+    Assert-FreshTest ($WindowStyle -eq 'Hidden' -and [IO.Path]::GetFileName($FilePath) -ceq 'Resume-Portal.url' -and
+        $FilePath.StartsWith($h.Root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $FilePath)) 'Browser did not receive the protected shortcut; a capability URL must not be a process argument.'
     $h.Calls.Add('Browser')
 }
 function git {$global:LASTEXITCODE=0;@('config/workloads.json','scripts/Restart-PortalFresh.ps1','src/SelfService.Portal/SelfService.Portal.csproj')}
@@ -154,6 +155,15 @@ $h.MainPid=5432
     return $h
 }
 function Assert-OriginalFreshCredentials($h){Assert-FreshTest ((Test-Path (Join-Path $h.Azure 'msal_token_cache.bin')) -and (Test-Path (Join-Path $h.Codex 'auth.json'))) 'Original credentials were removed before a verified checkpoint.'}
+function Add-FreshAspireFixture($h,[switch]$ResourceMode,[switch]$ForeignRuntime){
+    $directory=Join-Path $h.Root ('.local/portal/mcp/'+('5'*32)+'/aspire')
+    New-Item -ItemType Directory -Path $directory -Force|Out-Null
+    $runtime=if($ForeignRuntime){'C:\foreign\aspire.exe'}else{Join-Path $h.Root '.tools/aspire-cli/node_modules/@microsoft/aspire-cli-win-arm64/bin/aspire.exe'}
+    $keyFile=Join-Path $directory ('api-key-'+('6'*32)+'.rsp')
+    $command=if($ResourceMode){'"'+$runtime+'" agent mcp --non-interactive'}else{'"'+$runtime+'" agent mcp --dashboard-url http://127.0.0.1:18888 "@'+$keyFile+'" --log-level None --non-interactive --nologo'}
+    $child=New-FreshTestProcess 4324 $runtime $h.MainPid $command
+    @{schema='platform.mcp-process/v1';provider='aspire';pid=$child.Id;parentPid=$h.MainPid;parentStartedUtc=$h.Start.ToUniversalTime().ToString('O');executable=$child.Path;startedUtc=$child.StartTime.ToUniversalTime().ToString('O')}|ConvertTo-Json|Set-Content (Join-Path $directory 'process.json')
+}
 function Assert-FreshShortcut($h){
     $shortcuts=@(Get-ChildItem (Join-Path $h.Root '.local/portal/fresh-restart') -Filter 'Resume-Portal.url' -Recurse)
     Assert-FreshTest ($shortcuts.Count -eq 1) 'Expected one private recovery shortcut.'
@@ -178,6 +188,16 @@ try{
         Reject-FreshTest {& $h.Entry -NoBrowser};Assert-FreshTest ($h.Calls.Count -eq 0) 'Ambiguous sign-ins permitted lifecycle mutation.';$passed++
     }
     $h=New-FreshFixture;$h.LinkedPath=$h.Azure;Reject-FreshTest {& $h.Entry -NoBrowser};Assert-FreshTest ($h.Calls.Count -eq 0) 'Linked credentials permitted lifecycle mutation.';$passed++
+    $h=New-FreshFixture;$result=& $h.Entry -CheckpointOnly -NoBrowser
+    Assert-FreshTest ($result.State -eq 'Stopped' -and ($h.Calls -join ',') -eq 'Preflight,StopMain,StopChild,StopChild,Checkpoint') 'Preserving Stop rebuilt or restarted a producer.'
+    Assert-FreshTest ((Test-Path $h.Checkpoint) -and !(Test-Path $h.Receipt)) 'Preserving Stop did not leave a resumable, unregistered portal.'
+    Assert-FreshShortcut $h;$passed++
+    $h.Calls.Clear();$result=& $h.Entry -ResumePending -NoBrowser
+    Assert-FreshTest ($result.State -eq 'Ready' -and ($h.Calls -join ',') -eq 'Preflight,GetResume,Rebuild,Start') 'Stop then Start did not reuse the encrypted checkpoint.';$passed++
+    $h=New-FreshFixture;Reject-FreshTest {& $h.Entry -CheckpointOnly -ResumePending -NoBrowser}
+    Assert-FreshTest ($h.Calls.Count -eq 0) 'Conflicting stop and resume controls permitted mutation.';$passed++
+    $h=New-FreshFixture;& $h.Entry -CheckpointOnly -WhatIf
+    Assert-FreshTest ($h.Calls.Count -eq 0) 'Preserving Stop WhatIf changed credentials or processes.';$passed++
     $h=New-FreshFixture;$result=& $h.Entry -NoBrowser
     Assert-FreshTest ($result.State -eq 'Ready' -and ($h.Calls -join ',') -eq 'Preflight,StopMain,StopChild,StopChild,Checkpoint,Rebuild,Start') 'Fresh lifecycle order/readiness differs.'
     Assert-FreshTest (!(Test-Path $h.Azure) -and !(Test-Path (Join-Path $h.Codex 'auth.json')) -and (Test-Path $h.Checkpoint)) 'Approved credentials were not checkpointed before cleanup.'
@@ -204,6 +224,12 @@ try{
     $h=New-FreshFixture;[void](New-FreshTestProcess 4325 'C:\fixture\unregistered.exe' $h.MainPid 'unregistered child');Reject-FreshTest {& $h.Entry -NoBrowser};Assert-FreshTest ($h.Calls.Count -eq 0) 'An unregistered writer permitted lifecycle mutation.';Assert-OriginalFreshCredentials $h;$passed++
     $h=New-FreshFixture;$h.LateKnownWriter=$true;$result=& $h.Entry -NoBrowser
     Assert-FreshTest ($result.State -eq 'Ready' -and ($h.Calls -join ',') -eq 'Preflight,StopMain,StopChild,StopChild,StopMcpTree,Checkpoint,Rebuild,Start') 'A late owned MCP writer was not stopped before checkpoint.';Assert-FreshShortcut $h;$passed++
+    $h=New-FreshFixture;Add-FreshAspireFixture $h;$result=& $h.Entry -NoBrowser
+    Assert-FreshTest ($result.State -eq 'Ready' -and !$h.Processes.ContainsKey(4324) -and $h.Calls.IndexOf('StopMcpTree') -ge 0 -and $h.Calls.IndexOf('StopMcpTree') -lt $h.Calls.IndexOf('Checkpoint')) 'The owned dashboard-only Aspire MCP child was not stopped before checkpoint.';$passed++
+    foreach($mode in @('ResourceMode','ForeignRuntime')){
+        $h=New-FreshFixture;$parameters=@{$mode=$true};Add-FreshAspireFixture $h @parameters;Reject-FreshTest {& $h.Entry -NoBrowser}
+        Assert-FreshTest ($h.Calls.Count -eq 0 -and $h.Processes.ContainsKey(4324)) 'An unsupported Aspire command or runtime permitted lifecycle mutation.';Assert-OriginalFreshCredentials $h;$passed++
+    }
     $h=New-FreshFixture;$h.LateUnknownWriter=$true;Reject-FreshTest {& $h.Entry -NoBrowser}
     Assert-FreshTest (($h.Calls -join ',') -eq 'Preflight,StopMain' -and $h.Processes.ContainsKey(4325)) 'An unreceipted late writer was guessed or checkpointed.';Assert-OriginalFreshCredentials $h;$passed++
     $h=New-FreshFixture;$h.Processes.Clear();Remove-Item -LiteralPath $h.Receipt;$h.LateColdRegistration=$true;Reject-FreshTest {& $h.Entry -NoBrowser}

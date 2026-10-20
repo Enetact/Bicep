@@ -1,9 +1,11 @@
 using System.IO.Pipelines;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using SelfService.Telemetry;
 
 namespace SelfService.Portal;
 
@@ -28,6 +30,17 @@ public sealed class AgentMcpBridge : IAsyncDisposable
     { this.server = server; this.client = client; this.serving = serving; this.lifetime = lifetime; this.authorized = authorized; this.composition = composition; }
     public static async Task<AgentMcpBridge> Create(string evidence, string skill, Func<bool> authorized, CancellationToken ct, BicepEvidenceView? composition = null)
     {
+        using var operation = PlatformTelemetry.Start("mcp.evidence.connect", ActivityKind.Client)
+            .Tag("mcp.method.name", "initialize").Tag("mcp.server.name", "platform-studio-evidence");
+        try
+        {
+            var bridge = await CreateCore(evidence, skill, authorized, ct, composition);
+            operation.Success(); return bridge;
+        }
+        catch (Exception e) { operation.Fail(e); throw; }
+    }
+    static async Task<AgentMcpBridge> CreateCore(string evidence, string skill, Func<bool> authorized, CancellationToken ct, BicepEvidenceView? composition)
+    {
         var upstream = new Pipe(); var downstream = new Pipe();
         var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
         string Guard(string content) => authorized() ? content : throw new InvalidOperationException("Session disconnected.");
@@ -48,62 +61,83 @@ public sealed class AgentMcpBridge : IAsyncDisposable
         {
             var client = await McpClient.CreateAsync(new StreamClientTransport(upstream.Writer.AsStream(), downstream.Reader.AsStream()), cancellationToken: ct);
             var bridge = new AgentMcpBridge(server, client, serving, lifetime, authorized, composition);
-            var tools = await client.ListToolsAsync(cancellationToken: ct);
-            bridge.Tools = tools.Select(t => (object)new { type = "function", name = t.Name, description = t.Description, inputSchema = t.JsonSchema }).ToArray();
+            using var discovery = PlatformTelemetry.Start("mcp.evidence.list_tools", ActivityKind.Client)
+                .Tag("mcp.method.name", "tools/list").Tag("mcp.server.name", "platform-studio-evidence");
+            try
+            {
+                var tools = await client.ListToolsAsync(cancellationToken: ct);
+                bridge.Tools = tools.Select(t => (object)new { type = "function", name = t.Name, description = t.Description, inputSchema = t.JsonSchema }).ToArray();
+                discovery.Success();
+            }
+            catch (Exception e) { discovery.Fail(e); throw; }
             return bridge;
         }
         catch { lifetime.Cancel(); await server.DisposeAsync(); lifetime.Dispose(); throw; }
     }
     public async Task<object> Call(JsonElement request, CancellationToken ct)
     {
-        using var invocation = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime.Token);
-        ct = invocation.Token;
-        var name = request.GetProperty("tool").GetString() ?? "";
-        var args = request.GetProperty("arguments");
-        var providerTool = providerHandler is not null && name is "platform_mcp_catalog" or "platform_mcp_call" or "platform_mcp_plan" or "platform_mcp_run";
-        var compositionEvidence = composition is not null && name == "platform_evidence";
-        if (!authorized() || name is not ("platform_evidence" or "platform_skill") && !providerTool ||
-            args.ValueKind != JsonValueKind.Object || !providerTool && !compositionEvidence && args.EnumerateObject().Any() ||
-            request.TryGetProperty("namespace", out var ns) && ns.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined) && (ns.ValueKind != JsonValueKind.String || ns.GetString() != AgentPolicy.ToolNamespace) || Audit.Count >= (providerHandler is not null ? 48 : composition is not null ? 32 : 12))
+        // This is the host-observed call boundary, including local evidence tools. Tool
+        // names are reduced to the fixed advertised surface; arguments and results stay local.
+        using var operation = PlatformTelemetry.Start("mcp.evidence.call", ActivityKind.Client)
+            .Tag("mcp.method.name", "tools/call").Tag("mcp.server.name", "platform-studio-evidence")
+            .Tag("mcp.tool.name", request.ValueKind == JsonValueKind.Object && request.TryGetProperty("tool", out var requested) && requested.ValueKind == JsonValueKind.String ? ObservedTool(requested.GetString()) : "unregistered");
+        try
         {
-            audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name is "platform_evidence" or "platform_skill" ? name : "unregistered", success = false, reason = "Policy rejected tool, arguments, session or call budget" });
-            throw new PortalException("Agent requested an unauthorized or excessive tool call. Review stopped.", 403);
+            using var invocation = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime.Token);
+            ct = invocation.Token;
+            var name = request.GetProperty("tool").GetString() ?? "";
+            var args = request.GetProperty("arguments");
+            var providerTool = providerHandler is not null && name is "platform_mcp_catalog" or "platform_mcp_call" or "platform_mcp_plan" or "platform_mcp_run";
+            var compositionEvidence = composition is not null && name == "platform_evidence";
+            if (!authorized() || name is not ("platform_evidence" or "platform_skill") && !providerTool ||
+                args.ValueKind != JsonValueKind.Object || !providerTool && !compositionEvidence && args.EnumerateObject().Any() ||
+                request.TryGetProperty("namespace", out var ns) && ns.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined) && (ns.ValueKind != JsonValueKind.String || ns.GetString() != AgentPolicy.ToolNamespace) || Audit.Count >= (providerHandler is not null ? 48 : composition is not null ? 32 : 12))
+            {
+                audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name is "platform_evidence" or "platform_skill" ? name : "unregistered", success = false, reason = "Policy rejected tool, arguments, session or call budget" });
+                throw new PortalException("Agent requested an unauthorized or excessive tool call. Review stopped.", 403);
+            }
+            if (compositionEvidence)
+            {
+                try { composition!.ValidateRequest(args); }
+                catch (PortalException)
+                {
+                    audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false, reason = "Invalid frozen Bicep evidence selection" });
+                    throw;
+                }
+            }
+            if (providerTool)
+            {
+                try
+                {
+                    var output = await providerHandler!(name, args, ct);
+                    audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = true });
+                    operation.Success();
+                    return new { success = true, contentItems = new[] { new { type = "inputText", text = JsonSerializer.Serialize(McpProviderBroker.Redact(JsonSerializer.SerializeToElement(output))) } } };
+                }
+                catch (PortalException e)
+                {
+                    operation.Fail(e);
+                    audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false });
+                    return new { success = false, contentItems = new[] { new { type = "inputText", text = e.Message } } };
+                }
+                catch (Exception e) when (e is KeyNotFoundException or InvalidOperationException or JsonException or FormatException or ArgumentException)
+                {
+                    operation.Fail(e);
+                    audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false });
+                    return new { success = false, contentItems = new[] { new { type = "inputText", text = "Invalid orchestration tool arguments. Read the advertised schema and correct the request." } } };
+                }
+            }
+            var arguments = compositionEvidence ? args.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value.Clone()) : new Dictionary<string, object?>();
+            var result = await client.CallToolAsync(name, arguments, cancellationToken: ct);
+            var success = result.IsError != true;
+            if (success) operation.Success(); else operation.Reject();
+            audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success });
+            if (success) { if (compositionEvidence) composition!.MarkRead(args); read.Add(name); }
+            return new { success, contentItems = result.Content.OfType<TextContentBlock>().Select(x => new { type = "inputText", text = x.Text }).ToArray() };
         }
-        if (compositionEvidence)
-        {
-            try { composition!.ValidateRequest(args); }
-            catch (PortalException)
-            {
-                audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false, reason = "Invalid frozen Bicep evidence selection" });
-                throw;
-            }
-        }
-        if (providerTool)
-        {
-            try
-            {
-                var output = await providerHandler!(name, args, ct);
-                audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = true });
-                return new { success = true, contentItems = new[] { new { type = "inputText", text = JsonSerializer.Serialize(McpProviderBroker.Redact(JsonSerializer.SerializeToElement(output))) } } };
-            }
-            catch (PortalException e)
-            {
-                audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false });
-                return new { success = false, contentItems = new[] { new { type = "inputText", text = e.Message } } };
-            }
-            catch (Exception e) when (e is KeyNotFoundException or InvalidOperationException or JsonException or FormatException or ArgumentException)
-            {
-                audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success = false });
-                return new { success = false, contentItems = new[] { new { type = "inputText", text = "Invalid orchestration tool arguments. Read the advertised schema and correct the request." } } };
-            }
-        }
-        var arguments = compositionEvidence ? args.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value.Clone()) : new Dictionary<string, object?>();
-        var result = await client.CallToolAsync(name, arguments, cancellationToken: ct);
-        var success = result.IsError != true;
-        audit.Enqueue(new { timeUtc = DateTimeOffset.UtcNow, method = "tools/call", tool = name, success });
-        if (success) { if (compositionEvidence) composition!.MarkRead(args); read.Add(name); }
-        return new { success, contentItems = result.Content.OfType<TextContentBlock>().Select(x => new { type = "inputText", text = x.Text }).ToArray() };
+        catch (Exception e) { operation.Fail(e); throw; }
     }
+    internal static string ObservedTool(string? name) => name is "platform_evidence" or "platform_skill" or "platform_mcp_catalog" or "platform_mcp_call" or "platform_mcp_plan" or "platform_mcp_run" ? name : "unregistered";
     public void EnableProviders(McpProviderBroker broker, BrowserSession session)
     {
         object Tool(string name, string description, string schema) => new { type = "function", name, description, inputSchema = JsonDocument.Parse(schema).RootElement.Clone() };

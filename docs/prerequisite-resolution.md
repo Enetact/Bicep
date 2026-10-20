@@ -1,5 +1,9 @@
 # Discover, reuse or create Event flow prerequisites
 
+**Managed DevOps Pool prerequisites:** the new workload references existing Dev Center and network foundations, preserving their ownership. Missing delegation, shared/occupied subnet uncertainty or missing reviewed network pregrants block the initial profile; it does not create them to make deployment succeed. [Inputs and bootstrap requirements](../workloads/managed-devops-pool/README.md).
+
+**Fabric prerequisite boundary:** reviewed capacity administrator users, Fabric execution principal, workspace/group roles and tenant API enablement are separate from Azure deployment rights. Workspace Private Link additionally requires an observed existing workspace, approved subnet/DNS and endpoint approval. [Complete Fabric prerequisites](../workloads/fabric/README.md).
+
 **5 October 2026:** new Discover runs generate observed names and matching source-reviewed naming drafts. Event flow also reads separate ownership and prerequisite plans for named instances in the selected scope; policy/identity changes require fresh Discover. Portal DNS inventory and DNS/drift have a bounded ARM metadata fallback that retains failed direct DNS coverage. Successful metadata recovery does not prove records, links or resolution. See [naming integration](resource-naming.md).
 
 Event flow now resolves networking, private DNS and Log Analytics from the selected subscription's saved discovery. Discovery reads Azure; the conditional Bicep modules create missing prerequisites only when Deploy applies the workload Deployment Stack. This applies to `logic-app-event-grid`; Blob copy retains its existing network-profile behavior.

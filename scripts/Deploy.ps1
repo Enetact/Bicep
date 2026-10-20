@@ -9,6 +9,9 @@ param(
     [string]$PackagePath = '',
     [string]$ParameterPath = ''
 )
+. "$PSScriptRoot/PlatformTrace.ps1"
+$platformTrace = Start-PlatformTrace -Name 'platform.workflow.deploy' -Attributes @{ 'platform.phase'=$Phase; 'platform.mode'=$Mode }
+try {
 . "$PSScriptRoot/common.ps1"
 $output = Export-Templates -EnvironmentName $EnvironmentName -ParameterPath $ParameterPath -OutputPath (Join-Path (Get-ProjectRoot) ("artifacts/deployments/" + [guid]::NewGuid().ToString('N')))
 $parameterFile = Join-Path $output 'parameters.json'
@@ -91,3 +94,7 @@ if ($Phase -eq 'Release') {
     if (!$synced) { throw 'Trigger synchronization failed. Check package access, RBAC, approved endpoints, DNS, and runtime logs.' }
     Write-Host 'Trigger sync accepted. Run the end-to-end smoke test to establish readiness.'
 }
+} catch {
+    Set-PlatformTraceFailure -Trace $platformTrace -Exception $_.Exception
+    throw
+} finally { Complete-PlatformTrace $platformTrace }

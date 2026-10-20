@@ -22,15 +22,15 @@ Portal browsing does not require Docker, Azure CLI, Bicep or Functions tools loc
 Run in order from the repository root:
 
 ```powershell
-./scripts/Setup-Portal.ps1
-./scripts/Start-Portal.ps1
+./scripts/Manage-Suite.ps1 -Action Status
+./scripts/Manage-Suite.ps1 -Action Start
 ```
 
-Setup checks prerequisites, restores locked packages and builds Release. Start opens [Platform Studio](http://localhost:5087/). If .NET or Node is missing, run `./scripts/Setup-Portal.ps1 -InstallMissing`, reopen PowerShell when prompted, and rerun setup. PowerShell and Windows App Installer/winget must already be available.
+The default Studio profile checks prerequisites, builds all six executable entry projects in isolated outputs, starts the authenticated Aspire collector, then starts [Platform Studio](http://localhost:5087/). Missing prerequisites block startup unless `-InstallMissing` is explicitly supplied. Reopen PowerShell if setup reports that PATH must be refreshed. PowerShell and any required Windows App Installer/winget prerequisite must already be available.
 
-The application is a single-user localhost service. Ownership receipts and logs live under `.local/portal/`; generated reports live under ignored `artifacts/`. The portal lifecycle does not start or stop Functions/Azurite.
+The application is a single-user localhost service. Ownership receipts and logs live under `.local/portal/`; authenticated collector state is under `.local/observability/`, isolated suite builds under `.local/suite/builds/`, and generated reports under ignored `artifacts/`. Add `-Profile Full` to coordinate the local Blob copy Functions/Azurite runtime too. ProductFunctions' cloud-backed Service Bus sample is built without being started.
 
-For subsequent rebuilds, use `./scripts/Manage-Portal.ps1 -Action Restart` for the combined stop → Release build → start → readiness check. Use `-Action Status` to inspect without changing sessions. Restart requires reconnecting portal Azure/ADO and Codex sessions; GitHub can usually reuse its CLI login. See [all lifecycle options](local-portal.md#combined-lifecycle-command).
+For subsequent rebuilds, use `./scripts/Manage-Suite.ps1 -Action Restart`. Preflight/build failures leave running services available; startup waits for telemetry before application producers. Eligible isolated sign-ins are checkpointed by default and reverified in the resumed browser. Use `-Action Status` to inspect without changing sessions and `-WhatIf` to preview a lifecycle action. See [suite ordering, options and recovery](local-suite.md).
 
 ## Connect only what your task needs
 
@@ -45,9 +45,9 @@ Follow [Microsoft browser sign-in setup](local-portal.md#configure-microsoft-bro
 Skip registration setup for local CLI authentication. If you choose the registered-app method, create the portal registration, then stop the portal and configure the identifiers together:
 
 ```powershell
-./scripts/Stop-Portal.ps1
+./scripts/Manage-Suite.ps1 -Action Stop
 ./scripts/Setup-Portal.ps1 -TenantId '<portal-tenant-guid>' -ClientId '<portal-client-guid>'
-./scripts/Start-Portal.ps1
+./scripts/Manage-Suite.ps1 -Action Start
 ```
 
 Use **Connections** and **Agent workflows** to complete the respective browser login flows. The [portal guide](local-portal.md) covers consent, MFA, cancellation, errors and configuration overrides.
@@ -64,15 +64,13 @@ Platform owners must complete [onboarding and acceptance](workload-onboarding.md
 
 ## Update or stop
 
-After pulling source changes, rebuild the owned portal in this order:
+After pulling source changes, rebuild the owned suite:
 
 ```powershell
-./scripts/Stop-Portal.ps1
-./scripts/Setup-Portal.ps1
-./scripts/Start-Portal.ps1
+./scripts/Manage-Suite.ps1 -Action Restart
 ```
 
-To stop without rebuilding, run `./scripts/Stop-Portal.ps1`. Stopping retains reports and local configuration. The script checks process ownership before stopping the host.
+To stop without rebuilding, run `./scripts/Manage-Suite.ps1 -Action Stop` with the same profile used at startup. Producers stop before telemetry, and eligible sign-ins, data, reports and local configuration are preserved. A later Start detects a stopped portal's pending checkpoint automatically. `-DiscardConnections` explicitly requests portal session cleanup instead. The scripts verify process ownership before controlling a service.
 
 ## Verify and package
 
@@ -87,19 +85,21 @@ Repository metadata checks do not restart services:
 For portal tests and portable Windows packages, stop the portal first:
 
 ```powershell
-./scripts/Stop-Portal.ps1
+./scripts/Manage-Suite.ps1 -Action Stop
 ./scripts/Test-Portal.ps1
 ./scripts/Publish-Portal.ps1
-./scripts/Start-Portal.ps1
+./scripts/Manage-Suite.ps1 -Action Start
 ```
 
-The package script builds ARM64 and x64 ZIPs under `artifacts/portal-packages/<timestamp>/`. They are unsigned portable applications, not installers. Node remains a prerequisite for analysis, and Codex is separate. Follow [package configuration](local-portal.md#arm64-and-x64-packages). Recorded x64 tests used Windows ARM emulation; native x64 hardware acceptance remains outstanding.
+The package script builds ARM64 and x64 ZIPs under `artifacts/portal-packages/<timestamp>/`. They are unsigned portable applications, not installers. Suite build/restart commands require the full source Git checkout; the packaged catalog is not that checkout. Node remains a prerequisite for analysis, and Codex is separate. Follow [package configuration](local-portal.md#arm64-and-x64-packages). Recorded x64 tests used Windows ARM emulation; native x64 hardware acceptance remains outstanding.
 
 The wider `./scripts/Test-Project.ps1` suite needs the infrastructure/runtime toolchain described in [validation](validation.md) and [workload onboarding](workload-onboarding.md). Historical passes do not qualify a new checkout automatically.
 
 ## Run Blob copy locally without Azure
 
-This is a separate workload runtime using real local Functions and Azurite. Run:
+This is a separate workload runtime using real local Functions and Azurite.
+
+For the portal and telemetry together with this runtime, choose `./scripts/Manage-Suite.ps1 -Action Start -Profile Full`. The component-only commands remain available:
 
 ```powershell
 ./scripts/Run-Local.ps1

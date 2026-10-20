@@ -55,7 +55,8 @@ public sealed class McpProviderSession : IAsyncDisposable
 // cannot mint approval: the separate human route approves an immutable exact plan.
 public sealed class McpProviderBroker(PortalOptions options, IProviderConnectionResolver resolver, IProviderMcpFactory factory)
 {
-    public static readonly (string Id, string Name)[] Providers = [("bicep", "Azure Bicep"), ("azure", "Microsoft Azure"), ("ado", "Azure DevOps"), ("github", "GitHub"), ("learn", "Microsoft Learn")];
+    public static readonly (string Id, string Name)[] Providers = [("bicep", "Azure Bicep"), ("azure", "Microsoft Azure"), ("ado", "Azure DevOps"), ("github", "GitHub"), ("learn", "Microsoft Learn"), ("fabric", "Microsoft Fabric Core"), ("aspire", "Aspire dashboard")];
+    static readonly string[] AspireTools = ["list_structured_logs", "list_traces", "list_trace_structured_logs"];
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     static readonly Regex Secrets = new("(?i)(password|client.?secret|access.?token|refresh.?token|authorization|private.?key|connection.?string|personal.?access.?token|api.?key|account.?key|shared.?access.?signature|sas.?token|(^|_)(gh|github|ado|mcp)_?token|devops.*pat|^(token|secret|apiToken|pat|pwd)$)", RegexOptions.CultureInvariant);
     static readonly Regex Mutation = new("(?i)(create|update|delete|remove|set_|write|execute|run_|queue|approve|merge|push|deploy|assign|enable|disable|rotate|format|decompile|import|export|install|upload|download|send|add_|patch|put_|post_|invoke|command)", RegexOptions.CultureInvariant);
@@ -64,14 +65,19 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
     {
         "azure" => s.Connected.ContainsKey("azure") && s.Cli is not null ? $"{s.MicrosoftIdentityEpoch}:{s.AzureTenantId}:{s.Cli.DirectoryPath}" : "",
         "ado" => s.Connected.ContainsKey("ado") ? $"{s.MicrosoftIdentityEpoch}:{s.AzureTenantId}:{s.Account?.HomeAccountId.Identifier ?? s.Cli?.AccountId}" : "",
+        "fabric" => s.Connected.ContainsKey("fabric") ? $"{s.MicrosoftIdentityEpoch}:{s.AzureTenantId}:{s.Account?.HomeAccountId.Identifier ?? s.Cli?.AccountId}" : "",
         "github" => s.GitHub.UserId is not null ? $"{s.GitHub.Epoch}:{s.GitHub.UserId}" : "",
         "bicep" => "browser:" + s.Mcp.Id + ":" + s.MicrosoftIdentityEpoch,
         "learn" => "browser:" + s.Mcp.Id,
+        "aspire" => "browser:" + s.Mcp.Id,
         _ => throw new PortalException("Unknown MCP provider.", 404)
     };
     public static string Effect(string provider, ProviderTool tool)
     {
         if (tool.SensitiveHint || Secrets.IsMatch(tool.Name) || Regex.IsMatch(tool.Name, "(?i)(list.?keys|credential|secret|token)")) return "Sensitive";
+        // A telemetry read can reveal private runtime content. Explicit plan
+        // review is required before returning it to a model or saving a receipt.
+        if (provider == "aspire" && AspireTools.Contains(tool.Name) && tool.Destructive != true) return "PrivateRead";
         if (provider == "learn" && tool.Name is "microsoft_docs_search" or "microsoft_docs_fetch" or "microsoft_code_sample_search") return "Read";
         if (!Mutation.IsMatch(tool.Name) && (tool.ReadOnly == true && tool.Destructive != true && ReadName.IsMatch(tool.Name) || provider == "bicep" && tool.Name is "get_bicep_best_practices" or "list_azure_resource_types" or "get_azure_resource_type_schema" or "list_extension_resource_types" or "get_extension_resource_type_schema" or "list_well_known_extensions" or "list_avm_metadata" or "get_bicep_file_diagnostics" or "get_file_references")) return "Read";
         return "ChangeOrUnknown";
@@ -88,6 +94,7 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
     public async Task<object> Connect(BrowserSession s, string id, CancellationToken ct)
     {
         _ = Providers.SingleOrDefault(p => p.Id == id).Name ?? throw new PortalException("Unknown MCP provider.", 404);
+        using var activity = McpObservability.Start("mcp.connect", id);
         if (!await s.Mcp.Gate.WaitAsync(0, ct)) throw new PortalException("Another MCP operation is active.", 409);
         try
         {
@@ -103,14 +110,18 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
                 var tools = await c.Client.ListTools(timeout.Token);
                 if (tools.Length is 0 or > 3000 || tools.Any(t => !Regex.IsMatch(t.Name, "^[a-zA-Z0-9_.:/-]{1,200}$") || t.InputSchema.ValueKind != JsonValueKind.Object) || tools.Select(t => t.Name).Distinct().Count() != tools.Length)
                     throw new PortalException("Provider tool inventory was empty, excessive or invalid.", 502);
+                ValidateAspireCatalog(id, tools);
                 if (identity != Identity(s, id)) throw new PortalException("Identity changed during MCP connection.", 401);
                 c.Tools = tools; c.CatalogDigest = Digest(JsonSerializer.SerializeToElement(tools.OrderBy(t => t.Name).ToArray(), Json)); c.State = "ready";
+                activity?.SetTag("platform.item.count", tools.Length);
+                McpObservability.Complete(activity, "connected");
             }
             catch (Exception e)
             {
                 if (c.Client is not null) await c.Client.DisposeAsync(); c.Client = null;
                 c.State = e is PortalException { Status: 401 } ? "authRequired" : "error";
                 c.Error = e is PortalException p ? p.Message : "Provider connection failed or timed out. Check its installation, credentials and connectivity.";
+                McpObservability.Complete(activity, c.State, true);
             }
             return Status(s);
         }
@@ -118,9 +129,10 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
     }
     public async Task<object> Disconnect(BrowserSession s, string id, CancellationToken ct)
     {
+        using var activity = McpObservability.Start("mcp.disconnect", Providers.Any(p => p.Id == id) ? id : "unknown");
         if (s.Mcp.Connections.TryGetValue(id, out var active)) active.Lifetime.Cancel();
         await s.Mcp.Gate.WaitAsync(ct);
-        try { if (s.Mcp.Connections.TryRemove(id, out var c)) await c.DisposeAsync(); return Status(s); }
+        try { if (s.Mcp.Connections.TryRemove(id, out var c)) await c.DisposeAsync(); McpObservability.Complete(activity, "disconnected"); return Status(s); }
         finally { s.Mcp.Gate.Release(); }
     }
     McpProviderConnection Connection(BrowserSession s, string id)
@@ -138,6 +150,7 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
     }
     public McpExecutionPlan Plan(BrowserSession s, McpPlanRequest request)
     {
+        using var activity = McpObservability.Start("mcp.plan.prepare");
         if (request.Steps is not { Length: > 0 and <= 20 }) throw new PortalException("Choose between one and twenty ordered tool steps.");
         foreach (var step in request.Steps) ValidateArguments(step.Arguments);
         var requestedSteps = request.Steps.Select(step => step.Provider == "bicep" ? step with { Arguments = NormalizeBicepArguments(step.Arguments) } : step).ToArray();
@@ -156,7 +169,14 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
         var steps = requestedSteps.Select(x => x with { Arguments = x.Arguments.Clone() }).ToArray();
         var digest = Digest(JsonSerializer.SerializeToElement(new { session = s.Mcp.Id, steps, bindings = bindings.OrderBy(p => p.Key).ToArray() }, Json));
         var plan = new McpExecutionPlan { Digest = digest, Steps = steps, Bindings = bindings, RequiresApproval = approval, State = approval ? "AwaitingApproval" : "Ready" };
+        activity?.SetTag("platform.item.count", steps.Length); activity?.SetTag("platform.mode", approval ? "approval_required" : "read");
+        McpObservability.Complete(activity, approval ? "approval_required" : "ready");
         s.Mcp.Plans[plan.Id] = plan; return plan;
+    }
+    static void ValidateAspireCatalog(string provider, ProviderTool[] tools)
+    {
+        if (provider == "aspire" && (tools.Length != AspireTools.Length || tools.Any(t => !AspireTools.Contains(t.Name) || t.Destructive == true || t.ReadOnly == false)))
+            throw new PortalException("Aspire must expose only its three standalone dashboard telemetry tools. Resource and application control are unavailable through this connection.", 502);
     }
     public static void ValidateArguments(JsonElement args)
     {
@@ -232,6 +252,8 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
     {
         var p = ReadPlan(s, id);
         if (!await s.Mcp.Gate.WaitAsync(0, ct)) throw new PortalException("Another MCP operation is active.", 409);
+        using var activity = McpObservability.Start("mcp.plan.execute");
+        activity?.SetTag("platform.item.count", p.Steps.Length);
         try
         {
             // Refresh schemas before an approval can be consumed. Tool annotations
@@ -241,6 +263,7 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
                 var c = Connection(s, provider);
                 using var refresh = CancellationTokenSource.CreateLinkedTokenSource(ct, c.Lifetime.Token, s.Mcp.Lifetime.Token); refresh.CancelAfter(TimeSpan.FromSeconds(60));
                 var tools = await c.Client!.ListTools(refresh.Token);
+                ValidateAspireCatalog(provider, tools);
                 var current = Digest(JsonSerializer.SerializeToElement(tools.OrderBy(t => t.Name).ToArray(), Json));
                 if (current != c.CatalogDigest) { c.Tools = tools; c.CatalogDigest = current; throw new PortalException("Provider tool schemas changed. Create and approve a new plan.", 409); }
             }
@@ -254,6 +277,7 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
             {
                 ValidateBindings(s, p, digest); ValidateBicepPaths(s, step);
                 var c = Connection(s, step.Provider); var tool = c.Tools.Single(t => t.Name == step.Tool); var started = DateTimeOffset.UtcNow;
+                using var toolActivity = McpObservability.Start("mcp.tools.call", step.Provider, step.Tool);
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct, s.Mcp.Lifetime.Token, c.Lifetime.Token); timeout.CancelAfter(TimeSpan.FromSeconds(90));
                 var attempted = false;
                 try
@@ -265,6 +289,7 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
                     ValidateBindings(s, p, digest);
                     if (step.Provider == "bicep") await BicepMcpScope.ValidateDependencies(c.Client!, step.Tool, step.Arguments, ValidateBicepPath, timeout.Token);
                     var failed = raw.TryGetProperty("isError", out var error) && error.ValueKind == JsonValueKind.True;
+                    McpObservability.Complete(toolActivity, failed ? "tool_error" : "succeeded", failed);
                     var digestResult = Digest(raw);
                     var output = Effect(step.Provider, tool) == "Sensitive" ? JsonSerializer.SerializeToElement(new { withheld = true, reason = "Sensitive output is kept out of model context and receipts.", sha256 = digestResult }) : Redact(raw);
                     lock(p) p.Receipts.Add(new { index = p.Receipts.Count, provider = step.Provider, tool = step.Tool, startedUtc = started, completedUtc = DateTimeOffset.UtcNow, status = failed ? "Failed" : "Succeeded", resultSha256 = digestResult, output });
@@ -273,13 +298,15 @@ public sealed class McpProviderBroker(PortalOptions options, IProviderConnection
                 }
                 catch
                 {
+                    McpObservability.Complete(toolActivity, timeout.IsCancellationRequested ? "cancelled" : "call_failed", true);
                     if (attempted) { c.State = "error"; c.Error = "Provider call failed or authorization changed. Reconnect before another plan."; }
-                    p.State = !attempted || Effect(step.Provider, tool) == "Read" ? "Failed" : "UnknownOutcome";
+                    p.State = !attempted || Effect(step.Provider, tool) is "Read" or "PrivateRead" ? "Failed" : "UnknownOutcome";
                     lock(p) p.Receipts.Add(new { index = p.Receipts.Count, provider = step.Provider, tool = step.Tool, startedUtc = started, status = p.State, error = "Provider call failed, timed out or authorization changed. Reconcile external state before retrying a change." });
                     break;
                 }
             }
             if (p.State == "Running") p.State = "Completed";
+            McpObservability.Complete(activity, p.State, p.State != "Completed");
             await Save(s, p); return View(p);
         }
         finally { if (p.State == "Running") { p.State = "Failed"; await Save(s, p); } s.Mcp.Gate.Release(); }

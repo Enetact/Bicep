@@ -1,5 +1,54 @@
 # Validation evidence
 
+## Managed DevOps Pool increment — 20 October 2026
+
+Added a first-class private pool product using the existing saved-discovery/Preview/Template Spec/Deployment Stack/protected Apply/configuration Verify flow. Source is the uncommitted checkout including the earlier Fabric increment. Current configuration contains eleven workload types, 44 disabled Azure targets, 22 dedicated workload menus, 30 registered root pipelines and 19 recovery policies. Six MCP providers and eighteen indexed guidance sources remain; the pool review recipe extends their existing orchestration guidance. [Pool guide and exact inputs](../workloads/managed-devops-pool/README.md).
+
+| Check | Current evidence and scope |
+|---|---|
+| Bicep 0.48.1 | Workload main, subscription stack and all four environment parameters compiled cleanly against pools@2026-06-02. Four standard-v2 naming maps also compiled. Security output confirms no agent managed identity, stateless agents, no standby prediction fields, pinned Gen2 image, existing subnet/project and explicit scoped ADO configuration. |
+| Managed pool contracts | 50 synthetic checks passed: typed parameters, invalid alias/name/image/scope, bootstrap separation, delegated exclusive subnet/capacity/internal-range checks, platform pregrants, ARM read-back and conservative migration rules. No cloud creation or job execution. |
+| Full portal .NET suite | 653 passed, 0 failed, 4 skipped; locked restore and auditing retained. Initial sandbox run had existing ACL/junction-fixture cleanup failures; rerun with normal Windows filesystem access passed. Evidence: artifacts/test-results/mdp-portal.trx. |
+| Product regression | 166 product contracts, 34 AKS contracts, 44 data-platform contracts, four export contracts, ten Python tests and ten ProductFunctions runtime tests passed. Product runner used fresh MDP compiled artifacts and existing compiled evidence for unchanged products. |
+| Discovery regression | 80 synthetic catalog/discovery/network cases passed, including saved subnet occupancy/service-association fields. The fixture dependency closure now includes Fabric and Managed DevOps Pool common adapters. |
+| Pipeline/catalog | 207 pipeline/infrastructure contracts passed across 47 parsed YAML documents, including constrained compiled MDP resource assertions. Generated catalog matches 44 registered selections; 30 root definitions registered in source. This is local parsing, not real ADO expansion. |
+| Naming/UI/recovery | 142 combined naming/topology/recovery Node tests and 56 recovery contracts passed. |
+| MCP guidance | All 13 guidance/UI Node tests passed after the temporary junction fixture received normal filesystem access. Six-provider/eighteen-source generation/check and pinned upstream source verification passed. Bundle: 31,812 bytes, SHA256 fb30d7032a7ec922ac8c26c9a8911f80c58afdbf7fe7d51020224db8535516c8. |
+| Generic module inventory | Existing seventeen native and six AVM contracts/provenance passed. The managed pool resource remains explicitly product-only and excluded from generic draft emission. |
+| Browser/UI | Actual isolated Release preview at localhost:5099 showed eleven workloads, zero of 44 enabled, the Managed DevOps Pool card/configuration, environment/region/action controls, disabled deployment, naming editor and four-node conceptual topology. No authentication or pipeline submission. Screenshot and sanitized receipt: artifacts/managed-devops-pool/ui-preview.png and ui-validation.json. Temporary browser and owned preview server were closed afterward. |
+| Canary source | Manual consumer YAML and embedded PowerShell parsed successfully. It checks tool versions, private IPv4 DNS/TCP and rejects the 172.17.0.0/16 service range; no live canary ran. |
+
+Authoring used actual public MCP calls: Learn search and network-document fetch; Bicep best practices, exact Microsoft.DevOpsInfrastructure/pools@2026-06-02 schema and AVM metadata (official pool module 0.8.0). Captures remain in ignored .local/mdp-research/evidence.json. The bounded native module follows the reviewed product-adapter design; no external registry dependency or AVM certification is implied.
+
+No Azure or Azure DevOps resource, grant, target enablement or pipeline run was performed. Deployment uses an existing bootstrap pool; shared Dev Center, subnet/DNS/routing and DevOpsInfrastructure pregrants remain external. Tenant service-principal provenance, all connected network ranges, image publication/quota, ADO membership/creation/update permissions, per-pipeline authorization, effective private paths, actual agent jobs, costs and operational acceptance remain pending. The primary portal was not restarted. A private managed agent does not remove Fabric native deployment-pipeline restrictions; the separately qualified workspace-private Fabric executor remains future work.
+
+
+## Fabric suite increment — 20 October 2026
+
+Added the tenth product to the standard saved-discovery/Preview/stack delivery path, four disabled Azure profiles, three manual Fabric roots, separate disabled typed API manifests, optional workspace Private Link/private ADLS source, connector and ALM operation examples, and the sixth MCP provider. Current configuration contains ten types, 40 disabled Azure targets, 20 dedicated workload menus and 28 registered root pipelines. [Fabric setup and best practices](../workloads/fabric/README.md).
+
+Local verification for this source increment:
+
+| Check | Result and scope |
+|---|---|
+| Bicep 0.48.1 | Workload main/stack, optional ADLS source and four environment parameter files compiled. Only BCP081 for Microsoft.Fabric/privateLinkServicesForFabric@2024-06-01: exact Learn ARM sample used because bundled type metadata is absent; no suppression. |
+| Full portal .NET suite | 651 passed, 0 failed, 4 skipped. Skips are opt-in native integration checks, not Fabric acceptance. Locked restore/vulnerability audit remained enabled. |
+| Product Functions runtime | 10 passed, 0 failed, 0 skipped. Initial product-suite restore hit NU1900; the runtime suite was rerun successfully with NuGet network access. |
+| Existing/new product contracts | 149 passed, including typed bundle preservation/tamper rejection; 34 AKS and 44 data-platform contracts also passed. |
+| Fabric infrastructure contracts | 29 passed, including optional endpoint scope and guarded migration handling. |
+| Fabric typed API planner/transport | 45 synthetic scenarios passed: scope/field/credential validation, pagination, unsupported network/connector conditions, source and paired target definition hash drift, bounded LRO and no automatic write retry. |
+| Actual API wrapper lifecycle | 35 synthetic CLI/HTTP checks passed: Preview/Apply/Verify, exact hash/source/run/identity, expiry/drift, disabled targets, stage/job retry refusal, durable local attempt markers and UnknownOutcome. This is not an exactly-once guarantee across new agents/runs. |
+| Pipeline/catalog | 189 pipeline checks; 45 YAML documents parsed; generated catalog matches 40 selections; 28 registered roots. |
+| Naming/recovery/UI | 127 naming tests, 55 recovery contracts and 11 topology/recovery UI tests passed. |
+| MCP guidance | 13 Node guidance/UI tests passed; six-provider/18-source generation/check and pinned upstream integrity passed. The initial Windows junction fixture was rerun with required filesystem access and passed. |
+| Generic module contracts | Existing 17 native plus six AVM contracts verified. Fabric compositions are explicitly excluded from the generic leaf-module emitter and use the reviewed product adapter. |
+| Documentation/source | Changed local Markdown file links resolved. Final source manifest and whitespace checks are recorded by the task completion checks. |
+
+Authoring used actual official tools: Learn MCP `microsoft_docs_search` succeeded; Bicep MCP `get_bicep_best_practices` and capacity schema lookup succeeded. Private-link schema lookup explicitly returned unavailable. The checkout-local official Fabric MCP npm package 1.6.0 supplied lakehouse API examples (`docs_api-examples`, HTTP-style result status 200), including CreateLakehouse's 201/202 behavior. The generic Fabric best-practice topic `general` returned no resource; platform recommendations use the linked Microsoft Learn pages instead. The local Fabric tool ran with an isolated empty Azure cache, and no operational Fabric tool was invoked. Research captures remain in ignored `.local/fabric-research/`.
+
+No cloud resources, real Fabric workspace/items/connections, native deployment pipeline, tenant setting, role grant or ADO definition/run was created or changed. No authenticated Fabric Core MCP call was made. The primary signed-in portal was not restarted. All targets/manifests remain disabled. External WIF/consent/permissions, ADO protected environments, live tenant catalog/read calls, endpoint DNS/connectivity, connector data access, licensing/pricing and business acceptance remain required. Current Learn limitations block native Fabric promotion for deny-public workspaces; restricted release qualification remains separate.
+
+
 ## AHP, Codex and AVM source generation — 17 October 2026
 
 Real research run `0a456becc7a44789bb9e01dfe53a66c3` completed through AHP with ten successful read-only Bicep/Learn plans. Fresh composition run `19966c45ec7a499a98e5fb206de8f58a` completed through AHP with complete seven-contract coverage and generated all six AVM wrappers plus a workspace and seven typed child collections. Its actual 31-file source passed four positive compilations and four required parameter failures, with exact compiled wiring/ownership checks and preserved originals. A separately labeled offline review ZIP passed the same checks; fresh browser-download acceptance is unverified.

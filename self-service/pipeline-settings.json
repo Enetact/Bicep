@@ -9,6 +9,8 @@
     "http-functions": "Discover - HTTP Functions API",
     "service-bus-worker": "Discover - Service Bus worker",
     "private-data-platform": "Discover - Private Data Platform",
-    "private-aks": "Discover - Private AKS Foundation"
+    "private-aks": "Discover - Private AKS Foundation",
+    "fabric": "Discover - Fabric Premium Workspace",
+    "managed-devops-pool": "Discover - Managed DevOps Pool"
   }
 }

@@ -3,6 +3,7 @@
 param([switch]$SkipCompile)
 . "$PSScriptRoot/workload-preview-common.ps1"
 . "$PSScriptRoot/../tests/aks/fixtures.ps1"
+. "$PSScriptRoot/../tests/managed-devops-pool/fixtures.ps1"
 $root=Get-ProjectRoot;$testRoot=Join-Path $root ('artifacts/product-tests/'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
 $cases=[Collections.Generic.List[object]]::new()
@@ -36,6 +37,8 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
         $p.browserAuthenticationPrivateEndpointId.value="$scope/Microsoft.Network/privateEndpoints/browser-auth";$p.sparkVersion.value='15.4.x-scala2.12'
     }
     if($type -eq 'private-aks'){Set-AksTestParameters $p $scope $vnet}
+    if($type -eq 'fabric'){$p.capacityAdministrators.value=@('fabric-admin@contoso.com')}
+    if($type -eq 'managed-devops-pool'){Set-MdpTestParameters $p $scope $vnet}
     Case "$type reviewed parameters resolve typed intent" {
         Assert-ProductParameters $t $p
         $intent=Resolve-PlatformRequest @{workloadType=$type;workloadName=$t.workload;environment='dev';region='eastus2'} @($t)
@@ -61,6 +64,7 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
         $inv.privateDnsZones=@($p.privateDnsZoneIds.value.Values|ForEach-Object {@{id=$_}})
     }
     if($type -eq 'private-aks'){Set-AksTestInventory $inv $p $vnet}
+    if($type -eq 'managed-devops-pool'){Set-MdpTestInventory $inv $p $vnet}
     $dir=Join-Path $testRoot $type;New-Item -ItemType Directory -Path $dir|Out-Null
     Write-ServiceJson $inv (Join-Path $dir inventory.json)
     $m=@{schemaVersion=2;kind='workload-discovery';workloadType=$type;discoveryStatus='Complete';generatedUtc=$inv.generatedUtc;inventorySha256=(Get-ServiceHash (Join-Path $dir inventory.json));subscriptionId=$t.subscriptionId;serviceConnection=$t.serviceConnection;selection=@{workload=$t.workload;environment='dev';region='eastus2';subscription=$t.subscriptionAlias;network=$t.networkProfile};source=@{runId='42';pipelineId='1';branch='refs/heads/main';commit=('a'*40);repositoryId='test';projectId='test'}}
@@ -86,7 +90,7 @@ foreach($type in @($definitions.workloads.Keys|Where-Object {$definitions.worklo
         Reject {Assert-StackManagedId @{target=$t;parameters=@{parameters=$p}} "$scope/Microsoft.Storage/storageAccounts/external"}
     }
     if($d.dnsKeys.Count){Case "$type mismatched DNS zone fails" {$bad=Clone $p;$bad.privateDnsZoneIds.value[$d.dnsKeys[0]]="$scope/Microsoft.Network/privateDnsZones/invalid";Reject {Assert-ProductParameters $t $bad}}}
-    if($type -notin @('private-data-platform','private-aks')){Case "$type live prerequisite adapter rejects unreadable and drifted dependencies (mocked Azure)" {
+    if($type -notin @('private-data-platform','private-aks','managed-devops-pool')){Case "$type live prerequisite adapter rejects unreadable and drifted dependencies (mocked Azure)" {
         $originalJson=${function:Invoke-ServiceJson};$originalLinks=${function:Get-StackRestCollection}
         try {
             $scenario='healthy';$fixtureVnetId=$vnet

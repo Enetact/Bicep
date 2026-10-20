@@ -10,9 +10,11 @@ parameters:
     default: "Blob copy - Function App + 2 Storage accounts | blob-transfer"
     values:
       - "Blob copy - Function App + 2 Storage accounts | blob-transfer"
+      - "Fabric Premium Workspace | fabric"
       - "HTTP Functions API | http-functions"
       - "Key Vault | key-vault"
       - "Event flow - Logic App + Event Grid + 2 Storage accounts | logic-app-event-grid"
+      - "Managed DevOps Pool | managed-devops-pool"
       - "Observability | observability"
       - "Private AKS Foundation | private-aks"
       - "Private Data Platform | private-data-platform"
@@ -22,7 +24,7 @@ parameters:
     displayName: 2. Registered instance name
     type: string
     default: blobcopy
-    values: [aksapps, blobcopy, busworker, dataplat, eventflow, httpapi, keyvault, observe, storage]
+    values: [aksapps, blobcopy, busworker, dataplat, devopspool, eventflow, fabric, httpapi, keyvault, observe, storage]
   - name: environment
     displayName: Target environment
     type: string

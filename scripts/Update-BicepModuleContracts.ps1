@@ -5,7 +5,9 @@ param([switch]$Check)
 $root=Get-ProjectRoot
 $output=Join-Path $root 'artifacts/module-audit'
 New-Item -ItemType Directory -Path $output -Force|Out-Null
-$contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*.bicep' -Recurse|Where-Object {![IO.Path]::GetRelativePath((Join-Path $root modules),$_.FullName).Replace('\','/').StartsWith('avm/')}|Sort-Object FullName){
+# Fabric and Managed DevOps Pools use reviewed product adapters, with separate
+# service/network ownership gates. They are not generic leaf-module draft inputs.
+$contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*.bicep' -Recurse|Where-Object {$modulePath=[IO.Path]::GetRelativePath((Join-Path $root modules),$_.FullName).Replace('\','/');!$modulePath.StartsWith('avm/') -and !$modulePath.StartsWith('fabric/') -and !$modulePath.StartsWith('devops/managed-devops-pool/')}|Sort-Object FullName){
     $path=[IO.Path]::GetRelativePath($root,$file.FullName).Replace('\','/')
     $id=$path.Replace('modules/','').Replace('/main.bicep','').Replace('.bicep','').Replace('/','-')
     $compiled=Join-Path $output "$id.json"

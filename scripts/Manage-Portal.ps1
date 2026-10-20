@@ -9,9 +9,11 @@ Inspect or run the governed portal stop/build/start lifecycle.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [ValidateSet('Status','Start','Stop','Restart')][string]$Action='Status',
+    [ValidateSet('Status','Build','Start','Stop','Restart')][string]$Action='Status',
     [switch]$InstallMissing,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$DiscardConnections,
+    [switch]$ResumePending
 )
 $ErrorActionPreference='Stop'
 if(!$IsWindows){throw 'Portal lifecycle supports Windows only.'}
@@ -27,7 +29,7 @@ if($port -lt 1024 -or $port -gt 65535){throw 'Invalid portal port.'}
 $url="http://localhost:$port"
 
 function Get-PortalStatus {
-    $result=[ordered]@{State='Unknown';Url=$url;ProcessId=$null;OwnershipVerified=$false;Healthy=$false;Detail='';Receipt=$receipt}
+    $result=[ordered]@{State='Unknown';Url=$url;ProcessId=$null;Identity=$null;OwnershipVerified=$false;Healthy=$false;TelemetryConfigured=$false;Detail='';Receipt=$receipt}
     try {
         # Query all listeners: a free requested port is not a command failure.
         $listeners=@(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object LocalPort -eq $port)
@@ -56,6 +58,7 @@ function Get-PortalStatus {
             return [pscustomobject]$result
         }
         $result.OwnershipVerified=$true
+        $result.Identity='{0}:{1}' -f $process.Id,$process.StartTime.ToUniversalTime().Ticks
         if(@($listeners | Where-Object OwningProcess -ne $process.Id).Count){
             $result.State='UnownedListener';$result.Detail='Configured port belongs to a different process.'
             return [pscustomobject]$result
@@ -66,7 +69,11 @@ function Get-PortalStatus {
             # Match Start-Portal: workloads is a keyed dictionary, not an array.
             $expected=(Get-Content (Join-Path $root 'config/workloads.json') -Raw|ConvertFrom-Json -AsHashtable).workloads.Count
             $health=Invoke-RestMethod "$url/api/bootstrap" -TimeoutSec 3 -MaximumRedirection 0
-            if($health.products.Count -eq $expected){$result.State='Ready';$result.Healthy=$true;$result.Detail='Owned listener and expected workload catalog verified; provider sign-ins are not checked.'}
+            if($health.products.Count -eq $expected){
+                $result.State='Ready';$result.Healthy=$true
+                $result.TelemetryConfigured=[bool]($health.PSObject.Properties['observability'] -and $health.observability -and $health.observability.dashboardUrl)
+                $result.Detail='Owned listener and expected workload catalog verified; provider sign-ins are not checked.'
+            }
             else{$result.Detail="Bootstrap workload count mismatch: expected $expected, received $($health.products.Count)."}
         }
     } catch {
@@ -77,24 +84,6 @@ function Get-PortalStatus {
     [pscustomobject]$result
 }
 
-$before=Get-PortalStatus
-if($Action -eq 'Status'){$before;return}
-if($before.State -in @('Unknown','OwnershipMismatch','UnownedListener')){throw "Lifecycle blocked: $($before.State). $($before.Detail)"}
-if($Action -eq 'Start' -and $before.State -ne 'Stopped'){throw 'Start requires a stopped portal with no receipt. Use Restart for an owned process or stale receipt.'}
-foreach($name in @('Stop-Portal.ps1','Setup-Portal.ps1','Start-Portal.ps1')){
-    if(!(Test-Path -LiteralPath (Join-Path $PSScriptRoot $name))){throw "Missing lifecycle script: $name"}
-}
-if(!$PSCmdlet.ShouldProcess($url,"$Action main portal (Start/Restart build Release; Stop/Restart clear portal sessions)")){return}
-if($Action -in @('Stop','Restart')){
-    Write-Host 'Stopping the registered main portal. Azure/ADO and portal Codex sessions will need reconnection; GitHub CLI login can usually be reused.'
-    & (Join-Path $PSScriptRoot 'Stop-Portal.ps1')
-    $stopped=Get-PortalStatus
-    if($stopped.State -ne 'Stopped'){throw "Stop did not leave a free, unregistered main portal: $($stopped.State). No build/start attempted."}
-}
-if($Action -in @('Start','Restart')){
-    & (Join-Path $PSScriptRoot 'Setup-Portal.ps1') -InstallMissing:$InstallMissing
-    & (Join-Path $PSScriptRoot 'Start-Portal.ps1') -NoBrowser:$NoBrowser
-    $after=Get-PortalStatus
-    if($after.State -ne 'Ready'){throw "Portal startup verification failed: $($after.State). $($after.Detail) Inspect .local/portal logs; use Stop for governed cleanup."}
-    $after
-}else{$stopped}
+if($Action -eq 'Status'){Get-PortalStatus;return}
+# Preserve the established command name while applying the suite's dependency and credential policy.
+& (Join-Path $PSScriptRoot 'Manage-Suite.ps1') -Action $Action -Profile Studio -InstallMissing:$InstallMissing -NoBrowser:$NoBrowser -DiscardConnections:$DiscardConnections -ResumePending:$ResumePending -WhatIf:$WhatIfPreference -Confirm:$false

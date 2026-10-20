@@ -8,7 +8,7 @@ Preflight, preserve approved sign-ins, rebuild and restart only the owned portal
 ./scripts/Restart-PortalFresh.ps1 -ResumePending -NoBrowser
 #>
 [CmdletBinding(SupportsShouldProcess)]
-param([switch]$NoBrowser,[switch]$ResumePending)
+param([switch]$NoBrowser,[switch]$ResumePending,[switch]$CheckpointOnly)
 $ErrorActionPreference='Stop'
 if(!$IsWindows){throw 'Fresh portal restart supports Windows only.'}
 $root=[IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
@@ -59,6 +59,12 @@ function Get-FreshProcess([Collections.IDictionary]$Record,[int]$ParentPid=0,[st
         bicep {$file -eq 'Azure.Bicep.McpServer.exe'}
         'azure-mcp' {$file -eq 'azmcp.exe'}
         ado {$file -eq 'node.exe'}
+        aspire {
+            $runtimeRoot=[IO.Path]::GetFullPath((Join-Path $root '.tools/aspire-cli'))+[IO.Path]::DirectorySeparatorChar
+            $keyPattern=[regex]::Escape([IO.Path]::GetFullPath((Join-Path $root '.local/portal/mcp')))+'\\[a-f0-9]{32}\\aspire\\api-key-[a-f0-9]{32}\.rsp'
+            $file -eq 'aspire.exe' -and $process.Path.StartsWith($runtimeRoot,[StringComparison]::OrdinalIgnoreCase) -and
+                $info.CommandLine -match ('\sagent\s+mcp\s+--dashboard-url\s+http://127\.0\.0\.1:[0-9]{4,5}/?\s+(?:"@'+$keyPattern+'"|@'+$keyPattern+')\s+--log-level\s+None\s+--non-interactive\s+--nologo\s*$')
+        }
         default {$false}
     }
     if(!$valid){throw 'Owned process command or executable kind differs.'}
@@ -87,7 +93,7 @@ function Get-FreshSnapshot {
             Assert-FreshPath $folder.FullName
             if($kind -eq 'mcp'){
                 foreach($provider in Get-ChildItem -LiteralPath $folder.FullName -Directory -Force){
-                    if($provider.Name -notin @('bicep','azure','ado')){continue}
+                    if($provider.Name -notin @('bicep','azure','ado','aspire')){continue}
                     $path=Join-Path $provider.FullName 'process.json'
                     Assert-FreshPath $path
                     if(!(Test-Path -LiteralPath $path)){continue}
@@ -201,14 +207,16 @@ function Invoke-FreshCheckpoint([string]$Preflight,[string[]]$Arguments){
 }
 
 foreach($path in @($receipt,$assembly,$project,$checkpoint)){Assert-FreshPath $path}
+if($CheckpointOnly -and $ResumePending){throw 'CheckpointOnly and ResumePending cannot be combined.'}
 if(!(Test-Path -LiteralPath $project)){throw 'Portal source project is missing.'}
 $before=Get-FreshSnapshot
 Assert-FreshChildInventory $before
 $pending=Test-Path -LiteralPath $checkpoint -PathType Leaf
-if($WhatIfPreference){[void]$PSCmdlet.ShouldProcess($origin,'Preflight source, preserve approved sign-ins, stop owned processes, rebuild fresh Release and start');return}
+$operationDescription=if($CheckpointOnly){'Preflight the checkpoint helper, stop owned processes and preserve approved sign-ins'}else{'Preflight source, preserve approved sign-ins, stop owned processes, rebuild fresh Release and start'}
+if($WhatIfPreference){[void]$PSCmdlet.ShouldProcess($origin,$operationDescription);return}
 if($ResumePending -and (!$pending -or $before.Main -or $before.Children.Where({$_.Process}).Count)){throw 'ResumePending requires an existing checkpoint, a stopped registered process and no owned writers.'}
 if($pending -and !$ResumePending){throw 'A previous encrypted restart checkpoint is waiting. Resume it first, or use -ResumePending once the portal and its writers are stopped.'}
-if(!$PSCmdlet.ShouldProcess($origin,'Preflight source, preserve approved sign-ins, stop owned processes, rebuild fresh Release and start')){return}
+if(!$PSCmdlet.ShouldProcess($origin,$operationDescription)){return}
 $operation=Join-Path $root ('.local/portal/fresh-restart/'+[guid]::NewGuid().ToString('N'))
 Set-FreshPrivateDirectory $operation
 $preflightRoot=Join-Path $operation 'preflight'
@@ -236,7 +244,7 @@ if(!$ResumePending){
         if($process){
             # Match governed Stop-PortalMcp: verified MCP servers can own CLI descendants
             # that refresh the same cache. Never apply tree termination to desktop apps.
-            if($child.Kind -in @('bicep','azure-mcp','ado')){$process.Kill($true)}else{Stop-Process -InputObject $process -Force}
+            if($child.Kind -in @('bicep','azure-mcp','ado','aspire')){$process.Kill($true)}else{Stop-Process -InputObject $process -Force}
             if(!$process.WaitForExit(10000)){throw 'Owned credential writer did not exit; credential files are preserved.'}
         }
     }
@@ -266,6 +274,13 @@ if(Test-Path -LiteralPath $receipt){
     if(Get-FreshProcess $registered){throw 'A registered portal is running before receipt cleanup. No receipt was removed; checkpoint and shortcut retained.'}
     Remove-Item -LiteralPath $receipt -Force
 }elseif($current.Record){throw 'The old ownership receipt disappeared before cleanup. Checkpoint and private resume shortcut retained.'}
+if($CheckpointOnly){
+    # The same verified checkpoint supports a separate Stop -> Build -> Start sequence.
+    # Do not rebuild, start a producer or consume the browser-bound recovery proof during Stop.
+    $proof=$null;$resumeUrl=$null
+    [pscustomobject]@{State='Stopped';Url=$origin;CredentialCheckpoint='Encrypted; restored by the next suite Start';Shortcut=$shortcut;WorkflowState='Fresh evidence, plans and approvals required'}
+    return
+}
 if((Get-FreshSourceHash) -cne $sourceHash){throw "Source changed after checkpoint. Credentials are protected; private resume shortcut retained at $shortcut. Rerun with -ResumePending after source edits finish."}
 Invoke-FreshBuild @('build',$project,'-c','Release','-t:Rebuild','-p:RestoreLockedMode=true','-p:UseSharedCompilation=false','-m:1','-nodeReuse:false') (Join-Path $operation 'fresh-build.log')
 if((Get-FreshSourceHash) -cne $sourceHash){throw "Source changed during the fresh rebuild. No application was started; private resume shortcut retained at $shortcut."}
@@ -275,7 +290,7 @@ if(!$after.Main){throw "Fresh portal did not register a running owned process. P
 $expected=(Get-Content -LiteralPath (Join-Path $root 'config/workloads.json') -Raw|ConvertFrom-Json -AsHashtable).workloads.Count
 $health=Invoke-RestMethod "$origin/api/bootstrap" -TimeoutSec 5 -MaximumRedirection 0
 if($health.products.Count -ne $expected){throw "Fresh application workload catalog differs. Private resume shortcut retained at $shortcut."}
-if(!$NoBrowser){Start-Process -FilePath $resumeUrl -WindowStyle Hidden;Write-Host 'Fresh portal started. The private sign-in resume link opened in your browser.'}
+if(!$NoBrowser){Start-Process -FilePath $shortcut -WindowStyle Hidden;Write-Host 'Fresh portal started. The private sign-in resume link opened in your browser.'}
 else{Write-Host "Fresh portal started. Open the restricted local shortcut to resume sign-ins: $shortcut"}
 $proof=$null;$resumeUrl=$null
 [pscustomobject]@{State='Ready';Url=$origin;ProcessId=$after.Main.Id;SourceSha256=$sourceHash;AssemblySha256=(Get-FileHash -LiteralPath $assembly -Algorithm SHA256).Hash.ToLowerInvariant();CredentialCheckpoint='Encrypted; one-time resume required';Shortcut=$shortcut;WorkflowState='Fresh evidence, plans and approvals required'}

@@ -33,6 +33,7 @@ function expression(source, parameters){
     remaining=remaining.trimStart();let match;
     if((match=remaining.match(/^'((?:[^']|'')*)'/))){remaining=remaining.slice(match[0].length);return match[1].replaceAll("''","'");}
     if((match=remaining.match(/^parameters\.([A-Za-z0-9_]+)/))){remaining=remaining.slice(match[0].length);assert(Object.hasOwn(parameters,match[1]),'Unknown parameter '+match[1]);return parameters[match[1]];}
+    if((match=remaining.match(/^variables\.([A-Za-z0-9_]+)/))){remaining=remaining.slice(match[0].length);assert(Object.hasOwn(parameters.__variables||{},match[1]),'Unknown source variable '+match[1]);return parameters.__variables[match[1]];}
     if((match=remaining.match(/^(true|false)\b/))){remaining=remaining.slice(match[0].length);return match[1]==='true';}
     match=remaining.match(/^(eq|and|or|not)\(/);assert(match,'Unsupported expression: '+remaining);
     remaining=remaining.slice(match[0].length);const args=[parse()];
@@ -59,6 +60,15 @@ function bind(doc, supplied){
 }
 function expand(name, supplied={}, ancestry=[], section='stages'){
   assert(!ancestry.includes(name),'Template cycle: '+name);const doc=document(name);const parameters=bind(doc,supplied);
+  if(section!=='variables'&&doc.variables){
+    parameters.__variables={};
+    for(const variable of expand(name,supplied,ancestry,'variables')){
+      assert.equal(typeof variable.name,'string','Only explicit source variables are supported');
+      assert(!Object.hasOwn(parameters.__variables,variable.name),'Duplicate source variable '+variable.name);
+      assert(Object.hasOwn(variable,'value'),'Variable groups are outside the local expression subset');
+      parameters.__variables[variable.name]=variable.value;
+    }
+  }
   const referenced=(item,kind)=>expand(inside(path.resolve(root,path.dirname(name),item.template)),substitute(item.parameters||{},parameters),[...ancestry,name],kind);
   if(doc.extends)return referenced(doc.extends,section);
   function content(value){
@@ -209,6 +219,23 @@ check('Subscription wrapper forwards the complete original resource-group compos
   for(const [name,value] of Object.entries(composition.properties.parameters))assert.equal(value.value,"[parameters('"+name+"')]");
   assert.deepEqual(composition.properties.template,main);assert.deepEqual(Object.keys(wrapper.outputs).sort(),Object.keys(main.outputs).sort());
 });
+check('Managed pool source locks stateless private agents and scoped creation-time ADO policy',()=>{
+  const main=json('artifacts/products/managed-devops-pool/main.json');
+  const modules=Object.values(main.resources);assert.equal(modules.length,1);
+  const [pool]=Object.values(modules[0].properties.template.resources);
+  assert.equal(pool.type,'Microsoft.DevOpsInfrastructure/pools');assert.equal(pool.apiVersion,'2026-06-02');
+  assert.deepEqual(pool.identity,{type:'None'});assert.deepEqual(pool.properties.agentProfile,{kind:'Stateless'});
+  const f=pool.properties.fabricProfile;assert.equal(f.kind,'Vmss');
+  assert.deepEqual(f.networkProfile,{subnetId:"[parameters('agentSubnetId')]"});
+  assert.equal(f.images.length,1);assert(f.images[0].wellKnownImageName.includes('windows-2022-g2/'));
+  assert(!f.images[0].wellKnownImageName.includes('latest'));assert.equal(f.osProfile.logonType,'Service');
+  assert.deepEqual(f.storageProfile,{osDiskStorageAccountType:'StandardSSD',dataDisks:[]});
+  const o=pool.properties.organizationProfile;assert.equal(o.kind,'AzureDevOps');assert.equal(o.organizations.length,1);
+  assert.equal(o.organizations[0].openAccess,false);assert.equal(o.organizations[0].projects,"[parameters('adoProjectNames')]");
+  assert.equal(o.organizations[0].alias,"[parameters('adoPoolName')]");assert.equal(o.permissionProfile.kind,'SpecificAccounts');
+  assert.deepEqual(o.permissionProfile.users,[]);assert.equal(o.permissionProfile.groups,"[parameters('poolAdministratorGroupEmails')]");
+  for(const env of ['dev','qa','uat','prod']){const t=json(`self-service/targets/devopspool.${env}.json`);assert.equal(t.enabled,false);assert.equal(t.agentPool,'platform-bootstrap');assert.notEqual(t.agentPool,t.workload);}
+});
 check('Logic App wrapper embeds and forwards its complete composition',()=>{
   const main=json('artifacts/logic-app-event-grid/dev/main.json');const wrapper=json('artifacts/test-results/logic-stack-template.json');const resources=Object.values(wrapper.resources);const composition=resources.find(x=>x.type==='Microsoft.Resources/deployments');
   assert.equal(resources.length,2);assert.deepEqual(Object.keys(wrapper.parameters).sort(),[...Object.keys(main.parameters),'workloadResourceGroupName'].sort());
@@ -312,6 +339,23 @@ check('named Preview cannot select Deploy in the shared template',()=>{
   const template=read('pipelines/templates/self-service-two-stage.yml');
   assert(template.includes('$env:NAMING_INSTANCE_ID')&&template.includes('$env:EXECUTION_MODE'));
   assert(template.includes('Named instance drafts are Preview-only'));
+});
+check('Fabric REST workflow uses same-run exact Preview artifacts and protected Apply/Verify',()=>{
+  const doc=document('azure-pipelines-fabric-workspace.yml');
+  assert.equal(doc.trigger,'none');assert.equal(doc.pr,'none');assert.equal(doc.lockBehavior,'sequential');
+  assert.equal(doc.parameters.find(p=>p.name==='operation').default,'Preview only');
+  for(const environment of ['dev','qa','uat','prod']){
+    assert.deepEqual(expand('azure-pipelines-fabric-workspace.yml',{environment}).map(s=>s.stage),['Preview']);
+    const stages=expand('azure-pipelines-fabric-workspace.yml',{environment,operation:'Preview and deploy'});
+    assert.deepEqual(stages.map(s=>s.stage),['Preview','Apply','Verify']);artifacts(stages);
+    assert.equal(stages[1].jobs[0].environment,`fabric-workspace-${environment}`);
+    assert(stages[1].condition.includes("refs/heads/main"));
+    const scripts=[];walk(stages,node=>{if(node.task==='AzureCLI@2')scripts.push(node.inputs.inlineScript);});
+    assert.equal(scripts.length,3);assert(scripts.every(source=>source.includes(`self-service/fabric/workspace.${environment}.json`)));
+    assert(scripts[1].includes('-Mode Apply')&&scripts[1].includes('-ExpectedPlanSha256 $digest'));
+    assert(scripts[2].includes('-Mode Verify')&&scripts[2].includes('-ExpectedPlanSha256 $digest'));
+    assert(scripts.slice(1).every(source=>source.includes('Get-FileHash -LiteralPath $plan -Algorithm SHA256')));
+  }
 });
 const report={passed:cases.length,failed:0,yamlFilesParsed:yamlFiles.length,cases,azureCalls:false,adoServerExpansion:false,scope:'Local validation of the expression subset used in this repository; not an ADO compiler or resource authorization check.'};
 fs.mkdirSync(path.join(root,'artifacts/test-results'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/test-results/pipeline-structure.json'),JSON.stringify(report,null,2)+'\n');

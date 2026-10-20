@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using SelfService.Portal;
+using SelfService.Telemetry;
 
 if (args.FirstOrDefault() is "--checkpoint-credentials" or "--get-resume-proof")
 {
@@ -26,8 +27,11 @@ options.RepositoryRoot = Path.GetFullPath(options.RepositoryRoot); options.Valid
 builder.WebHost.ConfigureKestrel(k => { k.ListenLocalhost(options.Port); k.Limits.MaxRequestBodySize = 46 * 1024 * 1024; });
 builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("System.Net.Http", LogLevel.None);
+// Register once: requests, outbound HTTP and explicit handoffs share one W3C trace.
+builder.AddPlatformTelemetry("platform-studio-portal");
 builder.Services.AddSingleton(options).AddSingleton<Catalog>().AddSingleton<Sessions>().AddSingleton<BrowserIdentity>().AddSingleton<AnalysisRunner>();
 builder.Services.AddSingleton<NamingPlan>();
+builder.Services.AddSingleton<IFabricReadinessRunner, FabricReadinessRunner>().AddSingleton<FabricReadiness>();
 builder.Services.AddSingleton<IAzureCliRunner, AzureCliRunner>().AddSingleton<AzureCliIdentity>();
 builder.Services.AddSingleton<IGitHubCliRunner, GitHubCliRunner>();
 builder.Services.AddHttpClient<GitHubIdentity>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30))
@@ -53,6 +57,7 @@ builder.Services.AddHttpClient<AzureDiscovery>().ConfigureHttpClient(c => c.Time
 builder.Services.AddHttpClient<NetworkDiscovery>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(45))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 var app = builder.Build();
+app.UseMiddleware<PortalTelemetry>();
 app.UseWebSockets();
 app.Use(async (context, next) =>
 {
@@ -82,12 +87,14 @@ app.Use(async (context, next) =>
 BrowserSession Session(HttpContext c) => (BrowserSession)c.Items["session"]!;
 app.UseDefaultFiles(); app.UseStaticFiles();
 app.MapGet("/api/bootstrap", (HttpContext c, Catalog catalog) => new { csrf = Session(c).Csrf, configured = options.AuthenticationConfigured,
+    observability = new { dashboardUrl = ObservabilityStatus.Dashboard(options.RepositoryRoot, builder.Configuration) },
     naming = new { draftCalculations = true, deploymentSubmission = false, previewInstances = catalog.NamingInstances },
     packagedCatalog = options.RepositoryRoot == Path.Combine(AppContext.BaseDirectory, "repository"),
     organization = options.Organization, project = options.Project, architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
     products = catalog.Products, topologies = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(catalog.Root, "config/portal-topologies.json"))), regions = catalog.Regions, skills = catalog.Skills.Select(s => new { s.Id, s.Name, s.Description, s.Origin, s.PipelineStatus, s.DiscoveryProfile, s.SourceUrl }),
     discoveryScopes = catalog.Products.SelectMany(p => p.Targets).DistinctBy(t => t.SubscriptionId).Select(t => new { id = t.SubscriptionId, name = t.Subscription }) });
 app.MapGet("/api/auth", (HttpContext c, AzureCliIdentity cli) => { var s = Session(c); return new { state = s.State, error = s.Error, account = s.Cli?.Username ?? s.Account?.Username, tenantId = s.AzureTenantId, mode = s.Cli is not null ? "local-cli" : s.Account is not null ? "registered-app" : null, localCliAvailable = cli.Available, connected = s.Connected.Keys.ToArray() }; });
+app.MapGet("/api/fabric/readiness/{environment}/{region}", (HttpContext c, string environment, string region, FabricReadiness readiness) => readiness.Read(environment, region, c.RequestAborted));
 app.MapPost("/api/auth/resume", async (HttpContext c, PortalResumeRequest request, AzureCliIdentity cli, AgentWorkflows agents, GitHubIdentity github, McpProviderBroker broker) =>
 {
     var s = Session(c);
@@ -114,9 +121,8 @@ app.MapPost("/api/auth/resume", async (HttpContext c, PortalResumeRequest reques
             finally { handoff.GitHubAttempted(); }
         }
         // Catalog discovery recreates provider clients; no model turn, tool call or saved plan is run.
-        foreach (var provider in new[] { "bicep", "learn", "azure", "ado", "github" })
+        foreach (var provider in PortalCredentialCheckpoint.ReconnectableProviders(s, options.RepositoryRoot))
         {
-            if (provider == "azure" && !s.Connected.ContainsKey("azure") || provider == "ado" && !s.Connected.ContainsKey("ado") || provider == "github" && s.GitHub.UserId is null) continue;
             try { await broker.Connect(s, provider, c.RequestAborted); if (!s.Mcp.Connections.TryGetValue(provider, out var connection) || connection.State != "ready") errors.Add($"{provider} tool catalog needs reconnection in Connections."); }
             catch { errors.Add($"{provider} tool catalog needs reconnection in Connections."); }
         }

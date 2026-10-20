@@ -1,4 +1,114 @@
 {
+  "managedDevOpsPool20261020": {
+  "date": "2026-10-20",
+  "scope": "Local source implementation and isolated UI only",
+  "baseCommit": "a6805cb75060912b88f5e7895bad5b2fe7e06c0c",
+  "uncommittedSource": true,
+  "workloadTypes": 11,
+  "disabledAzureTargets": 44,
+  "dedicatedWorkloadMenus": 22,
+  "registeredRootPipelines": 30,
+  "recoveryPolicies": 19,
+  "poolApiVersion": "2026-06-02",
+  "bicepCompiler": "0.48.1",
+  "bicepMainStackEnvironmentCompilations": 6,
+  "standardNamingParameterCompilations": 4,
+  "managedPoolChecksPassed": 50,
+  "portalTests": {
+    "skipped": 4,
+    "failed": 0,
+    "passed": 653
+  },
+  "productContractsPassed": 166,
+  "productFunctionsRuntimeTestsPassed": 10,
+  "discoveryChecksPassed": 80,
+  "pipelineContractsPassed": 207,
+  "yamlDocumentsParsed": 47,
+  "namingTopologyRecoveryNodeTestsPassed": 142,
+  "recoveryContractsPassed": 56,
+  "mcpGuidanceUiTestsPassed": 13,
+  "mcpGuidance": {
+    "sources": 18,
+    "bytes": 31812,
+    "providers": 6,
+    "sha256": "fb30d7032a7ec922ac8c26c9a8911f80c58afdbf7fe7d51020224db8535516c8"
+  },
+  "authoringMcp": {
+    "learnNetworkFetch": "Succeeded",
+    "bicepBestPractices": "Succeeded",
+    "reviewedAvmPoolVersion": "0.8.0",
+    "bicepAvmMetadata": "Succeeded",
+    "learnSearch": "Succeeded",
+    "bicepStablePoolSchema": "Succeeded"
+  },
+  "uiVerification": {
+    "screenshot": "artifacts/managed-devops-pool/ui-preview.png",
+    "poolCardObserved": true,
+    "isolatedPreview": true,
+    "configureFlowObserved": true,
+    "disabledDeployObserved": true,
+    "temporaryPreviewStopped": true,
+    "primaryPortalRestarted": false
+  },
+  "azureDeploymentPerformed": false,
+  "adoChangePerformed": false,
+  "liveAgentCanaryPerformed": false,
+  "limitations": [
+    "Platform foundation and identity onboarding required",
+    "Only reviewed unconditional built-in network pregrant profile accepted",
+    "Image publication,quota,ADO permissions and private runtime paths unqualified",
+    "No automatic consumer runner migration or private Fabric deployment executor"
+  ]
+},
+  "fabricSuite20261020": {
+  "date": "2026-10-20",
+  "scope": "Local Fabric suite source implementation only; no live Fabric/Azure/ADO acceptance",
+  "workloadTypes": 10,
+  "disabledAzureTargets": 40,
+  "disabledFabricManifests": 4,
+  "registeredPipelineRoots": 28,
+  "dotnetPortal": {
+    "failed": 0,
+    "skipped": 4,
+    "passed": 651
+  },
+  "productFunctions": {
+    "failed": 0,
+    "skipped": 0,
+    "passed": 10
+  },
+  "productContractsPassed": 149,
+  "fabricInfrastructureChecksPassed": 29,
+  "fabricPlannerChecksPassed": 45,
+  "fabricWrapperChecksPassed": 35,
+  "pipelineChecksPassed": 189,
+  "yamlDocumentsParsed": 45,
+  "namingTestsPassed": 127,
+  "recoveryContractsPassed": 55,
+  "topologyRecoveryUiTestsPassed": 11,
+  "mcpGuidanceUiTestsPassed": 13,
+  "mcpGuidanceProviders": 6,
+  "mcpGuidanceSources": 18,
+  "actualAuthoringMcp": {
+    "learnSearch": "Succeeded",
+    "fabricLocalPackage": "@microsoft/fabric-mcp@1.6.0",
+    "bicepCapacitySchema": "Succeeded",
+    "bicepWorkspacePrivateLinkSchema": "Unavailable",
+    "fabricGenericBestPracticeTopic": "No resource for general",
+    "bicepBestPractices": "Succeeded",
+    "fabricLakehouseApiExamples": "Succeeded"
+  },
+  "azureDeploymentPerformed": false,
+  "authenticatedFabricMcpAccepted": false,
+  "fabricTenantOperationsPerformed": false,
+  "primaryPortalRestarted": false,
+  "limitations": [
+    "Workspace Private Link ARM type metadata unavailable; documented BCP081",
+    "Native deployment pipelines cannot connect to deny-public workspaces",
+    "Live ADO/Fabric/network/data and cost acceptance pending",
+    "No cross-agent exactly-once guarantee; reconcile unknown outcomes before new runs"
+  ]
+},
   "avmAhpCodexEndToEnd20261017": {
     "date": "2026-10-17",
     "scope": "Real AHP/Codex research and seven-node parameterized AVM source generation, followed by offline verification",

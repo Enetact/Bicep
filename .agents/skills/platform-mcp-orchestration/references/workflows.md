@@ -20,6 +20,14 @@ An Azure permission denial does not establish the permissions of an ADO service 
 
 Collect required IDs first, then prepare a concrete plan. For example, discover a repository's actual base branch and commit before proposing creation of a named branch. Replace every illustrative owner/repository/branch value with the selected target; do not execute placeholders. Show expected effects and obtain exact portal approval. General source or API edits do not automatically satisfy protected workflow checks. Do not merge, queue, deploy, grant or delete merely because a previous read succeeded.
 
+## Review a private Managed DevOps Pool
+
+Use Learn and Bicep MCP to establish the stable pool API, current Gen2 image/version syntax and the exact resource schema. Resolve the intended Azure subscription, existing Dev Center project, dedicated delegated subnet and Azure DevOps organization/projects independently. Distinguish the DevOpsInfrastructure service principal's reviewed network pregrants, the WIF deployment principal's Azure permissions and its ADO membership/pool-creation rights. A Microsoft sign-in does not establish any of those grants.
+
+The `managed-devops-pool` workload owns only its pool resource and group; shared network/Dev Center resources remain references. Use its standard Discover/Preview/protected Apply path and preserve disabled targets. Its creation runs on a separately approved existing bootstrap pool, never the new pool or its ADO alias. Explicit project/admin-group bindings, no open access, stateless agents, bounded concurrency and a reviewed image pin are required. Do not enable standby or broaden networking/permissions to resolve a failed prerequisite.
+
+Treat ARM read-back as infrastructure evidence. Actual ADO pool association, pipeline authorization, image availability, quota, private DNS/egress and a successful consumer canary remain separate acceptance. A VNet-injected pool cannot bypass Fabric native promotion restrictions on deny-public workspaces. Do not infer permission to create resources, queue qualification or switch consumer pool bindings from a request for source authoring or design review.
+
 ## Resume after approval or partial execution
 
 Read `platform_evidence` for the current saved plan summary, verify the exact ID/digest and connected providers, then run only that existing plan. Afterward inspect receipts and perform an independently scoped read-back when appropriate. A completed write does not establish domain correctness. For uncertain outcomes, identify the external fact that must be checked before any new change plan.

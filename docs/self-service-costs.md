@@ -1,5 +1,9 @@
 # Run-menu costs and deployment options
 
+**Managed DevOps Pool cost:** maximum concurrency and zero standby constrain allocation, but compute/disks, networking, optional logs and ADO parallel-job entitlements are not free. No complete reviewed cost snapshot is supplied; image availability, regional MDP quota and queue/startup latency require qualification. [Defaults and capacity review](../workloads/managed-devops-pool/README.md#costs-observability-and-recovery).
+
+**Fabric costs:** the F64+ profile has no complete reviewed price snapshot. Capacity compute, OneLake storage, private endpoints, gateway/source systems, monitoring and Power BI licensing are cost drivers; unavailable estimates are not zero. [Capacity choice and licensing](../workloads/fabric/README.md#premium-capacity-and-licensing).
+
 **AKS/Helm increment — 4 October 2026:** Private AKS has a Standard control-plane charge, at least six VMs and disks, shared Premium ACR/NAT/private connectivity, Defender and monitoring costs. The chart requests at least three application replicas. No complete reviewed monthly estimate exists; this is not a free offering. See [the implementation and onboarding guide](../workloads/private-aks/README.md).
 
 **Private Data Platform, 4 October 2026:** its estimate is also `Unavailable`, never zero. Cost drivers include Databricks Premium DBUs and driver/workers, ADF activities/IR, seven workload private endpoints and three managed endpoints, root/lake storage, diagnostics, shared NAT/browser authentication and DNS. No job is automatically started; infrastructure can still incur charges. No new price quote was qualified.

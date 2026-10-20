@@ -43,7 +43,7 @@ export function setupMcp({ api, notice }) {
     $('mcp-plan-digest').textContent = `Exact plan digest: ${plan.digest}`;
     $('mcp-plan-json').textContent = JSON.stringify(plan, null, 2);
     $('mcp-plan-approval-note').textContent = plan.state === 'AwaitingApproval'
-      ? 'Review every tool, argument and target below. Approve authorizes this exact plan. Execute starts the ordered calls.'
+      ? 'Review every tool, argument and target below. Aspire telemetry can include private runtime content. Approve authorizes this exact plan and its returned results. Execute starts the ordered calls.'
       : ['Failed', 'UnknownOutcome'].includes(plan.state)
         ? 'Review the saved receipts and verify the external state before preparing another plan. A partial run may already have changed its target.'
         : plan.state === 'Completed' ? 'Execution finished. Review each tool result and receipt.' : 'Execution uses the connected identities and their current service permissions.';
@@ -64,6 +64,7 @@ export function setupMcp({ api, notice }) {
     $('mcp-providers').replaceChildren(...providers.map(provider => {
       const card = make('article', undefined, 'panel');
       card.append(make('h3', provider.name), make('p', `${provider.state} · ${provider.toolCount ?? provider.tools?.length ?? 0} discovered tools`));
+      if (provider.id === 'aspire') card.append(make('p', 'Reads logs and traces from this checkout’s authenticated local dashboard. Each telemetry plan needs your review before private results are returned.'));
       if (provider.error) card.append(make('p', provider.error, 'mcp-error'));
       const connect = make('button', provider.connected ? 'Rediscover full catalog' : 'Connect provider', 'primary');
       connect.addEventListener('click', () => withBusy(async () => { await api(`mcp/${encodeURIComponent(provider.id)}/connect`, {}); await refresh(); }));

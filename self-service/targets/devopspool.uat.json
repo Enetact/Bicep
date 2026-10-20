@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "managed-devops-pool",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "devopspool",
+  "environmentName": "uat",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-devopspool-uat",
+  "parameterFile": "workloads/managed-devops-pool/environments/main.uat.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "platform-bootstrap",
+  "deploymentEnvironment": "devopspool-uat",
+  "smokePrefix": "smoke/"
+}

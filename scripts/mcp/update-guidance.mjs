@@ -3,7 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const providers = ['bicep', 'azure', 'ado', 'github', 'learn'];
+const providers = ['bicep', 'azure', 'ado', 'github', 'learn', 'fabric', 'aspire'];
 const maximumBytes = 192 * 1024;
 const normalize = value => value.replaceAll('\r\n', '\n').replace(/^\uFEFF/, '');
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -101,7 +101,7 @@ function main(args) {
   } else {
     fs.writeFileSync(output, result.text); fs.writeFileSync(lock, lockText);
   }
-  console.log(`${check ? 'PASS' : 'Updated'}: five-provider guidance; ${result.lock.sources.length} sources; ${result.lock.outputBytes} bytes; ${result.lock.bundleSha256}`);
+  console.log(`${check ? 'PASS' : 'Updated'}: ${providers.length}-provider guidance; ${result.lock.sources.length} sources; ${result.lock.outputBytes} bytes; ${result.lock.bundleSha256}`);
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { main(process.argv.slice(2)); } catch (error) { console.error(error.message); process.exitCode = 1; }

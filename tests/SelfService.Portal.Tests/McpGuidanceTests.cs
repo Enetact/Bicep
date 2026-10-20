@@ -9,7 +9,7 @@ namespace SelfService.Portal.Tests;
 
 public sealed class McpGuidanceTests
 {
-    static readonly string[] Providers = ["ado", "azure", "bicep", "github", "learn"];
+    static readonly string[] Providers = ["ado", "aspire", "azure", "bicep", "fabric", "github", "learn"];
     static string Root()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

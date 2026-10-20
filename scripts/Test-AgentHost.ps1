@@ -35,7 +35,7 @@ try{
     if($r.error){throw 'AHP session creation failed.'}
     $r=Invoke-AgentRpc 3 subscribe @{channel=$channel}
     $state=$r.result.snapshot.state.platformStudio
-    if($r.result.snapshot.state.customizations.Count -ne 5 -or @($r.result.snapshot.state.customizations | Where-Object type -ne mcpServer).Count){throw 'AHP provider customization projection failed.'}
+    if($r.result.snapshot.state.customizations.Count -ne 6 -or @($r.result.snapshot.state.customizations | Where-Object type -ne mcpServer).Count){throw 'AHP provider customization projection failed.'}
     $expected=(Invoke-WebRequest "$origin/api/agent/status" -WebSession $portalSession).Content|ConvertFrom-Json
     if($state.workflows.Count -ne $expected.workflows.Count -or $state.workflows.Count -eq 0){throw 'AHP workflow readiness projection failed.'}
     if($state.policy.model -cne 'gpt-6.1-sol' -or $state.policy.effort -cne 'ultra' -or $state.policy.serviceTier -cne 'default'){throw 'AHP model policy mismatch.'}

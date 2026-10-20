@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using SelfService.Portal;
 using Xunit;
 
@@ -103,6 +105,101 @@ public sealed class McpProviderBrokerTests
         Assert.Equal("Completed", result.GetProperty("State").GetString());
         Assert.Single(fixture.Factory.Clients.Single().Calls);
         Assert.Equal(3, Json(fixture.Broker.Catalog(session, "learn")).GetProperty("total").GetInt32());
+    }
+    [Fact] public async Task AspireUsesRealTelemetryCatalogAndExactPrivateReadApproval()
+    {
+        using var fixture = new Fixture(); var session = fixture.Session(); session.Connected.Clear();
+        fixture.Factory.Tools = [Tool("list_structured_logs", true), Tool("list_traces", true), Tool("list_trace_structured_logs", true)];
+        await fixture.Broker.Connect(session, "aspire", CancellationToken.None);
+        Assert.Equal("ready", session.Mcp.Connections["aspire"].State);
+        Assert.Equal(3, Json(fixture.Broker.Catalog(session, "aspire")).GetProperty("total").GetInt32());
+        var pending = Json(await fixture.Broker.AgentCall(session, "aspire", "list_traces", Json(new { resourceName = "synthetic-service" }), CancellationToken.None));
+        Assert.Equal("AwaitingApproval", pending.GetProperty("State").GetString());
+        var plan = fixture.Broker.ReadPlan(session, pending.GetProperty("Id").GetString()!);
+        Assert.True(plan.RequiresApproval); Assert.Empty(fixture.Factory.Clients.Single().Calls);
+        await Assert.ThrowsAsync<PortalException>(() => fixture.Broker.Run(session, plan.Id, plan.Digest, CancellationToken.None));
+        fixture.Broker.Approve(session, plan.Id, plan.Digest);
+        await fixture.Broker.Run(session, plan.Id, plan.Digest, CancellationToken.None);
+        Assert.Equal("Completed", plan.State); Assert.Equal(new[] { "list_traces" }, fixture.Factory.Clients.Single().Calls);
+        Assert.Contains("Synthetic result", Json(plan.Receipts).GetRawText());
+        Assert.Equal("PrivateRead", McpProviderBroker.Effect("aspire", fixture.Factory.Tools[1]));
+    }
+    [Fact] public async Task AspireRejectsApplicationControlAndChangedTelemetryInventories()
+    {
+        using var fixture = new Fixture(); var session = fixture.Session();
+        var telemetry = new[] { Tool("list_structured_logs", true), Tool("list_traces", true), Tool("list_trace_structured_logs", true) };
+        fixture.Factory.Tools = [.. telemetry, Tool("execute_resource_command")];
+        await fixture.Broker.Connect(session, "aspire", CancellationToken.None);
+        Assert.Equal("error", session.Mcp.Connections["aspire"].State);
+        Assert.True(fixture.Factory.Clients.Single().Disposed);
+        fixture.Factory.Tools = telemetry;
+        await fixture.Broker.Connect(session, "aspire", CancellationToken.None);
+        var plan = fixture.Broker.Plan(session, new([Step("list_traces", provider: "aspire")]));
+        fixture.Broker.Approve(session, plan.Id, plan.Digest);
+        var client = fixture.Factory.Clients.Last(); client.Tools = [.. telemetry, Tool("execute_resource_command")];
+        await Assert.ThrowsAsync<PortalException>(() => fixture.Broker.Run(session, plan.Id, plan.Digest, CancellationToken.None));
+        Assert.Empty(client.Calls);
+    }
+    [Fact] public async Task FailedAspireReadNeverClaimsUnknownExternalMutation()
+    {
+        using var fixture = new Fixture(); var session = fixture.Session();
+        fixture.Factory.Tools = [Tool("list_structured_logs", true), Tool("list_traces", true), Tool("list_trace_structured_logs", true)];
+        await fixture.Broker.Connect(session, "aspire", CancellationToken.None);
+        var plan = fixture.Broker.Plan(session, new([Step("list_traces", provider: "aspire")]));
+        fixture.Broker.Approve(session, plan.Id, plan.Digest);
+        fixture.Factory.Clients.Single().Handler = (_, _, _) => throw new InvalidOperationException("synthetic-private-error-text");
+        await fixture.Broker.Run(session, plan.Id, plan.Digest, CancellationToken.None);
+        Assert.Equal("Failed", plan.State); Assert.DoesNotContain("synthetic-private-error-text", Json(plan.Receipts).GetRawText());
+    }
+    [Fact] public async Task McpSpansRemainChildrenOfCallerAndExcludePayloadsAndExceptionText()
+    {
+        var spans = new ConcurrentBag<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name is "PlatformStudio.Mcp" or "Synthetic.Mcp.Caller",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = spans.Add
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var callerSource = new ActivitySource("Synthetic.Mcp.Caller");
+        using var caller = callerSource.StartActivity("request")!;
+        using var fixture = new Fixture(); var session = fixture.Session();
+        await fixture.Broker.Connect(session, "ado", CancellationToken.None);
+        var plan = fixture.Broker.Plan(session, new([Step("list_projects", new { query = "synthetic-private-query" })]));
+        fixture.Factory.Clients.Single().Handler = (_, _, _) => throw new InvalidOperationException("synthetic-private-error-text");
+        await fixture.Broker.Run(session, plan.Id, plan.Digest, CancellationToken.None);
+        var captured = spans.Where(s => s.Source.Name == "PlatformStudio.Mcp" && s.TraceId == caller.TraceId).ToArray();
+        Assert.Contains(captured, s => s.OperationName == "mcp.connect" && s.ParentSpanId == caller.SpanId);
+        var tool = Assert.Single(captured, s => s.OperationName == "mcp.tools.call");
+        var execution = Assert.Single(captured, s => s.OperationName == "mcp.plan.execute");
+        Assert.Equal(execution.SpanId, tool.ParentSpanId); Assert.Equal(ActivityStatusCode.Error, tool.Status);
+        var telemetry = Json(captured.Select(s => new { tags = s.TagObjects.ToArray(), events = s.Events.ToArray(), s.StatusDescription }));
+        Assert.DoesNotContain("synthetic-private-query", telemetry.GetRawText());
+        Assert.DoesNotContain("synthetic-private-error-text", telemetry.GetRawText());
+        Assert.DoesNotContain("Synthetic result", telemetry.GetRawText());
+    }
+    [Fact] public async Task FabricRequiresSeparateIdentityAndRetainsExactApprovalAndRevocation()
+    {
+        using var fixture = new Fixture(); var session = fixture.Session();
+        fixture.Factory.Tools = [Tool("list_workspaces", true), Tool("create_workspace")];
+        await fixture.Broker.Connect(session, "fabric", CancellationToken.None);
+        Assert.Empty(fixture.Factory.Clients);
+        Assert.Equal("authRequired", session.Mcp.Connections["fabric"].State);
+        session.Connected["fabric"] = true;
+        await fixture.Broker.Connect(session, "fabric", CancellationToken.None);
+        var read = fixture.Broker.Plan(session, new([Step("list_workspaces", provider: "fabric")]));
+        Assert.False(read.RequiresApproval);
+        await fixture.Broker.Run(session, read.Id, read.Digest, CancellationToken.None);
+        Assert.Equal("Completed", read.State);
+        var change = fixture.Broker.Plan(session, new([Step("create_workspace", new { displayName = "Synthetic" }, "fabric")]));
+        Assert.True(change.RequiresApproval);
+        await Assert.ThrowsAsync<PortalException>(() => fixture.Broker.Run(session, change.Id, change.Digest, CancellationToken.None));
+        fixture.Broker.Approve(session, change.Id, change.Digest);
+        var connection = session.Mcp.Connections["fabric"];
+        session.ClearMicrosoftEvidence(); session.Connected["fabric"] = true;
+        Assert.True(connection.Lifetime.IsCancellationRequested);
+        await Assert.ThrowsAsync<PortalException>(() => fixture.Broker.Run(session, change.Id, change.Digest, CancellationToken.None));
+        Assert.Equal(new[] { "list_workspaces" }, fixture.Factory.Clients.Single().Calls);
     }
     [Fact] public async Task CatalogAndPlansCannotCrossBrowserSessionsAndMissingPlanReleasesGate()
     {

@@ -8,7 +8,7 @@ if ((Get-Item -LiteralPath $root).Attributes -band [IO.FileAttributes]::ReparseP
 foreach ($session in Get-ChildItem -LiteralPath $root -Directory) {
     if ($session.Name -notmatch '^[a-f0-9]{32}$' -or $session.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
     foreach ($provider in Get-ChildItem -LiteralPath $session.FullName -Directory) {
-        if ($provider.Name -notin @('bicep', 'azure', 'ado') -or $provider.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+        if ($provider.Name -notin @('bicep', 'azure', 'ado', 'aspire') -or $provider.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
         $receipt = [IO.Path]::GetFullPath((Join-Path $provider.FullName 'process.json'))
         if (!$receipt.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'MCP ownership receipt escaped its root.' }
         if (!(Test-Path -LiteralPath $receipt)) { continue }
@@ -19,7 +19,15 @@ foreach ($session in Get-ChildItem -LiteralPath $root -Directory) {
         $child = Get-Process -Id $record.pid -ErrorAction SilentlyContinue
         if ($child) {
             $info = Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$record.pid)"
-            $expectedName = switch ($provider.Name) { bicep { 'Azure.Bicep.McpServer.exe' } azure { 'azmcp.exe' } ado { 'node.exe' } }
+            $expectedName = switch ($provider.Name) { bicep { 'Azure.Bicep.McpServer.exe' } azure { 'azmcp.exe' } ado { 'node.exe' } aspire { 'aspire.exe' } }
+            if ($provider.Name -eq 'aspire') {
+                $runtimeRoot = [IO.Path]::GetFullPath((Join-Path (Split-Path $PSScriptRoot -Parent) '.tools/aspire-cli')) + [IO.Path]::DirectorySeparatorChar
+                $keyPattern = [regex]::Escape($root) + '\\[a-f0-9]{32}\\aspire\\api-key-[a-f0-9]{32}\.rsp'
+                if (!$child.Path.StartsWith($runtimeRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                    $info.CommandLine -notmatch ('\sagent\s+mcp\s+--dashboard-url\s+http://127\.0\.0\.1:[0-9]{4,5}/?\s+(?:"@' + $keyPattern + '"|@' + $keyPattern + ')\s+--log-level\s+None\s+--non-interactive\s+--nologo\s*$')) {
+                    throw 'Aspire child must use the pinned standalone dashboard-only MCP command. No further process was stopped.'
+                }
+            }
             if ($info.ParentProcessId -ne $PortalPid -or
                 [IO.Path]::GetFullPath($child.Path) -ne [IO.Path]::GetFullPath($record.executable) -or
                 [IO.Path]::GetFileName($child.Path) -ne $expectedName -or

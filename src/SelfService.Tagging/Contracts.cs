@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -67,6 +68,15 @@ public static class TagJson
 
 public static class TagRules
 {
+    static readonly ActivitySource Traces = new("PlatformStudio.Tagging");
+
+    // Instrument the rule boundary, keeping resource IDs, desired values and evidence out of spans.
+    static T Observe<T>(string operation, Func<T> action)
+    {
+        using var span = Traces.StartActivity(operation);
+        try { var result = action(); span?.SetStatus(ActivityStatusCode.Ok); return result; }
+        catch (Exception e) { span?.SetTag("error.type", e.GetType().FullName); span?.SetStatus(ActivityStatusCode.Error); throw; }
+    }
     public const string Mask="[MASKED]";
     public static readonly string[] Protected=["managedBy","workloadType","releaseActivated","deploymentPrincipal","trustedServiceReview","runtimeCredentialReview"];
     public static readonly string[] Types=["microsoft.storage/storageaccounts","microsoft.keyvault/vaults","microsoft.network/virtualnetworks","microsoft.network/privateendpoints","microsoft.network/networksecuritygroups","microsoft.network/routetables","microsoft.network/privatednszones","microsoft.network/dnszones","microsoft.web/sites","microsoft.web/serverfarms","microsoft.insights/components","microsoft.operationalinsights/workspaces","microsoft.managedidentity/userassignedidentities","microsoft.eventgrid/topics","microsoft.servicebus/namespaces","microsoft.resources/resourcegroups","microsoft.resources/subscriptions"];
@@ -88,9 +98,9 @@ public static class TagRules
         if(route=="External" && tags.Keys.Any(k=>Protected.Contains(k,StringComparer.OrdinalIgnoreCase)))route="Unknown";
         return new(id,name,type.ToLowerInvariant(),group,location,safe,masked?"Masked":tags.Count==0?"Untagged":"Observed",Fingerprint(tags),route,target,Types.Contains(type.ToLowerInvariant()));
     }
-    public static TagFinding[] Analyze(TagInventory inventory,TagProfile profile) => inventory.Resources.SelectMany(r=>
+    public static TagFinding[] Analyze(TagInventory inventory,TagProfile profile) => Observe("tagging.analyze", () => inventory.Resources.SelectMany(r=>
         !r.Supported?new[]{new TagFinding(TagJson.Hash(new{r.Id,rule="support"}),r.Id,"support","Unknown","","Type not qualified for tagging; excluded from compliance denominator.")}:
-        profile.RequiredKeys.Where(k=>!r.Tags.Any(p=>p.Key.Equals(k,StringComparison.OrdinalIgnoreCase)&&!string.IsNullOrWhiteSpace(p.Value)&&!p.Value.Contains("unconfigured",StringComparison.OrdinalIgnoreCase))).Select(k=>new TagFinding(TagJson.Hash(new{r.Id,key=k}),r.Id,"required-key","NeedsInput",k,"Supply an approved business value; names do not prove ownership.")).Concat(r.TagState=="Masked"?[new TagFinding(TagJson.Hash(new{r.Id,rule="sensitive"}),r.Id,"sensitive","Blocked","","Sensitive-looking tags masked; changes require separate reconciliation.")]:[])).ToArray();
+        profile.RequiredKeys.Where(k=>!r.Tags.Any(p=>p.Key.Equals(k,StringComparison.OrdinalIgnoreCase)&&!string.IsNullOrWhiteSpace(p.Value)&&!p.Value.Contains("unconfigured",StringComparison.OrdinalIgnoreCase))).Select(k=>new TagFinding(TagJson.Hash(new{r.Id,key=k}),r.Id,"required-key","NeedsInput",k,"Supply an approved business value; names do not prove ownership.")).Concat(r.TagState=="Masked"?[new TagFinding(TagJson.Hash(new{r.Id,rule="sensitive"}),r.Id,"sensitive","Blocked","","Sensitive-looking tags masked; changes require separate reconciliation.")]:[])).ToArray());
     public static void ValidateKey(string type,string key,string value,TagProfile profile)
     {
         if(string.IsNullOrWhiteSpace(key)||key!=key.Trim()||key.Length>(type=="microsoft.storage/storageaccounts"?128:512)||value.Length>256||key.Any(c=>char.IsControl(c)||"<>%&\\?/".Contains(c))||value.Any(char.IsControl))throw new TagException("Invalid tag key/value length or characters.");
@@ -110,6 +120,8 @@ public static class TagRules
     }
     public static TagPlan BuildPlan(TagInventory inventory,TagRequest request,TagProfile p,DateTimeOffset now)
     {
+        return Observe("tagging.plan", () =>
+        {
         ValidateInventory(inventory,p);
         if(request.Schema!="platform.tag-change-request/v1"||request.InventoryDigest!=inventory.Digest||request.Edits is not {Length:>0 and <=100})throw new TagException("Invalid request or discovery binding; choose 1–100 tag edits.");
         var blockers=new List<string>();var changes=new List<TagDelta>();var before=new Dictionary<string,string>();
@@ -129,6 +141,7 @@ public static class TagRules
             if(resulting.Count>(r.Type is "microsoft.network/privatednszones" or "microsoft.network/dnszones"?15:50))blockers.Add($"{r.Id}: resulting tag count exceeds qualified limit.");
         }
         var plan=new TagPlan("platform.tag-plan/v1",request,ProfileHash(p),inventory.GovernanceDigest,p.RuleVersion,now.AddMinutes(30),changes.ToArray(),before,blockers.Distinct().ToArray(),"");return plan with{Digest=PlanHash(plan)};
+        });
     }
     public static string PlanHash(TagPlan plan)=>TagJson.Hash(new{plan.Schema,plan.Request,plan.ProfileDigest,plan.GovernanceDigest,plan.RuleVersion,plan.ExpiresUtc,plan.Changes,plan.Before,plan.Blockers});
     public static void ValidatePlan(TagPlan plan,TagProfile p,DateTimeOffset now)

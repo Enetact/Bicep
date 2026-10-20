@@ -29,7 +29,7 @@ export function renderResourceNames(host, rows, title, evidence) {
 // This editor never modifies the deployment form/request. It calculates explicit local drafts only.
 export function renderNamingEditor(host, api, product, target, region) {
   host.replaceChildren(); const title = el('h3', 'New stack naming draft'); host.append(title);
-  if (!['private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer'].includes(product.type)) { host.append(el('p', 'Concrete naming maps for this workload are still being qualified. Existing deployment naming is unchanged.')); return; }
+  if (!['managed-devops-pool','fabric','private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer'].includes(product.type)) { host.append(el('p', 'Concrete naming maps for this workload are still being qualified. Existing deployment naming is unchanged.')); return; }
   host.append(el('p', 'Local calculation only. Discovery supplies observed names; a fresh Azure Preview is required for planned changes. Save this draft for source review. Only source-registered instances can be selected for ADO Preview.'));
   const fields = {};
   for (const [key, label, initial] of [['stackDisplayName','Stack display name',''], ['stackAcronym','Stack acronym (2–4 lowercase letters/numbers)',''], ['instanceId','New instance UUID',crypto.randomUUID()], ['instanceOrdinal','Instance ordinal (01–99)','01'], ['subscriptionId','Subscription ID for this draft',target.subscriptionId], ['namespaceSalt','Persistent collision salt (optional)','']]) {

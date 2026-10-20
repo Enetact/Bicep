@@ -16,6 +16,8 @@ namespace SelfService.Portal;
 public sealed record ProviderConnectionSpec(string Id, string? Command, string[] Args, string? Url,
     Dictionary<string, string> Environment, Dictionary<string, string> Headers, string WorkingDirectory)
 {
+    internal string[] RedactionValues { get; init; } = [];
+    internal string[] CredentialFiles { get; init; } = [];
     public override string ToString() => $"MCP provider ({Id})";
 }
 
@@ -42,6 +44,7 @@ public sealed class McpProviderFactory : IProviderMcpFactory
 {
     public async Task<IProviderMcpClient> Connect(ProviderConnectionSpec spec, CancellationToken cancellationToken)
     {
+        using var activity = McpObservability.Start("mcp.connect.transport", spec.Id);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(60));
         IClientTransport? transport = null;
@@ -83,31 +86,42 @@ public sealed class McpProviderFactory : IProviderMcpFactory
                 Capabilities = new() { Elicitation = new() { Form = new() } },
                 Handlers = new() { ElicitationHandler = consent.Respond }
             }, NullLoggerFactory.Instance, deadline.Token);
-            return new ProviderMcpClient(client, transport, CredentialValues(spec), consent);
+            McpObservability.Complete(activity, "connected");
+            return new ProviderMcpClient(client, transport, CredentialValues(spec), consent, spec.Id);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            McpObservability.Complete(activity, "cancelled", true);
             await SafeDispose(transport);
             throw;
         }
         catch (ProcessContainmentException error)
         {
+            McpObservability.Complete(activity, "containment_unavailable", true);
             await SafeDispose(transport);
             throw new PortalException($"Windows process containment is unavailable (error {error.ErrorCode}). The MCP provider was stopped safely. Run the portal in a Windows host that permits nested job objects.", 503);
         }
         catch
         {
+            McpObservability.Complete(activity, "connection_failed", true);
             await SafeDispose(transport);
             // SDK/process/HTTP errors may embed request headers, environment or URLs.
             // Never retain the provider exception as an inner exception.
             throw new InvalidOperationException("MCP provider connection failed or timed out. Check its local installation, endpoint and authentication.");
+        }
+        finally
+        {
+            // The CLI has consumed the private response file before its MCP
+            // handshake finishes. Retain no second copy of its dashboard key.
+            foreach (var file in spec.CredentialFiles)
+                try { File.Delete(file); } catch { /* The private ACL remains fail-closed if cleanup is unavailable. */ }
         }
     }
 
     static string[] CredentialValues(ProviderConnectionSpec spec) => spec.Environment
         .Where(x => new[] { "TOKEN", "SECRET", "PASSWORD", "KEY", "CREDENTIAL" }.Any(part => x.Key.Contains(part, StringComparison.OrdinalIgnoreCase)))
         .Select(x => x.Value)
-        .Concat(spec.Headers.Values)
+        .Concat(spec.Headers.Values).Concat(spec.RedactionValues)
         .SelectMany(x => x.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) || x.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase)
             ? new[] { x, x[(x.IndexOf(' ') + 1)..] } : new[] { x })
         .Where(x => x.Length >= 8).Distinct(StringComparer.Ordinal).OrderByDescending(x => x.Length).ToArray();
@@ -375,7 +389,7 @@ public sealed class McpProviderFactory : IProviderMcpFactory
         }
     }
 
-    sealed class ProviderMcpClient(McpClient client, IClientTransport transport, string[] secrets, InvocationConsent consent) : IProviderMcpClient
+    sealed class ProviderMcpClient(McpClient client, IClientTransport transport, string[] secrets, InvocationConsent consent, string provider) : IProviderMcpClient
     {
         readonly SemaphoreSlim calls = new(1, 1);
         int faulted;
@@ -386,6 +400,7 @@ public sealed class McpProviderFactory : IProviderMcpFactory
 
         public async Task<ProviderTool[]> ListTools(CancellationToken cancellationToken)
         {
+            using var activity = McpObservability.Start("mcp.tools.list", provider);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromSeconds(60));
             try
@@ -417,10 +432,12 @@ public sealed class McpProviderFactory : IProviderMcpFactory
                     cursor = page.NextCursor;
                     if (cursor is not null && !cursors.Add(cursor)) throw new InvalidOperationException();
                 } while (cursor is not null);
+                activity?.SetTag("platform.item.count", result.Count);
+                McpObservability.Complete(activity, "discovered");
                 return result.ToArray();
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch { throw new InvalidOperationException("MCP tool discovery failed, timed out or exceeded the catalog budget. No partial catalog was accepted."); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { McpObservability.Complete(activity, "cancelled", true); throw; }
+            catch { McpObservability.Complete(activity, "discovery_failed", true); throw new InvalidOperationException("MCP tool discovery failed, timed out or exceeded the catalog budget. No partial catalog was accepted."); }
         }
 
         public Task<JsonElement> Call(string tool, JsonElement arguments, CancellationToken cancellationToken) => CallCore(tool, arguments, false, cancellationToken);
@@ -430,6 +447,7 @@ public sealed class McpProviderFactory : IProviderMcpFactory
             if (string.IsNullOrWhiteSpace(tool) || tool.Length > 256 || arguments.ValueKind != JsonValueKind.Object ||
                 Encoding.UTF8.GetByteCount(arguments.GetRawText()) > MaximumArgumentsBytes)
                 throw new InvalidOperationException("MCP tool arguments are invalid or exceed the request budget.");
+            using var activity = McpObservability.Start("mcp.tools.call.transport", provider, tool);
             await calls.WaitAsync(cancellationToken);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromMinutes(2));
@@ -442,12 +460,16 @@ public sealed class McpProviderFactory : IProviderMcpFactory
                     Name = tool,
                     Arguments = arguments.EnumerateObject().ToDictionary(x => x.Name, x => x.Value.Clone())
                 }, deadline.Token);
-                return Redact(BoundedJson(result, MaximumResultBytes));
+                var output = Redact(BoundedJson(result, MaximumResultBytes));
+                var failed = output.TryGetProperty("isError", out var error) && error.ValueKind == JsonValueKind.True;
+                McpObservability.Complete(activity, failed ? "tool_error" : "succeeded", failed);
+                return output;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            { Volatile.Write(ref faulted, 1); consent.End(); await SafeDispose(transport); await SafeDispose(client); throw; }
+            { McpObservability.Complete(activity, "cancelled", true); Volatile.Write(ref faulted, 1); consent.End(); await SafeDispose(transport); await SafeDispose(client); throw; }
             catch
             {
+                McpObservability.Complete(activity, "call_failed", true);
                 Volatile.Write(ref faulted, 1);
                 consent.End(); await SafeDispose(transport); await SafeDispose(client);
                 // A timed-out write can have succeeded remotely. The broker records

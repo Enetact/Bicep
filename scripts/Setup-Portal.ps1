@@ -1,9 +1,10 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([string]$TenantId='', [string]$ClientId='', [switch]$InstallMissing)
+param([string]$TenantId='', [string]$ClientId='', [switch]$InstallMissing, [switch]$PrerequisitesOnly)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
-if(Test-Path -LiteralPath (Join-Path $root '.local/portal/process.json')){throw 'Stop the portal with Stop-Portal.ps1 before setup/build.'}
+if(!$PrerequisitesOnly -and (Test-Path -LiteralPath (Join-Path $root '.local/portal/process.json'))){throw 'Stop the portal with the preserving suite lifecycle before setup/build.'}
+if($PrerequisitesOnly -and ($TenantId -or $ClientId)){throw 'PrerequisitesOnly cannot change portal identity configuration.'}
 $arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
 if(!$IsWindows -or $arch -notin @('arm64','x64')){throw 'This setup supports Windows 11 ARM64 and x64.'}
 foreach($item in @(@('dotnet','Microsoft.DotNet.SDK.10'),@('node','OpenJS.NodeJS.LTS'))){
@@ -16,7 +17,14 @@ foreach($item in @(@('dotnet','Microsoft.DotNet.SDK.10'),@('node','OpenJS.NodeJS
     }
 }
 $nodeVersion=& node --version
-if([int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 22){throw 'Node.js 22+ is required for saved-discovery analysis.'}
+$nodeExit=$LASTEXITCODE
+if($nodeExit -ne 0 -or [int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 22){throw 'Node.js 22+ is required for saved-discovery analysis.'}
+if($PrerequisitesOnly){
+    Push-Location $root
+    try { $version=& dotnet --version; $sdkExit=$LASTEXITCODE; if($sdkExit -ne 0){throw 'The configured .NET SDK is not available.'} }
+    finally { Pop-Location }
+    return
+}
 Push-Location $root
 try {
     & dotnet --version

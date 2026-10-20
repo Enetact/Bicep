@@ -15,7 +15,7 @@ public sealed class NamingPlanTests
         workloadType = workload,
         intent = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(Root(), "tests/naming/request.example.json"))).GetProperty("intent")
     });
-    [Theory][InlineData("private-storage")][InlineData("key-vault")][InlineData("observability")][InlineData("http-functions")][InlineData("service-bus-worker")][InlineData("private-aks")][InlineData("private-data-platform")][InlineData("logic-app-event-grid")][InlineData("blob-transfer")]
+    [Theory][InlineData("managed-devops-pool")][InlineData("fabric")][InlineData("private-storage")][InlineData("key-vault")][InlineData("observability")][InlineData("http-functions")][InlineData("service-bus-worker")][InlineData("private-aks")][InlineData("private-data-platform")][InlineData("logic-app-event-grid")][InlineData("blob-transfer")]
     public async Task RealNodeAdapterReturnsFrozenNonExecutableDraft(string workload)
     {
         var runner = new NamingPlan(new() { RepositoryRoot = Root() });

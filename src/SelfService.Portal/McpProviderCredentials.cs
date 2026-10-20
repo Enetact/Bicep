@@ -50,6 +50,14 @@ public sealed class McpProviderCredentials(PortalOptions options, ITokenProvider
                 headers["Authorization"] = "Bearer " + token; headers["X-MCP-Toolsets"] = "all";
                 break;
             case "learn": url = "https://learn.microsoft.com/api/mcp"; break;
+            case "aspire": return AspireMcpConfiguration.Resolve(options.RepositoryRoot, directory);
+            case "fabric":
+                // A separate Fabric audience is required. ARM/ADO sign-in does
+                // not authorize Fabric calls and no bearer enters model context.
+                if (!s.Connected.ContainsKey("fabric")) throw new PortalException("Connect Microsoft Fabric in Connections first.", 401);
+                url = "https://api.fabric.microsoft.com/v1/mcp/core";
+                headers["Authorization"] = "Bearer " + await tokens.Token(s, "fabric");
+                break;
             default: throw new PortalException("Unknown MCP provider.", 404);
         }
         return new(id, command, args, url, environment, headers, directory);

@@ -580,6 +580,146 @@ stages:
           publisherServiceConnection: SC-AZ-A-Bicep
           publisherEnvironment: bicep-template-publication
           publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: platform-bootstrap
+          deploymentEnvironment: devopspool-dev
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: platform-bootstrap
+          deploymentEnvironment: devopspool-prod
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: platform-bootstrap
+          deploymentEnvironment: devopspool-qa
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: managed-devops-pool
+          workload: devopspool
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: platform-bootstrap
+          deploymentEnvironment: devopspool-uat
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
   - ${{ if and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')) }}:
     - ${{ if eq(parameters.executionMode, 'Legacy') }}:
       - template: catalog-bindings.yml
@@ -710,6 +850,146 @@ stages:
           serviceConnection: SC-AZ-A-Bicep
           agentPool: blob-transfer-private
           deploymentEnvironment: eventflow-uat
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: fabric-dev-agents
+          deploymentEnvironment: fabric-dev
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: fabric-prod-agents
+          deploymentEnvironment: fabric-prod
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: fabric-qa-agents
+          deploymentEnvironment: fabric-qa
+          deploymentEnabled: false
+          executionMode: ${{ parameters.executionMode }}
+          namingInstanceId: ${{ parameters.namingInstanceId }}
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+          publisherServiceConnection: SC-AZ-A-Bicep
+          publisherEnvironment: bicep-template-publication
+          publisherAgentPool: blob-transfer-private
+  - ${{ if and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')) }}:
+    - ${{ if eq(parameters.executionMode, 'Legacy') }}:
+      - template: catalog-bindings.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          operation: deploy
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: true
+          enableLogAlerts: true
+    - ${{ if not(eq(parameters.executionMode, 'Legacy')) }}:
+      - template: templates/self-service-two-stage.yml
+        parameters:
+          workloadType: fabric
+          workload: fabric
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          agentPool: fabric-uat-agents
+          deploymentEnvironment: fabric-uat
           deploymentEnabled: false
           executionMode: ${{ parameters.executionMode }}
           namingInstanceId: ${{ parameters.namingInstanceId }}
@@ -1285,18 +1565,21 @@ stages:
       - ${{ if not(or(and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'blob-transfer')), and(eq(parameters.workloadName, 'busworker'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'service-bus-worker')))) }}:
         - ${{ if not(or(and(eq(parameters.workloadName, 'busworker'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'service-bus-worker')), and(eq(parameters.workloadName, 'busworker'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'service-bus-worker')), and(eq(parameters.workloadName, 'busworker'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'service-bus-worker')))) }}:
           - ${{ if not(or(and(eq(parameters.workloadName, 'dataplat'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-data-platform')), and(eq(parameters.workloadName, 'dataplat'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-data-platform')), and(eq(parameters.workloadName, 'dataplat'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-data-platform')))) }}:
-            - ${{ if not(or(and(eq(parameters.workloadName, 'dataplat'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-data-platform')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')))) }}:
-              - ${{ if not(or(and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')))) }}:
-                - ${{ if not(or(and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')), and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')), and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')))) }}:
-                  - ${{ if not(or(and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')), and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')), and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')))) }}:
-                    - ${{ if not(or(and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')), and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')), and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')))) }}:
-                      - ${{ if not(or(and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')), and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')), and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')))) }}:
-                        - ${{ if not(or(and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')), and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')), and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')))) }}:
-                          - stage: InvalidIntent
-                            jobs:
-                              - job: RejectIntent
-                                pool:
-                                  vmImage: windows-latest
-                                steps:
-                                  - checkout: none
-                                  - pwsh: throw 'Unregistered workload request. Contact the platform team.'
+            - ${{ if not(or(and(eq(parameters.workloadName, 'dataplat'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-data-platform')), and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')), and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')))) }}:
+              - ${{ if not(or(and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')), and(eq(parameters.workloadName, 'devopspool'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'managed-devops-pool')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')))) }}:
+                - ${{ if not(or(and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')), and(eq(parameters.workloadName, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'logic-app-event-grid')))) }}:
+                  - ${{ if not(or(and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')), and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')), and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')))) }}:
+                    - ${{ if not(or(and(eq(parameters.workloadName, 'fabric'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'fabric')), and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')), and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')))) }}:
+                      - ${{ if not(or(and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')), and(eq(parameters.workloadName, 'httpapi'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'http-functions')), and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')))) }}:
+                        - ${{ if not(or(and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')), and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')), and(eq(parameters.workloadName, 'keyvault'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'key-vault')))) }}:
+                          - ${{ if not(or(and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')), and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')), and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')))) }}:
+                            - ${{ if not(or(and(eq(parameters.workloadName, 'observe'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'observability')), and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'dev'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')), and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'prod'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')))) }}:
+                              - ${{ if not(or(and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'qa'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')), and(eq(parameters.workloadName, 'storage'), eq(parameters.environment, 'uat'), eq(parameters.region, 'eastus2'), eq(parameters.workloadType, 'private-storage')))) }}:
+                                - stage: InvalidIntent
+                                  jobs:
+                                    - job: RejectIntent
+                                      pool:
+                                        vmImage: windows-latest
+                                      steps:
+                                        - checkout: none
+                                        - pwsh: throw 'Unregistered workload request. Contact the platform team.'

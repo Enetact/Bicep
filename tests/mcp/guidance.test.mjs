@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import { composeGuidance } from '../../scripts/mcp/update-guidance.mjs';
 
 const compiler = fileURLToPath(new URL('../../scripts/mcp/update-guidance.mjs', import.meta.url));
-const providers = ['bicep', 'azure', 'ado', 'github', 'learn'];
+const providers = ['bicep', 'azure', 'ado', 'github', 'learn', 'fabric', 'aspire'];
 const sha256 = value => crypto.createHash('sha256').update(value).digest('hex');
 
 function fixture(t) {
@@ -106,7 +106,7 @@ test('check mode detects stale generated skill, stale lock and changed normative
   }
 });
 
-test('the exact five providers and their skill and instruction entry points are required', async t => {
+test('the exact seven providers and their skill and instruction entry points are required', async t => {
   for (const fault of ['missing-provider', 'duplicate-provider', 'unknown-provider', 'common', 'skill', 'instruction']) {
     const f = fixture(t);
     if (fault === 'missing-provider') f.manifest.providers.pop();

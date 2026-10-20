@@ -1,5 +1,9 @@
 # Developer self-service deployment
 
+**Managed DevOps Pool menus:** register `azure-pipelines-devopspool-discover.yml` and `azure-pipelines-devopspool-deploy.yml` as Discover/Deploy - Managed DevOps Pool. Preview defaults remain; protected Apply uses the reviewed existing `platform-bootstrap` pool and `devopspool-<env>` environment. [Onboarding and later consumer adoption](../workloads/managed-devops-pool/README.md).
+
+**Fabric menus:** register Discover - Fabric Premium Workspace, Deploy - Fabric Premium Workspace, and Fabric - Workspace Preview and Apply from the three `azure-pipelines-fabric-*.yml` roots. Capacity/network Preview uses the existing standard flow; the workspace root defaults to Preview only and uses `fabric-workspace-<env>` protected environments for Apply. All profiles remain disabled. [Onboarding and required Fabric grants](../workloads/fabric/README.md).
+
 **5 October 2026 — optional named Preview:** dedicated workload Deploy menus now include `namingInstanceId` (default `legacy`). Source-reviewed draft UUIDs matching workload/environment/subscription/region may be selected for **Preview only**. Prepare freezes and revalidates the complete name map and stack identity; named Deploy is rejected. The portal exposes the same reviewed choices, while its local editor creates a draft for source review. The registry is empty until platform review adds entries. See [naming setup and boundaries](resource-naming.md).
 
 **AKS/Helm increment — 4 October 2026:** Register the new AKS Discover/Deploy roots and Helm operation through ADO setup. Foundation menus default to Preview only. Helm also defaults to Preview only and requires the private self-hosted `windows-default` pool, source-reviewed application profile and protected `aksapps-<environment>` approval/lock. See [the implementation and onboarding guide](../workloads/private-aks/README.md).

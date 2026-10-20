@@ -17,7 +17,7 @@ public sealed class LocalCliIdentityTests
     sealed class FakeCli : IAzureCliRunner
     {
         public bool Available { get; set; } = true;
-        public bool BlockLogin, WrongTokenTenant, Expired, FailAdo, FailAzure, FailAccountWithSensitiveError;
+        public bool BlockLogin, WrongTokenTenant, Expired, FailAdo, FailAzure, FailFabric, WrongFabricTokenTenant, ExpiredFabric, SensitiveFabricFailure, FailAccountWithSensitiveError;
         public string AccountTenant = Tenant, Username = "developer@example.test", AccountCloud = "AzureCloud", AccountType = "user";
         public int SwitchAccountAtRead, AccountReads;
         public List<string[]> Commands = new(); public List<string> Directories = new();
@@ -38,7 +38,9 @@ public sealed class LocalCliIdentityTests
             }
             if (FailAdo && args.Contains("499b84ac-1321-427f-aa17-267ca6975798")) throw new PortalException("Test denied", 401);
             if (FailAzure && args.Contains("https://management.azure.com/")) throw new PortalException("Test denied", 401);
-            return JsonSerializer.SerializeToElement(new { tenant = WrongTokenTenant ? OtherTenant : AccountTenant, tokenType = "Bearer", accessToken = "test-token-not-a-credential", expires_on = DateTimeOffset.UtcNow.AddMinutes(Expired ? -1 : 60).ToUnixTimeSeconds() });
+            var fabric = args.Contains("https://api.fabric.microsoft.com");
+            if (FailFabric && fabric) throw new PortalException(SensitiveFabricFailure ? "Bearer synthetic-sensitive-fabric-secret" : "Test denied", 401);
+            return JsonSerializer.SerializeToElement(new { tenant = WrongTokenTenant || fabric && WrongFabricTokenTenant ? OtherTenant : AccountTenant, tokenType = "Bearer", accessToken = "test-token-not-a-credential", expires_on = DateTimeOffset.UtcNow.AddMinutes(Expired || fabric && ExpiredFabric ? -1 : 60).ToUnixTimeSeconds() });
         }
     }
     static async Task Complete(BrowserSession s)
@@ -57,26 +59,42 @@ public sealed class LocalCliIdentityTests
         s.NetworkReports["stale"] = JsonSerializer.SerializeToElement(new { }); var epoch = s.MicrosoftIdentityEpoch;
         await identity.Resume(s, files);
         Assert.Equal("Connected", s.State); Assert.Null(s.Error); Assert.Equal(Tenant, s.AzureTenantId);
-        Assert.Equal(new[] { "ado", "azure" }, s.Connected.Keys.Order()); Assert.Empty(s.NetworkReports); Assert.True(s.MicrosoftIdentityEpoch > epoch);
+        Assert.Equal(new[] { "ado", "azure", "fabric" }, s.Connected.Keys.Order()); Assert.Empty(s.NetworkReports); Assert.True(s.MicrosoftIdentityEpoch > epoch);
         Assert.Equal("developer@example.test", s.Cli!.AccountId); Assert.Null(s.Account);
         Assert.DoesNotContain(fake.Commands, c => c[0] == "login");
-        Assert.Equal(2, fake.Commands.Count(c => c.Contains("get-access-token")));
+        Assert.Equal(3, fake.Commands.Count(c => c.Contains("get-access-token")));
+        Assert.Single(fake.Commands, c => c.Contains("get-access-token") && c.Contains("https://api.fabric.microsoft.com"));
         Assert.All(fake.Directories, path => Assert.Equal(s.Cli.DirectoryPath, path));
         foreach (var file in files) Assert.Equal(file.Value, await File.ReadAllBytesAsync(Path.Combine(s.Cli.DirectoryPath, file.Key)));
         Assert.True(File.Exists(Path.Combine(s.Cli.DirectoryPath, "owner.json")));
         var directory = s.Cli.DirectoryPath; await new BrowserIdentity(identity).SignOut(s); Assert.False(Directory.Exists(directory));
     }
-    [Theory][InlineData(true, false, "ado")][InlineData(false, true, "azure")]
-    public async Task ResumeTreatsAzureAndAdoConsentIndependently(bool azureFails, bool adoFails, string restored)
+    [Theory]
+    [InlineData(true, false, false, "ado,fabric")][InlineData(false, true, false, "azure,fabric")][InlineData(false, false, true, "ado,azure")]
+    [InlineData(true, true, false, "fabric")][InlineData(true, false, true, "ado")][InlineData(false, true, true, "azure")]
+    public async Task ResumeTreatsEveryServiceAudienceIndependently(bool azureFails, bool adoFails, bool fabricFails, string restored)
     {
-        var o = Options(); var fake = new FakeCli { FailAzure = azureFails, FailAdo = adoFails }; var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        var o = Options(); var fake = new FakeCli { FailAzure = azureFails, FailAdo = adoFails, FailFabric = fabricFails, SensitiveFabricFailure = true }; var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
         await identity.Resume(s, SavedFiles());
-        Assert.Equal(new[] { restored }, s.Connected.Keys); Assert.Equal("Connected", s.State); Assert.NotNull(s.Error);
+        Assert.Equal(restored.Split(','), s.Connected.Keys.Order()); Assert.Equal("Connected", s.State); Assert.NotNull(s.Error);
+        Assert.DoesNotContain("synthetic-sensitive", s.Error); Assert.DoesNotContain("Bearer", s.Error); Assert.DoesNotContain("test-token-not-a-credential", s.Error);
+        if (fabricFails) Assert.Contains("Microsoft Fabric", s.Error); else Assert.DoesNotContain("Microsoft Fabric", s.Error);
         Assert.DoesNotContain(fake.Commands, c => c[0] == "login");
+        Assert.Equal(3, fake.Commands.Count(c => c.Contains("get-access-token")));
+        await new BrowserIdentity(identity).SignOut(s);
+    }
+    [Theory][InlineData(true, false)][InlineData(false, true)]
+    public async Task FabricResumeRejectsUnqualifiedTokenWithoutDiscardingOtherServices(bool wrongTenant, bool expired)
+    {
+        var o = Options(); var fake = new FakeCli { WrongFabricTokenTenant = wrongTenant, ExpiredFabric = expired }; var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
+        await identity.Resume(s, SavedFiles());
+        Assert.Equal(new[] { "ado", "azure" }, s.Connected.Keys.Order()); Assert.NotNull(s.Cli);
+        Assert.False(s.Cli.Tokens.ContainsKey("fabric")); Assert.Contains("Microsoft Fabric", s.Error);
+        Assert.DoesNotContain("test-token-not-a-credential", s.Error); Assert.DoesNotContain(fake.Commands, c => c[0] == "login");
         await new BrowserIdentity(identity).SignOut(s);
     }
     [Theory]
-    [InlineData("tenant")][InlineData("user")][InlineData("cloud")][InlineData("principal-type")][InlineData("expired")][InlineData("token-tenant")][InlineData("both-denied")][InlineData("final-account-change")]
+    [InlineData("tenant")][InlineData("user")][InlineData("cloud")][InlineData("principal-type")][InlineData("expired")][InlineData("token-tenant")][InlineData("all-denied")][InlineData("final-account-change")]
     public async Task ResumeRejectsChangedIdentityAndUnqualifiedTokensAndRemovesOnlyItsFreshCache(string failure)
     {
         var o = Options(); var fake = new FakeCli(); var identity = new AzureCliIdentity(o, fake); using var s = new BrowserSession(o);
@@ -89,7 +107,7 @@ public sealed class LocalCliIdentityTests
             case "principal-type": fake.AccountType = "servicePrincipal"; break;
             case "expired": fake.Expired = true; break;
             case "token-tenant": fake.WrongTokenTenant = true; break;
-            case "both-denied": fake.FailAzure = fake.FailAdo = true; break;
+            case "all-denied": fake.FailAzure = fake.FailAdo = fake.FailFabric = true; break;
             case "final-account-change": fake.SwitchAccountAtRead = 4; break;
         }
         await Assert.ThrowsAsync<PortalException>(() => identity.Resume(s, SavedFiles()));
@@ -167,6 +185,23 @@ public sealed class LocalCliIdentityTests
         Assert.All(fake.Directories, d => Assert.Equal(directory, d));
         await router.SignOut(s); Assert.False(Directory.Exists(directory)); Assert.Empty(s.Connected); Assert.Null(s.AzureTenantId);
         await Assert.ThrowsAsync<PortalException>(() => router.Token(s, "ado"));
+    }
+    [Fact] public async Task FabricUsesExplicitSeparateAudienceAndSameIsolatedAccount()
+    {
+        var options = Options(); var fake = new FakeCli(); var cli = new AzureCliIdentity(options, fake); var router = new BrowserIdentity(cli);
+        using var session = new BrowserSession(options);
+        cli.Begin(session, "azure", null); await Complete(session);
+        await Assert.ThrowsAsync<PortalException>(() => router.Token(session, "fabric"));
+        Assert.DoesNotContain(fake.Commands, command => command.Contains("https://api.fabric.microsoft.com"));
+        cli.Begin(session, "fabric", null); await Complete(session);
+        Assert.True(session.Connected.ContainsKey("fabric"));
+        Assert.Single(fake.Commands, command => command[0] == "login");
+        Assert.Contains(fake.Commands, command => command.Contains("https://api.fabric.microsoft.com"));
+        Assert.Equal(new[] { "https://api.fabric.microsoft.com/.default" }, BrowserIdentity.Scopes("fabric"));
+        Assert.Equal("test-token-not-a-credential", await router.Token(session, "fabric"));
+        await router.SignOut(session);
+        Assert.Empty(session.Connected);
+        await Assert.ThrowsAsync<PortalException>(() => router.Token(session, "fabric"));
     }
     [Theory][InlineData(true,false)][InlineData(false,true)]
     public async Task WrongTenantOrExpiredTokenDoesNotEstablishConnection(bool wrong, bool expired)

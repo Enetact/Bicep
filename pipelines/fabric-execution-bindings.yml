@@ -1,0 +1,21 @@
+parameters:
+  - name: environment
+    type: string
+    values: [dev, qa, uat, prod]
+variables:
+  - ${{ if eq(parameters.environment, 'dev') }}:
+    - name: fabricAgentPool
+      value: fabric-dev-agents
+      readonly: true
+  - ${{ if eq(parameters.environment, 'qa') }}:
+    - name: fabricAgentPool
+      value: fabric-qa-agents
+      readonly: true
+  - ${{ if eq(parameters.environment, 'uat') }}:
+    - name: fabricAgentPool
+      value: fabric-uat-agents
+      readonly: true
+  - ${{ if eq(parameters.environment, 'prod') }}:
+    - name: fabricAgentPool
+      value: fabric-prod-agents
+      readonly: true

@@ -6,6 +6,9 @@ import { fixture, input } from '../analysis/fixtures.mjs';
 const base = process.env.PORTAL_TEST_URL ?? 'http://localhost:5087';
 if (!/^http:\/\/localhost:\d+$/.test(base)) throw new Error('Tests only target localhost.');
 const results = [];
+const workloadSource = JSON.parse(fs.readFileSync(new URL('../../config/workloads.json', import.meta.url))).workloads;
+const recoverySource = JSON.parse(fs.readFileSync(new URL('../../config/recovery-capabilities.json', import.meta.url)));
+const pipelineFiles = fs.readdirSync(new URL('../../', import.meta.url)).filter(name => /^azure-pipelines.*\.yml$/.test(name));
 async function test(name, f) { await f(); results.push({ name, passed: true }); }
 const response = await fetch(base + '/api/bootstrap');
 assert.equal(response.status, 200);
@@ -14,7 +17,7 @@ assert.equal(bootstrap.configured, false, 'Run smoke tests against an unconfigur
 const headers = { cookie, origin: base, 'x-portal-csrf': bootstrap.csrf, 'content-type': 'application/json' };
 const post = (path, data, extra = {}) => fetch(base + '/api/' + path, { method: 'POST', headers: { ...headers, ...extra }, body: JSON.stringify(data) });
 await test('Session cookie and restrictive response headers', () => { assert.match(response.headers.get('set-cookie'), /httponly/i); assert.match(response.headers.get('set-cookie'), /samesite=strict/i); assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/); assert.equal(response.headers.get('access-control-allow-origin'), null); });
-await test('Catalog and complete skill API', async () => { assert.equal(bootstrap.products.length, 9); assert.equal(bootstrap.skills.length, 53); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
+await test('Catalog and complete skill API', async () => { assert.deepEqual(bootstrap.products.map(p=>p.type).sort(),Object.keys(workloadSource).sort()); assert.equal(bootstrap.skills.length, 53); assert.equal(bootstrap.skills.filter(s => s.origin === 'Microsoft Azure Skills').length, 42); const skill = await fetch(base + '/api/skills/azure--azure-resource-visualizer', { headers }).then(r => r.json()); assert.equal(skill.pipelineStatus,'No pipeline associated yet'); assert.equal(skill.discoveryProfile,'network'); });
 await test('Every product has a served conceptual topology', () => assert.deepEqual(Object.keys(bootstrap.topologies.products).sort(), bootstrap.products.map(p => p.id).sort()));
 await test('Diagram module and connected panels are served', async () => {
   const module = await fetch(base + '/topology.mjs'); assert.equal(module.status, 200); assert.match(module.headers.get('content-type'), /javascript/);
@@ -24,10 +27,27 @@ await test('Unauthenticated Preview artifact read fails closed', async () => ass
 await test('Unauthenticated IaC artifact read fails closed', async () => assert.equal((await fetch(base + '/api/iac/storage/44/dev/preview', { headers })).status, 401));
 await test('Recovery policy UI and read-only API cover all workflows without execution', async () => {
   const rules = await fetch(base + '/api/recovery/policies', { headers }).then(r => r.json());
-  assert.equal(rules.executionEnabled, false); assert.equal(rules.policies.length, 17);
+  assert.equal(rules.executionEnabled, false); assert.deepEqual(rules.policies.map(p=>p.id).sort(),recoverySource.policies.map(p=>p.id).sort());
   const html = await fetch(base + '/').then(r => r.text());
   for (const id of ['workload-recovery','recovery-workflow','recovery-rules']) assert.ok(html.includes(`id="${id}"`));
   assert.equal((await fetch(base + '/recovery.mjs')).status, 200);
+});
+await test('Fabric readiness UI and source-only checks are served for all reviewed environments', async () => {
+  const html = await fetch(base + '/').then(r => r.text()); assert.ok(html.includes('id="fabric-readiness"'));
+  const module = await fetch(base + '/fabric.mjs'); assert.equal(module.status, 200); assert.match(module.headers.get('content-type'), /javascript/);
+  for (const environment of ['dev', 'qa', 'uat', 'prod']) {
+    const response = await fetch(`${base}/api/fabric/readiness/${environment}/eastus2`, { headers }); assert.equal(response.status, 200);
+    const report = await response.json(); assert.equal(report.environment, environment); assert.equal(report.region, 'eastus2');
+    assert.equal(report.scope, 'ReviewedSourceOnly'); assert.equal(report.canDeploy, false); assert.equal(report.liveVerified, false);
+    assert.equal(report.status, 'NeedsConfiguration'); assert.equal(report.poolName, `fabric-${environment}-agents`);
+    const runtime = report.checks.filter(c => c.id.startsWith('runtime-')); assert.equal(runtime.length, 7); assert(runtime.every(c => c.status === 'NotVerified'));
+    assert(report.sources.length >= 8); assert(report.limitations.some(l => /Native Fabric deployment pipelines/.test(l)));
+  }
+});
+await test('Fabric source checks reject unregistered scope and cross-site requests', async () => {
+  assert.equal((await fetch(base + '/api/fabric/readiness/unknown/eastus2', { headers })).status, 400);
+  assert.equal((await fetch(base + '/api/fabric/readiness/dev/unapproved', { headers })).status, 400);
+  assert.equal((await fetch(base + '/api/fabric/readiness/dev/eastus2', { headers: { ...headers, 'sec-fetch-site': 'cross-site' } })).status, 403);
 });
 await test('Network workspace and validated-agent diagram controls are real app assets', async () => {
   const html=await fetch(base+'/').then(r=>r.text()); for(const id of ['network-mode','network-run','network-agent','agent-diagram','agent-mermaid','agent-receipt-download']) assert.ok(html.includes(`id="${id}"`));
@@ -80,7 +100,7 @@ await test('Existing analyzer executes and returns bounded synthetic report', as
   const r = await post('analysis', { manifest: pair.manifestBytes.toString('base64'), inventory: pair.inventoryBytes.toString('base64') });
   const body = await r.json(); assert.equal(r.status, 200, JSON.stringify(body)); assert.equal(body.report.deploymentAuthorized, false); assert.match(body.markdown, /Offline|offline/); assert.ok(body.diagrams.length > 0);
 });
-await test('Registration catalog covers all 25 root pipelines', async () => { const r = await fetch(base + '/api/pipeline-setup/catalog', {headers}); assert.equal(r.status,200); const c = await r.json(); assert.equal(c.entries.length,25); assert.ok(c.entries.some(e=>e.yaml==='azure-pipelines.yml')); });
+await test('Registration catalog covers every root pipeline source', async () => { const r = await fetch(base + '/api/pipeline-setup/catalog', {headers}); assert.equal(r.status,200); const c = await r.json(); assert.deepEqual(c.entries.map(e=>e.yaml).sort(),pipelineFiles.sort()); assert.ok(c.entries.some(e=>e.yaml==='azure-pipelines.yml')); });
 await test('Registration inventory requires ADO identity', async () => assert.equal((await fetch(base + '/api/pipeline-setup/inventory', {headers})).status,401));
 await test('Unissued registration ticket cannot create', async () => assert.equal((await post('pipeline-setup/apply/not-issued',{})).status,409));
 await test('Disconnect returns clean state', async () => { assert.equal((await post('disconnect', {})).status, 200); const s = await fetch(base + '/api/auth', { headers }).then(r => r.json()); assert.deepEqual(s.connected, []); });

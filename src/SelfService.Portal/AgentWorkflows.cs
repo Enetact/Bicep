@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using SelfService.Tagging;
 using SelfService.Operations;
+using SelfService.Telemetry;
 
 namespace SelfService.Portal;
 
@@ -82,6 +83,21 @@ public sealed class AgentWorkflows(PortalOptions options, Catalog catalog, Azure
         finally { s.Agent.Gate.Release(); }
     }
     public async Task<object> Run(BrowserSession s, AgentRequest request, CancellationToken cancellation, string hostTransport = "http")
+    {
+        using var operation = PlatformTelemetry.Start("agent.workflow").Tag("platform.provider", "codex")
+            .Tag("platform.mode", hostTransport is "http" or "ahp" ? hostTransport : "other");
+        try
+        {
+            // Both values come from the registered catalog. Request goals, resource scope,
+            // evidence, account identifiers and generated content never become span metadata.
+            var workflow = Find(request.Workflow);
+            operation.Tag("platform.workload", workflow.Id).Tag("platform.stage", workflow.Scope);
+            var result = await RunCore(s, request, cancellation, hostTransport);
+            operation.Success(); return result;
+        }
+        catch (Exception e) { operation.Fail(e, e is PortalException { Status: 408 }); throw; }
+    }
+    async Task<object> RunCore(BrowserSession s, AgentRequest request, CancellationToken cancellation, string hostTransport)
     {
         var workflow = Find(request.Workflow);
         var identityEpoch = Interlocked.Read(ref s.MicrosoftIdentityEpoch);

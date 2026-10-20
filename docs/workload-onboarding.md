@@ -1,5 +1,9 @@
 # Adding and operating self-service workload products
 
+**Managed DevOps Pool onboarding:** the eleventh product requires an existing Dev Center project, exclusive delegated subnet, reviewed DevOpsInfrastructure network pregrants, explicit ADO projects/admin groups, an available pinned Gen2 image and an existing bootstrap runner. [Exact inputs, permission distinctions and canary](../workloads/managed-devops-pool/README.md). Four profiles remain disabled.
+
+**20 October 2026 — Fabric onboarding:** [Fabric best practices and exact setup](../workloads/fabric/README.md) adds a tenth offering using the product adapter, four disabled Azure profiles and separate disabled API manifests. Standard Azure discovery/Preview applies to capacity/networking; protected Fabric API plans govern workspaces, items, connections and promotion. Existing products retain their own dependencies.
+
 **Private Data Platform:** follow its [full prerequisites, parameters and acceptance guide](../workloads/private-data-platform/README.md). Its dedicated `dataplat` Discover/Deploy pair reuses approved network/DNS/NAT/browser authentication. Workspace identities, Unity Catalog and manual notebook execution are separate runtime acceptance steps; they are not created by Azure RBAC.
 
 [Wiki home](README.md) · [Workload catalog](workload-catalog.md) · [Status](completion-status.md)

@@ -362,6 +362,90 @@ stages:
           discoveryRunId: ${{ parameters.discoveryRunId }}
           createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
           enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: devopspool
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: devopspool
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: devopspool
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: devopspool
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: devopspool
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: devopspool
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: devopspool
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: devopspool
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
   - ${{ if and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
     - ${{ if eq(parameters.operation, 'discover') }}:
       - template: templates/self-service-discover.yml
@@ -438,6 +522,90 @@ stages:
       - template: templates/self-service-setup.yml
         parameters:
           workload: eventflow
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: fabric
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: fabric
+          environment: dev
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: fabric
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: fabric
+          environment: prod
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: fabric
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: fabric
+          environment: qa
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+          discoveryPipelineId: ${{ parameters.discoveryPipelineId }}
+          discoveryRunId: ${{ parameters.discoveryRunId }}
+          createDestinationPrivateEndpoints: ${{ parameters.createDestinationPrivateEndpoints }}
+          enableLogAlerts: ${{ parameters.enableLogAlerts }}
+  - ${{ if and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')) }}:
+    - ${{ if eq(parameters.operation, 'discover') }}:
+      - template: templates/self-service-discover.yml
+        parameters:
+          workload: fabric
+          environment: uat
+          subscription: azure-subscription-a
+          network: central-private
+          serviceConnection: SC-AZ-A-Bicep
+    - ${{ if eq(parameters.operation, 'deploy') }}:
+      - template: templates/self-service-setup.yml
+        parameters:
+          workload: fabric
           environment: uat
           subscription: azure-subscription-a
           network: central-private
@@ -787,20 +955,23 @@ stages:
       - ${{ if not(or(and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workloadType, 'blob-transfer'), eq(parameters.workload, 'blobcopy'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'new-private')), and(eq(parameters.workloadType, 'service-bus-worker'), eq(parameters.workload, 'busworker'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
         - ${{ if not(or(and(eq(parameters.workloadType, 'service-bus-worker'), eq(parameters.workload, 'busworker'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'service-bus-worker'), eq(parameters.workload, 'busworker'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'service-bus-worker'), eq(parameters.workload, 'busworker'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
           - ${{ if not(or(and(eq(parameters.workloadType, 'private-data-platform'), eq(parameters.workload, 'dataplat'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-data-platform'), eq(parameters.workload, 'dataplat'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-data-platform'), eq(parameters.workload, 'dataplat'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-            - ${{ if not(or(and(eq(parameters.workloadType, 'private-data-platform'), eq(parameters.workload, 'dataplat'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-              - ${{ if not(or(and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-                - ${{ if not(or(and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-                  - ${{ if not(or(and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-                    - ${{ if not(or(and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-                      - ${{ if not(or(and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-                        - ${{ if not(or(and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
-                          - stage: InvalidSelection
-                            jobs:
-                              - job: RejectSelection
-                                pool:
-                                  vmImage: windows-latest
-                                steps:
-                                  - checkout: none
-                                  - pwsh: |
-                                      throw 'This workload/environment/subscription/network combination is not registered.'
-                                    displayName: Reject unregistered target before Azure access
+            - ${{ if not(or(and(eq(parameters.workloadType, 'private-data-platform'), eq(parameters.workload, 'dataplat'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+              - ${{ if not(or(and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'managed-devops-pool'), eq(parameters.workload, 'devopspool'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                - ${{ if not(or(and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'logic-app-event-grid'), eq(parameters.workload, 'eventflow'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                  - ${{ if not(or(and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                    - ${{ if not(or(and(eq(parameters.workloadType, 'fabric'), eq(parameters.workload, 'fabric'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                      - ${{ if not(or(and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'http-functions'), eq(parameters.workload, 'httpapi'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                        - ${{ if not(or(and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'key-vault'), eq(parameters.workload, 'keyvault'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                          - ${{ if not(or(and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                            - ${{ if not(or(and(eq(parameters.workloadType, 'observability'), eq(parameters.workload, 'observe'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'dev'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'prod'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                              - ${{ if not(or(and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'qa'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')), and(eq(parameters.workloadType, 'private-storage'), eq(parameters.workload, 'storage'), eq(parameters.environment, 'uat'), eq(parameters.subscription, 'azure-subscription-a'), eq(parameters.network, 'central-private')))) }}:
+                                - stage: InvalidSelection
+                                  jobs:
+                                    - job: RejectSelection
+                                      pool:
+                                        vmImage: windows-latest
+                                      steps:
+                                        - checkout: none
+                                        - pwsh: |
+                                            throw 'This workload/environment/subscription/network combination is not registered.'
+                                          displayName: Reject unregistered target before Azure access

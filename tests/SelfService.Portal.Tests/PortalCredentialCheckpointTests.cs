@@ -136,16 +136,33 @@ public sealed class PortalCredentialCheckpointTests
         var key = File.ReadAllText(Directory.GetFiles(Path.Combine(folder, "keys"), "key-*.xml").Single());
         Assert.Contains("encryptedSecret", key); Assert.Contains("Dpapi", key); Assert.DoesNotContain("<masterKey", key);
     }
-    [Fact] public void ResumeReceiptRecordsReadinessWithoutBrowserProofOrCredentials()
+    [Theory][InlineData(true)][InlineData(false)]
+    public void ResumeReceiptRecordsReadinessWithoutBrowserProofOrCredentials(bool fabricConnected)
     {
         if (!OperatingSystem.IsWindows()) return;
         using var f = new Fixture(); var cache = new PortalCredentialCheckpoint(f.Root, 5087);
         var proof = cache.Checkpoint(f.Azure, f.Codex); using var session = new BrowserSession(new() { RepositoryRoot = f.Root });
         session.Connected["azure"] = true;
+        if (fabricConnected) session.Connected["fabric"] = true;
         cache.RecordResult(session, ["Synthetic verification failure."]);
         var text = File.ReadAllText(Path.Combine(Path.GetDirectoryName(f.Cache)!, "resume-status.json"));
         Assert.Contains("\"azure\":true", text); Assert.Contains("\"ado\":false", text);
+        using var receipt = System.Text.Json.JsonDocument.Parse(text);
+        Assert.Equal(fabricConnected, receipt.RootElement.GetProperty("microsoft").GetProperty("fabric").GetBoolean());
         Assert.DoesNotContain("synthetic-codex-only", text); Assert.DoesNotContain("synthetic-microsoft-only", text);
         Assert.DoesNotContain(proof, text); Assert.DoesNotContain(session.Csrf, text);
+    }
+    [Fact] public void RestartCatalogSelectionIncludesFabricOnlyAfterItsAudienceIsVerified()
+    {
+        using var session = new BrowserSession(new());
+        Assert.Equal(new[] { "bicep", "learn" }, PortalCredentialCheckpoint.ReconnectableProviders(session).Order());
+        session.Connected["azure"] = true; session.Connected["ado"] = true;
+        Assert.DoesNotContain("fabric", PortalCredentialCheckpoint.ReconnectableProviders(session));
+        session.Connected["fabric"] = true; session.GitHub.UserId = 7;
+        Assert.Equal(McpProviderBroker.Providers.Where(p => p.Id != "aspire").Select(p => p.Id).Order(), PortalCredentialCheckpoint.ReconnectableProviders(session).Order());
+        Assert.DoesNotContain("aspire", PortalCredentialCheckpoint.ReconnectableProviders(session, Path.GetTempPath()));
+        session.Connected.TryRemove("fabric", out _);
+        Assert.DoesNotContain("fabric", PortalCredentialCheckpoint.ReconnectableProviders(session));
+        Assert.Empty(session.Mcp.Connections); Assert.Empty(session.Mcp.Plans);
     }
 }

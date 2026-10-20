@@ -1,5 +1,7 @@
 . "$PSScriptRoot/data-platform-common.ps1"
 . "$PSScriptRoot/aks-common.ps1"
+. "$PSScriptRoot/fabric-common.ps1"
+. "$PSScriptRoot/managed-devops-pool-common.ps1"
 # Reviewed product adapter. No executable paths are accepted from developer requests or artifacts.
 function Get-ProductDnsNames {
     return @{dfs='privatelink.dfs.core.windows.net';databricks='privatelink.azuredatabricks.net';datafactory='privatelink.datafactory.azure.net';adfportal='privatelink.adf.azure.com';blob='privatelink.blob.core.windows.net';queue='privatelink.queue.core.windows.net';table='privatelink.table.core.windows.net';sites='privatelink.azurewebsites.net';vault='privatelink.vaultcore.azure.net';servicebus='privatelink.servicebus.windows.net'}
@@ -12,6 +14,8 @@ function Get-ProductRequiredParameters([string]$Type) {
     switch($Type){'private-storage'{$keys+='consumerPrincipalObjectId'} 'key-vault'{$keys+='readerPrincipalObjectId'} 'observability'{$keys+='alertActionGroupIds'} 'http-functions'{$keys+=@('apiClientId','allowedClientApplications')}}
     if($Type -eq 'private-data-platform'){$keys+=@('databricksHostSubnetId','databricksContainerSubnetId','browserAuthenticationPrivateEndpointId','sparkVersion','nodeType','maxWorkers','notebookPath','inputFileName','databricksJobId')}
     if($Type -eq 'private-aks'){$keys+=Get-AksParameterKeys}
+    if($Type -eq 'fabric'){$keys+=Get-FabricParameterKeys}
+    if($Type -eq 'managed-devops-pool'){$keys+=Get-MdpParameterKeys}
     return $keys
 }
 function Assert-ProductParameters($Target,$P) {
@@ -19,7 +23,7 @@ function Assert-ProductParameters($Target,$P) {
     $type=Get-TargetWorkloadType $Target;$d=Get-WorkloadDefinition $type
     $keys=Get-ProductRequiredParameters $type
     if(@($P.Keys|Where-Object {$_ -notin ($keys+@('releaseActivated','packageBlobName','customTags'))}).Count){throw 'Unsupported product parameter.'}
-    foreach($k in $keys){if(!$P.Contains($k) -or $null -eq $P[$k].value -or [string]::IsNullOrWhiteSpace([string]$P[$k].value)){throw "Platform onboarding required: $k"}}
+    foreach($k in @($keys|Where-Object {$type -ne 'fabric' -or $_ -notin @('existingFabricWorkspaceId','privateEndpointSubnetId','privateDnsZoneIds')})){if(!$P.Contains($k) -or $null -eq $P[$k].value -or [string]::IsNullOrWhiteSpace([string]$P[$k].value)){throw "Platform onboarding required: $k"}}
     if((ConvertTo-Canonical $P) -match 'REPLACE_|00000000-0000-0000-0000-000000000000'){throw 'Complete reviewed product onboarding settings.'}
     if($P.workload.value -cne $Target.workload -or $P.environmentName.value -cne $Target.environmentName -or $P.location.value -cnotin @('eastus2')){throw 'Product intent mismatch.'}
     foreach($k in @('deploymentPrincipalObjectId','consumerPrincipalObjectId','readerPrincipalObjectId','apiClientId')|Where-Object {$P.Contains($_)}){if([guid]::Parse($P[$k].value) -eq [guid]::Empty){throw "Invalid principal: $k"}}
@@ -44,6 +48,8 @@ function Assert-ProductParameters($Target,$P) {
         foreach($id in $P.alertActionGroupIds.value){if($id -notmatch ($scope+'Microsoft.Insights/actionGroups/[^/]+$')){throw 'Invalid action group.'}}
     }
     if($type -eq 'private-aks'){Assert-AksParameters $Target $P}
+    if($type -eq 'fabric'){Assert-FabricParameters $Target $P}
+    if($type -eq 'managed-devops-pool'){Assert-MdpParameters $Target $P}
     if($type -eq 'private-data-platform'){Assert-DataPlatformParameters $Target $P}
     if($P.Contains('releaseActivated') -and $P.releaseActivated.value -isnot [bool]){throw 'Invalid lifecycle flag.'}
     if($P.Contains('packageBlobName') -and $P.packageBlobName.value -cnotmatch '^releases/[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}\.zip$'){throw 'Invalid application package path.'}
@@ -55,6 +61,8 @@ function Assert-ProductDiscovery($Target,$P,[string]$Directory) {
     if($i.resourceQuery.status -cne 'Succeeded' -or $i.networkQuery.status -cne 'Succeeded' -or $i.privateDnsQuery.status -cne 'Succeeded'){throw 'Failed discovery does not establish empty resources.'}
     if((Get-TargetWorkloadType $Target) -eq 'private-data-platform'){Assert-DataPlatformDiscovery $Target $P $i}
     if((Get-TargetWorkloadType $Target) -eq 'private-aks'){Assert-AksDiscovery $Target $P $i}
+    if((Get-TargetWorkloadType $Target) -eq 'fabric'){Assert-FabricDiscovery $Target $P $i}
+    if((Get-TargetWorkloadType $Target) -eq 'managed-devops-pool'){Assert-MdpDiscovery $Target $P $i}
     foreach($ns in $d.providers){$found=@($i.providers|Where-Object {$_.namespace -ceq $ns -and $_.registrationState -eq 'Registered'});if($found.Count -ne 1){throw "Provider not registered or unknown: $ns"}}
     foreach($id in @($P.existingLogAnalyticsWorkspaceId.value)+@($(if($P.Contains('alertActionGroupIds')){$P.alertActionGroupIds.value}))){
         if(@($i.resources|Where-Object {$_.id -ieq $id}).Count -ne 1){throw "Shared dependency missing from discovery: $id. Platform must provision/approve it first."}
@@ -102,6 +110,8 @@ function Test-ProductPrerequisites($Bundle) {
     }
     if((Get-TargetWorkloadType $Bundle.target) -eq 'private-data-platform'){$evidence.dataPlatform=Test-DataPlatformPrerequisites $Bundle}
     if((Get-TargetWorkloadType $Bundle.target) -eq 'private-aks'){$evidence.aks=Test-AksPrerequisites $Bundle}
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'fabric'){$evidence.fabric=Test-FabricPrerequisites $Bundle}
+    if((Get-TargetWorkloadType $Bundle.target) -eq 'managed-devops-pool'){$evidence.managedDevOpsPool=Test-MdpPrerequisites $Bundle}
     return $evidence
 }
 function Get-ProductCostEstimate($Target,$P) {
@@ -167,7 +177,8 @@ function Test-ProductPackage([string]$Path) {
 function Get-ProductOutputs($Bundle) {
     $s=Get-WorkloadStack $Bundle;if(!$s){throw 'Product stack not provisioned.'};$o=$s.properties.outputs
     $d=Get-WorkloadDefinition (Get-TargetWorkloadType $Bundle.target)
-    $expected=switch($d.menuSlug){aksapps{@('clusterResourceId','applicationIdentityId')} dataplat{@('storageResourceId','databricksResourceId','factoryResourceId','accessConnectorId')} storage{@('storageResourceId')} keyvault{@('vaultResourceId')} observe{@('workbookId','alertId')} httpapi{@('storageResourceId')} busworker{@('storageResourceId','busResourceId')}}
+    $expected=switch($d.menuSlug){devopspool{@('managedDevOpsPoolId')} fabric{@('fabricCapacityResourceId')} aksapps{@('clusterResourceId','applicationIdentityId')} dataplat{@('storageResourceId','databricksResourceId','factoryResourceId','accessConnectorId')} storage{@('storageResourceId')} keyvault{@('vaultResourceId')} observe{@('workbookId','alertId')} httpapi{@('storageResourceId')} busworker{@('storageResourceId','busResourceId')}}
+    if($d.menuSlug -eq 'fabric' -and $Bundle.parameters.parameters.enableWorkspacePrivateLink.value){$expected=@($expected)+@('workspacePrivateLinkServiceId','workspacePrivateEndpointId')}
     foreach($k in $expected){if(!$o.Contains($k) -or !$o[$k].value){throw "Missing product output $k"};Assert-StackManagedId $Bundle $o[$k].value}
     if($o.workspaceId.value -ine $Bundle.parameters.parameters.existingLogAnalyticsWorkspaceId.value){throw 'Unexpected shared workspace.'}
     # Validate data-plane host names before sending tokens; ARM outputs alone are not trusted URLs.
@@ -225,6 +236,8 @@ function Test-ProductInfrastructure($Bundle,$Outputs) {
         $checks+='Premium Service Bus private access and local auth disabled'
     }
     if($type -eq 'private-aks'){return (Test-AksInfrastructure $Bundle $Outputs)}
+    if($type -eq 'fabric'){return (Test-FabricInfrastructure $Bundle $Outputs)}
+    if($type -eq 'managed-devops-pool'){return (Test-MdpInfrastructure $Bundle $Outputs)}
     if($type -eq 'private-data-platform'){return (Test-DataPlatformInfrastructure $Bundle $Outputs)}
     return @{checks=$checks;dataPlaneVerified=$false;notificationDeliveryVerified=$false;note='Resource configuration and private DNS verified. Consumer authorization, recovery and alert delivery require separate live acceptance.'}
 }

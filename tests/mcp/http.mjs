@@ -26,10 +26,10 @@ await check('Invalid restart capability cannot attach credentials or create plan
   const { result } = await call('auth'); assert.deepEqual(result.connected, []);
   const plans = await call('mcp/plans'); assert.deepEqual(plans.result.plans, []);
 });
-await check('Five provider definitions and no ambient credential attachment', async () => {
+await check('Six provider definitions and no ambient credential attachment', async () => {
   const { response, result } = await call('mcp/status');
   assert.equal(response.status, 200);
-  assert.deepEqual(result.providers.map(p => p.id), ['bicep', 'azure', 'ado', 'github', 'learn']);
+  assert.deepEqual(result.providers.map(p => p.id), ['bicep', 'azure', 'ado', 'github', 'learn', 'fabric']);
   assert.ok(result.providers.every(p => p.connected === false && p.state === 'stopped'));
 });
 await check('Provider connection requires the browser CSRF token', async () => assert.equal((await call('mcp/learn/connect', {}, { 'x-portal-csrf': '' })).response.status, 403));

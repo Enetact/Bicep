@@ -2,11 +2,13 @@
 
 The local mode runs the real .NET isolated Functions host, polling BlobTrigger dispatcher, QueueTrigger worker, and all three timers against Azurite. It requires no Azure subscription, Azure login, Docker, Azure CLI, or Bicep. Bicep remains the Azure provisioning path.
 
-See [the exact local workflow](local-workflow.md) for diagrams, method-by-method calls, storage operations, failure paths, timer behavior, and the recorded smoke-run timeline.
+See [the recorded local workflow](local-workflow.md) for diagrams, method-by-method calls, storage operations, failure paths, timer behavior, and the dated smoke-run timeline. Use this guide and [the suite lifecycle](local-suite.md) for current startup commands and output paths.
+
+For the portal, authenticated Aspire telemetry and this local runtime together, use [the suite lifecycle](local-suite.md) with `./scripts/Manage-Suite.ps1 -Action Start -Profile Full`. Its build and readiness checks run before service changes, telemetry starts before the Functions producer, and stop shuts down producers before the collector. Standalone `Run-Local.ps1` also ensures the collector is ready first. `Stop-Local.ps1` stops only the owned Functions/Azurite run; use the suite controller to stop telemetry after all producers. ProductFunctions' Azure-backed Service Bus sample remains build-only in the suite.
 
 ## Start, verify, stop
 
-From the repository root in PowerShell:
+From the repository root in PowerShell 7.4 or later:
 
 ```powershell
 ./scripts/Run-Local.ps1
@@ -14,15 +16,15 @@ From the repository root in PowerShell:
 ./scripts/Stop-Local.ps1
 ```
 
-`Run-Local.ps1` checks prerequisites, installs missing compatible tools, builds a separate local runtime copy, starts storage, creates the containers/queues, and starts the Functions host. It returns when the owned host reports Running on loopback. `Test-Local.ps1` verifies the complete transfer workflow. The host has no business HTTP endpoint or web UI; port 7071 is the local Functions runtime.
+`Run-Local.ps1` checks installed prerequisites, builds a separate local runtime copy, starts telemetry and storage, creates the containers/queues, and starts the Functions host. Missing prerequisites block startup unless `-InstallMissing` is supplied. It returns when the owned host reports Running on loopback. `Test-Local.ps1` verifies the complete transfer workflow. The host has no business HTTP endpoint or web UI; port 7071 is the local Functions runtime.
 
-If only Windows PowerShell 5.1 is available, start with:
+To explicitly allow supported local tool installation:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/Run-Local.ps1
+pwsh.exe -NoProfile -File ./scripts/Run-Local.ps1 -InstallMissing
 ```
 
-Setup installs a portable PowerShell when needed and re-launches under it. On a machine without `pwsh` on PATH, subsequent commands can use `.\.tools\pwsh\pwsh.exe -NoProfile -File ./scripts/Stop-Local.ps1` (or `Test-Local.ps1`). The process-only execution policy option does not change machine policy.
+If only Windows PowerShell 5.1 is available, `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/Run-Local.ps1 -InstallMissing` permits its prerequisite bootstrap to reuse or install PowerShell 7.4+ and relaunch. On a machine without `pwsh` on PATH, subsequent commands can use `.\.tools\pwsh\pwsh.exe -NoProfile -File ./scripts/Stop-Local.ps1` (or `Test-Local.ps1`). The process-only execution policy option does not change machine policy. The suite controller itself requires PowerShell 7.4+.
 
 Separate setup/check commands:
 
@@ -31,7 +33,7 @@ Separate setup/check commands:
 ./scripts/Setup-Local.ps1 -CheckOnly
 ```
 
-`-CheckOnly` runs version checks and reports missing tools without downloading them or changing the saved tool selection. Once prerequisites and NuGet packages are cached, startup reuses them; restore still performs the repository's configured dependency advisory checks, so initial setup and fresh auditing need network access.
+`Setup-Local.ps1` without `-CheckOnly` explicitly permits prerequisite installation. `-CheckOnly` runs version checks and reports missing tools without downloading them or changing the saved tool selection. The lifecycle controller also passes `-WriteReceipt` after a successful check to record the selected paths. Once prerequisites and NuGet packages are cached, startup reuses them; restore still performs the repository's configured dependency advisory checks, so initial setup and fresh auditing need network access.
 
 ## Prerequisites and installation
 
@@ -61,7 +63,7 @@ All use the emulator's public development account. The local source, ledger, and
 
 `LocalDevelopment__Enabled=true` is accepted only with the Development Functions environment, no Azure site/instance markers, the fixed emulator binding connections, and version enumeration disabled. Invalid/mixed local and cloud settings fail startup. With local mode absent or false, the existing Azure identity/HTTPS configuration remains in effect. The launcher clears inherited cloud storage/site settings only for its child host process.
 
-Configuration is copied from `src/BlobTransfer/local.settings.azurite.example.json` into `.local/app/local.settings.json`. Source-folder Azure development settings are not overwritten. The launcher uses the checked-in local defaults on each start; treat changes to that example as reviewed source changes. Local timers run every 15 seconds. Azure schedules remain unchanged.
+Configuration is copied from `src/BlobTransfer/local.settings.azurite.example.json` into `.local/runtime/<run-id>/app/local.settings.json`. Source-folder Azure development settings and the prepared build are not overwritten. The launcher uses the checked-in local defaults on each start; treat changes to that example as reviewed source changes. Local timers run every 15 seconds. Azure schedules remain unchanged.
 
 ## Evidence and data
 
@@ -69,8 +71,9 @@ Configuration is copied from `src/BlobTransfer/local.settings.azurite.example.js
 .tools/                    Downloaded portable tools and npm emulator installation
 .local/tools.json          Selected executable paths
 .local/run.json            Owned process IDs, start times, paths, and run log directory
-.local/app/                Built local Function application and generated settings
-.local/operator/           Built seeding/smoke tool
+.local/builds/<build-id>/   Standalone immutable Function and seeding/smoke publish outputs
+.local/suite/builds/<id>/   Complete suite publish outputs when started through Manage-Suite
+.local/runtime/<run-id>/    Per-run Function copy and generated local settings
 .local/data/               Persistent Azurite data
 .local/logs/<run-id>/       Host/emulator logs and synthetic smoke evidence
 ```

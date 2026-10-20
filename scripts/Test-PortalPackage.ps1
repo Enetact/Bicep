@@ -22,10 +22,16 @@ try {
     try {
         $env:PORTAL_TEST_URL="http://localhost:$Port"
         Push-Location (Split-Path $PSScriptRoot -Parent)
-        try {& node tests/portal/smoke.mjs;if($LASTEXITCODE -ne 0){throw 'Packaged HTTP smoke tests failed.'}}finally{Pop-Location}
+        try {
+            & node tests/portal/smoke.mjs
+            if($LASTEXITCODE -ne 0){throw 'Packaged HTTP smoke tests failed.'}
+            $httpReceipt=Get-Content -LiteralPath 'artifacts/portal-tests/http-smoke.json' -Raw|ConvertFrom-Json -AsHashtable
+            $httpChecks=@($httpReceipt.results).Count
+            if(!$httpChecks -or @($httpReceipt.results|Where-Object {!$_.passed}).Count){throw 'Packaged HTTP check receipt is incomplete.'}
+        }finally{Pop-Location}
     }finally{$env:PORTAL_TEST_URL=$old}
     & (Join-Path $PSScriptRoot 'Test-AgentHost.ps1') -Port $Port
-    @{architecture=$ready.architecture;package=$directory;verifiedUtc=[datetimeoffset]::UtcNow.ToString('O');httpChecks=34;ahpChecks=5;bundledAzureSkills=42;liveAzure=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $directory 'package-test.json')
+    @{architecture=$ready.architecture;package=$directory;verifiedUtc=[datetimeoffset]::UtcNow.ToString('O');httpChecks=$httpChecks;ahpChecks=5;bundledAzureSkills=42;liveAzure=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $directory 'package-test.json')
     Write-Host "PASS: $ExpectedArchitecture package started and served UI, catalog, skills and analysis. No live cloud calls."
 }finally{
     $p.Refresh()

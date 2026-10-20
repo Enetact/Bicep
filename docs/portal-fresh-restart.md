@@ -1,27 +1,29 @@
 # Rebuild the portal while preserving sign-ins
 
-From the repository root in PowerShell 7.4+, run:
+For the portal and telemetry together, use `./scripts/Manage-Suite.ps1 -Action Restart`; see [the suite lifecycle](local-suite.md) for the optional local Functions/Azurite profile. The lower-level portal-only recovery command remains available from the repository root in PowerShell 7.4+:
 
 ```powershell
 ./scripts/Restart-PortalFresh.ps1
 ```
 
-This command first verifies the registered main portal and its owned processes, then builds current source in separate outputs while the running app remains available. A failed preflight leaves that app running. It checks source drift before stopping, captures the latest private authentication files after their writers stop, verifies an encrypted checkpoint, rebuilds normal Release outputs, starts the new portal and opens a private resume link. It checks the listener and bootstrap readiness. It manages the main source portal; separate review hosts and desktop applications keep their own processes.
+This command first verifies the registered main portal and its owned processes, then builds current source in separate outputs while the running app remains available. A failed preflight leaves that app running. It checks source drift before stopping, captures the latest private authentication files after their writers stop, verifies an encrypted checkpoint, rebuilds normal Release outputs, starts the new portal and opens a private resume link. Startup ensures the authenticated collector is available before the portal produces telemetry. It checks the listener and bootstrap readiness. It manages the main source portal; separate review hosts and desktop applications keep their own processes. The suite controller also coordinates the rest of the selected local profile and stops producers before telemetry.
 
-The browser verifies restored Microsoft and Codex accounts, attaches the current verified GitHub CLI account and reconnects the five MCP catalogs. This does not execute inference, provider tools, workflow plans, pipelines or Azure changes. Review Connections and Agent workflows afterward: cached files alone do not establish authentication, service permissions or model readiness.
+The browser verifies restored Microsoft and Codex accounts, attaches the current verified GitHub CLI account and reconnects eligible MCP catalogs. The current registry includes Bicep, Azure, ADO, GitHub, Learn, Fabric and Aspire; each identity-backed provider still needs its separate verified audience, and Aspire is selected only when its owned dashboard is available. This does not execute inference, provider tools, workflow plans, pipelines or Azure changes. Review Connections and Agent workflows afterward: cached files alone do not establish authentication, service permissions or model readiness. An interrupted browser resume request can leave catalogs disconnected while account sign-ins remain usable; reconnect those providers individually.
 
 ## What survives
 
 | State | Handling |
 |---|---|
-| Portal-owned Azure CLI login | Only `azureProfile.json`, `msal_token_cache.bin` and optional `msal_http_cache.bin` enter the checkpoint. Azure and ADO acquire and validate separate audience tokens in a new private CLI home. |
+| Portal-owned Azure CLI login | Only `azureProfile.json`, `msal_token_cache.bin` and optional `msal_http_cache.bin` enter the checkpoint. Azure, ADO and Fabric acquire and validate separate audience tokens in a new private CLI home. A failed audience does not invalidate another verified service. |
 | Portal-owned Codex ChatGPT login | Only `auth.json` enters the checkpoint. A new private home receives freshly generated policy/configuration; the native app-server must verify the ChatGPT account and required model availability. |
 | GitHub login | Its normal CLI credential store stays in place. The currently active CLI account is checked against GitHub before attachment; no GitHub token store is copied. |
 | Registered-app Microsoft login | The old host stores MSAL tokens only in memory. This restart cannot recover that mode; reconnect or use the isolated CLI mode for cache-preserving restarts. |
 | Workflow evidence, CSRF, pending requests, plans and approvals | Fresh browser-session state. Existing report files remain on disk, but old approvals cannot authorize a new call. |
 | Desktop Codex, ambient CLI configuration, plugins, hooks, process receipts and old MCP clients | Not imported. Provider clients/catalogs are created again after identity checks. |
 
-This is an explicit, script-driven handoff. Ordinary `Manage-Portal.ps1 -Action Restart`, `Stop-Portal.ps1`, session expiry and explicit Disconnect retain their cleanup behavior; they do not create an authentication checkpoint. Run the new script whenever credentials should survive a fresh rebuild. Neither approach changes OAuth grants or bypasses expiry, consent, MFA, tenant rules or organization SSO.
+This is an explicit, script-driven handoff. Suite and portal Stop/Restart preserve eligible sign-ins by default. Use `-DiscardConnections` when cleanup is intended. Session expiry and explicit Disconnect still clear their owned session credentials. Neither approach changes OAuth grants or bypasses expiry, consent, MFA, tenant rules or organization SSO.
+
+`Restart-PortalFresh.ps1 -CheckpointOnly` is the component implementation for a protected stop: it quiesces the verified portal and writers, creates the encrypted handoff and stops before the build/start phase. Prefer `Manage-Suite.ps1 -Action Stop`, which also observes the selected suite's producer/collector shutdown order. A later suite Start automatically detects a stopped portal's pending checkpoint and uses the recovery path.
 
 ## Protected checkpoint and recovery
 
@@ -45,4 +47,4 @@ A partially restored checkpoint stays bound to the claiming browser session. Reo
 
 ## Verification boundary
 
-Regression coverage uses synthetic lifecycle adapters and credentials, native Windows protection/ACL round trips, tampering, repository/port binding, browser claims, expiry, disconnect and deterministic Azure/Codex/GitHub validation. Real provider status after an authorized restart is separate acceptance evidence. Local tests do not establish Azure deployment or unrestricted service authorization.
+Regression coverage uses synthetic lifecycle adapters and credentials, native Windows protection/ACL round trips, tampering, repository/port binding, browser claims, expiry, disconnect and deterministic audience/Codex/GitHub validation. Suite orchestration checks startup/shutdown order and recovery separately from the component's checkpoint tests. Real provider status after an authorized restart is separate acceptance evidence. Local tests do not establish Azure deployment or unrestricted service authorization.

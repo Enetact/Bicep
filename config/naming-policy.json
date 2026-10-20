@@ -4,7 +4,9 @@
   "reviewedDate": "2026-10-04",
   "sources": [
     "https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules",
-    "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations"
+    "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations",
+    "https://learn.microsoft.com/en-us/azure/templates/microsoft.fabric/2023-11-01/capacities",
+    "https://learn.microsoft.com/en-us/azure/templates/microsoft.devopsinfrastructure/pools"
   ],
   "environments": [
     "dev",
@@ -675,6 +677,54 @@
       "exception": "contract",
       "scope": "child",
       "reason": "Preserve explicit application contract; review coordinated runtime changes."
+    },
+    "Microsoft.Fabric/capacities": {
+      "pattern": "^[a-z][a-z0-9]{2,62}$",
+      "maxLength": 63,
+      "roles": {
+        "primary": "p"
+      },
+      "compactFallback": false,
+      "minLength": 3,
+      "classification": "convention",
+      "scope": "resourceGroup",
+      "format": "compact",
+      "abbreviation": "fab",
+      "globalNamespace": false
+    },
+    "Microsoft.Fabric/privateLinkServicesForFabric": {
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "maxLength": 64,
+      "roles": {
+        "primary": "p"
+      },
+      "compactFallback": false,
+      "minLength": 1,
+      "classification": "convention",
+      "scope": "resourceGroup",
+      "format": "separated",
+      "abbreviation": "fpl",
+      "globalNamespace": false
+    },
+    "Microsoft.DevOpsInfrastructure/pools": {
+      "classification": "convention",
+      "scope": "resourceGroup",
+      "format": "separated",
+      "abbreviation": "mdp",
+      "roles": {
+        "primary": "p"
+      },
+      "minLength": 3,
+      "maxLength": 44,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "globalNamespace": true,
+      "compactFallback": false
+    },
+    "Microsoft.DevCenter/projects": {
+      "classification": "shared",
+      "exception": "shared",
+      "scope": "resourceGroup",
+      "reason": "Existing approved DevCenter project; no ownership or mutation authority."
     }
   },
   "limitations": [

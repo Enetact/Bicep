@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using SelfService.Telemetry;
 
 namespace SelfService.Portal;
 
@@ -15,6 +16,7 @@ public sealed class AnalysisRunner(PortalOptions options)
         if (manifest.Length > 16 * 1024 * 1024 || inventory.Length > 16 * 1024 * 1024) throw new PortalException("Each input must be at most 16 MiB.", 413);
         if (!await gate.WaitAsync(0, cancellation)) throw new PortalException("Another analysis is running.", 409);
         var id = Guid.NewGuid().ToString("N"); var root = Path.Combine(options.RepositoryRoot, "artifacts/portal-analysis", id);
+        using var span = PlatformTelemetry.Start("analysis.process", ActivityKind.Client).Tag("platform.process.kind", "node-analysis");
         try
         {
             var input = Path.Combine(root, "input"); var output = Path.Combine(root, "report"); Directory.CreateDirectory(input);
@@ -22,11 +24,13 @@ public sealed class AnalysisRunner(PortalOptions options)
             await File.WriteAllBytesAsync(Path.Combine(input, "inventory.json"), inventory, cancellation);
             var start = new ProcessStartInfo(options.NodePath) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
             foreach (var arg in new[] { Path.Combine(options.RepositoryRoot, "scripts/analysis/cli.mjs"), "--input", input, "--output", output }) start.ArgumentList.Add(arg);
+            ChildProcessTelemetry.Configure(start);
             using var process = Process.Start(start) ?? throw new PortalException("Install Node.js 22+ to run analysis.", 409);
             var stdout = process.StandardOutput.ReadToEndAsync(cancellation); var stderr = process.StandardError.ReadToEndAsync(cancellation);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation); timeout.CancelAfter(TimeSpan.FromSeconds(60));
             try { await process.WaitForExitAsync(timeout.Token); } catch { if (!process.HasExited) process.Kill(true); throw new PortalException("Analysis was cancelled or exceeded its time limit."); }
             await Task.WhenAll(stdout, stderr);
+            span.Tag("platform.process.exit_code", process.ExitCode);
             if (process.ExitCode != 0) throw new PortalException("Analysis rejected the input. Check schema, selection and inventory hash using the analysis guide.");
             var diagrams = Directory.GetFiles(output, "*.svg").Order().ToArray();
             return new { id, report = JsonSerializer.Deserialize<JsonElement>(await File.ReadAllTextAsync(Path.Combine(output, "analysis.json"), cancellation)),
@@ -34,7 +38,8 @@ public sealed class AnalysisRunner(PortalOptions options)
                 markdown = await File.ReadAllTextAsync(Path.Combine(output, "README.md"), cancellation),
                 diagramCount = diagrams.Length, diagrams = diagrams.Take(10).Select(File.ReadAllText).ToArray() };
         }
-        catch (System.ComponentModel.Win32Exception) { throw new PortalException("Node.js was not found. Install Node.js 22+ and restart the portal.", 409); }
+        catch (System.ComponentModel.Win32Exception e) { span.Fail(e); throw new PortalException("Node.js was not found. Install Node.js 22+ and restart the portal.", 409); }
+        catch (Exception e) { span.Fail(e, cancellation.IsCancellationRequested); throw; }
         finally { gate.Release(); }
     }
 }

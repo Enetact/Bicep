@@ -1,0 +1,12 @@
+{
+  "deploymentPipelineId": "00000000-0000-0000-0000-000000000000",
+  "kind": "PromoteItems",
+  "targetStageId": "00000000-0000-0000-0000-000000000000",
+  "sourceStageId": "00000000-0000-0000-0000-000000000000",
+  "items": [
+    {
+      "sourceItemId": "00000000-0000-0000-0000-000000000000",
+      "itemType": "Lakehouse"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { setupPipelineRegistration } from './pipeline-setup.mjs';
 import { setupGitHub } from './github.mjs';
 import { setupMcp } from './mcp.mjs';
 import { renderRecovery } from './recovery.mjs';
+import { setupFabricReadiness } from './fabric.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
 let data, chosen, auth = { connected: [] }, ticket, reviewedProduct, loginTimer, runTimer;
@@ -18,6 +19,14 @@ let selectionVersion = 0;
 let refreshAgents;
 let refreshMcp;
 let recoveryCatalog;
+const fabricReadiness = setupFabricReadiness({ container: $('fabric-readiness'), api, openManagedPool: (environment, region) => {
+  const pool = data.products.find(p => p.id === 'devopspool');
+  if (!pool) return;
+  showProduct(pool);
+  if (pool.targets.some(t => t.environment === environment)) $('environment').value = environment;
+  if (data.regions.includes(region)) $('region').value = region;
+  selectionChanged();
+} });
 function clearPreview() { selectionVersion++; $('iac-analysis').replaceChildren(); $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
@@ -58,7 +67,13 @@ async function loadPreview(product, runId) {
 async function api(path, body, signal) {
   const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
   const text = await res.text(); const result = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(result.error ?? `Request failed (${res.status}).`); return result;
+  if (!res.ok) {
+    const error = new Error(result.error ?? `Request failed (${res.status}).`);
+    // The trace reference links a failed interaction to the dashboard without retaining its request data.
+    error.traceId = res.headers.get('X-Trace-Id');
+    throw error;
+  }
+  return result;
 }
 function notice(text, error = false) { $('notice').textContent = text; $('notice').classList.toggle('error', error); $('notice').hidden = false; }
 function action(id, fn) { $(id).addEventListener('click', async () => { const b = $(id); b.disabled = true; try { await fn(); } catch (e) { notice(e.message, true); } finally { b.disabled = false; updateGates(); } }); }
@@ -80,6 +95,7 @@ function selectionChanged() {
   renderRecovery($('workload-recovery'), recoveryCatalog, chosen.type);
   const t = chosen.targets.find(t => t.environment === $('environment').value);
   $('target-status').textContent = t.enabled ? 'Deployment enabled' : 'Preview available · deployment disabled';
+  fabricReadiness.select(chosen.id, t.environment, $('region').value);
   $('target-details').textContent = `${t.subscription} · ${t.network} · ${t.workload} / ${t.environment}`;
   $('operation').querySelector('[value="deploy"]').disabled = !t.enabled;
   if (!t.enabled && $('operation').value === 'deploy') $('operation').value = 'preview';
@@ -98,6 +114,7 @@ function updateGates() {
   $('setup').hidden = local || data.configured;
   $('connect-local').disabled = !auth.localCliAvailable || waiting || auth.connected.includes('azure');
   $('connect-ado').disabled = !ready || waiting || auth.connected.includes('ado'); $('connect-azure').disabled = !ready || waiting || auth.connected.includes('azure');
+  $('connect-fabric').disabled = !ready || waiting || auth.connected.includes('fabric');
   $('local-cli-status').textContent = auth.localCliAvailable ? 'Azure CLI found on this device · local authentication available' : 'Azure CLI not found. Install Microsoft Azure CLI, then restart the portal to refresh PATH. See docs/local-portal.md.';
   $('subscriptions').disabled = !auth.connected.includes('azure');
   $('review').disabled = !chosen || !auth.connected.includes('ado') || ($('operation').value !== 'discover' && !$('discovery-run').value);
@@ -113,6 +130,7 @@ async function refreshAuth() {
   $('auth-context').textContent = auth.mode ? `${method} · ${auth.account ?? 'Sign-in pending'}${auth.tenantId ? ' · Tenant ' + auth.tenantId : ''}` : 'Microsoft and Codex authenticate separately.';
   $('ado-state').textContent = auth.connected.includes('ado') ? `${method} · ADO token connected; project permissions checked on use` : 'Not connected';
   $('azure-state').textContent = auth.connected.includes('azure') ? `${method} · Azure token connected; resource access checked on use` : 'Not connected';
+  $('fabric-state').textContent = auth.connected.includes('fabric') ? `${method} · Fabric token connected; tenant and workspace permissions checked on use` : 'Not connected';
   $('auth-detail').textContent = auth.error ?? (auth.state === 'Waiting for Microsoft' ? 'Your default browser is opening Microsoft sign-in. Complete account selection, consent and MFA there. This page will update automatically.' : auth.state === 'Connected' ? 'Connection complete. You can return to Workloads.' : 'Click Connect to open Microsoft sign-in. Cancelled or failed sign-in can be retried.');
   if (auth.state !== 'Waiting for Microsoft') { clearInterval(loginTimer); loginTimer = null; }
   updateGates();
@@ -127,7 +145,7 @@ async function connectMicrosoft(audience) {
 }
 $('auth-mode').addEventListener('change', updateGates);
 action('connect-local', () => connectMicrosoft('azure'));
-for (const audience of ['ado', 'azure']) action('connect-' + audience, () => connectMicrosoft(audience));
+for (const audience of ['ado', 'azure', 'fabric']) action('connect-' + audience, () => connectMicrosoft(audience));
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
 action('disconnect', async () => { await api('disconnect', {}); window.dispatchEvent(new Event('platform-disconnected')); await refreshAuth(); });
 action('subscriptions', async () => { const subscriptions = await api('subscriptions'); $('subscription-list').replaceChildren(...subscriptions.map(s => make('p', `${s.name} · ${s.state}`))); if (!subscriptions.length) $('subscription-list').textContent = 'No registered subscriptions are visible to this account.'; });
@@ -256,6 +274,8 @@ action('analyze', async () => {
 });
 try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
+  const dashboard = $('trace-dashboard');
+  if (data.observability?.dashboardUrl) { dashboard.href = data.observability.dashboardUrl; dashboard.hidden = false; }
   const restartProof = /^#resume=([A-Fa-f0-9]{64})$/.exec(location.hash)?.[1];
   if (restartProof) {
     history.replaceState(null, '', location.pathname + location.search);
@@ -266,7 +286,7 @@ try {
     } catch { notice('Cached connections could not be restored. Use Connections to reconnect, or reopen the private resume link.', true); }
   }
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
-  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
+  const productLabels = { devopspool: ['⚙', 'PRIVATE BUILD AGENTS'], fabric: ['◇', 'FABRIC ANALYTICS'], blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
   $('products').replaceChildren(...data.products.map(p => {
     const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top');
     const [icon, label] = productLabels[p.id] ?? ['◈', 'WORKLOAD'];

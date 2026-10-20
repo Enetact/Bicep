@@ -1,5 +1,9 @@
 # Self-service expansion and enhancement plan
 
+**20 October 2026 delivered source increment:** [Managed DevOps Pool](../workloads/managed-devops-pool/README.md) adds the eleventh product, standard creation pipeline pair, portal catalog/topology/naming, constrained native Bicep and consumer canary source. Remaining work is live foundation/ADO onboarding, actual deployment/runtime/private-path acceptance, consumer pool migration and complete costs/operations qualification. No target is enabled by this increment.
+
+**20 October 2026 delivered source increment:** [Fabric](../workloads/fabric/README.md) adds the tenth product, capacity/optional networking through standard flow, a separately protected typed Fabric API lifecycle, connector examples and Fabric Core MCP. Live tenant onboarding, ADO/network/data acceptance, complete pricing and a qualified release mechanism for restricted workspaces remain open. No target has been enabled.
+
 **17 October 2026 — partial G2 module delivery:** six pinned AVM-backed wrappers and typed child inputs now extend the existing source-draft workflow, with complete local dependency packaging and a module browser. This delivers a bounded part of reusable module hardening; shared production resolution, further access/DNS adapters, automatic qualification and new deployable products remain proposed. The existing compositions and target enablement are unchanged. See [the delivered module scope](avm-module-library.md).
 
 **5 October 2026 — named Preview delivered locally:** all nine optional name maps, source-registry Preview selection, frozen integrity checks, generated names and bounded browser checks are implemented. Named Deploy, portal registration, immutable-transition CI enforcement, restart handoff and live acceptance remain future gates. See [the phase plan](plans/stack-naming-and-resource-previews.md). No saved evidence is backfilled.

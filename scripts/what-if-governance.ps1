@@ -1,6 +1,9 @@
 # Property-level review gates supplement ARM validation and platform Azure Policy.
 function Assert-ServiceChange($Change) {
     if ($Change.changeType -in @('NoChange','NoEffect')) { return }
+    if ($Change.changeType -eq 'Modify' -and $Change.resourceId -match '/providers/Microsoft.DevOpsInfrastructure/pools/' -and (!$Change.Contains('delta') -or !@($Change.delta).Count -or @($Change.delta|Where-Object {$_.path -cnotmatch '^tags(\.|\[|$)'}).Count)) { throw 'Managed DevOps Pool network, image, concurrency or Azure DevOps permission changes require a separately reviewed platform maintenance plan. Creation-time permissions are not a mutable ARM policy.' }
+    if ($Change.changeType -eq 'Modify' -and $Change.resourceId -match '/providers/Microsoft.Fabric/privateLinkServicesForFabric/' ) { throw 'Fabric workspace private-link rebinding requires a separately reviewed platform migration.' }
+    if ($Change.changeType -eq 'Modify' -and $Change.resourceId -match '/providers/Microsoft.Fabric/capacities/' -and (!$Change.Contains('delta') -or !@($Change.delta).Count -or @($Change.delta|Where-Object {$_.path -cnotmatch '^tags(\.|\[|$)'}).Count)) { throw 'Fabric capacity sizing or administrator changes require a separately reviewed platform migration.' }
     if ($Change.changeType -eq 'Modify' -and $Change.resourceId -match '/providers/Microsoft.ContainerService/managedClusters/' -and (!$Change.Contains('delta') -or !@($Change.delta).Count -or @($Change.delta|Where-Object {$_.path -cnotmatch '^tags(\.|\[|$)'}).Count)) { throw 'AKS upgrades and cluster changes require a separately qualified platform maintenance plan.' }
     if ($Change.changeType -eq 'Modify') {
         if (!$Change.Contains('delta') -or @($Change.delta).Count -eq 0) { throw "Unanalyzed Modify without property deltas: $($Change.resourceId)" }

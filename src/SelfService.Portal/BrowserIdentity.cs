@@ -35,7 +35,7 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public ConcurrentDictionary<string, PendingTagQueue> TagPending { get; } = new();
     public void ClearMicrosoftEvidence()
     {
-        foreach (var provider in new[] { "azure", "ado", "bicep" })
+        foreach (var provider in new[] { "azure", "ado", "bicep", "fabric" })
             if (Mcp.Connections.TryGetValue(provider, out var connection)) connection.Lifetime.Cancel();
         Interlocked.Increment(ref MicrosoftIdentityEpoch); Agent.CancelRun();
         Connected.Clear(); Interlocked.Increment(ref NetworkEpoch); Operations.Clear(); NetworkReports.Clear(); NetworkPending.Clear(); TagReports.Clear(); TagPending.Clear();
@@ -70,6 +70,7 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
     {
         "ado" => ["499b84ac-1321-427f-aa17-267ca6975798/.default"],
         "azure" => ["https://management.azure.com/.default"],
+        "fabric" => ["https://api.fabric.microsoft.com/.default"],
         _ => throw new PortalException("Unknown sign-in service.")
     };
     public void Begin(BrowserSession s, string audience)
@@ -95,7 +96,7 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
                 await s.Client.RemoveAsync(result.Account); throw new PortalException("Use the same Microsoft account for both connections.");
             }
             s.Account = result.Account;
-            if (audience == "azure")
+            if (audience is "azure" or "fabric")
             {
                 if (s.AzureTenantId is not null && s.AzureTenantId != result.TenantId) s.ClearMicrosoftEvidence();
                 s.AzureTenantId = result.TenantId;

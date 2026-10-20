@@ -130,7 +130,7 @@ public sealed class LocalCliSession : IAsyncDisposable
 public sealed class AzureCliIdentity(PortalOptions options, IAzureCliRunner runner)
 {
     public bool Available => runner.Available;
-    static string Resource(string audience) => audience switch { "azure" => "https://management.azure.com/", "ado" => "499b84ac-1321-427f-aa17-267ca6975798", _ => throw new PortalException("Unknown sign-in service.") };
+    static string Resource(string audience) => audience switch { "azure" => "https://management.azure.com/", "ado" => "499b84ac-1321-427f-aa17-267ca6975798", "fabric" => "https://api.fabric.microsoft.com", _ => throw new PortalException("Unknown sign-in service.") };
     // The restart handoff supplies only this portal's protected, verified cache.
     // Restoring files is not authentication: attach audiences only after fresh CLI
     // account/token checks. Browser state and token dictionaries are never restored.
@@ -167,11 +167,12 @@ public sealed class AzureCliIdentity(PortalOptions options, IAzureCliRunner runn
             if (account.Tenant != expected.Tenant || account.Id != expected.Id) throw new PortalException("Saved Microsoft account or tenant changed. Reconnect Microsoft.", 401);
             cli.TenantId = account.Tenant; cli.Username = account.Name; cli.AccountId = account.Id;
             var restored = new List<string>();
-            foreach (var audience in new[] { "azure", "ado" })
+            var audiences = new[] { "azure", "ado", "fabric" };
+            foreach (var audience in audiences)
             {
                 try { _ = await Acquire(cli, audience, timeout.Token); restored.Add(audience); }
                 catch (OperationCanceledException) { throw; }
-                catch { /* One audience may need consent; independently verify the other. */ }
+                catch { /* Consent or expiry for one audience does not invalidate independently verified services. */ }
             }
             var final = await Account(cli, timeout.Token);
             if (final.Tenant != expected.Tenant || final.Id != expected.Id || restored.Count == 0)
@@ -180,9 +181,8 @@ public sealed class AzureCliIdentity(PortalOptions options, IAzureCliRunner runn
             s.AzureTenantId = account.Tenant;
             foreach (var audience in restored) s.Connected[audience] = true;
             s.State = "Connected";
-            s.Error = restored.Count == 2 ? null : restored.Contains("azure")
-                ? "Azure is restored. Connect Azure DevOps to renew its access."
-                : "Azure DevOps is restored. Connect Azure to renew its access.";
+            var missing = audiences.Except(restored).Select(a => a switch { "azure" => "Azure", "ado" => "Azure DevOps", _ => "Microsoft Fabric" });
+            s.Error = restored.Count == audiences.Length ? null : $"Saved Microsoft sign-in restored available services. Reconnect {string.Join(", ", missing)} to renew access.";
         }
         catch (Exception error)
         {
