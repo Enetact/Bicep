@@ -7,6 +7,11 @@ namespace SelfService.Portal;
 // Registered-app tokens stay in memory; optional CLI sessions own an isolated on-disk cache.
 public sealed class BrowserSession(PortalOptions options) : IDisposable
 {
+    readonly byte[] viewBoundaryKey = RandomNumberGenerator.GetBytes(32);
+    // Opaque UI invalidation marker only; never an authentication or authorization credential.
+    public string ViewIdentityBoundary => Convert.ToHexStringLower(HMACSHA256.HashData(viewBoundaryKey,
+        System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new[]
+        { Account?.HomeAccountId.Identifier, Cli?.AccountId, AzureTenantId, Cli?.TenantId }))));
     public string Csrf { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     public DateTimeOffset Created { get; } = DateTimeOffset.UtcNow;
     public SemaphoreSlim Gate { get; } = new(1, 1);

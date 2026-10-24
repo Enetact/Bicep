@@ -1,0 +1,80 @@
+name: Platform Studio validation example
+
+# Copy deliberately into a customer repository only after reviewing the entire workflow.
+# This file is inert here. It has no push, pull request, schedule or workflow_run trigger.
+on:
+  workflow_dispatch:
+    inputs:
+      studio_request_id:
+        description: Exact approved Platform Studio request UUID
+        required: true
+        type: string
+      studio_plan_digest:
+        description: Exact approved plan SHA-256 digest
+        required: true
+        type: string
+      studio_source_revision:
+        description: Exact reviewed repository commit SHA
+        required: true
+        type: string
+      studio_environment:
+        description: Approved validation environment
+        required: true
+        type: choice
+        options: [dev]
+      location:
+        description: Parameterized template region (compilation only)
+        required: true
+        type: choice
+        options: [eastus2, westus2]
+      module:
+        description: Explicitly admitted local example composition
+        required: true
+        type: choice
+        options: [local-storage-example]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-validation-${{ inputs.studio_request_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    # Dedicated ephemeral customer runner; Git, pwsh and Bicep 0.48.1 are preinstalled.
+    # This runner has no Azure identity, deployment credentials or production network access.
+    runs-on: [self-hosted, linux, x64, platform-studio-validation]
+    timeout-minutes: 10
+    env:
+      STUDIO_REQUEST_ID: ${{ inputs.studio_request_id }}
+      STUDIO_PLAN_DIGEST: ${{ inputs.studio_plan_digest }}
+      STUDIO_SOURCE_REVISION: ${{ inputs.studio_source_revision }}
+      STUDIO_ENVIRONMENT: ${{ inputs.studio_environment }}
+      STUDIO_LOCATION: ${{ inputs.location }}
+      STUDIO_MODULE: ${{ inputs.module }}
+      STUDIO_TRIGGER_REVISION: ${{ github.sha }}
+      STUDIO_WORKFLOW_REVISION: ${{ github.workflow_sha }}
+    steps:
+      - name: Reject source drift before checkout or repository code
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $id = [Guid]::Empty
+          if (-not [Guid]::TryParseExact($env:STUDIO_REQUEST_ID, 'D', [ref]$id) -or $id -eq [Guid]::Empty) { throw 'Invalid request id' }
+          if ($env:STUDIO_PLAN_DIGEST -cnotmatch '^[a-f0-9]{64}$') { throw 'Invalid plan digest' }
+          if ($env:STUDIO_SOURCE_REVISION -cnotmatch '^(?:[a-f0-9]{40}|[a-f0-9]{64})$') { throw 'Invalid source revision' }
+          if ($env:STUDIO_TRIGGER_REVISION -cne $env:STUDIO_SOURCE_REVISION -or $env:STUDIO_WORKFLOW_REVISION -cne $env:STUDIO_SOURCE_REVISION) { throw 'Approved source or workflow revision drifted' }
+          if ($env:STUDIO_ENVIRONMENT -cne 'dev' -or $env:STUDIO_MODULE -cne 'local-storage-example' -or $env:STUDIO_LOCATION -cnotin @('eastus2', 'westus2')) { throw 'Unapproved validation parameters' }
+      - name: Checkout the exact approved commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1; official commit linked in README
+        with:
+          ref: ${{ inputs.studio_source_revision }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+          clean: true
+      - name: Compile parameterized Bicep and local child module
+        shell: pwsh
+        run: '& ./examples/customer-pipelines/Validate-Bicep.ps1'

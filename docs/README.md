@@ -14,6 +14,11 @@ The reference for developing, operating and extending Platform Studio. This wiki
 
 | I want to… | Reading path |
 |---|---|
+| Establish scalable foundations, close selected Port/Cycloid gaps and prepare a licensed offering | [Foundation-first commercial roadmap](plans/platform-studio-commercial-release.md) → [Customer isolation and identity architecture](plans/platform-studio-foundations-and-customer-isolation.md) |
+| Run the disconnected customer foundation and customer-owned GitHub/ADO pipeline tests | [Foundation service](foundation-service.md) → [Customer pipeline examples](../examples/customer-pipelines/README.md) → [SQLite ADR](adr/0001-foundation-dedicated-cell-sqlite.md) |
+| Review rotating identity keys, encrypted credentials, temporary support, signed audit anchors and release evidence | [Foundation security and operations](foundation-security-operations.md) |
+| Operate separate workers, export frozen audit metadata or review feature policy | [Independent worker](foundation-independent-worker.md) → [Paged exports](foundation-paged-exports.md) → [Feature configuration](foundation-feature-configuration.md) |
+| Measure cell health/load, verify signed recovery or inspect distribution evidence | [Cell metrics](foundation-cell-metrics.md) → [Local load qualification](foundation-load-qualification.md) → [Signed backups](foundation-signed-backups.md) → [Dependency evidence](foundation-dependency-evidence.md) |
 | Provision private AKS or deliver an application with Helm | [AKS and Helm onboarding](../workloads/private-aks/README.md) |
 | Try the local application | [Getting started](getting-started.md) → [Portal setup](local-portal.md) |
 | Review the rebuilt portal experience and improvement priorities | [UI/UX review and phased plan](plans/portal-ui-ux-review.md) |

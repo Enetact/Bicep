@@ -1,5 +1,5 @@
 import { renderIac } from './iac.mjs';
-import { renderNamingEditor, renderResourceNames } from './naming.mjs';
+import { createNamingDrafts, renderNamingEditor, renderResourceNames } from './naming.mjs';
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
 import { setupOperations } from './operations.mjs';
@@ -15,6 +15,8 @@ const make = (tag, text, cls) => { const node = document.createElement(tag); if 
 let data, chosen, auth = { connected: [] }, ticket, reviewedProduct, loginTimer, runTimer;
 let discoverySkill, discoveryBusy = false, discoveryReport;
 const runs = [], diagramUrls = [];
+const namingDrafts = createNamingDrafts();
+let namingIdentity;
 let selectionVersion = 0;
 let refreshAgents;
 let refreshMcp;
@@ -34,10 +36,12 @@ function drawProposal() {
   if (data.naming?.draftCalculations === true) {
     let naming = $('naming-draft');
     if (!naming) { naming = make('section'); naming.id = 'naming-draft'; $('workload-diagram').before(naming); }
-    renderNamingEditor(naming, api, chosen, t, $('region').value);
+    renderNamingEditor(naming, api, chosen, t, $('region').value, namingDrafts, drawProposal);
+    const namingValues = namingDrafts.select(chosen, t, $('region').value);
     const label = make('label', 'Preview naming instance'), select = make('select'); select.id = 'preview-naming-instance';
     options(select, [{id:'legacy', name:'Existing target naming'}, ...(data.naming.previewInstances ?? []).filter(n => n.workloadType === chosen.type && n.environment === t.environment && n.region === $('region').value && n.subscriptionId.toLowerCase() === t.subscriptionId.toLowerCase()).map(n=>({id:n.id,name:`${n.name} · ${n.id} · Preview only`}))], n=>n.name);
-    select.addEventListener('change', clearPreview); label.append(select); label.hidden = $('operation').value !== 'preview'; naming.prepend(label);
+    if ([...select.options].some(o => o.value === namingValues.previewInstance)) select.value = namingValues.previewInstance;
+    select.addEventListener('change', () => { namingValues.previewInstance = select.value; clearPreview(); }); label.append(select); label.hidden = $('operation').value !== 'preview'; naming.prepend(label);
   }
   $('workload-observed').hidden = !discoveryReport || discoveryReport.subscriptionId.toLowerCase() !== t.subscriptionId.toLowerCase();
   $('workload-observed-diagram').replaceChildren();
@@ -124,7 +128,11 @@ function updateGates() {
   $('load-iac-after').disabled = !chosen || !auth.connected.includes('ado');
 }
 async function refreshAuth() {
-  auth = await api('auth'); $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
+  auth = await api('auth');
+  const identity = auth.viewIdentityBoundary ?? JSON.stringify([auth.mode ?? '', auth.tenantId ?? '', auth.account ?? '']);
+  if (namingIdentity !== undefined && namingIdentity !== identity) { namingDrafts.reset(); if (chosen) drawProposal(); }
+  namingIdentity = identity;
+  $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
   if (auth.mode) $('auth-mode').value = auth.mode;
   const method = auth.mode === 'local-cli' ? 'Local auth · Azure CLI' : 'Registered app';
   $('auth-context').textContent = auth.mode ? `${method} · ${auth.account ?? 'Sign-in pending'}${auth.tenantId ? ' · Tenant ' + auth.tenantId : ''}` : 'Microsoft and Codex authenticate separately.';
@@ -201,6 +209,7 @@ action('load-iac-after', async () => {
 });
 window.addEventListener('platform-iac-review',()=>page('agents'));
 window.addEventListener('platform-disconnected',clearPreview);
+window.addEventListener('platform-disconnected', () => { namingDrafts.reset(); namingIdentity = undefined; if (chosen) drawProposal(); });
 action('load-preview', async () => {
   const id = Number($('preview-run-id').value);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Enter the positive run ID of a Preview / Deploy pipeline.');

@@ -10,6 +10,8 @@ public sealed class PortalOptions
     public int Port { get; set; } = 5087;
     public string NodePath { get; set; } = "node";
     public string CodexPath { get; set; } = "";
+    // Trusted host override for dedicated customer cells. No request body can supply this path.
+    public string? AgentRuntimeRoot { get; set; }
     public string AzureCliPath { get; set; } = "";
     public string GitHubCliPath { get; set; } = "";
     public string BicepMcpPath { get; set; } = "";

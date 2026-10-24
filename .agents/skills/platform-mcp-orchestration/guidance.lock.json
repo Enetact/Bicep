@@ -5,8 +5,8 @@
   "sources": [
     {
       "path": "instruction.md",
-      "sha256": "adbbac446bce5e671244e40d580f6ef0b6678ab1fc1a4ebcc1efa1cf331bd33b",
-      "bytes": 3965
+      "sha256": "7af94a0815e8d14fb6e64a0e267ecf197010d7ad6edade32a6573672832892e8",
+      "bytes": 6826
     },
     {
       "path": "providers/bicep/SKILL.md",
@@ -111,7 +111,7 @@
       "bytes": 330
     }
   ],
-  "bundleSha256": "2d6a483de2e13c1dfa9d812bfcb4b759b363c7390788148ff64eb780de7be37f",
-  "outputSha256": "5b1ff1253480ea2449c96ca021d96e405867912b696976b5f732638953128904",
-  "outputBytes": 34616
+  "bundleSha256": "15950dd0836d08e6f0dccd1c8f00986b0e5f64a81f48b92ca617550dbdca1301",
+  "outputSha256": "52e4ec945878663ba101cc21ad215b60994dd4c4dc65b03b577f733cbb95b8c9",
+  "outputBytes": 37477
 }

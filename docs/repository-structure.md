@@ -36,6 +36,10 @@ The optional local UI lives in `src/SelfService.Portal/`, with `tests/SelfServic
 
 ## Source, runtime state and test boundaries
 
+`src/SelfService.Foundation/`, `src/SelfService.Foundation.Host/`, `src/SelfService.Foundation.Worker/`, `tests/SelfService.Foundation.Tests/` and `scripts/Test-Foundation.ps1` form the separately startable, disconnected dedicated-customer foundation. `Run-FoundationWorker.ps1` and `Test-FoundationWorker.ps1` provide the explicit owned worker lifecycle and process qualification. `examples/customer-pipelines/` contains inert GitHub Actions/ADO validation-only examples and parameterized local child Bicep. No example is registered as an automatic workflow or enabled target. The existing portal remains independently hosted. See [the service guide](foundation-service.md).
+
+The customer service references existing portal emitter/MCP/Codex classes; it adds rotating identity keys, encrypted credential custody, schema/access/lifecycle migrations, signed audit anchors and isolated model homes. `scripts/Publish-Foundation.ps1`, `Test-CommercialRelease.ps1`, `Test-CommercialSourceSecrets.ps1` and `tests/release/` provide explicit local-preview packaging and mechanical source/evidence qualification. Runtime databases/keys, test custody, scan staging and package outputs remain under ignored state/artifact directories.
+
 | Location | Purpose and Git policy |
 |---|---|
 | `src/SelfService.Portal/*.cs` | Real application endpoints, identities, readers, Codex host, AHP coordination and MCP bridge. Included by the SDK project in Release/publish builds. |

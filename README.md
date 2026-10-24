@@ -10,8 +10,10 @@ Platform Studio is a local Windows web application for discovering Azure resourc
 
 [**Documentation wiki**](docs/README.md) · [Get started](docs/getting-started.md) · [Workload catalog](docs/workload-catalog.md) · [Implementation status](docs/completion-status.md) · [Roadmap](docs/self-service-expansion-plan.md)
 
+**Customer foundation continuation — 24 October 2026:** [The service](docs/foundation-service.md) reuses application Bicep/AVM, MCP and Codex code through signed customer HTTP/AHP, with rotating identity keys, reviewed access/support/lifecycle/configuration, signed technical entitlements, SQLite v4, encrypted credentials, independent local workers, frozen paged exports, audit/anchors/recovery and local preview packaging. [Security and operations](docs/foundation-security-operations.md) and [roadmap revision 6](docs/plans/platform-studio-commercial-release.md) distinguish implemented/mock-qualified code from remaining live consent, complete legacy UI migration and production/commercial gates. All Azure targets remain disabled.
+
 > [!IMPORTANT]
-> Source implementation and local verification are documented. All 36 workload targets, tag Apply and the AVNM allocation profile remain disabled pending platform onboarding and live acceptance. A successful local check or discovery run does not establish Azure deployment readiness.
+> Source implementation and local verification are documented. All 44 Azure workload targets, tag Apply and the AVNM allocation profile remain disabled pending platform onboarding and live acceptance. A successful local check or discovery run does not establish Azure deployment readiness.
 
 ## What you can do
 

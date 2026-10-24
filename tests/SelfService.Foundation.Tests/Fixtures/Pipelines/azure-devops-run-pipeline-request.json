@@ -1,0 +1,18 @@
+{
+  "resources": {
+    "repositories": {
+      "self": {
+        "refName": "refs/heads/main",
+        "version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  },
+  "templateParameters": {
+    "location": "eastus2",
+    "module": "avm/res/storage/storage-account",
+    "studio_environment": "dev",
+    "studio_plan_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "studio_request_id": "30000000-0000-0000-0000-000000000001",
+    "studio_source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

@@ -30,8 +30,13 @@ try {
             if(!$httpChecks -or @($httpReceipt.results|Where-Object {!$_.passed}).Count){throw 'Packaged HTTP check receipt is incomplete.'}
         }finally{Pop-Location}
     }finally{$env:PORTAL_TEST_URL=$old}
-    & (Join-Path $PSScriptRoot 'Test-AgentHost.ps1') -Port $Port
-    @{architecture=$ready.architecture;package=$directory;verifiedUtc=[datetimeoffset]::UtcNow.ToString('O');httpChecks=$httpChecks;ahpChecks=5;bundledAzureSkills=42;liveAzure=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $directory 'package-test.json')
+    $ahpReceiptPath=Join-Path $directory 'package-ahp-checks.json'
+    & (Join-Path $PSScriptRoot 'Test-AgentHost.ps1') -Port $Port -ReceiptPath $ahpReceiptPath
+    $ahpReceipt=Get-Content -LiteralPath $ahpReceiptPath -Raw|ConvertFrom-Json -AsHashtable
+    $ahpChecks=@($ahpReceipt.results).Count
+    if($ahpReceipt.schema -cne 'platform-studio.ahp-contract-checks.v1' -or !$ahpChecks -or $ahpReceipt.passed -ne $ahpChecks -or
+        @($ahpReceipt.results|Where-Object {!$_.passed}).Count -or $ahpReceipt.liveAzure -or $ahpReceipt.liveAdo -or $ahpReceipt.modelInference -or $ahpReceipt.signIn){throw 'Packaged AHP check receipt is incomplete.'}
+    @{architecture=$ready.architecture;package=$directory;verifiedUtc=[datetimeoffset]::UtcNow.ToString('O');httpChecks=$httpChecks;ahpChecks=$ahpChecks;bundledAzureSkills=42;liveAzure=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $directory 'package-test.json')
     Write-Host "PASS: $ExpectedArchitecture package started and served UI, catalog, skills and analysis. No live cloud calls."
 }finally{
     $p.Refresh()
