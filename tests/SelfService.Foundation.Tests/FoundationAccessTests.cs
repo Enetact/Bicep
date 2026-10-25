@@ -198,9 +198,14 @@ public sealed class FoundationAccessTests
         return f.Store.ExecuteSupportAccess(f.Customer, "admin", plan.Id, plan.Digest);
     }
 
-    static void DowngradeToV2(StoreFixture f) => f.Execute("""
+    static void DowngradeToV2(StoreFixture f)
+    {
+        FoundationTestSchemaDowngrades.DropCredentialTablesAfter(f, 2);
+        f.Execute("""
+        DROP TRIGGER cell_instance_insert_guard; DROP TRIGGER cell_instance_update_guard; ALTER TABLE cell DROP COLUMN database_instance_id;
         DROP TABLE worker_heartbeats; DROP TABLE support_grants; DROP TRIGGER schema_migrations_no_delete; DELETE FROM schema_migrations WHERE version>=3;
         CREATE TRIGGER schema_migrations_no_delete BEFORE DELETE ON schema_migrations BEGIN SELECT RAISE(ABORT,'immutable migration history'); END;
         UPDATE cell SET schema_version=2;
         """);
+    }
 }

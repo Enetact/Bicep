@@ -18,11 +18,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Telemetry privacy and propagation tests failed
 & "$PSScriptRoot/Test-SelfServiceAnalysis.ps1"
 & "$PSScriptRoot/Test-Portal.ps1"
 & "$PSScriptRoot/Test-Foundation.ps1"
+& (Join-Path $root 'tests/release/foundation-test-execution.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-release-execution.tests.ps1')
 & "$PSScriptRoot/Test-FoundationLoad.ps1"
 & (Join-Path $root 'tests/release/commercial-release.tests.ps1')
 & (Join-Path $root 'tests/release/source-secrets.tests.ps1')
 & (Join-Path $root 'tests/release/foundation-package.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-package-secrets.tests.ps1')
 & (Join-Path $root 'tests/release/foundation-dependencies.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-installation.tests.ps1')
 & node (Join-Path $root 'examples/customer-pipelines/Test-Examples.mjs') (Join-Path $root 'tests/infrastructure/node_modules/yaml')
 if ($LASTEXITCODE -ne 0) { throw 'Disconnected customer pipeline example contracts failed.' }
 & "$PSScriptRoot/Test-BicepDrafts.ps1" -SkipContractTests

@@ -32,8 +32,17 @@ function New-PackageFixture([string]$Name, [switch]$NoOwner) {
     [IO.File]::WriteAllBytes((Join-Path $package 'runtime/SelfService.Foundation.Worker.dll'), [Text.Encoding]::UTF8.GetBytes('synthetic fixture worker bytes'))
     [IO.File]::WriteAllText((Join-Path $package 'runtime/SelfService.Foundation.Worker.runtimeconfig.json'), '{"runtimeOptions":{"tfm":"net10.0"}}')
     [IO.File]::WriteAllText((Join-Path $package 'runtime/SelfService.Foundation.Worker.deps.json'), '{}')
+    [IO.File]::WriteAllBytes((Join-Path $package 'runtime/SelfService.Foundation.Owner.dll'), [Text.Encoding]::UTF8.GetBytes('synthetic fixture owner bytes'))
+    [IO.File]::WriteAllText((Join-Path $package 'runtime/SelfService.Foundation.Owner.runtimeconfig.json'), '{"runtimeOptions":{"tfm":"net10.0"}}')
+    [IO.File]::WriteAllText((Join-Path $package 'runtime/SelfService.Foundation.Owner.deps.json'), '{}')
     [IO.File]::WriteAllText((Join-Path $package 'config/foundation-cell.example.json'), '{"publicKeys":[],"mockEndpoint":null}')
     [IO.File]::WriteAllText((Join-Path $package 'docs/foundation-service.md'), 'Synthetic local package guide.')
+    [IO.File]::WriteAllText((Join-Path $package 'config/foundation-entra-onboarding.example.json'), '{"customerId":"fixture-customer"}')
+    [IO.File]::WriteAllText((Join-Path $package 'docs/foundation-owner-cli.md'), 'Synthetic trusted-owner guide.')
+    [IO.File]::WriteAllText((Join-Path $package 'docs/foundation-entra-onboarding.md'), 'Synthetic public identity proposal guide.')
+    foreach ($publicFile in @(Get-FoundationPublicFiles | Where-Object { $_.StartsWith('docs/', [StringComparison]::Ordinal) })) {
+        [IO.File]::WriteAllText((Join-Path $package $publicFile), 'Synthetic public local-preview guide.')
+    }
     [IO.File]::WriteAllText((Join-Path $package 'README.md'), 'Local preview; source features need the matching full checkout.')
     Write-PackageDependencyFixture $package
     if (!$NoOwner) {
@@ -71,7 +80,7 @@ $verified = Test-FoundationArchive $fixture.Zip
 Assert-PackageCheck ($report.Sha256 -ceq (Get-FileHash -LiteralPath $fixture.Zip -Algorithm SHA256).Hash.ToLowerInvariant()) 'ZIP hash is incorrect.'
 Assert-PackageCheck ($report.EntryCount -eq $verified.Entries -and $report.HashesVerified -eq $verified.Entries - 1) 'ZIP inventory coverage mismatch.'
 $inventory = Get-Content -LiteralPath (Join-Path $fixture.Package 'inventory.json') -Raw | ConvertFrom-Json
-Assert-PackageCheck ($inventory.localPreview -and !$inventory.productionReady -and $inventory.files.Count -eq 13) 'Inventory readiness or file count is incorrect.'
+Assert-PackageCheck ($inventory.localPreview -and !$inventory.productionReady -and $inventory.files.Count -eq (14 + @(Get-FoundationPublicFiles).Count)) 'Inventory readiness or file count is incorrect.'
 $badInner=New-PackageFixture 'stale-inner-manifest'; $null=New-FoundationPackageArchive $badInner.Package $badInner.Zip
 $zip=[IO.Compression.ZipFile]::Open($badInner.Zip,[IO.Compression.ZipArchiveMode]::Update)
 try {
@@ -88,6 +97,20 @@ try {
 } finally { $zip.Dispose() }
 Assert-PackageRejected { Test-FoundationArchive $badInner.Zip } '*Archive dependency evidence manifest hash mismatch*'
 $badSize=Join-Path $fixtureRoot 'false-zip-length.zip'
+foreach($name in @('runtime/./ambiguous.dll','runtime//ambiguous.dll','runtime/alias./ambiguous.dll','runtime/CON.dll','runtime/../escaped.dll','../ignored-directory/')){
+    $unsafeZip=Join-Path $fixtureRoot ('unsafe-path-'+[Guid]::NewGuid().ToString('N')+'.zip')
+    $unsafeArchive=[IO.Compression.ZipFile]::Open($unsafeZip,[IO.Compression.ZipArchiveMode]::Create)
+    try{$null=$unsafeArchive.CreateEntry($name)}finally{$unsafeArchive.Dispose()}
+    Assert-PackageRejected {Test-FoundationArchive $unsafeZip} '*Unsafe*archive*path*'
+}
+$directoryPayload=Join-Path $fixtureRoot 'directory-with-payload.zip'
+$unsafeArchive=[IO.Compression.ZipFile]::Open($directoryPayload,[IO.Compression.ZipArchiveMode]::Create)
+try{$stream=$unsafeArchive.CreateEntry('runtime/').Open();try{$stream.Write([byte[]]@(1))}finally{$stream.Dispose()}}finally{$unsafeArchive.Dispose()}
+Assert-PackageRejected {Test-FoundationArchive $directoryPayload} '*Unsafe archive directory*'
+$tooManyDirectories=Join-Path $fixtureRoot 'directory-entry-flood.zip'
+$unsafeArchive=[IO.Compression.ZipFile]::Open($tooManyDirectories,[IO.Compression.ZipArchiveMode]::Create)
+try{foreach($index in 1..5001){$null=$unsafeArchive.CreateEntry('d'+$index+'/')}}finally{$unsafeArchive.Dispose()}
+Assert-PackageRejected {Test-FoundationArchive $tooManyDirectories} '*Archive entry limit*'
 $zip=[IO.Compression.ZipFile]::Open($badSize,[IO.Compression.ZipArchiveMode]::Create)
 try {
     $stream=$zip.CreateEntry('bounded.txt',[IO.Compression.CompressionLevel]::NoCompression).Open()
@@ -107,6 +130,17 @@ foreach ($name in @(Get-FoundationDependencyFiles)) {
     Remove-Item -LiteralPath (Join-Path $missingEvidence.Package $name)
     Assert-PackageRejected { Test-FoundationPackageTree $missingEvidence.Package } '*Required dependency evidence*'
 }
+foreach ($name in @(Get-FoundationCorePublicFiles)) {
+    $missingPublic=New-PackageFixture ('missing-public-' + $script:checks)
+    Remove-Item -LiteralPath (Join-Path $missingPublic.Package $name)
+    Assert-PackageRejected { Test-FoundationPackageTree $missingPublic.Package } '*Required package content*'
+}
+$previousGuides=New-PackageFixture 'previous-public-guide-set'
+foreach ($name in @(Get-FoundationPublicFiles | Where-Object { $_ -cnotin @(Get-FoundationCorePublicFiles) })) {
+    Remove-Item -LiteralPath (Join-Path $previousGuides.Package $name)
+}
+$previousArchive=New-FoundationPackageArchive $previousGuides.Package $previousGuides.Zip
+Assert-PackageCheck ($previousArchive.HashesVerified -eq $previousArchive.EntryCount - 1) 'Existing preview guide sets must remain verifiable.'
 $wrongBinding=New-PackageFixture 'wrong-dependency-binding'
 [IO.File]::WriteAllText((Join-Path $wrongBinding.Runtime 'SelfService.Foundation.Worker.dll'), 'different runtime bytes')
 Assert-PackageRejected { Test-FoundationPackageTree $wrongBinding.Package } '*Dependency evidence runtime binding mismatch*'
@@ -121,9 +155,10 @@ Assert-PackageRejected { Assert-FoundationDependencyReport $unsafeBytes $unsafeR
 Assert-PackageRejected { New-FoundationPackageArchive $fixture.Package $fixture.Zip } '*overwrite*'
 $sqlite = New-PackageFixture 'legitimate-sqlite-library'
 [IO.File]::WriteAllText((Join-Path $sqlite.Runtime 'Microsoft.Data.Sqlite.dll'), 'synthetic managed dependency bytes')
-Assert-PackageCheck ((Test-FoundationRuntimeTree $sqlite.Runtime).FileCount -eq 7) 'A SQLite library was confused with a customer database.'
+Assert-PackageCheck ((Test-FoundationRuntimeTree $sqlite.Runtime).FileCount -eq 10) 'A SQLite library was confused with a customer database.'
 foreach ($name in @('SelfService.Foundation.Host.dll','SelfService.Foundation.Host.deps.json','SelfService.Foundation.Host.runtimeconfig.json',
-    'SelfService.Foundation.Worker.dll','SelfService.Foundation.Worker.deps.json','SelfService.Foundation.Worker.runtimeconfig.json')) {
+    'SelfService.Foundation.Worker.dll','SelfService.Foundation.Worker.deps.json','SelfService.Foundation.Worker.runtimeconfig.json',
+    'SelfService.Foundation.Owner.dll','SelfService.Foundation.Owner.deps.json','SelfService.Foundation.Owner.runtimeconfig.json')) {
     $missing=New-PackageFixture ('missing-' + $script:checks)
     Remove-Item -LiteralPath (Join-Path $missing.Runtime $name)
     Assert-PackageRejected { Test-FoundationPackageTree $missing.Package } '*Required package content*'
@@ -131,7 +166,7 @@ foreach ($name in @('SelfService.Foundation.Host.dll','SelfService.Foundation.Ho
 $mergePrimary=New-PackageFixture 'merge-primary'; $mergeWorker=New-PackageFixture 'merge-worker'
 [IO.File]::WriteAllText((Join-Path $mergeWorker.Runtime 'worker-only.dll'), 'synthetic worker closure')
 $merged=Merge-FoundationRuntimeClosures $mergePrimary.Runtime $mergeWorker.Runtime
-Assert-PackageCheck ($merged.FileCount -eq 7 -and (Test-Path -LiteralPath (Join-Path $mergePrimary.Runtime 'worker-only.dll'))) 'Worker closure was not copied and revalidated.'
+Assert-PackageCheck ($merged.FileCount -eq 10 -and (Test-Path -LiteralPath (Join-Path $mergePrimary.Runtime 'worker-only.dll'))) 'Worker closure was not copied and revalidated.'
 [IO.File]::WriteAllText((Join-Path $mergeWorker.Runtime 'SelfService.Foundation.Host.dll'), 'conflicting bytes')
 [IO.File]::WriteAllText((Join-Path $mergeWorker.Runtime 'never-copy.dll'), 'must stay out')
 Assert-PackageRejected { Merge-FoundationRuntimeClosures $mergePrimary.Runtime $mergeWorker.Runtime } '*dependency closures conflict*'
@@ -140,7 +175,7 @@ $stampRoot=Join-Path $fixtureRoot 'publish-source-stamp'
 $null=New-Item -ItemType Directory -Path (Join-Path $stampRoot 'src'),(Join-Path $stampRoot 'scripts'),(Join-Path $stampRoot 'config'),(Join-Path $stampRoot 'docs') -Force
 & git init --quiet $stampRoot
 if ($LASTEXITCODE -ne 0) { throw 'Synthetic source-stamp Git initialization failed.' }
-foreach ($file in @('src/main.cs','scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','config/foundation-cell.example.json','docs/foundation-service.md')) {
+foreach ($file in (@('src/main.cs','scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','scripts/Test-FoundationPackageNoticePins.ps1') + @(Get-FoundationPublicFiles))) {
     [IO.File]::WriteAllText((Join-Path $stampRoot $file), 'synthetic source input')
 }
 $before=Get-FoundationPublishSourceStamp $stampRoot
@@ -213,11 +248,13 @@ if ($PublishedPackageDirectory) {
         Assert-PackageCheck ((Get-FileHash -LiteralPath (Join-Path $published $Matches[2]) -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $Matches[1]) 'Extracted preview differs from the verified ZIP.'
     }
     $smokeDirectory = Join-Path $fixtureRoot 'owned-host-smoke'
-    $null = New-Item -ItemType Directory -Path $smokeDirectory
+    . (Join-Path $repositoryRoot 'scripts/FoundationTestExecutionEvidence.ps1')
+    $null = New-FTEPrivateDirectory $smokeDirectory
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $listener.Start(); $port = $listener.LocalEndpoint.Port; $listener.Stop()
     $rsa = [Security.Cryptography.RSA]::Create(2048)
     $child = $null; $ownership = $null; $client = $null; $stdout = $null; $stderr = $null; $workerChild = $null; $workerOwnership = $null
+    $ownerChild = $null; $ownerProcessIdentity = $null
     try {
         $config = Get-Content -LiteralPath (Join-Path $published 'config/foundation-cell.example.json') -Raw | ConvertFrom-Json
         $config.publicKeys = @([ordered]@{keyId='synthetic-package-smoke';pem=$rsa.ExportSubjectPublicKeyInfoPem()})
@@ -267,6 +304,26 @@ if ($PublishedPackageDirectory) {
             Start-Sleep -Milliseconds 100
         }
         Assert-PackageCheck ($null -ne $health -and $health.ready -and !$health.externalDispatch) 'Packaged host did not become ready with external dispatch disabled.'
+        $ownerRequestPath = Join-Path $smokeDirectory 'owner-inspect.json'; $ownerResultPath = Join-Path $smokeDirectory 'inspect.owner-result.json'
+        @{operation='inspect';customerId=$config.customerId;cellId=$config.cellId;databasePath=$config.databasePath} |
+            ConvertTo-Json | Set-Content -LiteralPath $ownerRequestPath -Encoding utf8NoBOM
+        $ownerStart = [Diagnostics.ProcessStartInfo]::new($executable)
+        $ownerStart.UseShellExecute=$false; $ownerStart.CreateNoWindow=$true; $ownerStart.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
+        $ownerStart.RedirectStandardOutput=$true; $ownerStart.RedirectStandardError=$true; $ownerStart.WorkingDirectory=$smokeDirectory
+        foreach($argument in @((Join-Path $published 'runtime/SelfService.Foundation.Owner.dll'),'--request',$ownerRequestPath,'--output',$ownerResultPath)){$ownerStart.ArgumentList.Add($argument)}
+        $ownerStart.Environment.Clear()
+        if($IsWindows){$ownerStart.Environment['SystemRoot']=$env:SystemRoot;$ownerStart.Environment['WINDIR']=$env:SystemRoot}
+        $ownerStart.Environment['PATH']=[IO.Path]::GetDirectoryName($executable);$ownerStart.Environment['TEMP']=$smokeDirectory;$ownerStart.Environment['TMP']=$smokeDirectory
+        $ownerStart.Environment['DOTNET_CLI_TELEMETRY_OPTOUT']='1';$ownerStart.Environment['OTEL_SDK_DISABLED']='true'
+        $ownerChild=[Diagnostics.Process]::Start($ownerStart)
+        $ownerProcessIdentity=@{Id=$ownerChild.Id;StartedUtc=$ownerChild.StartTime.ToUniversalTime();Path=$executable}
+        $ownerOutput=$ownerChild.StandardOutput.ReadToEndAsync();$ownerErrors=$ownerChild.StandardError.ReadToEndAsync()
+        if(!$ownerChild.WaitForExit(10000)){throw 'Packaged owner inspector exceeded its deadline.'}
+        Assert-PackageCheck ($ownerChild.ExitCode -eq 0 -and !$ownerErrors.GetAwaiter().GetResult()) 'Packaged owner inspection failed.'
+        $inspection=Get-Content -LiteralPath $ownerResultPath -Raw|ConvertFrom-Json
+        Assert-PackageCheck ($inspection.state -ceq 'Succeeded' -and !$inspection.externalExecutionAuthorized -and
+            $inspection.result.state -ceq 'CurrentSchema' -and $inspection.result.sqliteQuickCheckVerified -and !$inspection.result.stateMutated -and
+            !$ownerOutput.GetAwaiter().GetResult().Contains($config.databasePath)) 'Packaged owner inspection changed state or leaked its private path.'
         $root = "$origin/api/foundation/customers/$($config.customerId)/projects/$($config.projectId)/environments/$($config.environmentId)"
         Assert-PackageCheck ($client.GetAsync("$root/jobs").GetAwaiter().GetResult().StatusCode -eq 401) 'Anonymous private reads were accepted.'
         $administratorToken = New-SmokeToken $config.bootstrapActorKey.Split(':')[2] 'CustomerAdmin' $config.audience
@@ -284,8 +341,31 @@ if ($PublishedPackageDirectory) {
         $request.Headers.Authorization = [Net.Http.Headers.AuthenticationHeaderValue]::new('Bearer',(New-SmokeToken $viewerSubject 'Viewer' 'wrong-audience'))
         Assert-PackageCheck ($client.SendAsync($request).GetAwaiter().GetResult().StatusCode -eq 401) 'Wrong-audience synthetic token was accepted.'
         $workerConfigurationPath = Join-Path $smokeDirectory 'disabled-worker.json'
-        @{ customerId=$config.customerId;cellId=$config.cellId;databasePath=$config.databasePath;runSeconds=1 } |
+        $workerReceiptPath = Join-Path $smokeDirectory 'disabled-worker-receipt.json'
+        @{ customerId=$config.customerId;cellId=$config.cellId;databasePath=$config.databasePath;runSeconds=1;receiptPath=$workerReceiptPath } |
             ConvertTo-Json | Set-Content -LiteralPath $workerConfigurationPath -Encoding utf8NoBOM
+        $preflightStart = [Diagnostics.ProcessStartInfo]::new($ownership.Path)
+        $preflightStart.UseShellExecute=$false; $preflightStart.CreateNoWindow=$true; $preflightStart.RedirectStandardOutput=$true; $preflightStart.RedirectStandardError=$true
+        foreach ($argument in @((Join-Path $published 'runtime/SelfService.Foundation.Worker.dll'),'--validate-config',$workerConfigurationPath)) { $preflightStart.ArgumentList.Add($argument) }
+        $preflightStart.Environment.Clear()
+        foreach ($name in @('SystemRoot','WINDIR')) { if ([Environment]::GetEnvironmentVariable($name)) { $preflightStart.Environment[$name]=[Environment]::GetEnvironmentVariable($name) } }
+        $preflightStart.Environment['DOTNET_ROOT']=[IO.Path]::GetDirectoryName($ownership.Path)
+        $preflightStart.Environment['TEMP']=$smokeDirectory; $preflightStart.Environment['TMP']=$smokeDirectory
+        $preflightChild=[Diagnostics.Process]::Start($preflightStart)
+        try {
+            $preflightOutput=$preflightChild.StandardOutput.ReadToEndAsync(); $preflightError=$preflightChild.StandardError.ReadToEndAsync()
+            if (!$preflightChild.WaitForExit(10000)) { throw 'Packaged worker preflight exceeded its deadline.' }
+            if ($preflightChild.ExitCode -ne 0 -or $preflightError.GetAwaiter().GetResult().Length -ne 0) { throw 'Packaged worker preflight rejected the synthetic configuration.' }
+            $preflightBody=$preflightOutput.GetAwaiter().GetResult()
+            if ($preflightBody.Length -gt 8192) { throw 'Packaged worker preflight output exceeded its contract.' }
+            $preflight=$preflightBody | ConvertFrom-Json
+            Assert-PackageCheck ($preflight.schema -ceq 'platform-studio.foundation-worker-preflight.v1' -and $preflight.receiptPathValidated -and !$preflight.workerStartupPerformed -and !$preflight.externalDispatch) 'Packaged preflight claimed startup or external effects.'
+            Assert-PackageCheck ($preflight.configurationSha256 -ceq (Get-FileHash -LiteralPath $workerConfigurationPath -Algorithm SHA256).Hash.ToLowerInvariant()) 'Packaged preflight did not bind the exact config bytes.'
+            Assert-PackageCheck (!(Test-Path -LiteralPath $workerReceiptPath) -and !(Test-Path -LiteralPath ($workerReceiptPath+'.reserve'))) 'Read-only packaged preflight created a receipt/reservation.'
+        } finally {
+            if (!$preflightChild.HasExited) { $preflightChild.Kill(); if (!$preflightChild.WaitForExit(5000)) { throw 'Owned packaged preflight did not stop.' } }
+            $preflightChild.Dispose()
+        }
         $workerStart = [Diagnostics.ProcessStartInfo]::new($ownership.Path)
         $workerStart.UseShellExecute=$false; $workerStart.CreateNoWindow=$true; $workerStart.RedirectStandardOutput=$true; $workerStart.RedirectStandardError=$true
         $workerStart.ArgumentList.Add((Join-Path $published 'runtime/SelfService.Foundation.Worker.dll'))
@@ -300,9 +380,20 @@ if ($PublishedPackageDirectory) {
         Assert-PackageCheck ($workerChild.ExitCode -eq 0) ("Packaged independent disabled worker failed: " + $workerErrors.GetAwaiter().GetResult())
         $workerReceipt=$workerOutput.GetAwaiter().GetResult().Trim() | ConvertFrom-Json
         Assert-PackageCheck ($workerReceipt.mode -ceq 'Disabled' -and $workerReceipt.processId -eq $workerOwnership.Id -and !$workerErrors.GetAwaiter().GetResult()) 'Packaged worker did not run in disabled mode.'
-        $smoke = [ordered]@{performed=$true;loopback=$true;port=$port;syntheticSignedIdentities=$true;privateKeyWritten=$false;externalDispatch=$false;stopped=$false;packagedIndependentWorkerDisabled=$true}
+        $writtenReceipt=Get-Content -LiteralPath $workerReceiptPath -Raw | ConvertFrom-Json
+        $receiptAcl=Get-Acl -LiteralPath $workerReceiptPath; $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $receiptOwner=$receiptAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+        Assert-PackageCheck ($writtenReceipt.processId -eq $workerOwnership.Id -and $receiptAcl.AreAccessRulesProtected -and $receiptOwner -ceq $ownerSid -and @($receiptAcl.Access | Where-Object { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -cne $ownerSid }).Count -eq 0) 'Packaged worker receipt is not private to its owner.'
+        $smoke = [ordered]@{performed=$true;loopback=$true;port=$port;syntheticSignedIdentities=$true;privateKeyWritten=$false;externalDispatch=$false;stopped=$false;packagedIndependentWorkerDisabled=$true;packagedOwnerInspection=$true;packagedWorkerReadOnlyPreflight=$true;packagedWorkerPrivateReceipt=$true}
     } finally {
         if ($null -ne $client) { $client.Dispose() }
+        if($null -ne $ownerChild){
+            if(!$ownerChild.HasExited){
+                if($ownerChild.StartTime.ToUniversalTime() -ne $ownerProcessIdentity.StartedUtc -or $ownerChild.MainModule.FileName -cne $ownerProcessIdentity.Path){throw 'Packaged owner process identity changed; stop refused.'}
+                $ownerChild.Kill();if(!$ownerChild.WaitForExit(5000)){throw 'Owned owner-inspector process did not stop.'}
+            }
+            $ownerChild.Dispose()
+        }
         if ($null -ne $workerChild) {
             if (!$workerChild.HasExited) {
                 $current=[Diagnostics.Process]::GetProcessById($workerOwnership.Id)

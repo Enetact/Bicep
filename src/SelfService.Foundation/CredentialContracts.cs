@@ -16,7 +16,16 @@ public sealed record CredentialScope(string CustomerId, string CellId, string Pr
     string AuthProfileId, string Audience, string[] RequiredScopes);
 public sealed record CredentialProfile(CredentialScope Scope, string Kind, DateTimeOffset ExpiresUtc,
     long Generation, bool Enabled);
-public sealed record CredentialVaultOptions(string RootPath, string CustomerId, string CellId, string EncryptionKeyId);
+public enum CredentialRollbackFormat { LegacyV1 = 0, AuthenticatedScopeV2 = 2 }
+public sealed record CredentialRollbackProtectionOptions(string AuthorityDirectory)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public CredentialRollbackFormat Format { get; init; }
+}
+public sealed record CredentialVaultOptions(string RootPath, string CustomerId, string CellId, string EncryptionKeyId)
+{
+    public CredentialRollbackProtectionOptions? RollbackProtection { get; init; }
+}
 
 // Key custody belongs to the customer host/KMS. There is deliberately no plaintext file/default key implementation.
 public interface ICredentialKeyProvider
@@ -70,11 +79,14 @@ public sealed class CredentialEncryptionKeyJsonConverter : JsonConverter<Credent
 public sealed class CredentialLease : IDisposable
 {
     readonly CredentialSecret material;
-    internal CredentialLease(CredentialProfile profile, CredentialSecret material) { Profile = profile; this.material = material; }
+    FileStream? admissionGuard;
+    internal CredentialLease(CredentialProfile profile, CredentialSecret material, FileStream? admissionGuard = null)
+    { Profile = profile; this.material = material; this.admissionGuard = admissionGuard; }
     public CredentialProfile Profile { get; }
     internal string AccessToken() => material.Text();
+    internal void ReleaseAdmissionGuard() => Interlocked.Exchange(ref admissionGuard, null)?.Dispose();
     public override string ToString() => "[REDACTED CREDENTIAL LEASE]";
-    public void Dispose() => material.Dispose();
+    public void Dispose() { try { material.Dispose(); } finally { ReleaseAdmissionGuard(); } }
 }
 
 public sealed class CredentialLeaseJsonConverter : JsonConverter<CredentialLease>
@@ -88,6 +100,17 @@ internal static class CredentialRules
     internal const string AdoAudience = "499b84ac-1321-427f-aa17-267ca6975798";
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     { MaxDepth = 16, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true };
+    internal static TimeSpan OperationTimeout(TimeSpan? configured, TimeSpan defaultValue)
+    {
+        var value = configured ?? defaultValue;
+        if (value < TimeSpan.FromMilliseconds(50) || value > TimeSpan.FromSeconds(30))
+            throw new ArgumentOutOfRangeException(nameof(configured), "Credential operation timeout must be between 50 milliseconds and 30 seconds.");
+        return value;
+    }
+    internal static CancellationTokenSource OperationDeadline(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); deadline.CancelAfter(timeout); return deadline;
+    }
     internal static CredentialScope Snapshot(CredentialScope scope)
     {
         if (scope is null || !Guid.TryParseExact(scope.CustomerId, "D", out var customer) || customer == Guid.Empty ||

@@ -195,7 +195,7 @@ public sealed partial class FoundationStore
         return new(backup with { CreatedAt = signed.SnapshotCreatedUtc }, signed);
     }
 
-    public static FoundationStore RestoreSignedBackup(FoundationSignedBackup backup, string destinationPath,
+    public static ValidatedFoundationBackup VerifySignedBackup(FoundationSignedBackup backup,
         FoundationBackupRestoreAuthority pinnedLatest, RSA pinnedPublicKey, string expectedCustomerId, string expectedCellId, TimeProvider? timeProvider = null)
     {
         if (backup?.Backup is null || backup.Manifest is null) throw new FoundationStoreException("InvalidSignedBackupManifest", 400);
@@ -209,16 +209,25 @@ public sealed partial class FoundationStore
         using var input = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (input.Length != verified.SnapshotLength || Convert.ToHexStringLower(SHA256.HashData(input)) != verified.SnapshotSha256)
             throw new FoundationStoreException("BackupIntegrityFailed");
+        RequireStandaloneSnapshot(sourcePath, input);
         using (var db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
         {
             db.Open(); ValidateSnapshot(db, verified.CellId, verified.CustomerId);
             if (Number(db, null, "SELECT schema_version FROM cell WHERE singleton=1") != verified.CellSchemaVersion)
                 throw new FoundationStoreException("SignedBackupSchemaMismatch");
         }
-        return RestoreBackup(source, destinationPath, timeProvider);
+        return verified;
     }
 
-    static RSA ValidateBackupSigner(RSA signingKey)
+    public static FoundationStore RestoreSignedBackup(FoundationSignedBackup backup, string destinationPath,
+        FoundationBackupRestoreAuthority pinnedLatest, RSA pinnedPublicKey, string expectedCustomerId, string expectedCellId, TimeProvider? timeProvider = null)
+    {
+        _ = VerifySignedBackup(backup, pinnedLatest, pinnedPublicKey, expectedCustomerId, expectedCellId, timeProvider);
+        // Restore reopens and independently rechecks the source bytes before creating a destination.
+        return RestoreBackup(backup.Backup, destinationPath, timeProvider);
+    }
+
+    internal static RSA ValidateBackupSigner(RSA signingKey)
     {
         RSA? publicKey = null;
         try

@@ -25,15 +25,22 @@ public sealed class CredentialTokenHttpClient : IDisposable
 {
     readonly HttpClient? http;
     readonly bool enabled;
+    readonly TimeSpan operationTimeout;
     public bool IsMock { get; }
     internal bool Enabled => enabled;
-    public CredentialTokenHttpClient(bool enableExternalRequests = false)
+    public CredentialTokenHttpClient(bool enableExternalRequests = false, TimeSpan? operationTimeout = null)
     {
         enabled = enableExternalRequests;
-        if (enabled) http = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false }) { Timeout = TimeSpan.FromSeconds(15) };
+        this.operationTimeout = CredentialRules.OperationTimeout(operationTimeout, TimeSpan.FromSeconds(15));
+        if (enabled) http = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false }) { Timeout = Timeout.InfiniteTimeSpan };
     }
-    CredentialTokenHttpClient(HttpMessageHandler handler) { enabled = true; IsMock = true; http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) }; }
-    public static CredentialTokenHttpClient ForMockHandler(HttpMessageHandler handler) => new(handler);
+    CredentialTokenHttpClient(HttpMessageHandler handler, TimeSpan? operationTimeout)
+    {
+        enabled = true; IsMock = true; this.operationTimeout = CredentialRules.OperationTimeout(operationTimeout, TimeSpan.FromSeconds(15));
+        http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+    }
+    public static CredentialTokenHttpClient ForMockHandler(HttpMessageHandler handler, TimeSpan? operationTimeout = null) => new(handler, operationTimeout);
+    internal CancellationTokenSource BeginOperation(CancellationToken cancellationToken) => CredentialRules.OperationDeadline(operationTimeout, cancellationToken);
     internal async Task<CredentialSecret> Post(Uri uri, CredentialSecret? bearer, string? json,
         IReadOnlyDictionary<string, string>? form, int expectedStatus, CancellationToken cancellationToken)
     {
@@ -50,6 +57,7 @@ public sealed class CredentialTokenHttpClient : IDisposable
             request.Headers.UserAgent.ParseAdd("PlatformStudio-CredentialBroker/1.0");
             if (bearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer.Text());
             if (uri.Host == "api.github.com") request.Headers.Add("X-GitHub-Api-Version", PipelineRequestFactory.GitHubApiVersion);
+            cancellationToken.ThrowIfCancellationRequested();
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if ((int)response.StatusCode != expectedStatus) throw new CredentialException("credential-token-acquisition-rejected");
             if (response.Content.Headers.ContentLength > 32768) throw new CredentialException("credential-token-response-invalid");
@@ -91,6 +99,16 @@ public sealed class CredentialGitHubInstallationSource
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!http.Enabled) throw new CredentialException("credential-token-network-disabled");
+        using var deadline = http.BeginOperation(cancellationToken);
+        try { return await AcquireCore(expectedProfileGeneration, deadline.Token); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        { throw new OperationCanceledException("Credential token acquisition interrupted.", cancellationToken); }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        { throw new CredentialException("credential-token-acquisition-timeout"); }
+        catch (OperationCanceledException) { throw new OperationCanceledException("Credential token acquisition interrupted.", cancellationToken); }
+    }
+    async Task<CredentialAcquisitionResult> AcquireCore(long expectedProfileGeneration, CancellationToken cancellationToken)
+    {
         using var assertion = await AppAssertion(cancellationToken);
         var permissions = new Dictionary<string, string> { ["actions"] = "write" };
         if (scope.RequiredScopes.Contains("contents:read", StringComparer.Ordinal)) permissions["contents"] = "read";
@@ -156,6 +174,16 @@ public sealed class CredentialEntraFederatedSource
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!http.Enabled) throw new CredentialException("credential-token-network-disabled");
+        using var deadline = http.BeginOperation(cancellationToken);
+        try { return await AcquireCore(expectedProfileGeneration, deadline.Token); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        { throw new OperationCanceledException("Credential token acquisition interrupted.", cancellationToken); }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        { throw new CredentialException("credential-token-acquisition-timeout"); }
+        catch (OperationCanceledException) { throw new OperationCanceledException("Credential token acquisition interrupted.", cancellationToken); }
+    }
+    async Task<CredentialAcquisitionResult> AcquireCore(long expectedProfileGeneration, CancellationToken cancellationToken)
+    {
         CredentialSecret assertion;
         try { assertion = await assertions.GetAssertionAsync(CredentialRules.Snapshot(scope), options.TenantId, options.ClientId, cancellationToken); }
         catch (OperationCanceledException) { throw; }

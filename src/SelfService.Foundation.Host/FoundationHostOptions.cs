@@ -20,6 +20,9 @@ public sealed record FoundationHostOptions(CellIdentityOptions Identity, string 
     public int ListenPort { get; init; } = 5107;
     public EntitlementTrustKey[] EntitlementTrustKeys { get; init; } = [];
     public bool RequireSignedEntitlement { get; init; }
+    public FoundationLoopbackTlsOptions? LoopbackTls { get; init; }
+    public bool RequireActivationAuthority { get; init; }
+    public string? ActivationAuthorityDirectory { get; init; }
 }
 
 public static class FoundationHostConfiguration
@@ -29,7 +32,7 @@ public static class FoundationHostConfiguration
     {
         var path = configPath ?? Environment.GetEnvironmentVariable("PLATFORM_FOUNDATION_CONFIG");
         if (string.IsNullOrWhiteSpace(path)) throw new InvalidOperationException("PLATFORM_FOUNDATION_CONFIG must name a cell configuration file.");
-        var file = JsonSerializer.Deserialize<CellConfiguration>(File.ReadAllText(path), FoundationApplication.Json)
+        var file = JsonSerializer.Deserialize<CellConfiguration>(ReadPublicConfiguration(path), FoundationApplication.Json)
             ?? throw new InvalidOperationException("Cell configuration is required.");
         var keys = file.PublicKeys.Select(k =>
         {
@@ -70,16 +73,37 @@ public static class FoundationHostConfiguration
             ListenPort = file.ListenPort,
             EntitlementTrustKeys = file.EntitlementTrustKeys ?? [],
             RequireSignedEntitlement = file.RequireSignedEntitlement,
+            LoopbackTls = file.LoopbackHttps is null ? null : FoundationLoopbackTls.FromConfiguration(file.LoopbackHttps),
+            RequireActivationAuthority = file.RequireActivationAuthority,
+            ActivationAuthorityDirectory = file.ActivationAuthorityDirectory is null ? null : Path.GetFullPath(file.ActivationAuthorityDirectory, Path.GetDirectoryName(Path.GetFullPath(path))!),
             DisconnectedTransport = file.MockEndpoint is null ? null : new PipelineLoopbackTransport(new Uri(file.MockEndpoint))
         };
     }
 
     public sealed record PublicKey(string KeyId, string Pem);
+    static string ReadPublicConfiguration(string path)
+    {
+        const int maximumBytes = 262144;
+        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var data = new MemoryStream(); var buffer = new byte[8192]; int count;
+        while ((count = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (data.Length + count > maximumBytes) throw new ArgumentException("Cell configuration exceeds its public-metadata limit.");
+            data.Write(buffer, 0, count);
+        }
+        data.Position = 0;
+        using var reader = new StreamReader(data, new System.Text.UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: true);
+        var text = reader.ReadToEnd();
+        using var json = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 16 });
+        FoundationApplication.Unique(json.RootElement);
+        return text;
+    }
     public sealed record CellConfiguration(string CellId, string CustomerId, string Audience, string DatabasePath,
         string BootstrapActorKey, string ProjectId, string EnvironmentId,
         Dictionary<string, string[]> TrustedIssuersByTenant, ApprovedCallingClient[] AllowedClients,
         PublicKey[] PublicKeys, string? MockEndpoint = null, string? RepositoryRoot = null, bool EnableEntraDiscovery = false, string? BootstrapApproverKey = null, int ListenPort = 5107,
-        EntitlementTrustKey[]? EntitlementTrustKeys = null, bool RequireSignedEntitlement = false);
+        EntitlementTrustKey[]? EntitlementTrustKeys = null, bool RequireSignedEntitlement = false,
+        LoopbackHttpsConfiguration? LoopbackHttps = null, bool RequireActivationAuthority = false, string? ActivationAuthorityDirectory = null);
 }
 
 internal sealed class StoreMembershipSource(FoundationStore store) : ICustomerMembershipSource

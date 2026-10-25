@@ -109,7 +109,7 @@ public sealed class FoundationHostConfigurationTests
         var path = f.WriteRaw(node.ToJsonString());
         Assert.Throws<JsonException>(() => FoundationHostConfiguration.Load(path));
         path = f.WriteRaw("{");
-        Assert.Throws<JsonException>(() => FoundationHostConfiguration.Load(path));
+        Assert.ThrowsAny<JsonException>(() => FoundationHostConfiguration.Load(path));
         Assert.Throws<InvalidOperationException>(() => FoundationHostConfiguration.Load(" "));
     }
 
@@ -121,6 +121,31 @@ public sealed class FoundationHostConfigurationTests
     {
         using var f = new ConfigurationFixture();
         Assert.Throws<PipelineContractException>(() => FoundationHostConfiguration.Load(f.Write(f.Configuration() with { MockEndpoint = endpoint })));
+    }
+
+    [Theory]
+    [InlineData("requireActivationAuthority", "RequireActivationAuthority", "false")]
+    [InlineData("loopbackHttps", "LoopbackHttps", "null")]
+    public void Duplicate_case_variant_security_configuration_is_rejected(string field, string duplicate, string value)
+    {
+        using var f = new ConfigurationFixture();
+        var json = JsonSerializer.Serialize(f.Configuration(), FoundationApplication.Json);
+        var path = f.WriteRaw(json[..^1] + ",\"" + duplicate + "\":" + value + "}");
+        Assert.Contains("\"" + field + "\"", json);
+        Assert.Throws<JsonException>(() => FoundationHostConfiguration.Load(path));
+        Assert.False(Directory.Exists(Path.Combine(f.DirectoryPath, "state")));
+    }
+
+    [Fact]
+    public void Configuration_is_bounded_before_parsing_and_retains_BOM_file_compatibility()
+    {
+        using var f = new ConfigurationFixture();
+        var path = f.WriteRaw(new string(' ', 262145));
+        Assert.Throws<ArgumentException>(() => FoundationHostConfiguration.Load(path));
+        File.WriteAllText(path, JsonSerializer.Serialize(f.Configuration(), FoundationApplication.Json), System.Text.Encoding.Unicode);
+        var options = FoundationHostConfiguration.Load(path);
+        Assert.Equal("customer-a", options.Identity.CustomerId);
+        Assert.False(File.Exists(options.DatabasePath));
     }
 
     [Fact]

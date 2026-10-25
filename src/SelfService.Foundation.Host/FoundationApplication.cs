@@ -30,7 +30,7 @@ public static class FoundationApplication
             throw new ArgumentException("A live transport cannot be supplied to a disconnected host.");
         var entitlements = new EntitlementVerifier(options.EntitlementTrustKeys, requireSignedMode: options.RequireSignedEntitlement);
         var builder = WebApplication.CreateBuilder(args ?? []);
-        builder.WebHost.UseUrls($"http://127.0.0.1:{options.ListenPort}");
+        FoundationLoopbackTls.Configure(builder.WebHost, options);
         builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = 131072);
         builder.Logging.ClearProviders(); // Request bodies, bearer tokens and identity claims are never console logged.
         builder.Services.AddSingleton(options);
@@ -38,8 +38,13 @@ public static class FoundationApplication
         builder.Services.AddSingleton(entitlements);
         builder.Services.AddSingleton(new IdentityTokenValidator(options.Identity));
         builder.Services.AddSingleton(new FoundationTokenService(options));
-        var store = new FoundationStore(options.DatabasePath, options.Identity.CellId, options.Identity.CustomerId);
+        var activation = new FoundationRuntimeActivation(options);
+        try
+        {
+        var store = new FoundationStore(options.DatabasePath, options.Identity.CellId, options.Identity.CustomerId,
+            initializeSchema: !options.RequireActivationAuthority, activationGuard: options.RequireActivationAuthority ? activation.AssertCurrent : null);
         store.BootstrapAdministrator(options.BootstrapActorKey, options.ProjectId, options.EnvironmentId, options.BootstrapApproverKey);
+        builder.Services.AddSingleton(_ => activation);
         builder.Services.AddSingleton(store);
         builder.Services.AddSingleton<ICustomerMembershipSource, StoreMembershipSource>();
         builder.Services.AddSingleton(sp => new CustomerContextResolver(options.Identity, sp.GetRequiredService<ICustomerMembershipSource>()));
@@ -49,6 +54,7 @@ public static class FoundationApplication
         builder.Services.AddSingleton<FoundationModelRuntime>();
         builder.Services.AddSingleton<AdministrativeContextResolver>();
         builder.Services.AddSingleton<OperationalContextResolver>();
+        builder.Services.AddSingleton<RecoveryContextResolver>();
         builder.Services.AddRateLimiter(limits =>
         {
             limits.RejectionStatusCode = 429;
@@ -62,6 +68,7 @@ public static class FoundationApplication
         if (options.EnableWorker) builder.Services.AddHostedService<FoundationWorker>();
         configure?.Invoke(builder);
         var app = builder.Build();
+        _ = app.Services.GetRequiredService<FoundationRuntimeActivation>();
         app.Use(async (http, next) =>
         {
             http.Response.Headers.CacheControl = "no-store";
@@ -81,6 +88,7 @@ public static class FoundationApplication
             http.Response.Headers["X-Content-Type-Options"] = "nosniff";
             try
             {
+                if (options.LoopbackTls is not null && !http.Request.IsHttps) throw new FoundationAuthorizationException("https_required");
                 if (http.Connection.RemoteIpAddress is { } ip && !IPAddress.IsLoopback(ip) ||
                     http.Request.Host.Host is not ("127.0.0.1" or "localhost" or "[::1]"))
                     throw new FoundationAuthorizationException("loopback_required");
@@ -95,10 +103,7 @@ public static class FoundationApplication
                 http.Items[typeof(FoundationPrincipal)] = principal;
                 var capability = http.GetEndpoint()?.Metadata.GetMetadata<Capability>()
                     ?? throw new FoundationAuthorizationException("route_denied", 404);
-                var resolver = capability.Name.StartsWith("lifecycle.", StringComparison.Ordinal)
-                    ? http.RequestServices.GetRequiredService<AdministrativeContextResolver>().Resolver
-                    : capability.Name == FoundationCapabilities.CellHealthRead ? http.RequestServices.GetRequiredService<OperationalContextResolver>().Resolver
-                    : http.RequestServices.GetRequiredService<CustomerContextResolver>();
+                var resolver = ContextResolver(http, capability.Name);
                 http.Items[typeof(CustomerContext)] = resolver.Require(principal, Route(http, "customerId"),
                     Route(http, "projectId"), Route(http, "environmentId"), capability.Name);
                 if (Context(http).SupportValidUntilUtc is not null) store.RecordSupportAccess(Context(http));
@@ -117,7 +122,7 @@ public static class FoundationApplication
         app.MapGet("/health", () =>
         {
             bool ready;
-            try { ready = store.StorageReady(); } catch (SqliteException) { ready = false; }
+            try { ready = store.StorageReady(); } catch (SqliteException) { ready = false; } catch (FoundationStoreException) { ready = false; }
             return Results.Json(new { service = "platform-foundation", ready, externalDispatch = false }, statusCode: ready ? 200 : 503);
         });
 
@@ -230,6 +235,8 @@ public static class FoundationApplication
         }).WithMetadata(new Capability(FoundationCapabilities.RequestCreate));
         FoundationAdministration.Map(app, store);
         return app;
+        }
+        catch { activation.Dispose(); throw; }
     }
 
     static string Route(HttpContext h, string key) => h.Request.RouteValues[key]?.ToString() ?? "";
@@ -272,15 +279,20 @@ public static class FoundationApplication
         var token = h.Request.Headers.Authorization[0]![7..];
         var principal = await h.RequestServices.GetRequiredService<FoundationTokenService>().ValidateAsync(token, h.RequestAborted);
         var capability = h.GetEndpoint()!.Metadata.GetMetadata<Capability>()!;
-        var resolver = capability.Name.StartsWith("lifecycle.", StringComparison.Ordinal)
-            ? h.RequestServices.GetRequiredService<AdministrativeContextResolver>().Resolver
-            : capability.Name == FoundationCapabilities.CellHealthRead ? h.RequestServices.GetRequiredService<OperationalContextResolver>().Resolver
-            : h.RequestServices.GetRequiredService<CustomerContextResolver>();
+        var resolver = ContextResolver(h, capability.Name);
         h.Items[typeof(FoundationPrincipal)] = principal;
         h.Items[typeof(CustomerContext)] = resolver.Require(principal, Route(h, "customerId"), Route(h, "projectId"), Route(h, "environmentId"), capability.Name);
         if (Context(h).SupportValidUntilUtc is not null) h.RequestServices.GetRequiredService<FoundationStore>().RecordSupportAccess(Context(h));
         return body;
     }
+    static CustomerContextResolver ContextResolver(HttpContext h, string capability) => capability switch
+    {
+        FoundationCapabilities.LifecycleManage or FoundationCapabilities.LifecycleApprove or
+            FoundationCapabilities.LifecycleRead or FoundationCapabilities.LifecycleExport => h.RequestServices.GetRequiredService<AdministrativeContextResolver>().Resolver,
+        FoundationCapabilities.RecoveryRead or FoundationCapabilities.RecoveryReconcile => h.RequestServices.GetRequiredService<RecoveryContextResolver>().Resolver,
+        FoundationCapabilities.CellHealthRead => h.RequestServices.GetRequiredService<OperationalContextResolver>().Resolver,
+        _ => h.RequestServices.GetRequiredService<CustomerContextResolver>()
+    };
     internal static void Unique(JsonElement e)
     {
         if (e.ValueKind == JsonValueKind.Object)

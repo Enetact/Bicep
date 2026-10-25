@@ -20,6 +20,8 @@ public static class FoundationCapabilities
     public const string JobDispatch = "job.dispatch";
     public const string JobCancel = "job.cancel";
     public const string JobReconcile = "job.reconcile";
+    public const string RecoveryRead = "recovery.read";
+    public const string RecoveryReconcile = "recovery.reconcile";
     public const string AuditRead = "audit.read";
     public const string MembershipManage = "membership.manage";
     public const string ConnectionManage = "connection.manage";
@@ -28,6 +30,14 @@ public static class FoundationCapabilities
     public const string LifecycleApprove = "lifecycle.approve";
     public const string LifecycleRead = "lifecycle.read";
     public const string LifecycleExport = "lifecycle.export";
+    public const string CredentialMaintenancePrepare = "credential.maintenance.prepare";
+    public const string CredentialMaintenanceApprove = "credential.maintenance.approve";
+    public const string CredentialMaintenanceExecute = "credential.maintenance.execute";
+    public const string CredentialMaintenanceRead = "credential.maintenance.read";
+    public const string CredentialRecoveryPrepare = "credential.recovery.prepare";
+    public const string CredentialRecoveryApprove = "credential.recovery.approve";
+    public const string CredentialRecoveryVerify = "credential.recovery.verify";
+    public const string CredentialRecoveryRead = "credential.recovery.read";
 }
 
 public static class FoundationRoles
@@ -60,6 +70,8 @@ public static class AuthorizationPolicy
             [FoundationCapabilities.JobDispatch] = Set(FoundationRoles.Operator),
             [FoundationCapabilities.JobCancel] = Set(FoundationRoles.Operator),
             [FoundationCapabilities.JobReconcile] = Set(FoundationRoles.Operator),
+            [FoundationCapabilities.RecoveryRead] = Set(FoundationRoles.Operator),
+            [FoundationCapabilities.RecoveryReconcile] = Set(FoundationRoles.Operator),
             [FoundationCapabilities.AuditRead] = Set(FoundationRoles.Auditor),
             [FoundationCapabilities.MembershipManage] = Set(FoundationRoles.CustomerAdmin),
             [FoundationCapabilities.ConnectionManage] = Set(FoundationRoles.CustomerAdmin),
@@ -68,6 +80,14 @@ public static class AuthorizationPolicy
             ,[FoundationCapabilities.LifecycleApprove] = Set(FoundationRoles.Approver)
             ,[FoundationCapabilities.LifecycleRead] = Set(FoundationRoles.CustomerAdmin, FoundationRoles.Approver, FoundationRoles.Auditor)
             ,[FoundationCapabilities.LifecycleExport] = Set(FoundationRoles.Auditor)
+            ,[FoundationCapabilities.CredentialMaintenancePrepare] = Set(FoundationRoles.Operator)
+            ,[FoundationCapabilities.CredentialMaintenanceApprove] = Set(FoundationRoles.Approver)
+            ,[FoundationCapabilities.CredentialMaintenanceExecute] = Set(FoundationRoles.Operator)
+            ,[FoundationCapabilities.CredentialMaintenanceRead] = Set(FoundationRoles.Operator, FoundationRoles.Approver, FoundationRoles.Auditor)
+            ,[FoundationCapabilities.CredentialRecoveryPrepare] = Set(FoundationRoles.Operator)
+            ,[FoundationCapabilities.CredentialRecoveryApprove] = Set(FoundationRoles.Approver)
+            ,[FoundationCapabilities.CredentialRecoveryVerify] = Set(FoundationRoles.Operator)
+            ,[FoundationCapabilities.CredentialRecoveryRead] = Set(FoundationRoles.Operator, FoundationRoles.Approver, FoundationRoles.Auditor)
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     static readonly FrozenSet<string> WorkloadCapabilities = Set(FoundationCapabilities.JobDispatch,

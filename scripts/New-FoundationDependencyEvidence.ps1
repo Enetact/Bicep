@@ -35,12 +35,21 @@ function Assert-FDJsonUnique([System.Text.Json.JsonElement]$Element) {
         foreach ($p in $Element.EnumerateObject()) { if (!$names.Add($p.Name)) { throw 'DependencyAmbiguousJson' }; Assert-FDJsonUnique $p.Value }
     } elseif ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Array) { foreach ($p in $Element.EnumerateArray()) { Assert-FDJsonUnique $p } }
 }
-function Read-FDJson([string]$Path) {
-    $text = Read-FDText $Path
+function Read-FDJson([string]$Path,[long]$Maximum=2097152,[switch]$IncludeReadHash) {
+    $readHash=$null
+    if($IncludeReadHash){
+        $null=Assert-FDPlainPath $Path;$stream=[IO.File]::OpenRead($Path);$memory=[IO.MemoryStream]::new()
+        try{$buffer=[byte[]]::new(8192);while(($n=$stream.Read($buffer,0,$buffer.Length)) -gt 0){if($memory.Length+$n -gt $Maximum){throw 'DependencyInputMissingOrOversized'};$memory.Write($buffer,0,$n)};$bytes=$memory.ToArray()}
+        finally{$memory.Dispose();$stream.Dispose()}
+        $readHash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+        $text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes).TrimStart([char]0xfeff)
+    }else{$text = Read-FDText $Path $Maximum}
     $options = [System.Text.Json.JsonDocumentOptions]::new(); $options.MaxDepth = 32
     $doc = [System.Text.Json.JsonDocument]::Parse($text, $options)
     try { Assert-FDJsonUnique $doc.RootElement } finally { $doc.Dispose() }
-    ConvertFrom-Json -InputObject $text -AsHashtable -Depth 32
+    $value=ConvertFrom-Json -InputObject $text -AsHashtable -Depth 32
+    if($IncludeReadHash){return [ordered]@{value=$value;sha256=$readHash}}
+    $value
 }
 function Get-FDFiles([string]$Directory) {
     $directoryFull = Assert-FDPlainPath $Directory
@@ -137,6 +146,11 @@ function Get-FDPackage([string]$Name, [string]$Version, [string]$ExpectedContent
         $metadata = $document.SelectSingleNode('/*[local-name()="package"]/*[local-name()="metadata"]')
         if ($null -eq $metadata -or $metadata.SelectSingleNode('*[local-name()="id"]').InnerText -cne $Name -or
             $metadata.SelectSingleNode('*[local-name()="version"]').InnerText -cne $Version) { throw 'DependencyPackageIdentityMismatch' }
+        $repositoryNodes=@($metadata.SelectNodes('*[local-name()="repository"]'));$copyrightNodes=@($metadata.SelectNodes('*[local-name()="copyright"]'))
+        if($repositoryNodes.Count -gt 1 -or $copyrightNodes.Count -gt 1){throw 'DependencyAmbiguousRepositoryMetadata'}
+        $repositoryUrl=if($repositoryNodes.Count){$repositoryNodes[0].GetAttribute('url')}else{''}
+        $repositoryCommit=if($repositoryNodes.Count){$repositoryNodes[0].GetAttribute('commit')}else{''}
+        $declaredCopyright=if($copyrightNodes.Count){$copyrightNodes[0].InnerText}else{''}
         $licenses = @($metadata.SelectNodes('*[local-name()="license"]'))
         if ($licenses.Count -ne 1) { throw 'DependencyDeclaredLicenseMissing' }
         $license = $licenses[0]; $licenseValue = $license.InnerText.Trim(); $licenseKind = $license.GetAttribute('type')
@@ -172,8 +186,68 @@ function Get-FDPackage([string]$Name, [string]$Version, [string]$ExpectedContent
         [ordered]@{ id=$Name; version=$Version; archiveSha512=$archiveHash; contentSha512=$contentHash;
             cacheArchiveHashVerified=$true; depsContentHashVerified=$true; packageSignaturePresent=$signed; signatureTrustVerified=$false;
             nuspecSha256=Get-FDZipHash $entries[$nuspecs[0]]; licenseDeclared=$declared; licenseKind=$licenseKind;
-            licenseMetadata=$licenseValue; notices=$noticeRows.ToArray(); extractedLicense=$extracted; publishedAssets=$assetRows.ToArray() }
+            licenseMetadata=$licenseValue; repositoryUrl=$repositoryUrl;repositoryCommit=$repositoryCommit;declaredCopyright=$declaredCopyright;
+            archiveMissingLicenseText=($noticeRows.Count -eq 0);
+            archiveDeclaredLicenseFileMissing=($licenseKind -cne 'file' -and @($noticeRows|Where-Object{[IO.Path]::GetFileName($_.path) -match '(?i)\A(?:license(?:[.-].*)?|copying(?:[.-].*)?)\z'}).Count -eq 0);
+            notices=$noticeRows.ToArray(); extractedLicense=$extracted; publishedAssets=$assetRows.ToArray() }
     } finally { $zip.Dispose() }
+}
+
+function Get-FDGitBlobHash([byte[]]$Bytes) {
+    $header=[Text.Encoding]::UTF8.GetBytes('blob '+$Bytes.Length+[char]0);$all=[byte[]]::new($header.Length+$Bytes.Length)
+    [Array]::Copy($header,$all,$header.Length);[Array]::Copy($Bytes,0,$all,$header.Length,$Bytes.Length)
+    [Convert]::ToHexString([Security.Cryptography.SHA1]::HashData($all)).ToLowerInvariant()
+}
+function Read-FDNoticeSupplements([string]$Root) {
+    $directory=Join-Path $Root 'vendor/foundation-package-notices';$path=Join-Path $directory 'bundle.json'
+    if(!(Test-Path -LiteralPath $path -PathType Leaf)){return [ordered]@{manifestSha256=$null;packages=@{};files=@()}}
+    $manifestRead=Read-FDJson $path -IncludeReadHash;$manifest=$manifestRead.value
+    if($manifest.schema -cne 'platform-studio.foundation-package-notices.v1' -or $manifest.packages.Count -gt 256){throw 'DependencySupplementManifestRejected'}
+    foreach($flag in @('legalClearance','distributionRightsGranted','productionReady')){if(!$manifest.Contains($flag) -or $manifest[$flag] -isnot [bool] -or $manifest[$flag]){throw 'DependencySupplementClearanceRejected'}}
+    $packages=@{};$files=@{};$total=[long]0;$retained=[long]0
+    foreach($record in $manifest.packages){
+        $key=$record.id+'/'+$record.version
+        if($record.id -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9._-]{0,127}\z' -or $record.version -cnotmatch '\A[0-9][A-Za-z0-9.+-]{0,79}\z' -or $packages.ContainsKey($key) -or
+            $record.nuspecSha256 -cnotmatch '\A[a-f0-9]{64}\z' -or $record.archiveSha512 -cnotmatch '\A[a-f0-9]{128}\z' -or
+            $record.repository -cnotmatch '\Ahttps://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\z' -or $record.files.Count -gt 8 -or
+            $record.licensingReviewRequired -isnot [bool] -or $record.status -cnotin @('Pinned','MissingRepositoryCommit')){throw 'DependencySupplementManifestRejected'}
+        if($record.status -ceq 'Pinned'){
+            if($record.commit -cnotmatch '\A[a-f0-9]{40}\z' -or !$record.files.Count){throw 'DependencySupplementCommitRejected'}
+        }elseif($record.commit -or $record.files.Count){throw 'DependencySupplementCommitRejected'}
+        $noticeRows=[Collections.Generic.List[object]]::new()
+        foreach($file in $record.files){
+            Assert-FDRelative $file.path;Assert-FDRelative $file.sourcePath
+            if(!$file.path.StartsWith('licenses/',[StringComparison]::Ordinal) -or $file.sha256 -cnotmatch '\A[a-f0-9]{64}\z' -or $file.gitBlobSha -cnotmatch '\A[a-f0-9]{40}\z' -or
+                $file.sourceUrl -cne ($record.repository.Replace('https://github.com/','https://raw.githubusercontent.com/')+'/'+$record.commit+'/'+$file.sourcePath)){throw 'DependencySupplementSourceRejected'}
+            $full=Join-Path $directory $file.path;$null=Assert-FDPlainPath $full
+            if(!(Test-Path -LiteralPath $full -PathType Leaf) -or (Get-Item -LiteralPath $full).Length -gt 524288){throw 'DependencySupplementTextMissingOrOversized'}
+            $bytes=[IO.File]::ReadAllBytes($full)
+            $retained+=$bytes.Length;if($retained -gt 16777216){throw 'DependencySupplementLimit'}
+            if($bytes.Length -ne $file.bytes -or (Get-FDHash $full) -cne $file.sha256 -or (Get-FDGitBlobHash $bytes) -cne $file.gitBlobSha){throw 'DependencySupplementTextHashMismatch'}
+            $text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes)
+            if([string]::IsNullOrWhiteSpace($text)){throw 'DependencySupplementTextMissingOrOversized'}
+            $row=[ordered]@{path=$file.path;sourcePath=$file.sourcePath;sourceUrl=$file.sourceUrl;gitBlobSha=$file.gitBlobSha;sha256=$file.sha256;bytes=$file.bytes;text=$text}
+            $noticeRows.Add($row)
+            if($files.ContainsKey($file.path)){if($files[$file.path].sha256 -cne $file.sha256){throw 'DependencySupplementSourceRejected'}}
+            else{$files[$file.path]=[ordered]@{path=$file.path;sha256=$file.sha256;gitBlobSha=$file.gitBlobSha;bytes=$file.bytes};$total+=$bytes.Length;if($total -gt 4194304){throw 'DependencySupplementLimit'}}
+        }
+        $packages[$key]=[ordered]@{binding=$record;notices=$noticeRows.ToArray()}
+    }
+    if((Get-FDHash $path) -cne $manifestRead.sha256){throw 'DependencySupplementManifestChangedDuringRead'}
+    [ordered]@{manifestSha256=$manifestRead.sha256;packages=$packages;files=@($files.Values|Sort-Object path -CaseSensitive)}
+}
+function Set-FDPackageSupplement($Package,$Supplements) {
+    $Package['supplementaryNotices']=@();$Package['supplementStatus']='NotRequiredArchiveTextPresent';$Package['licensingReviewRequired']=$false
+    if(!$Package.archiveDeclaredLicenseFileMissing){return}
+    if($Package.repositoryCommit -cnotmatch '\A[a-f0-9]{40}\z'){$Package.supplementStatus='MissingRepositoryCommit';return}
+    $key=$Package.id+'/'+$Package.version
+    if(!$Supplements.packages.ContainsKey($key)){$Package.supplementStatus='NoPinnedSupplement';return}
+    $item=$Supplements.packages[$key];$binding=$item.binding
+    if($binding.status -cne 'Pinned' -or $binding.repository -cne $Package.repositoryUrl -or $binding.commit -cne $Package.repositoryCommit -or
+        $binding.licenseExpression -cne $Package.licenseDeclared -or $binding.archiveSha512 -cne $Package.archiveSha512 -or
+        $binding.nuspecSha256 -cne $Package.nuspecSha256 -or $binding.declaredCopyright -cne $Package.declaredCopyright){throw 'DependencySupplementPackageBindingMismatch'}
+    $Package.supplementStatus='PinnedTextVerified';$Package.supplementaryNotices=$item.notices
+    $Package.licensingReviewRequired=$binding.licensingReviewRequired;$Package['supplementReviewReason']=$binding.reviewReason
 }
 
 function Get-FDSourceDistribution([string]$Root) {
@@ -237,7 +311,7 @@ function New-FoundationDependencyEvidence {
     if (!$runtimeFiles.Count) { throw 'DependencyRuntimeMissing' }
     $fileIndex = @{}; foreach ($file in $runtimeFiles) { if ($fileIndex.ContainsKey($file.path)) { throw 'DependencyDuplicateRuntimeFile' }; $fileIndex[$file.path]=$file }
     $issues = [Collections.Generic.List[object]]::new(); $libraries = @{}; $assetIndex = @{}; $frameworks = @{}; $inputRows = [Collections.Generic.List[object]]::new(); $locks=[Collections.Generic.List[object]]::new()
-    foreach ($entry in @('SelfService.Foundation.Host','SelfService.Foundation.Worker')) {
+    foreach ($entry in @('SelfService.Foundation.Host','SelfService.Foundation.Worker','SelfService.Foundation.Owner')) {
         foreach ($extension in @('.dll','.deps.json','.runtimeconfig.json')) { if (!$fileIndex.ContainsKey($entry+$extension)) { throw 'DependencyEntryClosureMissing' } }
         $depsPath = Join-Path $runtime ($entry+'.deps.json'); $deps = Read-FDJson $depsPath
         if (!$deps.Contains('libraries') -or !$deps.Contains('targets') -or !$deps.Contains('runtimeTarget') -or !$deps.targets.Contains($deps.runtimeTarget.name)) { throw 'DependencyInvalidDeps' }
@@ -284,6 +358,7 @@ function New-FoundationDependencyEvidence {
         foreach ($framework in $requested) { $frameworks[$framework.name+'/'+$framework.version]=[ordered]@{name=$framework.name;version=$framework.version;includedInRuntime=$false;rightsAndInstallationQualification='ExternalPrerequisiteNotAssessed'} }
     }
     $packages=[Collections.Generic.List[object]]::new(); $projects=[Collections.Generic.List[object]]::new()
+    $supplements=Read-FDNoticeSupplements $root
     $attributed=@{}
     foreach($key in $assetIndex.Keys){foreach($path in $assetIndex[$key].Keys){$attributed[$path]=$true}}
     foreach($key in $libraries.Keys){if($libraries[$key].type -ceq 'project'){foreach($extension in @('.deps.json','.runtimeconfig.json')){$attributed[$libraries[$key].id+$extension]=$true}}}
@@ -302,10 +377,20 @@ function New-FoundationDependencyEvidence {
         try {
             if (!$library.sha512.StartsWith('sha512-',[StringComparison]::Ordinal)) { throw 'DependencyInvalidPackageHash' }
             $package = Get-FDPackage $library.id $library.version $library.sha512.Substring(7) $cache $NuGetSdkDirectory $assets
+            try{Set-FDPackageSupplement $package $supplements}catch{
+                $package['supplementStatus']='Rejected';$package['supplementaryNotices']=@();$package['licensingReviewRequired']=$true
+                $issues.Add([ordered]@{component=$key;code='DependencySupplementPackageBindingMismatch';classification='TechnicalBlocker'})
+            }
             $packageMetadataBytes+=[Text.Encoding]::UTF8.GetByteCount(($package|ConvertTo-Json -Depth 30 -Compress))
             if($packageMetadataBytes -gt 16777216){throw 'DependencyEvidenceLimit'}
             $package['entries']=@($library.entries); $package['dependencies']=@($library.dependencies.Keys | Sort-Object -CaseSensitive); $packages.Add($package)
-            if(!$package.notices.Count){$issues.Add([ordered]@{component=$key;code='LicenseTextNotSuppliedByArchive';classification='ReleaseBlocker'})}
+            if($package.archiveDeclaredLicenseFileMissing -and $package.supplementStatus -cne 'PinnedTextVerified'){
+                $code=if($package.supplementStatus -ceq 'MissingRepositoryCommit'){'LicenseTextRepositoryCommitMissing'}else{'LicenseTextNotSuppliedByArchive'}
+                $issues.Add([ordered]@{component=$key;code=$code;classification='ReleaseBlocker'})
+            }
+            if($package.supplementStatus -ceq 'PinnedTextVerified' -and $package.licensingReviewRequired){
+                $issues.Add([ordered]@{component=$key;code='UpstreamLicenseTransitionReviewRequired';classification='ReleaseBlocker'})
+            }
         } catch {
             if($_.Exception.Message -ceq 'DependencyEvidenceLimit'){throw}
             $code=if ($_.Exception.Message -cmatch '\ADependency[A-Za-z]+\z') { $_.Exception.Message } else { 'DependencyPackageRejected' }
@@ -318,7 +403,7 @@ function New-FoundationDependencyEvidence {
         }
     }
     $source=@(Get-FDSourceDistribution $root)
-    $tooling=[ordered]@{generatorVersion='1.0';format='SPDX-2.3';nugetReaderAssemblySha256=$null;nugetReaderAssemblyVersion=$null}
+    $tooling=[ordered]@{generatorVersion='1.1';format='SPDX-2.3';nugetReaderAssemblySha256=$null;nugetReaderAssemblyVersion=$null}
     if(@($packages | Where-Object {$_.Contains('packageSignaturePresent') -and $_.packageSignaturePresent}).Count){
         $readerPath=Join-Path $NuGetSdkDirectory 'NuGet.Packaging.dll';$tooling.nugetReaderAssemblySha256=Get-FDHash $readerPath
         $tooling.nugetReaderAssemblyVersion=[Reflection.AssemblyName]::GetAssemblyName($readerPath).Version.ToString()
@@ -330,6 +415,8 @@ function New-FoundationDependencyEvidence {
     $inputRows.Add([ordered]@{kind='packages';files=@($packages | ForEach-Object {if($_.Contains('archiveSha512')){[ordered]@{id=$_.id;version=$_.version;archiveSha512=$_.archiveSha512;contentSha512=$_.contentSha512;nuspecSha256=$_.nuspecSha256}}
         else{[ordered]@{id=$_.id;version=$_.version;observedRejectedArchiveSha512=$_.observedRejectedArchiveSha512;expectedContentSha512=$_.expectedContentSha512;reason=$_.reason}}})})
     $inputRows.Add([ordered]@{kind='sourceDistribution';bundles=@($source | ForEach-Object {[ordered]@{id=$_.id;manifestSha256=$_.manifestSha256;files=$_.files}})})
+    $supplementSource=[ordered]@{manifestSha256=$supplements.manifestSha256;files=$supplements.files;distributionRightsGranted=$false;legalClearance=$false}
+    $inputRows.Add([ordered]@{kind='pinnedPackageNoticeSupplements';source=$supplementSource})
     $inputHash=Get-FDTextHash (ConvertTo-Json -InputObject $inputRows.ToArray() -Depth 30 -Compress)
     $runtimeAfter=@(Get-FDFiles $runtime)
     if ((ConvertTo-Json -InputObject $runtimeFiles -Compress) -cne (ConvertTo-Json -InputObject $runtimeAfter -Compress)) { throw 'DependencyRuntimeChangedDuringRead' }
@@ -337,7 +424,14 @@ function New-FoundationDependencyEvidence {
     $report=[ordered]@{schema='platform-studio.foundation-dependency-evidence.v1';createdUtc=$CreatedUtc;inputSha256=$inputHash;
         technicalStatus=if($issues.Count){'Blocked'}else{'Complete'};packageEvidenceComplete=($technical.Count -eq 0);
         releaseClassification='BlockedPendingCommercialRightsAndQualification';issues=$issues.ToArray();runtimeFiles=$runtimeFiles;
-        packages=$packages.ToArray();projects=$projects.ToArray();entryLocks=$locks.ToArray();tooling=$tooling;sourceDistribution=$source;externalFrameworks=@($frameworks.Values | Sort-Object name);
+        packages=$packages.ToArray();projects=$projects.ToArray();entryLocks=$locks.ToArray();tooling=$tooling;sourceDistribution=$source;pinnedPackageNoticeSupplements=$supplementSource;
+        licenseTextSummary=[ordered]@{archiveMissing=@($packages|Where-Object{$_.Contains('archiveMissingLicenseText') -and $_.archiveMissingLicenseText}).Count;
+            archiveDeclaredLicenseFileMissing=@($packages|Where-Object{$_.Contains('archiveDeclaredLicenseFileMissing') -and $_.archiveDeclaredLicenseFileMissing}).Count;
+            supplementResolved=@($packages|Where-Object{$_.Contains('supplementStatus') -and $_.supplementStatus -ceq 'PinnedTextVerified'}).Count;
+            rawArchiveMissingSupplementResolved=@($packages|Where-Object{$_.Contains('archiveMissingLicenseText') -and $_.archiveMissingLicenseText -and $_.supplementStatus -ceq 'PinnedTextVerified'}).Count;
+            unresolved=@($packages|Where-Object{$_.Contains('archiveDeclaredLicenseFileMissing') -and $_.archiveDeclaredLicenseFileMissing -and $_.supplementStatus -cne 'PinnedTextVerified'}).Count;
+            upstreamReviewRequired=@($packages|Where-Object{$_.Contains('licensingReviewRequired') -and $_.licensingReviewRequired}).Count};
+        externalFrameworks=@($frameworks.Values | Sort-Object name);
         runtimeFileHashesComplete=$true;publishedPackageAssetsByteMatched=($technical.Count -eq 0);binaryLicenseCoverageVerified=$false;
         signatureTrustVerified=$false;legalClearance=$false;signed=$false;sourceFreezeVerified=$false;productionReady=$false}
     $spdxPackages=[Collections.Generic.List[object]]::new(); $extract=[Collections.Generic.List[object]]::new(); $relationships=[Collections.Generic.List[object]]::new()
@@ -346,6 +440,8 @@ function New-FoundationDependencyEvidence {
         $record=[ordered]@{SPDXID=$spdxId;name=$package.id;versionInfo=$package.version;downloadLocation='NOASSERTION';filesAnalyzed=$false;
             licenseDeclared=$package.licenseDeclared;licenseConcluded='NOASSERTION';copyrightText='NOASSERTION';
             comment='NuGet dependency declared by published entry deps; publisher identity/signature trust and legal rights are unqualified.'}
+        if($package.Contains('declaredCopyright') -and $package.declaredCopyright){$record.copyrightText=$package.declaredCopyright}
+        if($package.Contains('licensingReviewRequired') -and $package.licensingReviewRequired){$record['licenseComments']='Original package declaration is preserved; upstream supplementary licensing context requires review. No legal conclusion is asserted.'}
         if ($package.Contains('archiveSha512')) { $record['checksums']=@([ordered]@{algorithm='SHA512';checksumValue=$package.archiveSha512}) }
         if ($package.Contains('extractedLicense') -and $package.extractedLicense) { $extract.Add($package.extractedLicense) }
         $spdxPackages.Add($record)
@@ -360,14 +456,17 @@ function New-FoundationDependencyEvidence {
     $spdxFiles=@($runtimeFiles | ForEach-Object {[ordered]@{SPDXID='SPDXRef-File-'+(Get-FDTextHash $_.path).Substring(0,24);fileName='./runtime/'+$_.path;
         checksums=@([ordered]@{algorithm='SHA256';checksumValue=$_.sha256});licenseConcluded='NOASSERTION';copyrightText='NOASSERTION'}})
     $sbom=[ordered]@{spdxVersion='SPDX-2.3';dataLicense='CC0-1.0';SPDXID='SPDXRef-DOCUMENT';name='Platform Studio Foundation published runtime dependency evidence';
-        documentNamespace='https://spdx.org/spdxdocs/platform-studio-foundation-'+$inputHash;creationInfo=[ordered]@{created=$CreatedUtc;creators=@('Tool: PlatformStudio-FoundationDependencyEvidence-1.0')};
+        documentNamespace='https://spdx.org/spdxdocs/platform-studio-foundation-'+$inputHash;creationInfo=[ordered]@{created=$CreatedUtc;creators=@('Tool: PlatformStudio-FoundationDependencyEvidence-1.1')};
         packages=$spdxPackages.ToArray();files=$spdxFiles;relationships=$relationships.ToArray();hasExtractedLicensingInfos=$extract.ToArray();
         comment='Local evidence only. Framework-dependent runtime prerequisites and source-only vendors are classified separately in dependency-evidence.json. filesAnalyzed=false does not claim binary license coverage or legal clearance.'}
     $notices=[Text.StringBuilder]::new(); [void]$notices.AppendLine('Platform Studio Foundation dependency declarations and supplied notices')
     [void]$notices.AppendLine('LOCAL EVIDENCE ONLY. No legal clearance, license conclusion, signing, source freeze or production acceptance.')
     foreach ($package in $packages) {
         [void]$notices.AppendLine("`nPACKAGE: $($package.id)/$($package.version)`nDECLARED LICENSE: $($package.licenseDeclared)")
+        if($package.Contains('declaredCopyright')){[void]$notices.AppendLine("PACKAGE-DECLARED COPYRIGHT: $($package.declaredCopyright)")}
         if ($package.Contains('notices')) { foreach ($notice in $package.notices) { [void]$notices.AppendLine("--- $($notice.path) ---`n$($notice.text)") } }
+        if($package.Contains('supplementStatus')){[void]$notices.AppendLine("ORIGINAL ARCHIVE-NOTICE ABSENCE: $($package.archiveMissingLicenseText); DECLARED LICENSE FILE MISSING: $($package.archiveDeclaredLicenseFileMissing); SUPPLEMENT STATUS: $($package.supplementStatus)")}
+        if($package.Contains('supplementaryNotices')){foreach($notice in $package.supplementaryNotices){[void]$notices.AppendLine("--- PINNED UPSTREAM SUPPLEMENT: $($notice.sourceUrl) SHA256 $($notice.sha256) ---`n$($notice.text)")}}
     }
     [void]$notices.AppendLine("`nSOURCE-ONLY GUIDANCE AND TEMPLATES (not part of the binary runtime closure)")
     foreach ($bundle in $source) { foreach ($notice in $bundle.notices) { [void]$notices.AppendLine("`n$($bundle.id): $($notice.path)`n$($notice.text)") } }

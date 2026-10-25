@@ -31,42 +31,15 @@ public sealed partial class FoundationStore
 {
     readonly string connectionString;
     readonly TimeProvider clock;
+    readonly string databasePath;
+    readonly Action<string, string>? activationGuard;
     public string CellId { get; }
     public string CustomerId { get; }
     static readonly HashSet<string> KnownRoles = ["Viewer", "Requester", "Approver", "Operator", "CustomerAdmin", "Auditor", "PlatformOperator", "SupportDelegate"];
     static readonly Regex Identifier = new("\\A[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\\z", RegexOptions.CultureInvariant);
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public FoundationStore(string databasePath, string cellId, string customerId, TimeProvider? timeProvider = null, bool initializeSchema = true)
-    {
-        ValidateId(cellId); ValidateId(customerId);
-        if (string.IsNullOrWhiteSpace(databasePath)) throw new ArgumentException("A cell database path is required.", nameof(databasePath));
-        CellId = cellId; CustomerId = customerId; clock = timeProvider ?? TimeProvider.System;
-        var path = Path.GetFullPath(databasePath); RejectLinks(path);
-        if (!initializeSchema && !File.Exists(path)) throw new FoundationStoreException("ExistingCellRequired");
-        InspectExistingBinding(path, cellId, customerId);
-        if (initializeSchema) Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        RejectLinks(path);
-        connectionString = new SqliteConnectionStringBuilder { DataSource = path, Mode = initializeSchema ? SqliteOpenMode.ReadWriteCreate : SqliteOpenMode.ReadWrite,
-            ForeignKeys = true, Pooling = false, DefaultTimeout = 15 }.ToString();
-        using var db = Open();
-        if (!initializeSchema)
-        {
-            using var validation = db.BeginTransaction(deferred: false);
-            if (Number(db, validation, "SELECT schema_version FROM cell WHERE singleton=1") != CurrentSchemaVersion)
-                throw new FoundationStoreException("CurrentSchemaRequired");
-            foreach (var table in new[] { "actors", "memberships", "connections", "plans", "approvals", "jobs", "outbox", "inbox", "audit", "artifacts" })
-                if (Number(db, validation, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=$name", ("$name", table)) != 1)
-                    throw new FoundationStoreException("MigrationSchemaMismatch");
-            foreach (var trigger in new[] { "audit_no_update", "audit_no_delete" })
-                if (Number(db, validation, "SELECT count(*) FROM sqlite_master WHERE type='trigger' AND name=$name", ("$name", trigger)) != 1)
-                    throw new FoundationStoreException("MigrationSchemaMismatch");
-            MigrateSchema(db, validation, CurrentSchemaVersion); // Validation only: this version executes no schema DDL.
-            validation.Commit(); return;
-        }
-        Exec(db, null, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
-        using var tx = db.BeginTransaction(deferred: false);
-        Exec(db, tx, """
+    const string SchemaV1 = """
             CREATE TABLE IF NOT EXISTS cell(singleton INTEGER PRIMARY KEY CHECK(singleton=1),schema_version INTEGER NOT NULL,
               cell_id TEXT NOT NULL,customer_id TEXT NOT NULL,enabled INTEGER NOT NULL,policy_version INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS actors(customer_id TEXT NOT NULL,actor_key TEXT NOT NULL,version INTEGER NOT NULL,
@@ -105,8 +78,41 @@ public sealed partial class FoundationStore
               name TEXT NOT NULL,content BLOB NOT NULL,digest TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(customer_id,id));
             CREATE INDEX IF NOT EXISTS jobs_ready ON jobs(customer_id,state,created);
             CREATE UNIQUE INDEX IF NOT EXISTS jobs_one_execution_per_plan ON jobs(customer_id,plan_id);
-            """);
-        Exec(db, tx, "INSERT OR IGNORE INTO cell VALUES(1,1,$cell,$customer,1,1)", ("$cell", CellId), ("$customer", CustomerId));
+            """;
+
+    public FoundationStore(string databasePath, string cellId, string customerId, TimeProvider? timeProvider = null, bool initializeSchema = true,
+        Action<string, string>? activationGuard = null)
+    {
+        ValidateId(cellId); ValidateId(customerId);
+        if (string.IsNullOrWhiteSpace(databasePath)) throw new ArgumentException("A cell database path is required.", nameof(databasePath));
+        CellId = cellId; CustomerId = customerId; clock = timeProvider ?? TimeProvider.System;
+        if (activationGuard is not null && initializeSchema) throw new ArgumentException("An activation-guarded runtime cannot initialize or migrate schema.");
+        var path = Path.GetFullPath(databasePath); RejectLinks(path); this.databasePath = path; this.activationGuard = activationGuard;
+        if (!initializeSchema && !File.Exists(path)) throw new FoundationStoreException("ExistingCellRequired");
+        InspectExistingBinding(path, cellId, customerId);
+        if (initializeSchema) Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        RejectLinks(path);
+        connectionString = new SqliteConnectionStringBuilder { DataSource = path, Mode = initializeSchema ? SqliteOpenMode.ReadWriteCreate : SqliteOpenMode.ReadWrite,
+            ForeignKeys = true, Pooling = false, DefaultTimeout = 15 }.ToString();
+        using var db = Open();
+        if (!initializeSchema)
+        {
+            using var validation = db.BeginTransaction(deferred: false);
+            if (Number(db, validation, "SELECT schema_version FROM cell WHERE singleton=1") != CurrentSchemaVersion)
+                throw new FoundationStoreException("CurrentSchemaRequired");
+            foreach (var table in new[] { "actors", "memberships", "connections", "plans", "approvals", "jobs", "outbox", "inbox", "audit", "artifacts" })
+                if (Number(db, validation, "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=$name", ("$name", table)) != 1)
+                    throw new FoundationStoreException("MigrationSchemaMismatch");
+            foreach (var trigger in new[] { "audit_no_update", "audit_no_delete" })
+                if (Number(db, validation, "SELECT count(*) FROM sqlite_master WHERE type='trigger' AND name=$name", ("$name", trigger)) != 1)
+                    throw new FoundationStoreException("MigrationSchemaMismatch");
+            MigrateSchema(db, validation, CurrentSchemaVersion); // Validation only: this version executes no schema DDL.
+            validation.Commit(); return;
+        }
+        Exec(db, null, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
+        using var tx = db.BeginTransaction(deferred: false);
+        Exec(db, tx, SchemaV1);
+        Exec(db, tx, "INSERT INTO cell(singleton,schema_version,cell_id,customer_id,enabled,policy_version) SELECT 1,1,$cell,$customer,1,1 WHERE NOT EXISTS(SELECT 1 FROM cell WHERE singleton=1)", ("$cell", CellId), ("$customer", CustomerId));
         var schemaVersion = 0;
         using var command = Command(db, tx, "SELECT schema_version,cell_id,customer_id FROM cell WHERE singleton=1");
         using (var reader = command.ExecuteReader())
@@ -385,7 +391,12 @@ public sealed partial class FoundationStore
     static DateTimeOffset At(long value) => DateTimeOffset.FromUnixTimeMilliseconds(value);
     static string NewId() => Guid.NewGuid().ToString("N");
     static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
-    SqliteConnection Open() { var db = new SqliteConnection(connectionString); db.Open(); Exec(db, null, "PRAGMA busy_timeout=15000; PRAGMA synchronous=FULL;"); return db; }
+    SqliteConnection Open()
+    {
+        var db = new SqliteConnection(connectionString);
+        try { db.Open(); Exec(db, null, "PRAGMA busy_timeout=15000; PRAGMA synchronous=FULL;"); AssertActivation(db, null); return db; }
+        catch { db.Dispose(); throw; }
+    }
     static SqliteCommand Command(SqliteConnection db, SqliteTransaction? tx, string sql, params (string Name, object? Value)[] values)
     {
         var command = db.CreateCommand(); command.Transaction = tx; command.CommandText = sql;

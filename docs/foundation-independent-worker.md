@@ -4,9 +4,11 @@
 
 ## Existing cell required
 
-An administrator must provision and migrate the customer cell through the normal application lifecycle first. The worker opens the configured database read-only, checks its customer/cell binding and exact `FoundationStore.CurrentSchemaVersion` (schema 4), then opens the normal store. A missing database, older/newer schema, mismatched binding or linked path is rejected. The worker never bootstraps an administrator, creates a cell, installs a migration, signs in, reads the portal's cached tokens or acquires a provider credential.
+An administrator must provision and migrate the customer cell through the normal application lifecycle first. The worker opens the configured database read-only, checks its customer/cell binding and exact `FoundationStore.CurrentSchemaVersion` (schema 7), then opens the normal store. A missing database, older/newer schema, mismatched binding or linked path is rejected. The worker never bootstraps an administrator, creates a cell, installs a migration, signs in, reads the portal's cached tokens or acquires a provider credential.
 
-Give the worker's eventual service identity access only to its assigned cell/configuration/runtime directory. The local script clears inherited credential, proxy, profiler and startup-hook environment variables. It does not provision an OS identity, change filesystem ACLs or claim that a shared developer account provides production identity isolation. One customer/cell/store is fixed for the lifetime of the process. Keep these configurations and receipts private and outside source control.
+For [protected local activation](foundation-cell-activation.md), set `requireActivationAuthority` to true and `activationAuthorityDirectory` to the existing independently provisioned authority. Startup verifies actual path/instance under its shared guard before registering; the worker holds that lease until exit. API and worker must use the same authority. Switching a restored database requires every participating source runtime to stop; source callbacks cannot activate a recovered copy. The default false/null development settings do not enforce this coordination.
+
+Give the worker's eventual service identity access only to its assigned cell/configuration/runtime directory. The local script clears inherited credential, proxy, profiler and startup-hook environment variables. [Receipt protection](foundation-worker-receipts.md) validates namespaces and reserves one private writer before any database access; the launcher runs the same read-only preflight before creating owner-only logs. It does not provision an OS identity, repair existing ACLs or claim that a shared developer account provides production identity isolation. One customer/cell/store is fixed for the lifetime of the process. Keep these configurations and receipts private and outside source control.
 
 ## Start and stop
 
@@ -32,16 +34,18 @@ The receipt directory must already exist and the receipt filename must be fresh.
 From the repository root in PowerShell 7.4 or later:
 
 ```powershell
-./scripts/Run-FoundationWorker.ps1 -ConfigurationPath .local/foundation-workers/worker.json
+$run = ./scripts/Test-Foundation.ps1 -DotNetPath 'C:\IT\Package\dotnet\dotnet.exe'
+$workerDll = Join-Path $run.runDirectory 'build/bin/SelfService.Foundation.Worker/release/SelfService.Foundation.Worker.dll'
+./scripts/Run-FoundationWorker.ps1 -ConfigurationPath .local/foundation-workers/worker.json -WorkerDllPath $workerDll -DotNetPath 'C:\IT\Package\dotnet\dotnet.exe'
 ./scripts/Run-FoundationWorker.ps1 -Stop -ReceiptPath .local/foundation-workers/worker-001.receipt.json
 ```
 
-`-DotNetPath` selects the .NET executable. `-WorkerDllPath` selects a built/published worker; its default is the foundation profile's `artifacts/foundation-build/bin/SelfService.Foundation.Worker/release/SelfService.Foundation.Worker.dll`. The launcher starts a hidden helper, waits up to ten seconds for its durable registration receipt, then returns. Unique stdout/stderr log files beside the receipt keep the worker independent of the launcher's capture pipes; existing log paths are never deliberately reused. It leaves the primary host and all sign-ins running.
+`-DotNetPath` selects the .NET executable. `-WorkerDllPath` must explicitly select the reviewed current build/publish output. There is no implicit legacy build-directory fallback: the full profile returns a fresh `runDirectory/build` path, the separate worker profile uses `artifacts/foundation-worker-build`, and a published preview uses `package/runtime`. Keep the complete adjacent dependency closure. The launcher first invokes shared read-only configuration/receipt preflight, then starts a hidden helper and waits up to ten seconds for its durable registration receipt. Unique private stdout/stderr logs beside the receipt keep the worker independent of capture pipes; existing files are never deliberately reused. The primary host and all sign-ins remain running.
 
 The private `platform-studio.foundation-worker-process.v1` receipt contains PID, full-precision process start time, executable/assembly/configuration paths, configuration SHA-256, worker instance nonce and generation. The stop script verifies these against the current process and its complete command line before stopping it. A changed PID owner, start time, command or configuration refuses the stop. The script force-stops only the verified helper, so its heartbeat becomes stale. A direct foreground invocation supports Ctrl+C for cancellation and a recorded graceful stop:
 
 ```powershell
-dotnet ./artifacts/foundation-build/bin/SelfService.Foundation.Worker/release/SelfService.Foundation.Worker.dll --config .local/foundation-workers/worker.json
+& 'C:\IT\Package\dotnet\dotnet.exe' $workerDll --config .local/foundation-workers/worker.json
 ```
 
 ## Synthetic execution modes

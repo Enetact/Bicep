@@ -14,7 +14,8 @@ public sealed class CredentialWindowsUserKeyProviderTests
     public async Task DPAPI_CurrentUser_reopens_a_customer_vault_without_plaintext_key_files()
     {
         using var f = new CredentialFixture(); var baseRoot = Path.Combine(f.Root, "custody");
-        var provider = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
+        var provider = f.ProvisionNativeKeys();
+        using (await provider.ProvisionKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1")) { }
         var vault = new CredentialVault(f.Options, provider, f.Clock); using var secret = CredentialSecret.FromUtf8(CredentialFixture.Token);
         await vault.PutAsync(f.Scope, secret, f.Clock.Now.AddHours(1));
         var reopenedProvider = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
@@ -29,7 +30,7 @@ public sealed class CredentialWindowsUserKeyProviderTests
     {
         if (!OperatingSystem.IsWindows()) return;
         using var f = new CredentialFixture(); var baseRoot = Path.Combine(f.Root, "custody");
-        _ = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
+        _ = f.ProvisionNativeKeys();
         var directory = new DirectoryInfo(Assert.Single(Directory.GetDirectories(baseRoot)));
         var security = directory.GetAccessControl(); Assert.True(security.AreAccessRulesProtected);
         using var identity = WindowsIdentity.GetCurrent();
@@ -43,8 +44,8 @@ public sealed class CredentialWindowsUserKeyProviderTests
     public async Task Customer_cell_and_key_purpose_binding_cannot_be_retargeted()
     {
         using var f = new CredentialFixture(); var baseRoot = Path.Combine(f.Root, "custody");
-        var provider = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
-        using (await provider.GetKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1", default)) { }
+        var provider = f.ProvisionNativeKeys();
+        using (await provider.ProvisionKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1")) { }
         await Assert.ThrowsAsync<CredentialException>(async () => { using var key = await provider.GetKeyAsync("10000000-0000-0000-0000-000000000099", f.Scope.CellId, "key-1", default); });
         await Assert.ThrowsAsync<CredentialException>(async () => { using var key = await provider.GetKeyAsync(f.Scope.CustomerId, "20000000-0000-0000-0000-000000000099", "key-1", default); });
         var source = Assert.Single(Directory.GetFiles(baseRoot, "*.dpapi.json", SearchOption.AllDirectories));
@@ -58,8 +59,8 @@ public sealed class CredentialWindowsUserKeyProviderTests
     public async Task Native_DPAPI_rejects_tampered_ciphertext_and_oversized_envelopes()
     {
         using var f = new CredentialFixture(); var baseRoot = Path.Combine(f.Root, "custody");
-        var provider = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
-        using (await provider.GetKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1", default)) { }
+        var provider = f.ProvisionNativeKeys();
+        using (await provider.ProvisionKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1")) { }
         var path = Assert.Single(Directory.GetFiles(baseRoot, "*.dpapi.json", SearchOption.AllDirectories));
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!; json["protectedKey"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(256));
         await File.WriteAllTextAsync(path, json.ToJsonString());
@@ -81,17 +82,46 @@ public sealed class CredentialWindowsUserKeyProviderTests
     }
 
     [WindowsCredentialFact]
-    public async Task Concurrent_native_custody_instances_generate_one_durable_key()
+    public async Task Concurrent_explicit_provisioning_admits_one_key_and_other_instances_resolve_that_existing_key()
     {
         using var f = new CredentialFixture(); var baseRoot = Path.Combine(f.Root, "custody");
-        var a = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
+        var a = f.ProvisionNativeKeys();
         var b = new CredentialWindowsUserKeyProvider(baseRoot, f.Scope.CustomerId, f.Scope.CellId);
-        await Task.WhenAll(Task.Run(async () => { using var key = await a.GetKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1", default); }),
-            Task.Run(async () => { using var key = await b.GetKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1", default); }));
+        async Task<bool> Provision(CredentialWindowsUserKeyProvider provider)
+        {
+            try { using var key = await provider.ProvisionKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1"); return true; }
+            catch (CredentialException error) when (error.Code == "credential-user-key-already-provisioned") { return false; }
+        }
+        var admitted = await Task.WhenAll(Task.Run(() => Provision(a)), Task.Run(() => Provision(b)));
+        Assert.Single(admitted, value => value);
         Assert.Single(Directory.GetFiles(baseRoot, "*.dpapi.json", SearchOption.AllDirectories));
         using var secret = CredentialSecret.FromUtf8(CredentialFixture.Token); var first = new CredentialVault(f.Options, a, f.Clock);
         await first.PutAsync(f.Scope, secret, f.Clock.Now.AddHours(1)); using var lease = await new CredentialVault(f.Options, b, f.Clock).ResolveAsync(f.Scope);
         Assert.Equal(1, lease.Profile.Generation);
+    }
+
+    [WindowsCredentialFact]
+    public async Task Missing_key_lookup_and_tampered_envelope_key_id_never_provision_replacement_material()
+    {
+        using var f = new CredentialFixture(); var baseRoot = Path.Combine(f.Root, "custody");
+        var provider = f.ProvisionNativeKeys();
+        Assert.Equal("credential-user-key-not-found", (await Assert.ThrowsAsync<CredentialException>(async () =>
+        { using var missing = await provider.GetKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1", default); })).Code);
+        Assert.Empty(Directory.GetFiles(baseRoot, "*.dpapi.json", SearchOption.AllDirectories));
+        using (await provider.ProvisionKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1")) { }
+        var vault = new CredentialVault(f.Options, provider, f.Clock); using var secret = CredentialSecret.FromUtf8(CredentialFixture.Token);
+        await vault.PutAsync(f.Scope, secret, f.Clock.Now.AddHours(1));
+        var originalKey = Assert.Single(Directory.GetFiles(baseRoot, "*.dpapi.json", SearchOption.AllDirectories));
+        var originalBytes = await File.ReadAllBytesAsync(originalKey);
+        Assert.Equal("credential-user-key-already-provisioned", (await Assert.ThrowsAsync<CredentialException>(async () =>
+        { using var repeated = await provider.ProvisionKeyAsync(f.Scope.CustomerId, f.Scope.CellId, "key-1"); })).Code);
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(originalKey));
+        var envelopePath = Assert.Single(Directory.GetFiles(f.VaultRoot, "*.credential.json"));
+        var envelope = JsonNode.Parse(await File.ReadAllTextAsync(envelopePath))!; envelope["keyId"] = "missing-key-from-damaged-envelope";
+        await File.WriteAllTextAsync(envelopePath, envelope.ToJsonString());
+        Assert.Equal("credential-key-unavailable", (await Assert.ThrowsAsync<CredentialException>(() => vault.ResolveAsync(f.Scope))).Code);
+        Assert.Single(Directory.GetFiles(baseRoot, "*.dpapi.json", SearchOption.AllDirectories));
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(originalKey));
     }
 }
 

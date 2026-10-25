@@ -1,0 +1,19 @@
+{
+  "schema": "platform-studio.commercial-direction-review.v1",
+  "status": "NonBindingDraftForReview",
+  "selectedBy": "Direct user instruction",
+  "binaryDistributionDirection": "ProprietaryCommercialLicense",
+  "sourceIncludedWithBinaryLicense": false,
+  "sourceOfferedUnderSeparateAgreement": true,
+  "copyrightAssignmentAuthorized": false,
+  "licenseGrantEffective": false,
+  "firstPartyLicenseTextApplied": false,
+  "termsApproved": false,
+  "commercialRightsCleared": false,
+  "publicationAuthorized": false,
+  "runtimeEntitlementEffects": "None",
+  "sellerLegalEntity": null,
+  "governingLaw": null,
+  "pricingAndLicenseMetric": null,
+  "reviewDraft": "docs/commercial-license-review-draft.md"
+}

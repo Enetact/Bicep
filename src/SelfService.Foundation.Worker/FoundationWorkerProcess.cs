@@ -12,7 +12,7 @@ public sealed record WorkerConfiguration(string CustomerId, string CellId, strin
     string Mode = "Disabled", bool QualificationOnly = false, string? MockEndpoint = null,
     string? WorkerId = null, int PollIntervalMilliseconds = 250, int HeartbeatIntervalMilliseconds = 1000,
     int RunSeconds = 0, string? ReceiptPath = null, EntitlementTrustKey[]? EntitlementTrustKeys = null,
-    bool RequireSignedEntitlement = false);
+    bool RequireSignedEntitlement = false, bool RequireActivationAuthority = false, string? ActivationAuthorityDirectory = null);
 
 public sealed record WorkerProcessReceipt(int ProcessId, DateTimeOffset ProcessStartedUtc, string ExecutablePath,
     string WorkerAssemblyPath, string ConfigurationPath, string ConfigurationSha256, string Mode,
@@ -24,7 +24,7 @@ public static class FoundationWorkerProcess
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         MaxDepth = 8, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        RespectRequiredConstructorParameters = true, RespectNullableAnnotations = true
+        RespectRequiredConstructorParameters = true, RespectNullableAnnotations = true, PropertyNameCaseInsensitive = false
     };
 
     public static async Task<int> RunAsync(string[] args)
@@ -42,21 +42,28 @@ public static class FoundationWorkerProcess
 
     static async Task<int> RunValidatedAsync(string[] args)
     {
-        if (args.Length is not (2 or 3) || args[0] != "--config" || args.Length == 3 && args[2] != "--allow-mock-execution")
+        var validateOnly = args.Length == 2 && args[0] == "--validate-config";
+        if (!validateOnly && (args.Length is not (2 or 3) || args[0] != "--config" || args.Length == 3 && args[2] != "--allow-mock-execution"))
             throw new ArgumentException("Worker arguments rejected.");
         var configPath = Path.GetFullPath(args[1]); RejectLinks(configPath);
-        var info = new FileInfo(configPath);
-        if (!info.Exists || info.Length > 32768) throw new ArgumentException("Worker configuration rejected.");
-        var bytes = File.ReadAllBytes(configPath);
+        byte[] bytes;
+        using (var input = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            if (input.Length is < 2 or > 32768) throw new ArgumentException("Worker configuration rejected.");
+            bytes = new byte[checked((int)input.Length)]; input.ReadExactly(bytes);
+        }
         using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 8 }); Unique(document.RootElement);
         var config = document.RootElement.Deserialize<WorkerConfiguration>(Json) ?? throw new JsonException();
         if (config.Mode is not ("Disabled" or "MockLoopback" or "ClaimHold") ||
             config.PollIntervalMilliseconds is < 50 or > 5000 || config.HeartbeatIntervalMilliseconds is < 250 or > 10000 ||
             config.RunSeconds is < 0 or > 3600 || string.IsNullOrWhiteSpace(config.DatabasePath))
             throw new ArgumentException("Worker configuration rejected.");
-        if (config.Mode != "Disabled" && (!config.QualificationOnly || args.Length != 3))
+        if (!CustomerContextResolver.ValidId(config.CustomerId) || !CustomerContextResolver.ValidId(config.CellId) ||
+            config.WorkerId is not null && !CustomerContextResolver.ValidId(config.WorkerId))
+            throw new ArgumentException("Worker scope rejected.");
+        if (config.Mode != "Disabled" && (!config.QualificationOnly || !validateOnly && args.Length != 3))
             throw new FoundationStoreException("SyntheticWorkerOptInRequired", 403);
-        if (config.Mode == "Disabled" && (config.MockEndpoint is not null || args.Length == 3) ||
+        if (config.Mode == "Disabled" && (config.MockEndpoint is not null || !validateOnly && args.Length == 3) ||
             config.Mode == "ClaimHold" && config.MockEndpoint is not null ||
             config.Mode == "MockLoopback" && config.MockEndpoint is null)
             throw new ArgumentException("Worker transport rejected.");
@@ -66,10 +73,28 @@ public static class FoundationWorkerProcess
         var entitlements = new EntitlementVerifier(config.EntitlementTrustKeys ?? [], requireSignedMode: config.RequireSignedEntitlement);
         var directory = Path.GetDirectoryName(configPath)!;
         var databasePath = Path.GetFullPath(config.DatabasePath, directory);
+        if (config.RequireActivationAuthority != (config.ActivationAuthorityDirectory is not null))
+            throw new ArgumentException("An explicit existing activation authority is required.");
+        var authorityPath = config.ActivationAuthorityDirectory is not null ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(config.ActivationAuthorityDirectory, directory)) : null;
+        using var transport = config.Mode == "MockLoopback" ? new PipelineLoopbackTransport(new Uri(config.MockEndpoint!, UriKind.Absolute)) : null;
+        if (validateOnly)
+        {
+            if (config.ReceiptPath is null) throw new FoundationStoreException("WorkerReceiptRequired", 400);
+            _ = WorkerReceiptFile.Validate(config.ReceiptPath, directory, databasePath, configPath, authorityPath);
+            Console.WriteLine(JsonSerializer.Serialize(new { schema = "platform-studio.foundation-worker-preflight.v1", receiptPathValidated = true,
+                workerStartupPerformed = false, externalDispatch = false, configurationSha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)) }, Json));
+            return 0;
+        }
+        // Receipt refusal and exclusive destination reservation precede every SQLite open or worker mutation.
+        using var receiptFile = WorkerReceiptFile.Reserve(config.ReceiptPath, directory, databasePath, configPath, authorityPath);
         // Preflight is read-only and precedes FoundationStore's normal constructor/migration path.
         Preflight(databasePath, config.CellId, config.CustomerId);
-        using var transport = config.Mode == "MockLoopback" ? new PipelineLoopbackTransport(new Uri(config.MockEndpoint!, UriKind.Absolute)) : null;
-        var store = new FoundationStore(databasePath, config.CellId, config.CustomerId, initializeSchema: false);
+        using var activation = config.RequireActivationAuthority
+            ? new FoundationCellActivationAuthority(authorityPath!, config.CustomerId, config.CellId)
+                .AcquireLease(databasePath)
+            : null;
+        var store = new FoundationStore(databasePath, config.CellId, config.CustomerId, initializeSchema: false,
+            activationGuard: activation is not null ? activation.AssertCurrent : null);
         var workerId = config.WorkerId ?? "worker-" + Guid.NewGuid().ToString("N");
         using var process = Process.GetCurrentProcess();
         var handle = store.RegisterWorker(config.CustomerId, workerId, process.Id, process.StartTime.ToUniversalTime(), config.Mode);
@@ -83,7 +108,7 @@ public static class FoundationWorkerProcess
             var receipt = new WorkerProcessReceipt(process.Id, process.StartTime.ToUniversalTime(), process.MainModule!.FileName,
                 Assembly.GetExecutingAssembly().Location, configPath, Convert.ToHexStringLower(SHA256.HashData(bytes)), config.Mode,
                 handle.WorkerId, handle.InstanceId, handle.Generation, DateTimeOffset.UtcNow);
-            if (config.ReceiptPath is not null) WriteReceipt(Path.GetFullPath(config.ReceiptPath, directory), receipt);
+            receiptFile?.Publish(receipt, Json);
             Console.WriteLine(JsonSerializer.Serialize(receipt, Json));
             heartbeats = HeartbeatsAsync(store, handle, config, cancellation);
             var runner = new FoundationJobRunner(store, new PipelineDispatcher(transport ?? (IPipelineTransport)new DeniedPipelineTransport()), entitlements);
@@ -146,21 +171,6 @@ public static class FoundationWorkerProcess
         if (!reader.Read() || reader.GetInt32(0) != FoundationStore.CurrentSchemaVersion ||
             reader.GetString(1) != cellId || reader.GetString(2) != customerId)
             throw new FoundationStoreException("WorkerCellSchemaOrBindingRejected", 403);
-    }
-
-    static void WriteReceipt(string path, WorkerProcessReceipt receipt)
-    {
-        RejectLinks(path); var directory = Path.GetDirectoryName(path)!;
-        if (!Directory.Exists(directory) || File.Exists(path)) throw new IOException("Fresh receipt path required.");
-        // Readers see a complete receipt, and a colliding worker's receipt is never replaced.
-        var temporary = path + ".write-" + Guid.NewGuid().ToString("N");
-        try
-        {
-            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            { JsonSerializer.Serialize(stream, receipt, Json); stream.Flush(flushToDisk: true); }
-            File.Move(temporary, path, overwrite: false);
-        }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     static void RejectLinks(string path)

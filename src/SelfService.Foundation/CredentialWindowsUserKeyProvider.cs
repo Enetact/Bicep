@@ -12,42 +12,37 @@ namespace SelfService.Foundation;
 public sealed class CredentialWindowsUserKeyProvider : ICredentialKeyProvider
 {
     readonly string customerId, cellId, root;
-    sealed record Binding(int Schema, string CustomerId, string CellId);
+    readonly CredentialNamespaceCustody custody;
     sealed record KeyEnvelope(int Schema, string CustomerId, string CellId, string KeyId, string ProtectedKey);
 
     public CredentialWindowsUserKeyProvider(string baseRootPath, string customerId, string cellId)
     {
-        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows CurrentUser key custody is required.");
-        if (!Guid.TryParseExact(customerId, "D", out var customer) || customer == Guid.Empty ||
-            !Guid.TryParseExact(cellId, "D", out var cell) || cell == Guid.Empty || string.IsNullOrWhiteSpace(baseRootPath))
-            throw new CredentialException("credential-user-key-configuration-invalid");
         this.customerId = customerId; this.cellId = cellId;
-        root = Path.Combine(Path.GetFullPath(baseRootPath), "cell-" + CredentialRules.Hash(customerId + ":" + cellId));
-        CredentialRules.RejectLinks(root);
-        var existed = Directory.Exists(root); Directory.CreateDirectory(root); CredentialRules.RejectLinks(root);
-        var marker = Path.Combine(root, "cell-binding.json"); CredentialRules.RejectLinks(marker);
-        if (!File.Exists(marker))
-        {
-            if (existed && Directory.EnumerateFileSystemEntries(root).Any()) throw new CredentialException("credential-user-key-unowned-root");
-            try
-            {
-                using var file = new FileStream(marker, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                JsonSerializer.Serialize(file, new Binding(1, customerId, cellId), CredentialRules.Json); file.Flush(flushToDisk: true);
-            }
-            catch (IOException) when (File.Exists(marker)) { }
-        }
-        if (new FileInfo(marker).Length > 1024) throw new CredentialException("credential-user-key-binding-invalid");
-        try
-        {
-            using var doc = CredentialRules.Document(File.ReadAllBytes(marker)); var binding = doc.RootElement.Deserialize<Binding>(CredentialRules.Json);
-            if (binding is null || binding.Schema != 1 || binding.CustomerId != customerId || binding.CellId != cellId)
-                throw new CredentialException("credential-user-key-binding-invalid");
-        }
-        catch (JsonException) { throw new CredentialException("credential-user-key-binding-invalid"); }
-        SecureDirectory(root);
+        custody = new(NamespacePath(baseRootPath, customerId, cellId), "windows-user-keys", customerId, cellId); root = custody.Root;
     }
 
-    public async ValueTask<CredentialEncryptionKey> GetKeyAsync(string customerId, string cellId, string keyId, CancellationToken cancellationToken)
+    public static CredentialWindowsUserKeyProvider ProvisionNamespace(string baseRootPath, string customerId, string cellId)
+    {
+        CredentialNamespaceCustody.Provision(NamespacePath(baseRootPath, customerId, cellId), "windows-user-keys", customerId, cellId);
+        return new(baseRootPath, customerId, cellId);
+    }
+
+    static string NamespacePath(string baseRootPath, string customerId, string cellId)
+    {
+        if (!Guid.TryParseExact(customerId, "D", out var customer) || customer == Guid.Empty ||
+            !Guid.TryParseExact(cellId, "D", out var cell) || cell == Guid.Empty)
+            throw new CredentialException("credential-user-key-configuration-invalid");
+        return Path.Combine(CredentialNamespaceCustody.LocalPath(baseRootPath), "cell-" + CredentialRules.Hash(customerId + ":" + cellId));
+    }
+
+    public ValueTask<CredentialEncryptionKey> GetKeyAsync(string customerId, string cellId, string keyId, CancellationToken cancellationToken) =>
+        AccessKeyAsync(customerId, cellId, keyId, provision: false, cancellationToken);
+
+    // Explicit trusted-owner provisioning. Resolution and missing-key recovery never generate replacement material.
+    public ValueTask<CredentialEncryptionKey> ProvisionKeyAsync(string customerId, string cellId, string keyId, CancellationToken cancellationToken = default) =>
+        AccessKeyAsync(customerId, cellId, keyId, provision: true, cancellationToken);
+
+    async ValueTask<CredentialEncryptionKey> AccessKeyAsync(string customerId, string cellId, string keyId, bool provision, CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows CurrentUser key custody is required.");
         if (customerId != this.customerId || cellId != this.cellId || !CredentialRules.ProfileId(keyId))
@@ -60,30 +55,33 @@ public sealed class CredentialWindowsUserKeyProvider : ICredentialKeyProvider
         {
             if (!File.Exists(path))
             {
+                if (!provision) throw new CredentialException("credential-user-key-not-found");
                 clear = RandomNumberGenerator.GetBytes(32);
                 var protectedKey = Protect(clear, Entropy(keyId), encrypt: true);
                 var envelope = new KeyEnvelope(1, customerId, cellId, keyId, Convert.ToBase64String(protectedKey));
                 var temporary = Path.Combine(root, ".key-write-" + Guid.NewGuid().ToString("N"));
                 try
                 {
-                    await using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                    await using (var file = custody.CreateNew(temporary))
                     {
                         await JsonSerializer.SerializeAsync(file, envelope, CredentialRules.Json, cancellationToken); await file.FlushAsync(cancellationToken); file.Flush(flushToDisk: true);
                     }
-                    CredentialRules.RejectLinks(path); cancellationToken.ThrowIfCancellationRequested(); File.Move(temporary, path);
+                    custody.ValidateCurrent(); custody.ValidateFile(temporary); CredentialRules.RejectLinks(path);
+                    cancellationToken.ThrowIfCancellationRequested(); File.Move(temporary, path);
                 }
                 finally { if (File.Exists(temporary)) File.Delete(temporary); }
             }
             else
             {
-                if (new FileInfo(path).Length > 16384) throw new CredentialException("credential-user-key-integrity-invalid");
-                using var doc = CredentialRules.Document(await File.ReadAllBytesAsync(path, cancellationToken));
+                if (provision) throw new CredentialException("credential-user-key-already-provisioned");
+                using var doc = CredentialRules.Document(await custody.ReadFileAsync(path, 16384, cancellationToken));
                 var envelope = doc.RootElement.Deserialize<KeyEnvelope>(CredentialRules.Json);
                 if (envelope is null || envelope.Schema != 1 || envelope.CustomerId != customerId || envelope.CellId != cellId || envelope.KeyId != keyId)
                     throw new CredentialException("credential-user-key-integrity-invalid");
                 clear = Protect(Convert.FromBase64String(envelope.ProtectedKey), Entropy(keyId), encrypt: false);
             }
             if (clear.Length != 32) throw new CredentialException("credential-user-key-integrity-invalid");
+            custody.ValidateCurrent(); custody.ValidateFile(path);
             return new CredentialEncryptionKey(clear);
         }
         catch (Exception e) when (e is JsonException or FormatException or CryptographicException or ArgumentException)
@@ -93,24 +91,13 @@ public sealed class CredentialWindowsUserKeyProvider : ICredentialKeyProvider
     byte[] Entropy(string keyId) => SHA256.HashData(Encoding.UTF8.GetBytes("PlatformStudio.CredentialKey.v1\0" + customerId + "\0" + cellId + "\0" + keyId));
     async Task<FileStream> Gate(CancellationToken cancellationToken)
     {
-        var path = Path.Combine(root, ".keys.lock");
         for (var attempt = 0; ; attempt++)
         {
-            cancellationToken.ThrowIfCancellationRequested(); CredentialRules.RejectLinks(path);
-            try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+            cancellationToken.ThrowIfCancellationRequested();
+            try { return custody.OpenGuard(); }
             catch (IOException) when (attempt < 99) { await Task.Delay(20, cancellationToken); }
             catch (IOException) { throw new CredentialException("credential-user-key-busy"); }
         }
-    }
-    [SupportedOSPlatform("windows")]
-    static void SecureDirectory(string path)
-    {
-        using var identity = WindowsIdentity.GetCurrent();
-        var sid = identity.User ?? throw new CredentialException("credential-user-identity-unavailable");
-        var security = new DirectorySecurity(); security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false); security.SetOwner(sid);
-        security.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl,
-            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-        new DirectoryInfo(path).SetAccessControl(security);
     }
     [StructLayout(LayoutKind.Sequential)]
     struct Blob { public int Size; public IntPtr Data; }

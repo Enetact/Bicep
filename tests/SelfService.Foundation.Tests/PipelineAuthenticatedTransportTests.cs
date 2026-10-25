@@ -196,15 +196,114 @@ public sealed class PipelineAuthenticatedTransportTests
         Assert.Equal(0, permits.Calls); Assert.Equal(0, handler.Calls);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Credential_change_cannot_commit_between_final_authorization_and_send_admission_and_does_not_wait_for_response(bool rotate)
+    {
+        using var f = new CredentialFixture(); await f.StoreToken(); var other = f.Reopen();
+        var authorizerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var authorize = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var permits = new PermitSource(f) { BeforeFinal = async ct => { authorizerEntered.TrySetResult(); await authorize.Task.WaitAsync(ct); } };
+        var handler = new HeldAdmissionHandler();
+        using var transport = PipelineAuthenticatedTransport.ForMockHandler(f.Vault, permits, handler, f.Clock);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var dispatch = transport.SendAsync(f.Wire, timeout.Token);
+        Task<CredentialProfile>? change = null;
+        using var replacement = CredentialSecret.FromUtf8("synthetic-replacement-access-token");
+        try
+        {
+            await authorizerEntered.Task.WaitAsync(timeout.Token);
+            // An independent writer cannot enter the same custody gate while final authorization is suspended.
+            Assert.Throws<IOException>(() => { using var competing = new FileStream(Path.Combine(f.VaultRoot, ".vault.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None); });
+            change = rotate ? other.PutAsync(f.Scope, replacement, f.Clock.Now.AddHours(1), 1, timeout.Token) :
+                other.RevokeAsync(f.Scope.AuthProfileId, 1, timeout.Token);
+            Assert.False(change.IsCompleted);
+            authorize.TrySetResult(); await handler.Admitted.Task.WaitAsync(timeout.Token);
+            var changed = await change.WaitAsync(timeout.Token);
+            Assert.Equal(2, changed.Generation); Assert.Equal(rotate, changed.Enabled);
+            Assert.False(dispatch.IsCompleted); // The vault gate is released before the remote response, not held over it.
+            Assert.Equal("Bearer " + CredentialFixture.Token, Assert.Single(handler.Authorizations));
+            handler.Release.TrySetResult(); await dispatch;
+            if (rotate)
+            {
+                await transport.SendAsync(f.Wire, timeout.Token);
+                Assert.Equal("Bearer synthetic-replacement-access-token", handler.Authorizations[1]);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<PipelineContractException>(() => transport.SendAsync(f.Wire, timeout.Token));
+                Assert.Single(handler.Authorizations);
+            }
+        }
+        finally
+        {
+            authorize.TrySetResult(); handler.Release.TrySetResult();
+            try { await dispatch; } catch (Exception error) when (error is OperationCanceledException or PipelineContractException or HttpRequestException) { }
+            if (change is not null) await change;
+        }
+    }
+
+    [Theory]
+    [InlineData("deny")]
+    [InlineData("exception")]
+    [InlineData("cancel")]
+    [InlineData("sendfailure")]
+    public async Task Every_failed_admission_releases_its_vault_gate_for_subsequent_revocation(string failure)
+    {
+        using var f = new CredentialFixture(); await f.StoreToken(); using var cancellation = new CancellationTokenSource();
+        var permits = new PermitSource(f); var handler = new CapturedHandler { Throw = failure == "sendfailure" };
+        permits.BeforeFinal = ct =>
+        {
+            if (failure == "deny") permits.Deny = true;
+            if (failure == "exception") throw new CredentialException("synthetic-authorizer-denied");
+            if (failure == "cancel") { cancellation.Cancel(); ct.ThrowIfCancellationRequested(); }
+            return Task.CompletedTask;
+        };
+        using var transport = PipelineAuthenticatedTransport.ForMockHandler(f.Vault, permits, handler, f.Clock);
+        if (failure == "cancel") await Assert.ThrowsAnyAsync<OperationCanceledException>(() => transport.SendAsync(f.Wire, cancellation.Token));
+        else if (failure == "sendfailure") await Assert.ThrowsAsync<HttpRequestException>(() => transport.SendAsync(f.Wire, cancellation.Token));
+        else await Assert.ThrowsAsync<PipelineContractException>(() => transport.SendAsync(f.Wire, cancellation.Token));
+        Assert.Equal(failure == "sendfailure" ? 1 : 0, handler.Calls);
+        var revoked = await f.Reopen().RevokeAsync(f.Scope.AuthProfileId, 1);
+        Assert.False(revoked.Enabled); Assert.Equal(2, revoked.Generation);
+    }
+
+    [Fact]
+    public async Task Final_authorizer_cannot_extend_a_credential_that_expires_before_send_admission()
+    {
+        using var f = new CredentialFixture(); using var token = CredentialSecret.FromUtf8(CredentialFixture.Token);
+        await f.Vault.PutAsync(f.Scope, token, f.Clock.Now.AddSeconds(45));
+        var permits = new PermitSource(f) { BeforeFinal = _ => { f.Clock.Now = f.Clock.Now.AddSeconds(31); return Task.CompletedTask; } };
+        var handler = new CapturedHandler(); using var transport = PipelineAuthenticatedTransport.ForMockHandler(f.Vault, permits, handler, f.Clock);
+        await Assert.ThrowsAsync<PipelineContractException>(() => transport.SendAsync(f.Wire, default));
+        Assert.Equal(0, handler.Calls);
+        Assert.False((await f.Reopen().RevokeAsync(f.Scope.AuthProfileId, 1)).Enabled);
+    }
+
     sealed class PermitSource(CredentialFixture f) : ICredentialDispatchPermitSource
     {
         public int Calls { get; private set; }
         public bool Deny { get; set; }
         public CredentialDispatchPermit? Reused { get; init; }
-        public Task<CredentialDispatchPermit?> AuthorizeAsync(PipelineWireRequest wire, CancellationToken cancellationToken)
+        public Func<CancellationToken, Task>? BeforeFinal { get; set; }
+        public async Task<CredentialDispatchPermit?> AuthorizeAsync(PipelineWireRequest wire, CancellationToken cancellationToken)
         {
             Calls++; cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(Deny ? null : Reused ?? CredentialDispatchPermit.FromDurableDispatch(f.Dispatch, wire, f.Scope, f.Clock.Now));
+            if (Calls == 2 && BeforeFinal is not null) await BeforeFinal(cancellationToken);
+            return Deny ? null : Reused ?? CredentialDispatchPermit.FromDurableDispatch(f.Dispatch, wire, f.Scope, f.Clock.Now);
+        }
+    }
+    sealed class HeldAdmissionHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Admitted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<string> Authorizations { get; } = [];
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Authorizations.Add(request.Headers.Authorization!.ToString()); Admitted.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return new(HttpStatusCode.OK) { Content = new StringContent("{\"workflow_run_id\":123,\"run_url\":\"https://api.github.com/repos/customer-org/customer-repo/actions/runs/123\",\"html_url\":\"https://github.com/customer-org/customer-repo/actions/runs/123\"}") };
         }
     }
     sealed class CapturedHandler : HttpMessageHandler

@@ -44,15 +44,23 @@ function Stop-OwnedWorker([string]$Path) {
     Write-Host 'Owned foundation worker stopped. No primary host or provider process was touched.'
 }
 if ($Stop) { Stop-OwnedWorker ([IO.Path]::GetFullPath($ReceiptPath)); return }
+$configurationHandle = $null
+try {
 $configPath = [IO.Path]::GetFullPath($ConfigurationPath)
 Assert-PlainPath $configPath
-$config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+# Hold the exact bounded config bytes through preflight/startup; ordinary writers cannot retarget them between checks.
+$configurationHandle = [IO.FileStream]::new($configPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+if ($configurationHandle.Length -lt 2 -or $configurationHandle.Length -gt 32768) { throw 'Worker configuration size rejected.' }
+$configurationBytes = [byte[]]::new([int]$configurationHandle.Length)
+$configurationHandle.ReadExactly($configurationBytes)
+$configurationSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($configurationBytes)).ToLowerInvariant()
+$config = [Text.Encoding]::UTF8.GetString($configurationBytes) | ConvertFrom-Json -Depth 8
 if ([string]::IsNullOrWhiteSpace($config.receiptPath)) { throw 'Set a fresh receiptPath in the worker configuration before launching.' }
 $receiptFullPath = [IO.Path]::GetFullPath($config.receiptPath, (Split-Path $configPath -Parent))
 Assert-PlainPath $receiptFullPath
 if (Test-Path -LiteralPath $receiptFullPath) { throw 'Receipt already exists. Choose a fresh receiptPath.' }
 if (-not (Test-Path -LiteralPath (Split-Path $receiptFullPath -Parent) -PathType Container)) { throw 'Receipt directory must already exist.' }
-if (-not $WorkerDllPath) { $WorkerDllPath = Join-Path $root 'artifacts/foundation-build/bin/SelfService.Foundation.Worker/release/SelfService.Foundation.Worker.dll' }
+if (-not $WorkerDllPath) { throw 'Select an explicit reviewed WorkerDllPath from the current build or publish output; implicit legacy artifact selection is disabled.' }
 $dll = [IO.Path]::GetFullPath($WorkerDllPath)
 Assert-PlainPath $dll
 if (-not (Test-Path -LiteralPath $dll -PathType Leaf) -or [IO.Path]::GetFileName($dll) -cne 'SelfService.Foundation.Worker.dll') { throw 'Build the foundation worker before launching it.' }
@@ -72,6 +80,39 @@ $childEnvironment['DOTNET_CLI_TELEMETRY_OPTOUT'] = '1'
 $childEnvironment['DOTNET_SKIP_FIRST_TIME_EXPERIENCE'] = '1'
 $childEnvironment['DOTNET_GENERATE_ASPNET_CERTIFICATE'] = 'false'
 $childEnvironment['DOTNET_ADD_GLOBAL_TOOLS_TO_PATH'] = 'false'
+# Invoke the worker's shared, read-only policy before creating logs beside the requested receipt.
+if (-not ('FoundationWorkerPreflightObserver' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System; using System.Collections; using System.Diagnostics; using System.IO; using System.Text;
+using System.Threading; using System.Threading.Tasks;
+public static class FoundationWorkerPreflightObserver {
+ static async Task<string> Read(StreamReader reader,CancellationTokenSource deadline) {
+  var output=new StringBuilder();var buffer=new char[1024];int count;
+  while((count=await reader.ReadAsync(buffer.AsMemory(),deadline.Token))>0){if(output.Length+count>8192){deadline.Cancel();throw new IOException("WorkerPreflightOutputRejected");}output.Append(buffer,0,count);}return output.ToString();
+ }
+ public static string Validate(string executable,string assembly,string config,string directory,IDictionary environment) {
+  using var process=new Process();var info=new ProcessStartInfo(executable){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,WorkingDirectory=directory};
+  info.ArgumentList.Add(assembly);info.ArgumentList.Add("--validate-config");info.ArgumentList.Add(config);info.Environment.Clear();
+  foreach(DictionaryEntry entry in environment)if(entry.Value is string value)info.Environment[(string)entry.Key]=value;process.StartInfo=info;
+  using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+  try {if(!process.Start())throw new IOException("WorkerPreflightStartRejected");var output=Read(process.StandardOutput,deadline);var error=Read(process.StandardError,deadline);
+   Task.WhenAll(output,error,process.WaitForExitAsync(deadline.Token)).GetAwaiter().GetResult();
+   if(process.ExitCode!=0 || error.Result.Length!=0)throw new IOException("WorkerPreflightRejected");return output.Result;
+  }finally{try{if(process.Id>0&&!process.HasExited){process.Kill(false);if(!process.WaitForExit(5000))throw new IOException("WorkerPreflightStopRejected");}}catch(InvalidOperationException){}}
+ }
+}
+'@
+}
+try {
+    $preflight = [FoundationWorkerPreflightObserver]::Validate($dotnet,$dll,$configPath,(Split-Path $configPath -Parent),$childEnvironment) | ConvertFrom-Json -AsHashtable -Depth 8
+    $expected = @('schema','receiptPathValidated','workerStartupPerformed','externalDispatch','configurationSha256')
+    if ($preflight -isnot [System.Collections.IDictionary] -or $preflight.Count -ne 5 -or @($preflight.Keys | Where-Object { $_ -cnotin $expected }).Count -or
+        $preflight.schema -cne 'platform-studio.foundation-worker-preflight.v1' -or
+        $preflight.receiptPathValidated -isnot [bool] -or !$preflight.receiptPathValidated -or
+        $preflight.workerStartupPerformed -isnot [bool] -or $preflight.workerStartupPerformed -or
+        $preflight.externalDispatch -isnot [bool] -or $preflight.externalDispatch -or
+        $preflight.configurationSha256 -cne $configurationSha256) { throw 'Worker configuration preflight rejected.' }
+} catch { throw 'Worker configuration preflight rejected; no worker logs or registration were created.' }
 # Native file redirection prevents a detached worker retaining the launcher's capture pipes.
 $logId = [Guid]::NewGuid().ToString('N')
 $stdoutPath = $receiptFullPath + '.' + $logId + '.stdout.log'
@@ -85,16 +126,18 @@ $arguments = '"' + $dll + '" --config "' + $configPath + '"'
 if ($EnableMockExecution) { $arguments += ' --allow-mock-execution' }
 # Windows Start-Process can also inherit an enclosing tool's capture handles. An explicit handle list permits only
 # the two fresh log files and NUL input to cross the process boundary; no parent capture pipe remains open.
-if (-not ('FoundationOwnedWorkerNative' -as [type])) {
+if (-not ('FoundationOwnedWorkerNativeV2' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
 using System.Collections;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
-public static class FoundationOwnedWorkerNative
+public static class FoundationOwnedWorkerNativeV2
 {
     [StructLayout(LayoutKind.Sequential)] struct Security { public int Length; public IntPtr Descriptor; [MarshalAs(UnmanagedType.Bool)] public bool Inherit; }
     [StructLayout(LayoutKind.Sequential)] struct Startup {
@@ -121,6 +164,13 @@ public static class FoundationOwnedWorkerNative
         var handle=CreateFileW(path,access,share,ref security,disposition,0x80,IntPtr.Zero);
         if(handle.IsInvalid) { handle.Dispose(); throw new Win32Exception(Marshal.GetLastWin32Error()); }
         return handle;
+    }
+    static SafeFileHandle PrivateLog(string path) {
+        using var identity=WindowsIdentity.GetCurrent();var sid=identity.User ?? throw new UnauthorizedAccessException();
+        var acl=new FileSecurity();acl.SetOwner(sid);acl.SetAccessRuleProtection(true,false);acl.AddAccessRule(new FileSystemAccessRule(sid,FileSystemRights.FullControl,AccessControlType.Allow));
+        var pinned=GCHandle.Alloc(acl.GetSecurityDescriptorBinaryForm(),GCHandleType.Pinned);
+        try {var security=new Security{Length=Marshal.SizeOf<Security>(),Inherit=true,Descriptor=pinned.AddrOfPinnedObject()};return File(path,0x40000000,1,1,ref security);}
+        finally {pinned.Free();}
     }
     public sealed class OwnedLaunch : IDisposable {
         readonly SafeProcessHandle handle;
@@ -149,8 +199,8 @@ public static class FoundationOwnedWorkerNative
     }
     public static OwnedLaunch Start(string executable,string arguments,string directory,string stdout,string stderr,IDictionary variables) {
         var security=new Security { Length=Marshal.SizeOf<Security>(),Inherit=true };
-        using var output=File(stdout,0x40000000,1,1,ref security); // CREATE_NEW; never overwrite an existing log.
-        using var error=File(stderr,0x40000000,1,1,ref security);
+        using var output=PrivateLog(stdout); // Protected owner-only ACL at CREATE_NEW; never overwrite an existing log.
+        using var error=PrivateLog(stderr);
         using var input=File("NUL",0x80000000,3,3,ref security);
         IntPtr size=IntPtr.Zero,attributes=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
         var initialized=false; var information=new Information();
@@ -186,7 +236,7 @@ public static class FoundationOwnedWorkerNative
 }
 '@
 }
-$process = [FoundationOwnedWorkerNative]::Start($dotnet, $arguments, (Split-Path $configPath -Parent), $stdoutPath, $stderrPath, $childEnvironment)
+$process = [FoundationOwnedWorkerNativeV2]::Start($dotnet, $arguments, (Split-Path $configPath -Parent), $stdoutPath, $stderrPath, $childEnvironment)
 try {
     $deadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
     $ready = $false
@@ -212,3 +262,4 @@ try {
     if (-not $process.HasExited) { $process.Kill($true); [void]$process.WaitForExit(5000) }
     throw
 } finally { $process.Dispose() }
+} finally { if ($configurationHandle) { $configurationHandle.Dispose() } }

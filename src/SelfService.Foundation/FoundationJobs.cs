@@ -113,6 +113,7 @@ public sealed partial class FoundationStore
     {
         Scope(customerId); ValidateId(jobId); ValidateId(workerId);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
+        AssertActivation(db, tx);
         var job = ReadJob(db, tx, jobId); Lease(job, workerId, fence, "Claimed");
         var plan = ReadPlan(db, tx, job.PlanId);
         try

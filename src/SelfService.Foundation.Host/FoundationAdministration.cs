@@ -20,6 +20,16 @@ internal sealed class OperationalContextResolver(FoundationHostOptions options, 
 {
     public CustomerContextResolver Resolver { get; } = new(options.Identity, new OperationalMembershipSource(store));
 }
+internal sealed class RecoveryMembershipSource(FoundationStore store) : ICustomerMembershipSource
+{
+    public IReadOnlyList<MembershipGrant> Find(string customerId, string actorKey) => store.GetRecoveryMemberships(customerId, actorKey)
+        .Select(m => new MembershipGrant(m.CustomerId, m.CellId, m.ActorKey, m.ProjectId, m.EnvironmentId, m.Roles, m.Version, m.Enabled)).ToArray();
+}
+internal sealed class RecoveryContextResolver(FoundationHostOptions options, FoundationStore store)
+{
+    public CustomerContextResolver Resolver { get; } = new(options.Identity, new RecoveryMembershipSource(store));
+}
+public sealed record RecoveryReconcileCommand(string CaseSha256, string Outcome, System.Text.Json.JsonElement Evidence);
 public sealed record ScopeOnboardingCommand(string ProjectId, string EnvironmentId, string InitialAdministrator, string Purpose, string? InitialApprover = null);
 public sealed record CustomerLifecycleCommand(string Action, string Purpose);
 public sealed record ArtifactRetentionCommand(DateTimeOffset CutoffUtc, string Purpose);
@@ -38,6 +48,20 @@ internal static class FoundationAdministration
         var root = FoundationApplication.Root;
         static FoundationApplication.Capability Cap(string name) => new(name);
         static CustomerContext C(HttpContext h) => FoundationApplication.Context(h);
+        app.MapGet(root + "/recovery/jobs", (HttpContext h) =>
+        {
+            var c = C(h); return Results.Json(store.ListRecoveryCases(c.CustomerId, c.ActorKey, c.ProjectId, c.EnvironmentId), FoundationApplication.Json);
+        }).WithMetadata(Cap(FoundationCapabilities.RecoveryRead));
+        app.MapGet(root + "/recovery/jobs/{jobId}", (HttpContext h, string jobId) =>
+        {
+            var c = C(h); return Results.Json(store.GetRecoveryCase(c.CustomerId, c.ActorKey, c.ProjectId, c.EnvironmentId, jobId), FoundationApplication.Json);
+        }).WithMetadata(Cap(FoundationCapabilities.RecoveryRead));
+        app.MapPost(root + "/recovery/jobs/{jobId}/reconcile", async (HttpContext h, string jobId) =>
+        {
+            var b = await FoundationApplication.Body<RecoveryReconcileCommand>(h); var c = C(h);
+            return Results.Json(store.ReconcileRecoveryCase(c.CustomerId, c.ActorKey, c.ProjectId, c.EnvironmentId,
+                jobId, b.CaseSha256, b.Outcome, b.Evidence.GetRawText()), FoundationApplication.Json);
+        }).WithMetadata(Cap(FoundationCapabilities.RecoveryReconcile));
         app.MapGet(root + "/operations/health", (HttpContext h) =>
         {
             var c = C(h); return Results.Json(store.OperationalStatus(c.CustomerId, c.ActorKey, c.ProjectId, c.EnvironmentId), FoundationApplication.Json);

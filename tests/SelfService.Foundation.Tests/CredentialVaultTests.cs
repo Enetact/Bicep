@@ -108,8 +108,7 @@ public sealed class CredentialVaultTests
         using var f = new CredentialFixture(); await f.StoreToken();
         var wrong = new CredentialTestKeys(); var vault = f.Reopen(wrong);
         Assert.Equal("credential-envelope-integrity", (await Assert.ThrowsAsync<CredentialException>(() => vault.ResolveAsync(f.Scope))).Code);
-        var foreign = new CredentialVault(f.Options with { CustomerId = "10000000-0000-0000-0000-000000000099" }, f.Keys, f.Clock);
-        await Assert.ThrowsAsync<CredentialException>(() => foreign.GetProfileAsync(f.Scope.AuthProfileId));
+        Assert.Throws<CredentialException>(() => new CredentialVault(f.Options with { CustomerId = "10000000-0000-0000-0000-000000000099" }, f.Keys, f.Clock));
         var file = Assert.Single(Directory.GetFiles(f.VaultRoot, "*.credential.json"));
         var json = await File.ReadAllTextAsync(file); json = json.Replace("\"schema\":1", "\"schema\":1,\"Schema\":1", StringComparison.Ordinal);
         await File.WriteAllTextAsync(file, json);
@@ -225,6 +224,7 @@ internal sealed class CredentialFixture : IDisposable
     public PipelineWireRequest Wire { get; }
     public CredentialFixture(string provider = PipelineRequestFactory.GitHub)
     {
+        if (OperatingSystem.IsWindows()) ActivationProvisionFixtureRoots.Create(Root);
         const string customer = "10000000-0000-0000-0000-000000000001", cell = "20000000-0000-0000-0000-000000000001";
         Connection = new(customer, cell, "customer-ci", provider, "customer-org", provider == PipelineRequestFactory.AzureDevOps ? "e1111111-1111-1111-1111-111111111111" : null,
             provider == PipelineRequestFactory.GitHub ? "customer-repo" : "d1111111-1111-1111-1111-111111111111", provider == PipelineRequestFactory.GitHub ? "studio.yml" : "42",
@@ -246,9 +246,14 @@ internal sealed class CredentialFixture : IDisposable
         Scope = new(customer, cell, "default", "dev", provider, Connection.Id, 1, PipelineRequestFactory.ConnectionDigest(Connection), Connection.CredentialReference,
             provider == PipelineRequestFactory.GitHub ? "https://api.github.com" : "499b84ac-1321-427f-aa17-267ca6975798",
             provider == PipelineRequestFactory.GitHub ? ["actions:write"] : ["499b84ac-1321-427f-aa17-267ca6975798/.default"]);
-        Options = new(VaultRoot, customer, cell, "key-1"); Vault = new(Options, Keys, Clock);
+        Options = new(VaultRoot, customer, cell, "key-1"); Vault = CredentialVault.Provision(Options, Keys, Clock);
     }
     public async Task StoreToken() { using var secret = CredentialSecret.FromUtf8(Token); await Vault.PutAsync(Scope, secret, Clock.Now.AddHours(1)); }
     public CredentialVault Reopen(ICredentialKeyProvider? keys = null) => new(Options, keys ?? Keys, Clock);
+    public CredentialWindowsUserKeyProvider ProvisionNativeKeys(string name = "custody")
+    {
+        var directory = Path.Combine(Root, name); Directory.CreateDirectory(directory);
+        return CredentialWindowsUserKeyProvider.ProvisionNamespace(directory, Scope.CustomerId, Scope.CellId);
+    }
     public void Dispose() { if (Directory.Exists(Root)) Directory.Delete(Root, recursive: true); }
 }

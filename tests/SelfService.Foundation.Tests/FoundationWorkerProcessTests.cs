@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
@@ -37,6 +39,39 @@ public sealed class FoundationWorkerProcessTests
         f.Store.StopWorker(f.Customer, second);
         Assert.Equal(1, f.Reopen().WorkerHealth(f.Customer, "operations", "default", "dev").Stopped);
         Assert.True(f.Store.VerifyAuditIntegrity(f.Customer, "auditor"));
+    }
+
+    [Fact]
+    public async Task Required_activation_fences_real_worker_startup_and_releases_only_after_owned_process_exit()
+    {
+        using var cell = new WorkerCell(); var job = cell.Queue();
+        var authorityPath = Path.Combine(cell.Directory, "activation-authority");
+        var authority = FoundationCellActivationAuthority.Provision(authorityPath, cell.Customer, cell.Cell);
+        var binding = authority.Activate(cell.Database, cell.Store.GetCellInstanceIdentity().DatabaseInstanceId, 0, null);
+        using var source = cell.Start("Disabled", activationAuthority: authorityPath); await source.Ready();
+        var snapshot = cell.Store.CreateBackup(Path.Combine(cell.Directory, "snapshot.sqlite"));
+        var restoredPath = Path.Combine(cell.Directory, "restored.sqlite");
+        var restored = FoundationStore.RestoreBackup(snapshot, restoredPath);
+        var restoredInstance = restored.GetCellInstanceIdentity().DatabaseInstanceId;
+        Assert.Equal(0, restored.WorkerHealth(cell.Customer, "operations", "default", "dev").Live);
+        Assert.Equal(0, restored.WorkerHealth(cell.Customer, "operations", "default", "dev").Disabled);
+        Assert.Equal("OutcomeUnknown", restored.GetJob(cell.Customer, "operator", job.Id).State);
+        Assert.Throws<FoundationStoreException>(() => authority.Activate(restoredPath, restoredInstance, binding.Generation, binding.Sha256));
+        source.KillOwned(); _ = await source.Exit();
+        FoundationCellActivationBinding? switched = null; var released = Stopwatch.StartNew();
+        while (switched is null)
+        {
+            try { switched = authority.Activate(restoredPath, restoredInstance, binding.Generation, binding.Sha256); }
+            catch (FoundationStoreException error) when (error.Code == "ActivationAuthorityBusy" && released.Elapsed < TimeSpan.FromSeconds(5))
+            { await Task.Delay(25); }
+        }
+        Assert.Equal(2, switched.Generation);
+        var auditBefore = cell.Scalar("SELECT count(*) FROM audit");
+        using var denied = cell.Start("Disabled", runSeconds: 1, activationAuthority: authorityPath); Assert.Equal(2, await denied.Exit());
+        Assert.Equal(auditBefore, cell.Scalar("SELECT count(*) FROM audit"));
+        using var replacement = cell.Start("Disabled", runSeconds: 1, database: restoredPath, activationAuthority: authorityPath);
+        await replacement.Ready(); await replacement.SuccessfulExit();
+        Assert.Null(restored.ClaimNext(cell.Customer, "worker", TimeSpan.FromSeconds(5)));
     }
 
     [Fact]
@@ -193,7 +228,12 @@ public sealed class FoundationWorkerProcessTests
         public FoundationStore Store { get; }
         public WorkerCell()
         {
-            System.IO.Directory.CreateDirectory(Directory); Store = new(Database, Cell, Customer);
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Native Windows worker fixture required.");
+            using var identity = WindowsIdentity.GetCurrent(); var sid = identity.User!; var acl = new DirectorySecurity();
+            acl.SetOwner(sid); acl.SetAccessRuleProtection(true, false);
+            acl.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None, AccessControlType.Allow));
+            new DirectoryInfo(Directory).Create(acl); Store = new(Database, Cell, Customer);
             Store.BootstrapAdministrator("admin");
             foreach (var pair in new[] { ("requester", "Requester"), ("approver", "Approver"), ("operator", "Operator"), ("operations", "PlatformOperator"), ("auditor", "Auditor") })
                 Store.SetMembership(Customer, "admin", pair.Item1, "default", "dev", [pair.Item2]);
@@ -212,12 +252,14 @@ public sealed class FoundationWorkerProcessTests
         public FoundationJob Job(FoundationJob job) => Store.GetJob(Customer, "operator", job.Id);
         public FoundationWorkerHealth Health(TimeSpan? staleAfter = null) => Store.WorkerHealth(Customer, "operations", "default", "dev", staleAfter);
         public OwnedWorker Start(string mode, Uri? origin = null, int runSeconds = 30, bool allowMock = true,
-            string? database = null, string? customer = null, EntitlementTrustKey[]? trust = null, bool throughLauncher = false)
+            string? database = null, string? customer = null, EntitlementTrustKey[]? trust = null, bool throughLauncher = false,
+            string? activationAuthority = null)
         {
             var id = Guid.NewGuid().ToString("N"); var config = Path.Combine(Directory, id + ".json"); var receipt = Path.Combine(Directory, id + ".receipt.json");
             File.WriteAllText(config, JsonSerializer.Serialize(new { customerId = customer ?? Customer, cellId = Cell, databasePath = database ?? Database,
                 mode, qualificationOnly = mode != "Disabled", mockEndpoint = origin?.ToString(), workerId = "fixture-" + id,
-                pollIntervalMilliseconds = 50, heartbeatIntervalMilliseconds = 250, runSeconds, receiptPath = receipt, entitlementTrustKeys = trust }, FoundationApplication.Json));
+                pollIntervalMilliseconds = 50, heartbeatIntervalMilliseconds = 250, runSeconds, receiptPath = receipt, entitlementTrustKeys = trust,
+                requireActivationAuthority = activationAuthority is not null, activationAuthorityDirectory = activationAuthority }, FoundationApplication.Json));
             return new(config, receipt, allowMock && mode != "Disabled", Directory, throughLauncher);
         }
         public long Scalar(string sql) { using var db = Open(); using var command = db.CreateCommand(); command.CommandText = sql; return Convert.ToInt64(command.ExecuteScalar()); }
@@ -226,6 +268,17 @@ public sealed class FoundationWorkerProcessTests
         public void Dispose()
         {
             // Every child is disposed before its cell. Delete known direct fixture files only; never recursively follow paths.
+            var expected = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "PlatformStudio-WorkerTests")) + Path.DirectorySeparatorChar;
+            var full = Path.GetFullPath(Directory);
+            if (!full.StartsWith(expected, StringComparison.OrdinalIgnoreCase) || !Guid.TryParseExact(Path.GetFileName(full), "N", out _))
+                throw new InvalidOperationException("Fixture cleanup path was not owned.");
+            var authority = Path.Combine(full, "activation-authority");
+            if (System.IO.Directory.Exists(authority))
+            {
+                Assert.False(File.GetAttributes(authority).HasFlag(FileAttributes.ReparsePoint));
+                foreach (var path in System.IO.Directory.EnumerateFiles(authority)) File.Delete(path);
+                System.IO.Directory.Delete(authority, false);
+            }
             foreach (var path in System.IO.Directory.EnumerateFiles(Directory)) File.Delete(path);
             System.IO.Directory.Delete(Directory, false);
         }
@@ -281,7 +334,14 @@ public sealed class FoundationWorkerProcessTests
         {
             await WaitUntil(() => File.Exists(Receipt) || process.HasExited);
             if (process.HasExited) { await Exit(); Assert.Fail("Synthetic worker exited before registration: " + Error); }
-            await WaitUntil(() => { try { using var receipt = JsonDocument.Parse(File.ReadAllText(Receipt)); return receipt.RootElement.GetProperty("processId").GetInt32() == process.Id; } catch (JsonException) { return false; } });
+            await WaitUntil(() =>
+            {
+                try { using var receipt = JsonDocument.Parse(File.ReadAllText(Receipt)); return receipt.RootElement.GetProperty("processId").GetInt32() == process.Id; }
+                catch (JsonException) { return false; }
+                // Publication is complete; another native reader can still briefly hold an exclusive handle.
+                // Match the launcher's bounded readiness retry without hiding other I/O failures.
+                catch (IOException error) when ((error.HResult & 0xffff) is 32 or 33) { return false; }
+            });
         }
         public async Task<int> Exit() { using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40)); await process.WaitForExitAsync(timeout.Token); await Task.WhenAll(output, error); return process.ExitCode; }
         public async Task SuccessfulExit() => Assert.Equal(0, await Exit());

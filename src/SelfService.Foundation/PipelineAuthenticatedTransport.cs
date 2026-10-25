@@ -12,6 +12,7 @@ public interface IPipelineTransportCharacteristics { bool IsMock { get; } }
 public interface ICredentialDispatchPermitSource
 {
     // The host rechecks current durable authority before returning a permit. Never expose this operation as a model tool.
+    // The final check runs while custody's admission gate is held: do not reenter that same CredentialVault.
     Task<CredentialDispatchPermit?> AuthorizeAsync(PipelineWireRequest wire, CancellationToken cancellationToken);
 }
 
@@ -97,29 +98,35 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
     readonly HttpClient? http;
     readonly TimeProvider clock;
     readonly bool enabled;
+    readonly TimeSpan operationTimeout;
     public bool IsMock { get; }
 
     public PipelineAuthenticatedTransport(CredentialVault vault, ICredentialDispatchPermitSource permits,
-        bool enableExternalDispatch = false, TimeProvider? clock = null)
+        bool enableExternalDispatch = false, TimeProvider? clock = null, TimeSpan? operationTimeout = null)
     {
         this.vault = vault; this.permits = permits; this.clock = clock ?? TimeProvider.System; enabled = enableExternalDispatch;
+        this.operationTimeout = CredentialRules.OperationTimeout(operationTimeout, TimeSpan.FromSeconds(20));
         IsMock = false;
         if (enabled) http = new HttpClient(new SocketsHttpHandler
-        { AllowAutoRedirect = false, UseCookies = false, UseProxy = false, PooledConnectionLifetime = TimeSpan.FromMinutes(2) }) { Timeout = TimeSpan.FromSeconds(20) };
+        { AllowAutoRedirect = false, UseCookies = false, UseProxy = false, PooledConnectionLifetime = TimeSpan.FromMinutes(2) }) { Timeout = Timeout.InfiniteTimeSpan };
     }
-    PipelineAuthenticatedTransport(CredentialVault vault, ICredentialDispatchPermitSource permits, HttpMessageHandler mockHandler, TimeProvider? clock)
+    PipelineAuthenticatedTransport(CredentialVault vault, ICredentialDispatchPermitSource permits, HttpMessageHandler mockHandler, TimeProvider? clock, TimeSpan? operationTimeout)
     {
         this.vault = vault; this.permits = permits; this.clock = clock ?? TimeProvider.System; enabled = true; IsMock = true;
-        http = new HttpClient(mockHandler) { Timeout = TimeSpan.FromSeconds(20) };
+        this.operationTimeout = CredentialRules.OperationTimeout(operationTimeout, TimeSpan.FromSeconds(20));
+        http = new HttpClient(mockHandler) { Timeout = Timeout.InfiniteTimeSpan };
     }
     // Injected handler is an explicitly trusted test seam. It is never populated from JSON or provider metadata.
     public static PipelineAuthenticatedTransport ForMockHandler(CredentialVault vault, ICredentialDispatchPermitSource permits,
-        HttpMessageHandler mockHandler, TimeProvider? clock = null) => new(vault, permits, mockHandler, clock);
+        HttpMessageHandler mockHandler, TimeProvider? clock = null, TimeSpan? operationTimeout = null) => new(vault, permits, mockHandler, clock, operationTimeout);
 
     public async Task<PipelineWireResponse> SendAsync(PipelineWireRequest wire, CancellationToken cancellationToken)
     {
         if (!enabled || http is null) throw new PipelineTransportDisabledException();
         cancellationToken.ThrowIfCancellationRequested();
+        var callerCancellation = cancellationToken;
+        using var deadline = CredentialRules.OperationDeadline(operationTimeout, cancellationToken); cancellationToken = deadline.Token;
+        var admitted = false;
         try
         {
             if (wire is null || wire.Headers is null) throw new CredentialException("credential-dispatch-wire-invalid");
@@ -132,20 +139,31 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
                 scope.AuthProfileId != wire.Binding.CredentialReference ||
                 scope.Provider == PipelineRequestFactory.GitHub != (wire.Uri.Host == "api.github.com"))
                 throw new CredentialException("credential-dispatch-scope-invalid");
-            using var lease = await vault.ResolveAsync(scope, cancellationToken);
-            await vault.RevalidateAsync(scope, lease.Profile.Generation, cancellationToken);
+            using var lease = await vault.ResolveForDispatchAsync(scope, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             // Key custody may be asynchronous. Recheck current durable authority and the original deadline after it.
             var current = await permits.AuthorizeAsync(wire, cancellationToken) ?? throw new CredentialException("credential-dispatch-not-authorized");
             if (CredentialRules.ScopeDigest(current.Inspect(wire, clock.GetUtcNow())) != CredentialRules.ScopeDigest(scope))
                 throw new CredentialException("credential-dispatch-scope-invalid");
+            if (lease.Profile.ExpiresUtc <= clock.GetUtcNow().AddSeconds(15))
+                throw new CredentialException("credential-not-current-or-authorized");
             _ = permit.Consume(wire, clock.GetUtcNow());
             if (!ReferenceEquals(current, permit)) _ = current.Consume(wire, clock.GetUtcNow());
             using var request = new HttpRequestMessage(HttpMethod.Post, wire.Uri);
             request.Content = new StringContent(wire.BodyJson, Encoding.UTF8, "application/json");
             foreach (var header in wire.Headers) request.Headers.TryAddWithoutValidation(header.Key, header.Value);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", lease.AccessToken());
-            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            Task<HttpResponseMessage> pendingResponse;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                // Admission is the SendAsync invocation, not remote receipt or completion. Rotation/revocation cannot
+                // commit between the authenticated vault read and this point. Never hold custody's gate over network I/O.
+                admitted = true;
+                pendingResponse = http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            }
+            finally { lease.ReleaseAdmissionGuard(); }
+            using var response = await pendingResponse;
             // Never follow an authorization-bearing redirect, nor expose provider error bodies that may reflect a token.
             if ((int)response.StatusCode is >= 300 and < 400) return new(502, "");
             if (!response.IsSuccessStatusCode) return new((int)response.StatusCode, "");
@@ -158,6 +176,15 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
             if (body.Contains(lease.AccessToken(), StringComparison.Ordinal)) return new((int)response.StatusCode, "");
             return new((int)response.StatusCode, SafeBody(body, scope.Provider));
         }
+        catch (OperationCanceledException) when (callerCancellation.IsCancellationRequested)
+        { throw new OperationCanceledException("Pipeline credential operation interrupted.", callerCancellation); }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        {
+            if (admitted) throw new TimeoutException("pipeline-authenticated-transport-uncertain");
+            throw new PipelineContractException("pipeline-credential-admission-timeout");
+        }
+        catch (OperationCanceledException)
+        { throw new OperationCanceledException("Pipeline credential operation interrupted.", callerCancellation); }
         catch (CredentialException) { throw new PipelineContractException("pipeline-credential-authority-denied"); }
         catch (HttpRequestException) { throw new HttpRequestException("pipeline-authenticated-transport-uncertain"); }
         catch (IOException) { throw new IOException("pipeline-authenticated-transport-uncertain"); }

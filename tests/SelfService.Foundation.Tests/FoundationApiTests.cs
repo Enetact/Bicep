@@ -232,7 +232,8 @@ public sealed class FoundationApiTests
 
         public static async Task<ApiCell> Start(string provider = PipelineRequestFactory.GitHub, bool worker = false,
             bool transport = true, string? directory = null, IdentityTestIssuer? issuer = null, string? customerId = null, string? cellId = null,
-            IFoundationModelClient? modelClient = null, bool requireSignedEntitlement = false)
+            IFoundationModelClient? modelClient = null, bool requireSignedEntitlement = false,
+            bool requireActivationAuthority = false, string? activationAuthorityDirectory = null)
         {
             var owns = issuer is null; issuer ??= new();
             directory ??= Path.Combine(Path.GetTempPath(), "studio-foundation-api-" + Guid.NewGuid().ToString("N"));
@@ -241,7 +242,8 @@ public sealed class FoundationApiTests
             while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "config", "workloads.json"))) repo = repo.Parent;
             var options = new FoundationHostOptions(issuer.Options(customerId ?? Customer, cellId ?? Cell), Path.Combine(directory, "cell.db"), Actor("admin"))
             { EnableWorker = worker, DisconnectedTransport = transport ? fixture : null, PollInterval = TimeSpan.FromMilliseconds(20), RepositoryRoot = repo?.FullName,
-                ModelClient = modelClient, RequireSignedEntitlement = requireSignedEntitlement };
+                ModelClient = modelClient, RequireSignedEntitlement = requireSignedEntitlement,
+                RequireActivationAuthority = requireActivationAuthority, ActivationAuthorityDirectory = activationAuthorityDirectory };
             var app = FoundationApplication.Build(options, configure: builder => builder.WebHost.UseTestServer());
             await app.StartAsync(); var client = app.GetTestClient(); client.BaseAddress = new Uri("http://localhost");
             var spec = new ConnectionCommand(provider, "customer-org", provider == PipelineRequestFactory.AzureDevOps ? "Customer Project" : null,

@@ -6,9 +6,14 @@ param(
     [string]$ReceiptPath='',
     [string]$CaptureTestEvidenceIndex='',
     [string[]]$TrxPath=@(),
-    [ValidateRange(1,168)][int]$MaximumEvidenceAgeHours=24
+    [ValidateRange(1,168)][int]$MaximumEvidenceAgeHours=24,
+    [string]$FoundationExecutionReceipt='',
+    [string]$ExpectedFoundationExecutionReceiptSha256='',
+    [string]$ProgressSourceReview='',
+    [string]$ExpectedProgressSourceReviewSha256=''
 )
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'FoundationReleaseExecutionEvidence.ps1')
 
 function Get-ReleasePath([string]$Root,[string]$Path,[switch]$Artifact,[switch]$Existing){
     if([string]::IsNullOrWhiteSpace($Path)){throw 'ReleasePathRequired'}
@@ -182,11 +187,20 @@ function New-ReleaseEvidenceIndex([string]$Root,[string[]]$Paths,[int]$AgeHours)
         sourceManifestSha256=$source.manifestSha256;captureDoesNotAttestTestedSource=$true;tests=$tests.ToArray()}
 }
 
-function Test-CommercialReleaseEvidence([string]$Root,[string]$IndexPath,[int]$AgeHours){
+function Test-CommercialReleaseEvidence([string]$Root,[string]$IndexPath,[int]$AgeHours,
+    [string]$ExecutionReceiptPath='',[string]$ExecutionReceiptSha256='',[string]$ProgressReviewPath='',[string]$ProgressReviewSha256=''){
+    if([bool]$ExecutionReceiptPath -ne [bool]$ExecutionReceiptSha256 -or [bool]$ProgressReviewPath -ne [bool]$ProgressReviewSha256 -or
+        (!$ExecutionReceiptPath -and [bool]$ProgressReviewPath)){throw 'ReleaseExecutionExplicitPairsRequired'}
     $source=Get-ReleaseSourceIdentity $Root;$now=[DateTimeOffset]::UtcNow
     $indexFile=Get-ReleasePath -Root $Root -Path $IndexPath -Artifact -Existing
-    if((Get-Item -LiteralPath $indexFile).Length -gt 1048576){throw 'ReleaseIndexSizeInvalid'}
-    $index=ConvertFrom-ReleaseJson ([IO.File]::ReadAllText($indexFile))
+    # Bind the report to the same bounded index bytes parsed here, even if an owner edits the file later.
+    $indexStream=[IO.FileStream]::new($indexFile,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try{
+        if($indexStream.Length -gt 1048576){throw 'ReleaseIndexSizeInvalid'}
+        $indexSha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($indexStream)).ToLowerInvariant();$indexStream.Position=0
+        $indexReader=[IO.StreamReader]::new($indexStream,[Text.UTF8Encoding]::new($false,$true),$true,8192,$true)
+        try{$index=ConvertFrom-ReleaseJson $indexReader.ReadToEnd()}finally{$indexReader.Dispose()}
+    }finally{$indexStream.Dispose()}
     Assert-ReleaseJsonFields $index @('schema','createdUtc','sourceHead','sourceManifestSha256','captureDoesNotAttestTestedSource','tests')
     $created=Get-ReleaseTime $index.createdUtc
     if($index.schema -cne 'platform-studio.test-evidence-index.v1' -or $index.sourceHead -cne $source.head -or
@@ -198,6 +212,14 @@ function Test-CommercialReleaseEvidence([string]$Root,[string]$IndexPath,[int]$A
         Assert-ReleaseJsonFields $test @('name','path','sha256')
         if($test.name -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\z' -or !$names.Add($test.name) -or !$paths.Add($test.path)){throw 'ReleaseTestIndexEntryInvalid'}
         $entry=Get-ReleaseTrxEvidence $Root $test.path $test.sha256 $now $AgeHours;$entry.name=$test.name;$tests.Add($entry)
+    }
+    $executionBinding=$null
+    if($ExecutionReceiptPath){
+        $foundation=@($tests|Where-Object {$_.name -ceq 'foundation'})
+        if($foundation.Count -ne 1){throw 'ReleaseExecutionFoundationIndexRequired'}
+        $executionBinding=Get-FoundationReleaseExecutionBinding -RepositoryRoot $Root -ExecutionReceiptPath $ExecutionReceiptPath -ExecutionReceiptSha256 $ExecutionReceiptSha256 `
+            -IndexedFoundationTrxPath $foundation[0].path -IndexedFoundationTrxSha256 $foundation[0].sha256 -ProgressReviewPath $ProgressReviewPath -ProgressReviewSha256 $ProgressReviewSha256 -MaximumEvidenceAgeHours $AgeHours
+        if($executionBinding.sourceHead -cne $source.head -or $executionBinding.sourceFileCount -ne $source.sourceFiles.Count -or $executionBinding.finalSourceManifestSha256 -cne $source.manifestSha256){throw 'ReleaseExecutionIndexSourceMismatch'}
     }
     $scan=Get-ReleaseSourceScan $Root $source.sourceFiles
     if($scan.findings.Count){throw 'ReleaseSourceArtifactRejected'}
@@ -218,26 +240,29 @@ function Test-CommercialReleaseEvidence([string]$Root,[string]$IndexPath,[int]$A
         @{code='binary-signing-and-final-archive-review-pending';phase='PS-05/PS-17';scope='Signing, final-archive secret scans, SBOM/notices and complete dependency/license review remain required.'},
         @{code='test-source-attestation-not-independent';phase='PS-02';scope='A captured index binds observed source/evidence bytes; it is not independent proof the reported run tested those bytes.'}
     )
-    return [ordered]@{schema='platform-studio.commercial-local-qualification.v1';observedUtc=$now.ToString('O');localQualificationPassed=$true;
+    if($executionBinding){Assert-FoundationReleaseExecutionCurrent $Root $executionBinding}
+    $qualification=[ordered]@{schema='platform-studio.commercial-local-qualification.v1';observedUtc=$now.ToString('O');localQualificationPassed=$true;
         productionReady=$false;publicationAuthorized=$false;externalExecutionAuthorized=$false;azureDeploymentAuthorized=$false;
         source=@{head=$source.head;manifestSha256=$source.manifestSha256;sourceFileCount=$source.sourceFiles.Count};
-        evidenceIndexSha256=(Get-FileHash -LiteralPath $indexFile -Algorithm SHA256).Hash.ToLowerInvariant();tests=$tests.ToArray();
+        evidenceIndexSha256=$indexSha256;tests=$tests.ToArray();
         sourceScan=$scan;targetFiles=$targets.Count;enabledTargets=0;productionBlockers=$blockers;
         actionsPerformed=@{cloudCalls=$false;signIns=$false;pipelineSubmissions=$false;packageBuilds=$false;publication=$false};
         limits=@('Protect the evidence index independently; a privileged source/evidence owner can rewrite both.','Passing local checks never enables production gates, publication or cloud execution.')}
+    if($executionBinding){$qualification.foundationExecution=$executionBinding}
+    return $qualification
 }
 
 if($MyInvocation.InvocationName -eq '.'){return}
 $root=if($RepositoryRoot){[IO.Path]::GetFullPath($RepositoryRoot)}else{[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))}
 if($CaptureTestEvidenceIndex){
-    if($TestEvidenceIndex -or $ReceiptPath){throw 'Choose capture mode or qualification mode, not both.'}
+    if($TestEvidenceIndex -or $ReceiptPath -or $FoundationExecutionReceipt -or $ExpectedFoundationExecutionReceiptSha256 -or $ProgressSourceReview -or $ExpectedProgressSourceReviewSha256){throw 'Choose capture mode or qualification mode, not both.'}
     $index=New-ReleaseEvidenceIndex $root $TrxPath $MaximumEvidenceAgeHours
     $path=Write-ReleaseJson $root $CaptureTestEvidenceIndex $index
     Write-Host "Captured observed test/source hashes: $path. Capture does not attest which source the tests executed."
 }else{
     if(!$TestEvidenceIndex){throw 'TestEvidenceIndex is required. Capture hashes from actual existing TRX files first.'}
     if(!$ReceiptPath){$ReceiptPath=Join-Path $root 'artifacts/commercial-release/local-qualification.json'}
-    $receipt=Test-CommercialReleaseEvidence $root $TestEvidenceIndex $MaximumEvidenceAgeHours
+    $receipt=Test-CommercialReleaseEvidence $root $TestEvidenceIndex $MaximumEvidenceAgeHours $FoundationExecutionReceipt $ExpectedFoundationExecutionReceiptSha256 $ProgressSourceReview $ExpectedProgressSourceReviewSha256
     $path=Write-ReleaseJson $root $ReceiptPath $receipt
     Write-Host "PASS: local release evidence checked; productionReady=false; no external execution or publication authority. $path"
 }

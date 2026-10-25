@@ -120,16 +120,41 @@ function Test-FoundationRuntimeTree {
     [pscustomobject]@{ FileCount = $files.Count; Bytes = $length }
 }
 
+function Get-FoundationEntryNames { @('SelfService.Foundation.Host','SelfService.Foundation.Worker','SelfService.Foundation.Owner') }
+function Get-FoundationCorePublicFiles {
+    # Preserve the existing preview contract when newer optional guides are added to newly published archives.
+    @('config/foundation-cell.example.json','config/foundation-entra-onboarding.example.json',
+      'docs/foundation-service.md','docs/foundation-owner-cli.md','docs/foundation-entra-onboarding.md')
+}
+function Get-FoundationPublicFiles {
+    @(Get-FoundationCorePublicFiles) + @('docs/foundation-inactive-reconciliation.md','docs/foundation-credential-lifecycle.md',
+      'docs/foundation-credential-rewrap.md','docs/foundation-durable-dispatch-authorization.md',
+      'docs/foundation-credential-namespaces.md','docs/foundation-worker-receipts.md','docs/foundation-credential-rollback.md',
+      'docs/foundation-credential-maintenance.md','docs/foundation-maintenance-observation.md',
+      'docs/foundation-credential-recovery-inventory.md','docs/foundation-credential-recovery-retention.md',
+      'docs/foundation-backup-checkpoint-custody.md','docs/foundation-backup-checkpoint-recovery.md',
+      'docs/foundation-credential-recovery-set.md','docs/foundation-credential-recovery-rehearsal.md',
+      'docs/foundation-credential-recovery-staging.md','docs/foundation-credential-recovery-stage-verification.md',
+      'docs/foundation-credential-recovery-review.md','docs/foundation-credential-recovery-review-execution.md',
+      'docs/foundation-credential-recovery-checkpoints.md','docs/foundation-credential-checkpoint-staging.md',
+      'docs/foundation-absence-scope-provenance.md','docs/foundation-absence-scope-inspection.md',
+      'docs/foundation-scoped-recovery.md')
+}
+function Get-FoundationRequiredPackageFiles {
+    foreach ($entry in @(Get-FoundationEntryNames)) { foreach ($extension in @('.dll','.deps.json','.runtimeconfig.json')) { 'runtime/' + $entry + $extension } }
+    @(Get-FoundationCorePublicFiles) + @('README.md')
+}
+
 function Test-FoundationPackageTree {
     param([Parameter(Mandatory)][string]$PackageDirectory)
     $runtime = Test-FoundationRuntimeTree (Join-Path $PackageDirectory 'runtime')
-    foreach ($required in @('runtime/SelfService.Foundation.Host.dll', 'runtime/SelfService.Foundation.Host.deps.json', 'runtime/SelfService.Foundation.Host.runtimeconfig.json', 'runtime/SelfService.Foundation.Worker.dll', 'runtime/SelfService.Foundation.Worker.deps.json', 'runtime/SelfService.Foundation.Worker.runtimeconfig.json', 'config/foundation-cell.example.json', 'docs/foundation-service.md', 'README.md')) {
+    foreach ($required in @(Get-FoundationRequiredPackageFiles)) {
         if (!(Test-Path -LiteralPath (Join-Path $PackageDirectory $required) -PathType Leaf)) { throw 'Required package content is missing.' }
     }
     $null = Test-FoundationDependencyTree $PackageDirectory
     foreach ($file in @(Get-FoundationPackageFiles $PackageDirectory)) {
         if ($file.Path.StartsWith('runtime/', [StringComparison]::Ordinal)) { continue }
-        if ($file.Path -cnotin (@('config/foundation-cell.example.json', 'docs/foundation-service.md', 'README.md', 'inventory.json', 'MANIFEST.sha256') + @(Get-FoundationDependencyFiles))) {
+        if ($file.Path -cnotin (@(Get-FoundationPublicFiles) + @('README.md', 'inventory.json', 'MANIFEST.sha256') + @(Get-FoundationDependencyFiles))) {
             throw 'Unreviewed source/runtime state is forbidden in a package.'
         }
         Assert-FoundationSafeBytes $file.Path ([IO.File]::ReadAllBytes($file.FullName))
@@ -201,11 +226,32 @@ function Read-FoundationArchiveEntry {
     } finally { $stream.Dispose();$hasher.Dispose();if($null -ne $output){$output.Dispose()} }
 }
 
+function Assert-FoundationArchiveRelativePath {
+    param([Parameter(Mandatory)][string]$Path)
+    if($Path -cnotmatch '\A[A-Za-z0-9_./+-]+\z' -or $Path.StartsWith('/') -or
+        @($Path.Split('/') | Where-Object { !$_ -or $_ -in @('.','..') -or $_.EndsWith('.') -or $_.EndsWith(' ') -or
+            $_ -match '(?i)\A(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|\z)' }).Count){
+        throw 'Unsafe or ambiguous archive path.'
+    }
+}
+
 function Test-FoundationArchive {
     param([Parameter(Mandatory)][string]$ArchivePath)
     Assert-FoundationUnlinkedPath $ArchivePath
-    $archive = [IO.Compression.ZipFile]::OpenRead([IO.Path]::GetFullPath($ArchivePath))
+    $archiveStream = [IO.File]::Open([IO.Path]::GetFullPath($ArchivePath),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    $archive = $null
     try {
+        if($archiveStream.Length -gt 268435456){throw 'Archive size limit exceeded.'}
+        $archive = [IO.Compression.ZipArchive]::new($archiveStream,[IO.Compression.ZipArchiveMode]::Read,$false)
+        if($archive.Entries.Count -gt 5000){throw 'Archive entry limit exceeded.'}
+        foreach($entry in $archive.Entries){
+            $directory = $entry.FullName.EndsWith('/',[StringComparison]::Ordinal)
+            $path = if($directory){$entry.FullName.Substring(0,$entry.FullName.Length-1)}else{$entry.FullName}
+            Assert-FoundationArchiveRelativePath $path
+            if((($entry.ExternalAttributes -shr 16) -band 0xF000) -eq 0xA000 -or ($directory -and $entry.Length -ne 0)){
+                throw 'Unsafe archive directory or symbolic link.'
+            }
+        }
         $entries = @($archive.Entries | Where-Object { !$_.FullName.EndsWith('/', [StringComparison]::Ordinal) })
         if ($entries.Count -gt 5000) { throw 'Archive entry limit exceeded.' }
         $byName = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -217,13 +263,13 @@ function Test-FoundationArchive {
                 throw 'Unsafe or duplicate archive entry.'
             }
             if ($name.StartsWith('runtime/', [StringComparison]::Ordinal)) { Assert-FoundationRuntimeName ($name.Substring(8)) }
-            elseif ($name -cnotin (@('config/foundation-cell.example.json', 'docs/foundation-service.md', 'README.md', 'inventory.json', 'MANIFEST.sha256') + @(Get-FoundationDependencyFiles))) {
+            elseif ($name -cnotin (@(Get-FoundationPublicFiles) + @('README.md', 'inventory.json', 'MANIFEST.sha256') + @(Get-FoundationDependencyFiles))) {
                 throw 'Unexpected archive contents.'
             }
             $length += $entry.Length
             if ($length -gt 268435456) { throw 'Archive size limit exceeded.' }
         }
-        foreach ($required in @('runtime/SelfService.Foundation.Host.dll', 'runtime/SelfService.Foundation.Host.deps.json', 'runtime/SelfService.Foundation.Host.runtimeconfig.json', 'runtime/SelfService.Foundation.Worker.dll', 'runtime/SelfService.Foundation.Worker.deps.json', 'runtime/SelfService.Foundation.Worker.runtimeconfig.json', 'config/foundation-cell.example.json', 'docs/foundation-service.md', 'README.md', 'inventory.json', 'MANIFEST.sha256')) {
+        foreach ($required in (@(Get-FoundationRequiredPackageFiles) + @('inventory.json', 'MANIFEST.sha256'))) {
             if (!$byName.ContainsKey($required)) { throw 'Archive integrity inventory or required content is missing.' }
         }
         foreach ($required in @(Get-FoundationDependencyFiles)) { if (!$byName.ContainsKey($required)) { throw 'Archive dependency evidence is missing.' } }
@@ -267,7 +313,7 @@ function Test-FoundationArchive {
         if ($reportRead.Sha256 -cne $verifiedHashes[$reportEntry.FullName]) { throw 'Archive dependency evidence changed during verification.' }
         Assert-FoundationDependencyReport $reportRead.Content $runtimeFiles.ToArray()
         [pscustomobject]@{ Entries = $entries.Count; UncompressedBytes = $length; HashesVerified = $expected.Count }
-    } finally { $archive.Dispose() }
+    } finally { if($null -ne $archive){$archive.Dispose()};$archiveStream.Dispose() }
 }
 
 function Merge-FoundationRuntimeClosures {
@@ -296,7 +342,7 @@ function Get-FoundationPublishSourceStamp {
     param([Parameter(Mandatory)][string]$RepositoryRoot)
     $paths = @(& git -C $RepositoryRoot -c core.quotepath=false ls-files --cached --others --exclude-standard -- src vendor global.json NuGet.Config Directory.Build.props Directory.Build.targets LICENSE 'LICENSE.*' 'NOTICE*')
     if ($LASTEXITCODE -ne 0 -or !$paths.Count) { throw 'Publish source inventory is unavailable.' }
-    $paths += @('scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','config/foundation-cell.example.json','docs/foundation-service.md')
+    $paths += @('scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','scripts/Test-FoundationPackageNoticePins.ps1') + @(Get-FoundationPublicFiles)
     $rows = foreach ($relative in @($paths | Sort-Object -Unique)) {
         if ($relative -notmatch '\A[A-Za-z0-9_./+-]+\z' -or $relative.Split('/') -contains '..') { throw 'Unsafe publish source path.' }
         $path = Join-Path $RepositoryRoot $relative
@@ -348,6 +394,7 @@ $null = New-Item -ItemType Directory -Path $destination
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $destination '.package-owner.json') -Encoding utf8NoBOM
 $stage = Join-Path $destination '.publish-stage'
 $workerStage = Join-Path $destination '.worker-publish-stage'
+$ownerStage = Join-Path $destination '.owner-publish-stage'
 $build = Join-Path $destination '.build'
 $package = Join-Path $destination 'package'
 $runtime = Join-Path $package 'runtime'
@@ -374,6 +421,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Local preview publish or locked dependency audit failed; owned diagnostic output was preserved.' }
     & $DotNetPath publish (Join-Path $repositoryRoot 'src/SelfService.Foundation.Worker/SelfService.Foundation.Worker.csproj') -c Release --no-self-contained --artifacts-path $build --output $workerStage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
     if ($LASTEXITCODE -ne 0) { throw 'Independent worker publish or locked dependency audit failed; owned diagnostic output was preserved.' }
+    & $DotNetPath publish (Join-Path $repositoryRoot 'src/SelfService.Foundation.Owner/SelfService.Foundation.Owner.csproj') -c Release --no-self-contained --artifacts-path $build --output $ownerStage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
+    if ($LASTEXITCODE -ne 0) { throw 'Trusted owner publish or locked dependency audit failed; owned diagnostic output was preserved.' }
 } finally {
     $env:DOTNET_CLI_HOME = $priorCliHome
     $env:NUGET_HTTP_CACHE_PATH = $priorHttpCache
@@ -381,6 +430,7 @@ try {
 }
 if ((Get-FoundationPublishSourceStamp $repositoryRoot) -cne $buildInputsSha256) { throw 'Source changed during publish; package creation refused.' }
 $null = Merge-FoundationRuntimeClosures $stage $workerStage
+$null = Merge-FoundationRuntimeClosures $stage $ownerStage
 $null = New-Item -ItemType Directory -Path $runtime -Force
 foreach ($file in @(Get-FoundationPackageFiles $stage)) {
     $target = Join-Path $runtime $file.Path
@@ -407,7 +457,7 @@ $null = New-Item -ItemType Directory -Path $dependencyDestination
 foreach ($relative in @(Get-FoundationDependencyFiles)) {
     Copy-Item -LiteralPath (Join-Path $dependencyRoot ([IO.Path]::GetFileName($relative))) -Destination (Join-Path $package $relative)
 }
-foreach ($relative in @('config/foundation-cell.example.json', 'docs/foundation-service.md')) {
+foreach ($relative in @(Get-FoundationPublicFiles)) {
     $source = Join-Path $repositoryRoot $relative
     Assert-FoundationUnlinkedPath $source
     $target = Join-Path $package $relative
@@ -426,8 +476,14 @@ in this package. External pipeline execution remains disabled by this host.
 The separate worker is included with its complete dependency closure. It accepts an explicit protected
 configuration using `dotnet runtime/SelfService.Foundation.Worker.dll --config <path>`; its default Disabled
 mode never creates/migrates a database or claims a job. MockLoopback requires explicit double opt-in and
-an already initialized schema-4 cell on the same trusted local machine. Full worker/configuration guides
+an already initialized current-schema cell on the same trusted local machine. Full worker/configuration guides
 and launch scripts are in the matching checkout. This package grants no provider credentials or rights.
+
+Trusted owner operations use `dotnet runtime/SelfService.Foundation.Owner.dll --request <public-json> --output <fresh-result>`.
+Read docs/foundation-owner-cli.md before initialization, signed restore or exact activation. Existing databases
+are never initialized or migrated in place by this command. Entra identity proposals are public setup drafts,
+not Graph calls or grants; the bundled Entra input contains synthetic placeholders. Protect operator result
+files separately; do not place them, databases or keys inside this runtime package.
 
 Source-backed catalog, AVM/Bicep composition, instructions and workflow features require the full reviewed
 matching repository checkout and its pinned prerequisites; this binary ZIP does not contain those sources.

@@ -2,7 +2,7 @@
 
 **Managed DevOps Pools:** [Create a private build-agent pool](../workloads/managed-devops-pool/README.md) through the standard Discover/Preview/protected Apply flow, then qualify a consumer job before switching workload runners. Current source has eleven types, 44 disabled Azure targets and 30 registered roots. Earlier dated increments below retain their original counts.
 
-**Fabric:** [Premium workspace, connectors, private networking and deployment pipelines](../workloads/fabric/README.md) follows the standard Azure flow and a separate protected Fabric API lifecycle. Current source has ten workload types, 40 disabled Azure targets, 28 root pipelines and six MCP providers; older dated counts below retain their original scope.
+**Fabric:** [Premium workspace, connectors, private networking and deployment pipelines](../workloads/fabric/README.md) follows the standard Azure flow and a separate protected Fabric API lifecycle. Current source has eleven workload types, 44 disabled Azure targets, 30 root pipelines and seven source MCP providers; older dated counts retain their original scope. Source registration does not establish live provider acceptance.
 
 For a fresh local rebuild that preserves eligible sign-ins, use [the protected restart script and recovery guide](portal-fresh-restart.md).
 
@@ -17,8 +17,35 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Establish scalable foundations, close selected Port/Cycloid gaps and prepare a licensed offering | [Foundation-first commercial roadmap](plans/platform-studio-commercial-release.md) → [Customer isolation and identity architecture](plans/platform-studio-foundations-and-customer-isolation.md) |
 | Run the disconnected customer foundation and customer-owned GitHub/ADO pipeline tests | [Foundation service](foundation-service.md) → [Customer pipeline examples](../examples/customer-pipelines/README.md) → [SQLite ADR](adr/0001-foundation-dedicated-cell-sqlite.md) |
 | Review rotating identity keys, encrypted credentials, temporary support, signed audit anchors and release evidence | [Foundation security and operations](foundation-security-operations.md) |
+| Review the exact current publication after an uncertain local credential operation | [Publication observation](foundation-maintenance-observation.md) → [Observation evidence and restore](foundation-maintenance-observation-evidence.md) |
+| Identify authenticated credential dependencies and review advisory key-retention holds | [Recovery inventory](foundation-credential-recovery-inventory.md) → [Retention assessment](foundation-credential-recovery-retention.md) |
+| Capture a signed encrypted credential recovery set and rehearse its retained bytes without restoring a vault | [Signed recovery sets](foundation-credential-recovery-set.md) → [Read-only rehearsal](foundation-credential-recovery-rehearsal.md) |
+| Re-encrypt a reviewed recovery set into fresh inactive staging and verify its completed output | [Recovery staging](foundation-credential-recovery-staging.md) → [Completed-stage verification](foundation-credential-recovery-stage-verification.md) |
+| Authorize one read-only verification across every recovery project scope | [Durable recovery review](foundation-credential-recovery-review.md) → [Held verification execution](foundation-credential-recovery-review-execution.md) |
+| Pin the current accepted credential set and retain its selection through inactive staging | [Credential-set checkpoints](foundation-credential-recovery-checkpoints.md) → [Custody-backed staging](foundation-credential-checkpoint-staging.md) |
+| Preserve original scope after an abandoned first credential write in a fresh opt-in source format | [Source absence proofs](foundation-absence-scope-provenance.md) → [Authenticated scope inspection](foundation-absence-scope-inspection.md) |
+| Capture and rehearse both envelopes and absence proofs from a signed source-v2 artifact | [Scoped retained recovery and key holds](foundation-scoped-recovery.md) |
+| Retain the latest accepted backup checkpoint and verify/stage recovery against that custody | [Local checkpoint authority](foundation-backup-checkpoint-custody.md) → [Custody-backed recovery](foundation-backup-checkpoint-recovery.md) |
 | Operate separate workers, export frozen audit metadata or review feature policy | [Independent worker](foundation-independent-worker.md) → [Paged exports](foundation-paged-exports.md) → [Feature configuration](foundation-feature-configuration.md) |
 | Measure cell health/load, verify signed recovery or inspect distribution evidence | [Cell metrics](foundation-cell-metrics.md) → [Local load qualification](foundation-load-qualification.md) → [Signed backups](foundation-signed-backups.md) → [Dependency evidence](foundation-dependency-evidence.md) |
+| Coordinate restored cell activation locally | [Protected activation authority and runtime leases](foundation-cell-activation.md) |
+| Initialize a new cell or verify/stage signed recovery through trusted owner commands | [Owner CLI](foundation-owner-cli.md) |
+| Prepare the cell's Entra roles/scopes and exact callers without granting directory permissions | [Entra onboarding proposals](foundation-entra-onboarding.md) |
+| Review explicit key provisioning, revocation ordering and credential deadlines | [Credential lifecycle](foundation-credential-lifecycle.md) |
+| Move an encrypted profile to an already-provisioned key while preserving expiry and revocation | [Credential rewrap](foundation-credential-rewrap.md) |
+| Recheck current durable job, approval and connection authority before credential admission | [Durable dispatch authorization](foundation-durable-dispatch-authorization.md) |
+| Resolve uncertain jobs while suspended/offboarding without customer reactivation | [Inactive reconciliation](foundation-inactive-reconciliation.md) |
+| Bind a fresh foundation test run to source inventories and its actual TRX | [Test execution evidence](foundation-test-execution-evidence.md) |
+| Provision fresh owner-protected credential custody and validate existing namespaces without repair | [Credential namespaces](foundation-credential-namespaces.md) |
+| Detect older credential envelopes using a separately protected local authority | [Opt-in credential rollback checks](foundation-credential-rollback.md) |
+| Prepare and separately approve local credential revoke/rewrap with durable outcomes | [Reviewed credential maintenance](foundation-credential-maintenance.md) |
+| Verify scoped maintenance audit evidence and restore fencing | [Maintenance evidence](foundation-credential-maintenance-evidence.md) |
+| Validate worker receipt destinations before logs, database access or registration | [Worker receipts and preflight](foundation-worker-receipts.md) |
+| Verify a pinned execution receipt and exact progress-only changes during release qualification | [Release execution binding](foundation-release-execution-evidence.md) |
+| Stage, verify and repair a portable foundation preview without switching a running app | [Preview staging lifecycle](foundation-preview-installation.md) |
+| Inspect pinned preview text and managed user strings for credential candidates | [Static package secret review](foundation-package-secret-review.md) |
+| Configure a pinned local HTTPS listener | [Loopback certificate configuration and limits](foundation-loopback-https.md) |
+| Review proprietary binary licensing and a separate source offering | [Non-binding commercial review draft](commercial-license-review-draft.md) |
 | Provision private AKS or deliver an application with Helm | [AKS and Helm onboarding](../workloads/private-aks/README.md) |
 | Try the local application | [Getting started](getting-started.md) → [Portal setup](local-portal.md) |
 | Review the rebuilt portal experience and improvement priorities | [UI/UX review and phased plan](plans/portal-ui-ux-review.md) |

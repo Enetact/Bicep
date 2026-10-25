@@ -32,7 +32,8 @@ public sealed class FoundationMigrationTests
         var original = f.Store.SchemaStatus();
         _ = new FoundationStore(f.Path, f.Cell, f.Customer, initializeSchema: false);
         Assert.Equal(original, f.Store.SchemaStatus(), new SchemaComparer());
-        f.Execute("DROP TABLE worker_heartbeats; DROP TRIGGER schema_migrations_no_delete; DELETE FROM schema_migrations WHERE version=4; UPDATE cell SET schema_version=3;");
+        FoundationTestSchemaDowngrades.DropCredentialTablesAfter(f, 3);
+        f.Execute("DROP TRIGGER cell_instance_insert_guard; DROP TRIGGER cell_instance_update_guard; ALTER TABLE cell DROP COLUMN database_instance_id; DROP TABLE worker_heartbeats; DROP TRIGGER schema_migrations_no_delete; DELETE FROM schema_migrations WHERE version>=4; UPDATE cell SET schema_version=3;");
         Assert.Equal("CurrentSchemaRequired", Assert.Throws<FoundationStoreException>(() => new FoundationStore(f.Path, f.Cell, f.Customer, initializeSchema: false)).Code);
         Assert.Equal(3, f.Scalar("SELECT schema_version FROM cell"));
         Assert.Equal(0, f.Scalar("SELECT count(*) FROM sqlite_master WHERE name='worker_heartbeats'"));
@@ -45,13 +46,14 @@ public sealed class FoundationMigrationTests
     public void V3_upgrade_preserves_data_and_rolls_back_on_worker_schema_conflict()
     {
         using var f = new StoreFixture(); var job = f.Queue();
-        f.Execute("DROP TABLE worker_heartbeats; DROP TRIGGER schema_migrations_no_delete; DELETE FROM schema_migrations WHERE version=4; UPDATE cell SET schema_version=3; CREATE TRIGGER schema_migrations_no_delete BEFORE DELETE ON schema_migrations BEGIN SELECT RAISE(ABORT,'immutable migration history'); END;");
+        FoundationTestSchemaDowngrades.DropCredentialTablesAfter(f, 3);
+        f.Execute("DROP TRIGGER cell_instance_insert_guard; DROP TRIGGER cell_instance_update_guard; ALTER TABLE cell DROP COLUMN database_instance_id; DROP TABLE worker_heartbeats; DROP TRIGGER schema_migrations_no_delete; DELETE FROM schema_migrations WHERE version>=4; UPDATE cell SET schema_version=3; CREATE TRIGGER schema_migrations_no_delete BEFORE DELETE ON schema_migrations BEGIN SELECT RAISE(ABORT,'immutable migration history'); END;");
         f.Execute("CREATE TABLE worker_heartbeats(conflicting TEXT)");
         Assert.Throws<SqliteException>(() => f.Reopen());
         Assert.Equal(3, f.Scalar("SELECT schema_version FROM cell"));
         Assert.Equal(0, f.Scalar("SELECT count(*) FROM schema_migrations WHERE version=4"));
         f.Execute("DROP TABLE worker_heartbeats");
-        var upgraded = f.Reopen(); Assert.Equal(4, upgraded.SchemaStatus().Version);
+        var upgraded = f.Reopen(); Assert.Equal(FoundationStore.CurrentSchemaVersion, upgraded.SchemaStatus().Version);
         Assert.Equal(job.Id, upgraded.GetJob(f.Customer, "viewer", job.Id).Id);
         Assert.True(upgraded.VerifyAuditIntegrity(f.Customer, "auditor"));
     }
@@ -135,10 +137,15 @@ public sealed class FoundationMigrationTests
         }
     }
 
-    static void DowngradeToV1(StoreFixture f) => f.Execute("""
+    static void DowngradeToV1(StoreFixture f)
+    {
+        FoundationTestSchemaDowngrades.DropCredentialTablesAfter(f, 1);
+        f.Execute("""
+        DROP TRIGGER cell_instance_insert_guard; DROP TRIGGER cell_instance_update_guard; ALTER TABLE cell DROP COLUMN database_instance_id;
         DROP TABLE worker_heartbeats; DROP TABLE support_grants; DROP TABLE schema_migrations; DROP TABLE scopes; DROP TABLE customer_lifecycle; DROP TABLE administrative_approvals; DROP TABLE administrative_plans;
         DROP TABLE scope_exports; DROP TABLE artifact_tombstones; UPDATE cell SET schema_version=1;
         """);
+    }
 
     sealed class SchemaComparer : IEqualityComparer<FoundationSchemaStatus>
     {

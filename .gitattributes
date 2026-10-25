@@ -4,3 +4,5 @@
 vendor/azure-skills/** -text
 # OCI manifests and template layer digests bind the exact official AVM bytes.
 vendor/azure-verified-modules/** -text
+# Supplemental package notices retain exact, version-pinned upstream bytes.
+vendor/foundation-package-notices/** -text
