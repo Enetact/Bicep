@@ -120,7 +120,14 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
     public static PipelineAuthenticatedTransport ForMockHandler(CredentialVault vault, ICredentialDispatchPermitSource permits,
         HttpMessageHandler mockHandler, TimeProvider? clock = null, TimeSpan? operationTimeout = null) => new(vault, permits, mockHandler, clock, operationTimeout);
 
-    public async Task<PipelineWireResponse> SendAsync(PipelineWireRequest wire, CancellationToken cancellationToken)
+    public Task<PipelineWireResponse> SendAsync(PipelineWireRequest wire, CancellationToken cancellationToken) =>
+        SendCoreAsync(wire, permits, null, cancellationToken);
+
+    internal Task<PipelineWireResponse> SendBoundAsync(PipelineWireRequest wire, FoundationCredentialUseSession session,
+        CancellationToken cancellationToken) => SendCoreAsync(wire, session, session, cancellationToken);
+
+    async Task<PipelineWireResponse> SendCoreAsync(PipelineWireRequest wire, ICredentialDispatchPermitSource permitSource,
+        FoundationCredentialUseSession? boundSession, CancellationToken cancellationToken)
     {
         if (!enabled || http is null) throw new PipelineTransportDisabledException();
         cancellationToken.ThrowIfCancellationRequested();
@@ -132,7 +139,7 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
             if (wire is null || wire.Headers is null) throw new CredentialException("credential-dispatch-wire-invalid");
             wire = wire with { Headers = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(wire.Headers, StringComparer.Ordinal)) };
             ValidateWire(wire);
-            var permit = await permits.AuthorizeAsync(wire, cancellationToken) ?? throw new CredentialException("credential-dispatch-not-authorized");
+            var permit = await permitSource.AuthorizeAsync(wire, cancellationToken) ?? throw new CredentialException("credential-dispatch-not-authorized");
             var scope = permit.Inspect(wire, clock.GetUtcNow());
             if (scope.CustomerId != wire.Binding.CustomerId || scope.CellId != wire.Binding.CellId ||
                 scope.ConnectionId != wire.Binding.ConnectionId || scope.ConnectionGeneration != wire.Binding.ConnectionGeneration ||
@@ -142,7 +149,7 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
             using var lease = await vault.ResolveForDispatchAsync(scope, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             // Key custody may be asynchronous. Recheck current durable authority and the original deadline after it.
-            var current = await permits.AuthorizeAsync(wire, cancellationToken) ?? throw new CredentialException("credential-dispatch-not-authorized");
+            var current = await permitSource.AuthorizeAsync(wire, cancellationToken) ?? throw new CredentialException("credential-dispatch-not-authorized");
             if (CredentialRules.ScopeDigest(current.Inspect(wire, clock.GetUtcNow())) != CredentialRules.ScopeDigest(scope))
                 throw new CredentialException("credential-dispatch-scope-invalid");
             if (lease.Profile.ExpiresUtc <= clock.GetUtcNow().AddSeconds(15))
@@ -160,6 +167,7 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
                 // Admission is the SendAsync invocation, not remote receipt or completion. Rotation/revocation cannot
                 // commit between the authenticated vault read and this point. Never hold custody's gate over network I/O.
                 admitted = true;
+                boundSession?.MarkHttpAdmitted();
                 pendingResponse = http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             }
             finally { lease.ReleaseAdmissionGuard(); }

@@ -7,7 +7,8 @@ internal sealed record FoundationCredentialDispatchBinding(string DatabaseInstan
 public sealed partial class FoundationStore
 {
     internal CredentialDispatchPermit AuthorizeCurrentCredentialDispatch(FoundationCredentialDispatchBinding binding,
-        PipelineWireRequest wire, EntitlementVerifier verifier, string runtimeVersion, CancellationToken cancellationToken)
+        PipelineWireRequest wire, EntitlementVerifier verifier, string runtimeVersion, CancellationToken cancellationToken,
+        FoundationCredentialUseSession? session = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var scope = CredentialRules.Snapshot(binding.Scope);
@@ -19,6 +20,7 @@ public sealed partial class FoundationStore
         using var db = Open(); using var tx = db.BeginTransaction(deferred: true);
         AssertActivation(db, tx);
         RequireNoRecoveryExecutionHold(db, tx);
+        RequireCredentialRuntimeDispatch(db, tx, session);
         if (ReadInstanceIdentity(db, tx, CustomerId, CellId).DatabaseInstanceId != binding.DatabaseInstanceId)
             throw new FoundationStoreException("CredentialDispatchInstanceChanged", 403);
         var job = ReadJob(db, tx, binding.JobId);

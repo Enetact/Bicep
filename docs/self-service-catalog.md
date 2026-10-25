@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+[Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.
+
 [Restore execution holds](foundation-recovery-execution-hold.md) protect the customer foundation before fresh dispatch. They add no workload, Azure permission or default model/MCP action; they preserve authorized inspection and recovery preparation.
 
 [Owned compiler builds and cleanup](foundation-owned-build-cleanup.md) add developer operations with contained child processes and completion-bound intermediate retention, without changing running applications or granting cloud authority.

@@ -15,7 +15,7 @@ public sealed class FoundationRecoveryExecutionHoldCoreTests
         var initial = f.Core.Store.GetRecoveryExecutionHold(context); Assert.False(initial.ExecutionHeld); Assert.Null(initial.Hold);
         var operational = f.Core.Store.OperationalStatus(f.Core.Customer, "operations", "default", "dev");
         Assert.False(operational.RecoveryExecutionHeld); Assert.Null(operational.ExecutionHoldReason);
-        Assert.Equal(11, f.Core.Store.SchemaStatus().Version); Assert.Equal(0, f.Core.Scalar("SELECT count(*) FROM recovery_execution_holds"));
+        Assert.Equal(FoundationStore.CurrentSchemaVersion, f.Core.Store.SchemaStatus().Version); Assert.Equal(0, f.Core.Scalar("SELECT count(*) FROM recovery_execution_holds"));
         _ = f.Backup(f.Core.Store, "fresh-backup"); Assert.False(f.Core.Store.GetRecoveryExecutionHold(context).ExecutionHeld);
         Assert.Null(f.Core.Store.ClaimNext(f.Core.Customer, "worker", TimeSpan.FromMinutes(1))); var job = f.Core.Queue();
         Assert.Equal(job.Id, f.Core.Store.ClaimNext(f.Core.Customer, "worker", TimeSpan.FromMinutes(1))!.Id);
@@ -85,7 +85,7 @@ public sealed class FoundationRecoveryExecutionHoldCoreTests
         var history = History(f.Core.Path); var bytes = File.ReadAllBytes(f.Core.Path);
         Assert.Equal("CurrentSchemaRequired", Assert.Throws<FoundationStoreException>(() => new FoundationStore(f.Core.Path, f.Core.Cell, f.Core.Customer, initializeSchema: false)).Code);
         Assert.Equal(bytes, File.ReadAllBytes(f.Core.Path)); var upgraded = f.Core.Reopen();
-        Assert.Equal(history, History(f.Core.Path).Take(10)); Assert.Equal(11, upgraded.SchemaStatus().Version);
+        Assert.Equal(history, History(f.Core.Path).Take(10)); Assert.Equal(FoundationStore.CurrentSchemaVersion, upgraded.SchemaStatus().Version);
         Assert.Equal(originalInstance, upgraded.GetCellInstanceIdentity().DatabaseInstanceId); Assert.Equal(0, f.Core.Scalar("SELECT count(*) FROM recovery_execution_holds"));
         Assert.Equal(1, f.Core.Scalar("SELECT count(*) FROM audit WHERE action='SchemaMigrated' AND reason='SchemaV10ToV11'"));
         var plan = upgraded.CreatePlan(f.Core.Customer, "requester", f.Core.Input()); upgraded.ApprovePlan(f.Core.Customer, "approver", plan.Id, plan.Digest);

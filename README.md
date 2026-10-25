@@ -1,5 +1,7 @@
 # Platform Studio
 
+**Credential runtime binding — 25 October 2026:** [The activation-held credential path](docs/foundation-credential-runtime-binding.md) explicitly binds one fresh cell instance to its full vault/rollback namespace and actual activation custody. Once bound, Foundation permits cannot fall back to legacy configuration. The operation holds its own activation lease through response completion; recovery release, adoption and live provider enablement remain separate work.
+
 **Restore safety — 25 October 2026:** [A durable cell execution hold](docs/foundation-recovery-execution-hold.md) prevents restored databases from admitting fresh ordinary execution, including after activation. Recovery inspection and preparation remain available; releasing the hold, credential adoption and coordinated activation require a separate reviewed protocol. Existing databases and portal sessions are not changed by local builds.
 
 **Owned compiler builds:** [The fixed Foundation launcher](docs/foundation-owned-build-cleanup.md) contains new build processes and retains completion/ownership evidence. After fresh successful full tests, older proven-completed compiler intermediates can qualify for cleanup while the newest two generations, `bin`, logs, packages, data and keys remain protected. Ambiguous legacy builds retain their existing refusal rules.

@@ -12,7 +12,7 @@ public sealed record FoundationCellActivationBinding(string CustomerId, string C
     string DatabasePath, string DatabaseInstanceId, long Generation, DateTimeOffset ActivatedUtc, string PreviousSha256, string Sha256);
 
 /// <summary>Single-machine cooperative activation authority. Protect this directory independently from cell databases and snapshots.</summary>
-public sealed class FoundationCellActivationAuthority
+public sealed partial class FoundationCellActivationAuthority
 {
     public const int MaximumGenerations = 1024;
     public const int MaximumMetadataBytes = 16384;
