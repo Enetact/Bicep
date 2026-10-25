@@ -36,19 +36,19 @@ public sealed class PortalTests
         var catalog = new Catalog(Options()); var rules = catalog.RecoveryPolicies;
         Assert.False(rules.GetProperty("executionEnabled").GetBoolean());
         var ids = rules.GetProperty("policies").EnumerateArray().Select(p => p.GetProperty("id").GetString()).ToArray();
-        Assert.Equal(17, ids.Length);
+        Assert.Equal(19, ids.Length);
         Assert.All(catalog.Products, p => Assert.Contains(p.Type, ids));
         Assert.DoesNotContain("rollback-on-error", rules.GetRawText());
         Assert.Throws<PortalException>(() => catalog.Validate(Request("restore")));
     }
     [Fact] public void CatalogReflectsActualTargetsAndMenuCosts()
     {
-        var catalog = new Catalog(Options()); Assert.Equal(9, catalog.Products.Length);
-        Assert.Equal(36, catalog.Products.Sum(p => p.Targets.Length)); Assert.All(catalog.Products, p => { Assert.NotEmpty(p.Summary); Assert.NotEmpty(p.Costs); Assert.DoesNotContain("See the generated", p.Requirements); Assert.All(p.Targets,t => Assert.False(t.Enabled)); });
+        var catalog = new Catalog(Options()); Assert.Equal(11, catalog.Products.Length);
+        Assert.Equal(44, catalog.Products.Sum(p => p.Targets.Length)); Assert.All(catalog.Products, p => { Assert.NotEmpty(p.Summary); Assert.NotEmpty(p.Costs); Assert.DoesNotContain("See the generated", p.Requirements); Assert.All(p.Targets,t => Assert.False(t.Enabled)); });
         Assert.Contains(catalog.Skills, s => s.Id == "platform-discovery-audit");
     }
     [Theory]
-    [InlineData("storage")] [InlineData("keyvault")] [InlineData("observe")] [InlineData("httpapi")] [InlineData("busworker")]
+    [InlineData("devopspool")] [InlineData("fabric")] [InlineData("storage")] [InlineData("keyvault")] [InlineData("observe")] [InlineData("httpapi")] [InlineData("busworker")]
     public void NewProductsHaveDedicatedMenusAndPreviewPayloads(string id)
     {
         var c = new Catalog(Options()); var p = c.Products.Single(p => p.Id == id);

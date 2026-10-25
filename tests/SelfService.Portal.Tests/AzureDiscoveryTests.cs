@@ -30,16 +30,16 @@ public sealed class AzureDiscoveryTests
         await Assert.ThrowsAsync<PortalException>(() => service.Discover(session, Request() with { ResourceGroup = "../other" }, CancellationToken.None));
         Assert.Empty(http.Requests);
     }
-    static (AzureDiscovery Service, Handler Http, BrowserSession Session) Service(string scenario = "empty")
+    static (AzureDiscovery Service, Handler Http, BrowserSession Session) Service(string scenario = "empty", string? diagnosticBody = null, bool chunked = false)
     {
-        var o = Options(); var handler = new Handler(scenario);
+        var o = Options(); var handler = new Handler(scenario, diagnosticBody, chunked);
         return (new(new HttpClient(handler), new Tokens(), o, new(o)), handler, new(o));
     }
     sealed class Tokens : ITokenProvider { public Task<string> Token(BrowserSession session, string audience) { Assert.Equal("azure", audience); return Task.FromResult("TEST-AZURE-TOKEN"); } }
     [Fact] public void EntireUpstreamCatalogIncludesNestedAndCostSkills()
     {
         var skills = new Catalog(Options()).Skills;
-        Assert.Equal(52, skills.Length); Assert.Equal(42, skills.Count(s => s.Origin == "Microsoft Azure Skills"));
+        Assert.Equal(53, skills.Length); Assert.Equal(42, skills.Count(s => s.Origin == "Microsoft Azure Skills"));
         Assert.Contains(skills, s => s.Name == "azure-app-onboard-deploy"); Assert.Contains(skills, s => s.Id == "azure--azure-cost--cost-analysis");
         Assert.All(skills.Where(s => s.Origin == "Microsoft Azure Skills"), s => { Assert.Equal("No pipeline associated yet", s.PipelineStatus); Assert.NotEqual("none", s.DiscoveryProfile); Assert.NotEmpty(s.Content); });
     }
@@ -100,9 +100,80 @@ public sealed class AzureDiscoveryTests
         Assert.Contains("identities only", fallback.GetProperty("issue").GetString());
         Assert.DoesNotContain("SECRET", report.GetRawText());
     }
-    sealed class Handler(string scenario) : HttpMessageHandler
+    [Theory]
+    [InlineData("BadRequest")][InlineData("SubscriptionNotFound")][InlineData("NoRegisteredProviderFound")][InlineData("MissingSubscriptionRegistration")]
+    public async Task DnsFailureRetainsOnlyCanonicalArmDiagnosticCode(string code)
+    {
+        var body = JsonSerializer.Serialize(new { error = new { code, message = "SECRET private upstream message", details = new[] { new { code = "SECRET", target = "SECRET" } } }, secret = "SECRET" });
+        var (service, http, session) = Service("dnsDiagnostic", body);
+        var report = Json(await service.Discover(session, Request("azure--azure-resource-visualizer"), CancellationToken.None));
+        var dns = report.GetProperty("collections").EnumerateArray().Single(c => c.GetProperty("name").GetString() == "Private DNS zones");
+        Assert.Equal("Partial", report.GetProperty("status").GetString());
+        Assert.Equal("Failed", dns.GetProperty("status").GetString());
+        Assert.Equal(0, dns.GetProperty("observed").GetInt32());
+        Assert.Contains($"HTTP 400 (ARM {code})", dns.GetProperty("issue").GetString());
+        Assert.Contains("not an empty result", dns.GetProperty("issue").GetString());
+        Assert.DoesNotContain("SECRET", report.GetRawText());
+        Assert.Equal(6, http.Requests.Count);
+    }
+    public static IEnumerable<object[]> UnsafeDiagnosticBodies()
+    {
+        yield return ["SECRET not JSON"];
+        yield return ["[]"];
+        yield return ["{\"code\":\"BadRequest\",\"message\":\"SECRET\"}"];
+        yield return ["{\"error\":{\"code\":123,\"message\":\"SECRET\"}}"];
+        yield return ["{\"error\":{\"code\":\"BadRequest\",\"code\":\"SubscriptionNotFound\"}}"];
+        yield return ["{\"error\":{\"code\":\"BadRequest\"},\"error\":{\"code\":\"SubscriptionNotFound\"}}"];
+        yield return ["{\"error\":{\"code\":\"BadRequest\",\"Code\":\"SubscriptionNotFound\"}}"];
+        yield return ["{\"error\":{\"code\":\"BadRequest\"},\"Error\":{\"code\":\"SubscriptionNotFound\"}}"];
+        yield return ["{\"error\":{\"code\":\"SECRET-CustomProviderCode\",\"message\":\"SECRET\"}}"];
+        yield return ["{\"error\":{\"code\":\"Bearer SECRET\"}}"];
+        yield return ["{\"error\":{\"code\":\"BadRequest\\nSECRET\"}}"];
+        yield return [JsonSerializer.Serialize(new { error = new { code = new string('S', 129), message = "SECRET" } })];
+        yield return ["{\"error\":{\"code\":\"BadRequest\",\"details\":" + new string('[', 9) + "\"SECRET\"" + new string(']', 9) + "}}"];
+    }
+    [Theory][MemberData(nameof(UnsafeDiagnosticBodies))]
+    public async Task MalformedAmbiguousAndUnreviewedArmDiagnosticsCannotEscape(string body)
+    {
+        var (service, _, session) = Service("dnsDiagnostic", body);
+        var report = Json(await service.Discover(session, Request("azure--azure-resource-visualizer"), CancellationToken.None));
+        var dns = report.GetProperty("collections").EnumerateArray().Single(c => c.GetProperty("name").GetString() == "Private DNS zones");
+        Assert.Equal("Partial", report.GetProperty("status").GetString());
+        Assert.Equal("Failed", dns.GetProperty("status").GetString());
+        Assert.Equal("HTTP 400; collection unavailable. This is not an empty result.", dns.GetProperty("issue").GetString());
+        Assert.DoesNotContain("SECRET", report.GetRawText());
+    }
+    [Theory][InlineData(false)][InlineData(true)]
+    public async Task OversizedArmDiagnosticsAreBoundedAndNeverExposed(bool chunked)
+    {
+        var body = JsonSerializer.Serialize(new { error = new { code = "BadRequest", message = "SECRET" + new string('S', 32 * 1024) } });
+        var (service, http, session) = Service("dnsDiagnostic", body, chunked);
+        var report = Json(await service.Discover(session, Request("azure--azure-resource-visualizer"), CancellationToken.None));
+        var dns = report.GetProperty("collections").EnumerateArray().Single(c => c.GetProperty("name").GetString() == "Private DNS zones");
+        Assert.Equal("Partial", report.GetProperty("status").GetString());
+        Assert.Equal("Failed", dns.GetProperty("status").GetString());
+        Assert.DoesNotContain("ARM BadRequest", dns.GetProperty("issue").GetString());
+        Assert.DoesNotContain("SECRET", report.GetRawText());
+        Assert.InRange(http.DiagnosticBytesRead, chunked ? 16 * 1024 + 1 : 0, chunked ? 18 * 1024 : 0);
+    }
+    sealed class DiagnosticContent(string body, Action<int> observed) : HttpContent
+    {
+        readonly byte[] bytes = System.Text.Encoding.UTF8.GetBytes(body);
+        protected override bool TryComputeLength(out long length) { length = 0; return false; }
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => stream.WriteAsync(bytes).AsTask();
+        protected override Task<Stream> CreateContentReadStreamAsync() => Task.FromResult<Stream>(new DiagnosticStream(bytes, observed));
+    }
+    sealed class DiagnosticStream(byte[] bytes, Action<int> observed) : MemoryStream(bytes)
+    {
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            var read = await base.ReadAsync(buffer, ct); observed(read); return read;
+        }
+    }
+    sealed class Handler(string scenario, string? diagnosticBody = null, bool chunked = false) : HttpMessageHandler
     {
         public List<string> Requests = [];
+        public int DiagnosticBytesRead;
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Assert.Equal(HttpMethod.Get, request.Method); Assert.Equal("management.azure.com", request.RequestUri!.Host); Assert.Equal("TEST-AZURE-TOKEN", request.Headers.Authorization!.Parameter);
@@ -111,6 +182,8 @@ public sealed class AzureDiscoveryTests
                 return Task.FromResult(new HttpResponseMessage(scenario == "notFound" ? HttpStatusCode.NotFound : HttpStatusCode.Forbidden) { Content = new StringContent("SECRET upstream diagnostics") });
             if (scenario == "invalidJson") return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("SECRET invalid JSON") });
             object Resource(string type) => new { id = $"/subscriptions/{Subscription}/resourceGroups/example/providers/{type}/example", type, name = "example", location = "eastus2", tags = new { password = "SECRET" }, properties = new { connectionString = "SECRET" } };
+            if (scenario == "dnsDiagnostic" && request.RequestUri.AbsolutePath.EndsWith("/privateDnsZones"))
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = chunked ? new DiagnosticContent(diagnosticBody!, read => DiagnosticBytesRead += read) : new StringContent(diagnosticBody!) });
             if (scenario.StartsWith("dnsFallback") && request.RequestUri.AbsolutePath.EndsWith("/privateDnsZones"))
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
             if (scenario.StartsWith("dnsFallback")) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { value = scenario == "dnsFallbackNonempty" && request.RequestUri.AbsolutePath.EndsWith("/resources") ? new[] { Resource("Microsoft.Network/privateDnsZones") } : Array.Empty<object>() }) });

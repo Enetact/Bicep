@@ -3,12 +3,16 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using BlobTransfer;
 using System.Text.Json;
+using SelfService.Telemetry;
+
+Environment.ExitCode = await TelemetryCommand.Run("platform-transfer-cli", "transfer.command", async () =>
+{
 
 if (args.Length == 0) throw new ArgumentException("Commands: status, resume, local-seed, local-smoke. See docs/operations.md.");
 if (args[0] is "local-seed" or "local-smoke")
 {
     await LocalCommands.RunAsync(args);
-    return;
+    return 0;
 }
 var command = args[0];
 var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -52,3 +56,5 @@ if (command is "status" or "resume")
     }
 }
 else throw new ArgumentException("Unknown command.");
+return 0;
+});

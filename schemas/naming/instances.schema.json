@@ -39,7 +39,9 @@
               "http-functions",
               "service-bus-worker",
               "private-data-platform",
-              "private-aks"
+              "private-aks",
+              "fabric",
+              "managed-devops-pool"
             ]
           },
           "state": {

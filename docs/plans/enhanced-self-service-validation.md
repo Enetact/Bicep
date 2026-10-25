@@ -1,5 +1,7 @@
 # Enhanced self-service: implementation readiness and validation plan
 
+**Commercial sequencing update — 24 October 2026, revision 2:** use [the foundation-first commercial roadmap](platform-studio-commercial-release.md) and [customer isolation architecture](platform-studio-foundations-and-customer-isolation.md) for P0/P1 dependencies, F0–F2 foundation proof and P2 feature/release admission. This dated design retains technical evidence/compatibility/domain qualification requirements; its earlier controlling-sequence statement is superseded for that commercial scope. No proposed foundation, feature or cloud acceptance is marked complete.
+
 **Review date: 26 September 2026. Status: design reviewed; initial offline implementation delivered; later increments and Azure acceptance pending.** This document consolidates the [expansion roadmap](../self-service-expansion-plan.md), [networking design](private-networking-self-service.md) and [Azure skills assessment](../azure-skills-assessment.md). It is the controlling sequence and validation checklist for implementation. Product-specific details remain in those documents. Targets, permissions and cloud resources remain unchanged.
 
 ## Readiness decision

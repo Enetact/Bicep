@@ -1,0 +1,15 @@
+{
+  "stages": [
+    {
+      "displayName": "Development"
+    },
+    {
+      "displayName": "Test"
+    },
+    {
+      "displayName": "Production"
+    }
+  ],
+  "kind": "CreateDeploymentPipeline",
+  "displayName": "Claims analytics"
+}

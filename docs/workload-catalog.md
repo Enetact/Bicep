@@ -4,7 +4,7 @@
 
 [Wiki home](README.md) · [Get started](getting-started.md) · [Onboarding](workload-onboarding.md) · [Status](completion-status.md)
 
-Nine workload types have compositions, Deployment Stack wrappers, environment parameters, request contracts, dedicated pipeline pairs and portal configuration. Four environments per named instance produce 36 registered targets. All remain disabled pending onboarding and live acceptance.
+Eleven workload types have compositions, Deployment Stack wrappers, environment parameters, request contracts, dedicated pipeline pairs and portal configuration. Four environments per named instance produce 44 registered targets. All remain disabled pending onboarding and live acceptance.
 
 ## Offerings
 
@@ -19,8 +19,10 @@ Nine workload types have compositions, Deployment Stack wrappers, environment pa
 | [Service Bus worker](../workloads/service-bus-worker/README.md) | Premium Service Bus namespace/queue, DLQ and duplicate detection, Linux B1 Functions worker, identity, receipt storage, five private endpoints and diagnostics. | Idempotent receipt-processing starter; developers add business processing. |
 | [Private Data Platform](../workloads/private-data-platform/README.md) | Databricks Premium, ADF v2 managed VNet/IR, ADLS Gen2, separate root/lake access connectors, root firewall, seven private endpoints, three managed endpoints, RBAC and diagnostics. | Infrastructure plus manual notebook pipeline; identity/Unity Catalog/notebook onboarding and live execution remain separate. |
 | [Private AKS Foundation](../workloads/private-aks/README.md) | Private Standard AKS, separate system/user pools, Cilium overlay, Entra RBAC, OIDC/application identity and diagnostics. | Infrastructure only; Helm application delivery and namespace/identity/network onboarding are separate. |
+| [Microsoft Fabric](../workloads/fabric/README.md) | F64+ capacity, separate API workspace/lakehouse/connector/ALM lifecycle, optional workspace Private Link. | Protected staged bootstrap and explicit native promotion; restricted workspaces need separate release qualification. |
+| [Managed DevOps Pool](../workloads/managed-devops-pool/README.md) | Microsoft-managed stateless Windows Gen2 agents, pinned image, existing delegated subnet/Dev Center, explicit ADO project and admin configuration. | Infrastructure creation on an independent bootstrap pool; real agent scheduling and private access need canary acceptance. |
 
-The [onboarding guide](workload-onboarding.md) lists identities, shared resources, providers, permissions and product acceptance tests. Event flow can plan missing owned networking/DNS prerequisites; the seven product-adapter offerings require their declared shared dependencies to exist. Failed or partial discovery does not mean a dependency is absent and safe to create.
+The [onboarding guide](workload-onboarding.md) lists identities, shared resources, providers, permissions and product acceptance tests. Event flow can plan missing owned networking/DNS prerequisites; the nine product-adapter offerings require their declared shared dependencies to exist. Failed or partial discovery does not mean a dependency is absent and safe to create.
 
 ## Pipeline entry points
 
@@ -35,8 +37,12 @@ The [onboarding guide](workload-onboarding.md) lists identities, shared resource
 | Service Bus worker | [azure-pipelines-busworker-discover.yml](../azure-pipelines-busworker-discover.yml) | [azure-pipelines-busworker-deploy.yml](../azure-pipelines-busworker-deploy.yml) |
 | Private Data Platform | [azure-pipelines-dataplat-discover.yml](../azure-pipelines-dataplat-discover.yml) | [azure-pipelines-dataplat-deploy.yml](../azure-pipelines-dataplat-deploy.yml) |
 | Private AKS Foundation | [azure-pipelines-aksapps-discover.yml](../azure-pipelines-aksapps-discover.yml) | [azure-pipelines-aksapps-deploy.yml](../azure-pipelines-aksapps-deploy.yml) |
+| Microsoft Fabric | [azure-pipelines-fabric-discover.yml](../azure-pipelines-fabric-discover.yml) | [azure-pipelines-fabric-deploy.yml](../azure-pipelines-fabric-deploy.yml) |
+| Managed DevOps Pool | [azure-pipelines-devopspool-discover.yml](../azure-pipelines-devopspool-discover.yml) | [azure-pipelines-devopspool-deploy.yml](../azure-pipelines-devopspool-deploy.yml) |
 
-All entry points are manual. Push, PR and discovery-completion triggers are disabled. [azure-pipelines.yml](../azure-pipelines.yml) is the build/test/package entry. The generic self-service pair remains a compatibility route with its older stage structure. Tagging, AVNM and Helm have separate operations pipelines; they are not additional workload products. Use [ADO registration](ado-pipeline-registration.md) for the full 25-entry catalog and exact definition names.
+Fabric workspace/promotion uses the separate [protected API root](../azure-pipelines-fabric-workspace.yml).
+
+All entry points are manual. Push, PR and discovery-completion triggers are disabled. [azure-pipelines.yml](../azure-pipelines.yml) is the build/test/package entry. The generic self-service pair remains a compatibility route with its older stage structure. Tagging, AVNM and Helm have separate operations pipelines; they are not additional workload products. Use [ADO registration](ado-pipeline-registration.md) for the full 30-entry catalog and exact definition names.
 
 ## Delivery and evidence
 
@@ -50,7 +56,7 @@ ADO fields are generated from reviewed configuration. A discovery artifact canno
 
 ## Costs, ownership and recovery
 
-Dedicated hosting, Premium Service Bus, private endpoints, storage operations and monitoring can incur charges. The seven product-adapter offerings show **estimate unavailable**, not zero. Prices, assumptions and exclusions belong to the [cost guide](self-service-costs.md).
+Dedicated hosting, Premium Service Bus, private endpoints, storage operations and monitoring can incur charges. The nine product-adapter offerings show **estimate unavailable**, not zero. Prices, assumptions and exclusions belong to the [cost guide](self-service-costs.md).
 
 Shared modules are compiled into the Template Spec; a separate module registry is not required. Workload compositions own their resources, while target profiles bind the approved environment, identity and shared dependencies. See [source conventions](repository-structure.md) and [detailed method map](self-service-catalog.md).
 

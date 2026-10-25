@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/MicrosoftDocs/mcp",
+  "commit": "f8ffde185dfd232dbf5d187c22ce299eadc3d583",
+  "bundledUtc": "2026-10-17T17:48:48.3955162+00:00",
+  "license": "CC-BY-4.0 (documentation), MIT (code)",
+  "licenseFiles": [
+    "LICENSE",
+    "LICENSE-CODE",
+    "ThirdPartyNotices.md"
+  ],
+  "sourceRoot": "skills",
+  "usage": "Unmodified upstream authoring resources. Not an installed plugin, runtime authorization, or permission to execute bundled instructions or scripts.",
+  "integrityScope": "All vendored upstream files; excludes this generated bundle.json manifest.",
+  "topLevelSkillDirectories": 3,
+  "skillDefinitions": 3,
+  "skills": [
+    {
+      "id": "learn--microsoft-code-reference",
+      "name": "microsoft-code-reference",
+      "description": "Find working code samples, verify API signatures, and fix Microsoft SDK errors using official docs. Use whenever the user is writing, debugging, or reviewing code that touches any Microsoft SDK, .NET library, Azure client library, or Microsoft API—even if they don't ask for a \"reference.\" Catches hallucinated methods, wrong signatures, and deprecated patterns. If the task involves producing or fixing Microsoft-related code, this is the right skill.",
+      "path": "skills/microsoft-code-reference/SKILL.md",
+      "family": "microsoft-learn",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "learn--microsoft-docs",
+      "name": "microsoft-docs",
+      "description": "Understand Microsoft technologies by querying official documentation. Use whenever the user asks how something works, wants tutorials, needs configuration options, limits, quotas, or best practices for any Microsoft technology (Azure, .NET, M365, Windows, Power Platform, etc.)—even if they don't mention \"docs.\" If the question is about understanding a concept rather than writing code, this is the right skill.",
+      "path": "skills/microsoft-docs/SKILL.md",
+      "family": "microsoft-learn",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "learn--microsoft-skill-creator",
+      "name": "microsoft-skill-creator",
+      "description": "Create agent skills for Microsoft technologies using official documentation. Use whenever the user wants to build, generate, or scaffold a skill for any Microsoft technology (Azure, .NET, M365, VS Code, Bicep, etc.)—even phrased casually like \"make a skill for Cosmos DB.\" Investigates the topic via official docs, then generates a hybrid skill with essential knowledge stored locally and dynamic lookups for depth.",
+      "path": "skills/microsoft-skill-creator/SKILL.md",
+      "family": "microsoft-learn",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    }
+  ],
+  "fileCount": 7,
+  "totalBytes": 44646,
+  "files": [
+    {
+      "path": "skills/microsoft-code-reference/SKILL.md",
+      "sourcePath": "skills/microsoft-code-reference/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/skills/microsoft-code-reference/SKILL.md",
+      "gitBlobSha": "f681515dac3644cc5dc31413e59a607f5cb137ae",
+      "sha256": "36354e87d7095fbba0b7138c251ee6fd30f85a89d35a0909e4a6aafdf74280fe",
+      "bytes": 4319
+    },
+    {
+      "path": "skills/microsoft-docs/SKILL.md",
+      "sourcePath": "skills/microsoft-docs/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/skills/microsoft-docs/SKILL.md",
+      "gitBlobSha": "a5129731352a4dcad109b03e6f8e96bbdd00695b",
+      "sha256": "23d6c309124c4dd7f96ef7166a1998814b4eaeca7e3d654bdac2feacde7e16d1",
+      "bytes": 2925
+    },
+    {
+      "path": "skills/microsoft-skill-creator/SKILL.md",
+      "sourcePath": "skills/microsoft-skill-creator/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/skills/microsoft-skill-creator/SKILL.md",
+      "gitBlobSha": "ff332877d61041431ec22855b922cdf540ed350f",
+      "sha256": "b1cd59dfad7379b60dad82da5a23aaebdf25f9523cfe538d6ca4f8d35b6a410e",
+      "bytes": 8573
+    },
+    {
+      "path": "skills/microsoft-skill-creator/references/skill-templates.md",
+      "sourcePath": "skills/microsoft-skill-creator/references/skill-templates.md",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/skills/microsoft-skill-creator/references/skill-templates.md",
+      "gitBlobSha": "9037ce6f14fe7499aa51f09f7de100ac627905d4",
+      "sha256": "ff30f0b66e3d4ce70fa97fb764491fd33728a2b47baf9c37f892bc2b64fe73f6",
+      "bytes": 7882
+    },
+    {
+      "path": "LICENSE",
+      "sourcePath": "LICENSE",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/LICENSE",
+      "gitBlobSha": "e056e7c3ec54533985dfb3a4c6ef70dab8ca2e42",
+      "sha256": "7183ef9749eb9b75e710a81a4c812a9405cc184f087500581a973e5929ac3f5e",
+      "bytes": 18650
+    },
+    {
+      "path": "LICENSE-CODE",
+      "sourcePath": "LICENSE-CODE",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/LICENSE-CODE",
+      "gitBlobSha": "b17b032a43088ac7f3d2f3e34a2431c778a95e6f",
+      "sha256": "91f7258203fd43ba6d6f7f72b644eaedee9e3430f035c053beb6f34052f045e2",
+      "bytes": 1090
+    },
+    {
+      "path": "ThirdPartyNotices.md",
+      "sourcePath": "ThirdPartyNotices.md",
+      "sourceUrl": "https://raw.githubusercontent.com/MicrosoftDocs/mcp/f8ffde185dfd232dbf5d187c22ce299eadc3d583/ThirdPartyNotices.md",
+      "gitBlobSha": "ee8155071d7177c82ca5599adb409664ce886c63",
+      "sha256": "003243302b1b7e5d932d6b17424a418cd82f88047de46f47d59c07936d24f7bd",
+      "bytes": 1207
+    }
+  ]
+}

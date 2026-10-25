@@ -1,5 +1,9 @@
 # Deployment Stacks and Template Specs upgrade
 
+**Managed DevOps Pool stack:** the pool resource/group are workload-owned; the Dev Center project, subnet and network pregrants remain external. The provider also creates the declared ADO association; Azure stack success or deletion is not proof of ADO cleanup, cancelled jobs or an inverse operation. Preserve an independent bootstrap pool and use reviewed drain/migration procedures. [Lifecycle guide](../workloads/managed-devops-pool/README.md).
+
+**Fabric ownership:** the standard workload stack owns capacity and optional existing-workspace inbound Private Link Azure resources. Fabric workspaces/items/connections/native deployment pipelines are independently managed by protected API operations and are not adopted into an ARM stack. Deleting/detaching a stack does not back up or remove Fabric data. [Fabric lifecycle](../workloads/fabric/README.md).
+
 Current scope: both workloads use these stack/publication helpers. The implementation plan below records the delivered upgrade. Dedicated menus now use Preview/Deploy; the generic route retains six stages. Event flow can create workload-owned prerequisites while external shared resources remain referenced. See the [catalog](self-service-catalog.md) and [status](completion-status.md).
 
 ## Implementation plan

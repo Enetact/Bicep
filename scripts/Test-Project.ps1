@@ -4,10 +4,31 @@ param()
 $root = Get-ProjectRoot
 $results = Join-Path $root 'artifacts/test-results'
 New-Item -ItemType Directory -Path $results -Force | Out-Null
+& (Join-Path $root 'tests/telemetry/trace-tests.ps1')
+& (Join-Path $root 'tests/telemetry/package-tests.ps1')
+& (Join-Path $root 'tests/telemetry/lifecycle-tests.ps1')
+& (Join-Path $root 'tests/local/runtime.tests.ps1')
+& (Join-Path $root 'scripts/Test-SuiteLifecycle.ps1')
+& (Join-Path $root 'scripts/Test-PortalLifecycle.ps1')
+& (Join-Path $root 'scripts/Test-PortalDiscardStop.ps1')
+& dotnet test (Join-Path $root 'tests/SelfService.Telemetry.Tests/SelfService.Telemetry.Tests.csproj') --configuration Release -m:1 -p:RestoreLockedMode=true
+if ($LASTEXITCODE -ne 0) { throw 'Telemetry privacy and propagation tests failed.' }
 & "$PSScriptRoot/Test-Tooling.ps1"
 & "$PSScriptRoot/Test-SourceManifest.ps1"
 & "$PSScriptRoot/Test-SelfServiceAnalysis.ps1"
 & "$PSScriptRoot/Test-Portal.ps1"
+& "$PSScriptRoot/Test-Foundation.ps1"
+& (Join-Path $root 'tests/release/foundation-test-execution.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-release-execution.tests.ps1')
+& "$PSScriptRoot/Test-FoundationLoad.ps1"
+& (Join-Path $root 'tests/release/commercial-release.tests.ps1')
+& (Join-Path $root 'tests/release/source-secrets.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-package.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-package-secrets.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-dependencies.tests.ps1')
+& (Join-Path $root 'tests/release/foundation-installation.tests.ps1')
+& node (Join-Path $root 'examples/customer-pipelines/Test-Examples.mjs') (Join-Path $root 'tests/infrastructure/node_modules/yaml')
+if ($LASTEXITCODE -ne 0) { throw 'Disconnected customer pipeline example contracts failed.' }
 & "$PSScriptRoot/Test-BicepDrafts.ps1" -SkipContractTests
 & "$PSScriptRoot/Test-Tagging.ps1"
 & "$PSScriptRoot/Test-SelfService.ps1"
@@ -21,6 +42,11 @@ New-Item -ItemType Directory -Path $results -Force | Out-Null
 & "$PSScriptRoot/Test-LogicWorkload.ps1"
 & "$PSScriptRoot/Test-LogicPrerequisites.ps1"
 & "$PSScriptRoot/Test-Products.ps1"
+& "$PSScriptRoot/Test-Fabric.ps1"
+& "$PSScriptRoot/Test-ManagedDevOpsPool.ps1"
+& "$PSScriptRoot/Test-FabricWorkspace.ps1"
+& "$PSScriptRoot/Test-FabricExecution.ps1"
+& "$PSScriptRoot/Test-FabricWorkspaceLifecycle.ps1"
 & "$PSScriptRoot/Update-ServiceCatalog.ps1" -Check
 foreach ($environmentName in @('dev','qa','uat','prod')) {
     $output = Export-Templates -EnvironmentName $environmentName

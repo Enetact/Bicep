@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "skill": {
+    "name": "platform-mcp-orchestration",
+    "description": "Orchestrate explicitly requested Azure Bicep, Azure, Azure DevOps, GitHub, Microsoft Learn, Fabric and Aspire telemetry tasks through Platform Studio's connected MCP broker, with complete provider guidance, exact approvals and execution receipts."
+  },
+  "providers": ["bicep", "azure", "ado", "github", "learn", "fabric", "aspire"],
+  "sources": [
+    { "id": "shared-instructions", "title": "Shared orchestration instructions", "path": "instruction.md", "kind": "markdown" },
+    { "id": "bicep-skill", "title": "Bicep skill", "path": "providers/bicep/SKILL.md", "kind": "markdown" },
+    { "id": "bicep-instructions", "title": "Bicep instructions", "path": "providers/bicep/instruction.md", "kind": "markdown" },
+    { "id": "azure-skill", "title": "Azure skill", "path": "providers/azure/SKILL.md", "kind": "markdown" },
+    { "id": "azure-instructions", "title": "Azure instructions", "path": "providers/azure/instruction.md", "kind": "markdown" },
+    { "id": "ado-skill", "title": "Azure DevOps skill", "path": "providers/ado/SKILL.md", "kind": "markdown" },
+    { "id": "ado-instructions", "title": "Azure DevOps instructions", "path": "providers/ado/instruction.md", "kind": "markdown" },
+    { "id": "github-skill", "title": "GitHub skill", "path": "providers/github/SKILL.md", "kind": "markdown" },
+    { "id": "github-instructions", "title": "GitHub instructions", "path": "providers/github/instruction.md", "kind": "markdown" },
+    { "id": "learn-skill", "title": "Microsoft Learn skill", "path": "providers/learn/SKILL.md", "kind": "markdown" },
+    { "id": "learn-instructions", "title": "Microsoft Learn instructions", "path": "providers/learn/instruction.md", "kind": "markdown" },
+    { "id": "fabric-skill", "title": "Microsoft Fabric skill", "path": "providers/fabric/SKILL.md", "kind": "markdown" },
+    { "id": "fabric-instructions", "title": "Microsoft Fabric instructions", "path": "providers/fabric/instruction.md", "kind": "markdown" },
+    { "id": "aspire-skill", "title": "Aspire telemetry skill", "path": "providers/aspire/SKILL.md", "kind": "markdown" },
+    { "id": "aspire-instructions", "title": "Aspire telemetry instructions", "path": "providers/aspire/instruction.md", "kind": "markdown" },
+    { "id": "workflow-recipes", "title": "Cross-provider workflow recipes", "path": "references/workflows.md", "kind": "markdown" },
+    { "id": "source-provenance", "title": "Source provenance and full reference packages", "path": "references/provenance.md", "kind": "markdown" },
+    { "id": "public-read-example", "title": "Public documentation read example", "path": "assets/public-read.plan.json", "kind": "json" },
+    { "id": "scoped-read-example", "title": "Scoped Azure and ADO read example", "path": "assets/scoped-read.plan.json", "kind": "json" },
+    { "id": "branch-change-example", "title": "GitHub branch proposal example", "path": "assets/github-branch-change.plan.json", "kind": "json" }
+  ],
+  "resources": [{ "path": "agents/openai.yaml" }]
+}

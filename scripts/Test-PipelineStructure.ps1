@@ -9,3 +9,5 @@ foreach($tool in @('node','npm')) { if(!(Get-Command $tool -ErrorAction Silently
 if($LASTEXITCODE -ne 0){throw 'Infrastructure check dependency restore failed.'}
 & node (Join-Path $checks 'verify.mjs')
 if($LASTEXITCODE -ne 0){throw 'Pipeline or compiled infrastructure contract check failed.'}
+& node (Join-Path $checks 'fabric-execution.mjs')
+if($LASTEXITCODE -ne 0){throw 'Fabric managed-pool pipeline/source contract check failed.'}

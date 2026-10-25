@@ -1,5 +1,5 @@
 import { renderIac } from './iac.mjs';
-import { renderNamingEditor, renderResourceNames } from './naming.mjs';
+import { createNamingDrafts, renderNamingEditor, renderResourceNames } from './naming.mjs';
 import { observedTopology, proposedTopology, previewTopology, renderTopology } from './topology.mjs';
 import { setupAgents } from './agents.mjs';
 import { setupOperations } from './operations.mjs';
@@ -7,15 +7,28 @@ import { setupTagging } from './tagging.mjs';
 import { setupNetwork } from './network.mjs';
 import { setupPipelineRegistration } from './pipeline-setup.mjs';
 import { setupGitHub } from './github.mjs';
+import { setupMcp } from './mcp.mjs';
 import { renderRecovery } from './recovery.mjs';
+import { setupFabricReadiness } from './fabric.mjs';
 const $ = id => document.getElementById(id);
 const make = (tag, text, cls) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (cls) node.className = cls; return node; };
 let data, chosen, auth = { connected: [] }, ticket, reviewedProduct, loginTimer, runTimer;
 let discoverySkill, discoveryBusy = false, discoveryReport;
 const runs = [], diagramUrls = [];
+const namingDrafts = createNamingDrafts();
+let namingIdentity;
 let selectionVersion = 0;
 let refreshAgents;
+let refreshMcp;
 let recoveryCatalog;
+const fabricReadiness = setupFabricReadiness({ container: $('fabric-readiness'), api, openManagedPool: (environment, region) => {
+  const pool = data.products.find(p => p.id === 'devopspool');
+  if (!pool) return;
+  showProduct(pool);
+  if (pool.targets.some(t => t.environment === environment)) $('environment').value = environment;
+  if (data.regions.includes(region)) $('region').value = region;
+  selectionChanged();
+} });
 function clearPreview() { selectionVersion++; $('iac-analysis').replaceChildren(); $('preview-diagram').replaceChildren(); $('preview-message').textContent = ''; }
 function drawProposal() {
   const t = chosen.targets.find(t => t.environment === $('environment').value);
@@ -23,10 +36,12 @@ function drawProposal() {
   if (data.naming?.draftCalculations === true) {
     let naming = $('naming-draft');
     if (!naming) { naming = make('section'); naming.id = 'naming-draft'; $('workload-diagram').before(naming); }
-    renderNamingEditor(naming, api, chosen, t, $('region').value);
+    renderNamingEditor(naming, api, chosen, t, $('region').value, namingDrafts, drawProposal);
+    const namingValues = namingDrafts.select(chosen, t, $('region').value);
     const label = make('label', 'Preview naming instance'), select = make('select'); select.id = 'preview-naming-instance';
     options(select, [{id:'legacy', name:'Existing target naming'}, ...(data.naming.previewInstances ?? []).filter(n => n.workloadType === chosen.type && n.environment === t.environment && n.region === $('region').value && n.subscriptionId.toLowerCase() === t.subscriptionId.toLowerCase()).map(n=>({id:n.id,name:`${n.name} · ${n.id} · Preview only`}))], n=>n.name);
-    select.addEventListener('change', clearPreview); label.append(select); label.hidden = $('operation').value !== 'preview'; naming.prepend(label);
+    if ([...select.options].some(o => o.value === namingValues.previewInstance)) select.value = namingValues.previewInstance;
+    select.addEventListener('change', () => { namingValues.previewInstance = select.value; clearPreview(); }); label.append(select); label.hidden = $('operation').value !== 'preview'; naming.prepend(label);
   }
   $('workload-observed').hidden = !discoveryReport || discoveryReport.subscriptionId.toLowerCase() !== t.subscriptionId.toLowerCase();
   $('workload-observed-diagram').replaceChildren();
@@ -56,7 +71,13 @@ async function loadPreview(product, runId) {
 async function api(path, body, signal) {
   const res = await fetch('/api/' + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Portal-CSRF': data?.csrf ?? '' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
   const text = await res.text(); const result = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(result.error ?? `Request failed (${res.status}).`); return result;
+  if (!res.ok) {
+    const error = new Error(result.error ?? `Request failed (${res.status}).`);
+    // The trace reference links a failed interaction to the dashboard without retaining its request data.
+    error.traceId = res.headers.get('X-Trace-Id');
+    throw error;
+  }
+  return result;
 }
 function notice(text, error = false) { $('notice').textContent = text; $('notice').classList.toggle('error', error); $('notice').hidden = false; }
 function action(id, fn) { $(id).addEventListener('click', async () => { const b = $(id); b.disabled = true; try { await fn(); } catch (e) { notice(e.message, true); } finally { b.disabled = false; updateGates(); } }); }
@@ -78,6 +99,7 @@ function selectionChanged() {
   renderRecovery($('workload-recovery'), recoveryCatalog, chosen.type);
   const t = chosen.targets.find(t => t.environment === $('environment').value);
   $('target-status').textContent = t.enabled ? 'Deployment enabled' : 'Preview available · deployment disabled';
+  fabricReadiness.select(chosen.id, t.environment, $('region').value);
   $('target-details').textContent = `${t.subscription} · ${t.network} · ${t.workload} / ${t.environment}`;
   $('operation').querySelector('[value="deploy"]').disabled = !t.enabled;
   if (!t.enabled && $('operation').value === 'deploy') $('operation').value = 'preview';
@@ -96,6 +118,7 @@ function updateGates() {
   $('setup').hidden = local || data.configured;
   $('connect-local').disabled = !auth.localCliAvailable || waiting || auth.connected.includes('azure');
   $('connect-ado').disabled = !ready || waiting || auth.connected.includes('ado'); $('connect-azure').disabled = !ready || waiting || auth.connected.includes('azure');
+  $('connect-fabric').disabled = !ready || waiting || auth.connected.includes('fabric');
   $('local-cli-status').textContent = auth.localCliAvailable ? 'Azure CLI found on this device · local authentication available' : 'Azure CLI not found. Install Microsoft Azure CLI, then restart the portal to refresh PATH. See docs/local-portal.md.';
   $('subscriptions').disabled = !auth.connected.includes('azure');
   $('review').disabled = !chosen || !auth.connected.includes('ado') || ($('operation').value !== 'discover' && !$('discovery-run').value);
@@ -105,16 +128,22 @@ function updateGates() {
   $('load-iac-after').disabled = !chosen || !auth.connected.includes('ado');
 }
 async function refreshAuth() {
-  auth = await api('auth'); $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
+  auth = await api('auth');
+  const identity = auth.viewIdentityBoundary ?? JSON.stringify([auth.mode ?? '', auth.tenantId ?? '', auth.account ?? '']);
+  if (namingIdentity !== undefined && namingIdentity !== identity) { namingDrafts.reset(); if (chosen) drawProposal(); }
+  namingIdentity = identity;
+  $('account-name').textContent = auth.account ?? 'Not connected'; $('auth-state').textContent = auth.state;
   if (auth.mode) $('auth-mode').value = auth.mode;
   const method = auth.mode === 'local-cli' ? 'Local auth · Azure CLI' : 'Registered app';
   $('auth-context').textContent = auth.mode ? `${method} · ${auth.account ?? 'Sign-in pending'}${auth.tenantId ? ' · Tenant ' + auth.tenantId : ''}` : 'Microsoft and Codex authenticate separately.';
   $('ado-state').textContent = auth.connected.includes('ado') ? `${method} · ADO token connected; project permissions checked on use` : 'Not connected';
   $('azure-state').textContent = auth.connected.includes('azure') ? `${method} · Azure token connected; resource access checked on use` : 'Not connected';
+  $('fabric-state').textContent = auth.connected.includes('fabric') ? `${method} · Fabric token connected; tenant and workspace permissions checked on use` : 'Not connected';
   $('auth-detail').textContent = auth.error ?? (auth.state === 'Waiting for Microsoft' ? 'Your default browser is opening Microsoft sign-in. Complete account selection, consent and MFA there. This page will update automatically.' : auth.state === 'Connected' ? 'Connection complete. You can return to Workloads.' : 'Click Connect to open Microsoft sign-in. Cancelled or failed sign-in can be retried.');
   if (auth.state !== 'Waiting for Microsoft') { clearInterval(loginTimer); loginTimer = null; }
   updateGates();
   if (refreshAgents) await refreshAgents();
+  if (refreshMcp) await refreshMcp();
 }
 async function connectMicrosoft(audience) {
   const local = $('auth-mode').value === 'local-cli';
@@ -124,7 +153,7 @@ async function connectMicrosoft(audience) {
 }
 $('auth-mode').addEventListener('change', updateGates);
 action('connect-local', () => connectMicrosoft('azure'));
-for (const audience of ['ado', 'azure']) action('connect-' + audience, () => connectMicrosoft(audience));
+for (const audience of ['ado', 'azure', 'fabric']) action('connect-' + audience, () => connectMicrosoft(audience));
 action('cancel-login', async () => { await api('cancel-login', {}); await refreshAuth(); });
 action('disconnect', async () => { await api('disconnect', {}); window.dispatchEvent(new Event('platform-disconnected')); await refreshAuth(); });
 action('subscriptions', async () => { const subscriptions = await api('subscriptions'); $('subscription-list').replaceChildren(...subscriptions.map(s => make('p', `${s.name} · ${s.state}`))); if (!subscriptions.length) $('subscription-list').textContent = 'No registered subscriptions are visible to this account.'; });
@@ -180,6 +209,7 @@ action('load-iac-after', async () => {
 });
 window.addEventListener('platform-iac-review',()=>page('agents'));
 window.addEventListener('platform-disconnected',clearPreview);
+window.addEventListener('platform-disconnected', () => { namingDrafts.reset(); namingIdentity = undefined; if (chosen) drawProposal(); });
 action('load-preview', async () => {
   const id = Number($('preview-run-id').value);
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Enter the positive run ID of a Preview / Deploy pipeline.');
@@ -253,8 +283,19 @@ action('analyze', async () => {
 });
 try {
   data = await api('bootstrap'); $('architecture').textContent = `Windows ${data.architecture} · ${data.packagedCatalog ? 'Packaged catalog' : 'Local checkout'}`; $('setup').hidden = data.configured; $('ado-scope').textContent = `${data.organization} / ${data.project}`;
+  const dashboard = $('trace-dashboard');
+  if (data.observability?.dashboardUrl) { dashboard.href = data.observability.dashboardUrl; dashboard.hidden = false; }
+  const restartProof = /^#resume=([A-Fa-f0-9]{64})$/.exec(location.hash)?.[1];
+  if (restartProof) {
+    history.replaceState(null, '', location.pathname + location.search);
+    notice('Restoring and verifying your cached connections…');
+    try {
+      const result = await api('auth/resume', { proof: restartProof });
+      notice(result.errors.length ? result.errors.join(' ') : 'Your cached connections are ready. Workflow evidence, plans and approvals were cleared.', result.errors.length > 0);
+    } catch { notice('Cached connections could not be restored. Use Connections to reconnect, or reopen the private resume link.', true); }
+  }
   $('product-count').textContent = data.products.length; const all = data.products.flatMap(p => p.targets); $('target-count').textContent = `${all.filter(t => t.enabled).length} / ${all.length}`;
-  const productLabels = { blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
+  const productLabels = { devopspool: ['⚙', 'PRIVATE BUILD AGENTS'], fabric: ['◇', 'FABRIC ANALYTICS'], blobcopy: ['⇄', 'FILE TRANSFER'], eventflow: ['⌁', 'EVENT DRIVEN'], storage: ['▤', 'PRIVATE STORAGE'], keyvault: ['◇', 'SECRETS FOUNDATION'], observe: ['◉', 'MONITORING'], httpapi: ['↗', 'HTTP API'], busworker: ['⇥', 'MESSAGING'], dataplat: ['▦', 'DATA PLATFORM'], aksapps: ['⬡', 'PRIVATE KUBERNETES'] };
   $('products').replaceChildren(...data.products.map(p => {
     const card = make('article', null, 'product-card'); const top = make('div', null, 'card-top');
     const [icon, label] = productLabels[p.id] ?? ['◈', 'WORKLOAD'];
@@ -271,6 +312,7 @@ try {
   setupOperations({ api, data, notice, page });
   setupPipelineRegistration({ api, data, notice });
   setupGitHub({ api, notice });
+  refreshMcp = setupMcp({ api, notice });
   try {
     recoveryCatalog = await api('recovery/policies');
     options($('recovery-workflow'), recoveryCatalog.policies, p => p.name);

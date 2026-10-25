@@ -1,0 +1,75 @@
+# Select this file explicitly when creating a customer-owned YAML pipeline.
+# Review and record its pipeline revision as PipelineConnection.PipelineVersion.
+trigger: none
+pr: none
+
+parameters:
+  - name: studio_request_id
+    type: string
+    default: ''
+  - name: studio_plan_digest
+    type: string
+    default: ''
+  - name: studio_source_revision
+    type: string
+    default: ''
+  - name: studio_environment
+    type: string
+    default: dev
+    values: [dev]
+  - name: location
+    type: string
+    default: eastus2
+    values: [eastus2, westus2]
+  - name: module
+    type: string
+    default: local-storage-example
+    values: [local-storage-example]
+
+# A dedicated ephemeral pool has only repository-read access and preinstalled tools.
+# Do not authorize service connections, variable groups, environments or secure files.
+pool:
+  name: PlatformStudioValidation
+
+jobs:
+  - job: Validate
+    displayName: Compile reviewed Bicep without deploying
+    timeoutInMinutes: 10
+    workspace:
+      clean: all
+    steps:
+      - pwsh: |
+          $ErrorActionPreference = 'Stop'
+          $id = [Guid]::Empty
+          if (-not [Guid]::TryParseExact($env:STUDIO_REQUEST_ID, 'D', [ref]$id) -or $id -eq [Guid]::Empty) { throw 'Invalid request id' }
+          if ($env:STUDIO_PLAN_DIGEST -cnotmatch '^[a-f0-9]{64}$') { throw 'Invalid plan digest' }
+          if ($env:STUDIO_SOURCE_REVISION -cnotmatch '^(?:[a-f0-9]{40}|[a-f0-9]{64})$') { throw 'Invalid source revision' }
+          if ($env:STUDIO_TRIGGER_REVISION -cne $env:STUDIO_SOURCE_REVISION) { throw 'Approved source revision drifted' }
+          if ($env:STUDIO_ENVIRONMENT -cne 'dev' -or $env:STUDIO_MODULE -cne 'local-storage-example' -or $env:STUDIO_LOCATION -cnotin @('eastus2', 'westus2')) { throw 'Unapproved validation parameters' }
+        displayName: Reject source drift before repository code
+        env:
+          STUDIO_REQUEST_ID: ${{ parameters.studio_request_id }}
+          STUDIO_PLAN_DIGEST: ${{ parameters.studio_plan_digest }}
+          STUDIO_SOURCE_REVISION: ${{ parameters.studio_source_revision }}
+          STUDIO_ENVIRONMENT: ${{ parameters.studio_environment }}
+          STUDIO_LOCATION: ${{ parameters.location }}
+          STUDIO_MODULE: ${{ parameters.module }}
+          STUDIO_TRIGGER_REVISION: $(Build.SourceVersion)
+      - checkout: self
+        persistCredentials: false
+        clean: true
+        fetchDepth: 1
+        fetchTags: false
+        submodules: false
+        lfs: false
+      - pwsh: '& ./examples/customer-pipelines/Validate-Bicep.ps1'
+        displayName: Compile parameterized Bicep and local child module
+        workingDirectory: $(Build.SourcesDirectory)
+        env:
+          STUDIO_REQUEST_ID: ${{ parameters.studio_request_id }}
+          STUDIO_PLAN_DIGEST: ${{ parameters.studio_plan_digest }}
+          STUDIO_SOURCE_REVISION: ${{ parameters.studio_source_revision }}
+          STUDIO_ENVIRONMENT: ${{ parameters.studio_environment }}
+          STUDIO_LOCATION: ${{ parameters.location }}
+          STUDIO_MODULE: ${{ parameters.module }}
+          STUDIO_TRIGGER_REVISION: $(Build.SourceVersion)

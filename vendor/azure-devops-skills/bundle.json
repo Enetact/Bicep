@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/microsoft/azure-devops-skills",
+  "commit": "844a1f6f5202aa920ce5b1be95c056d529d63ded",
+  "bundledUtc": "2026-10-17T17:48:48.3639189+00:00",
+  "license": "MIT",
+  "licenseFiles": [
+    "LICENSE.md"
+  ],
+  "sourceRoot": ".github/skills",
+  "usage": "Unmodified upstream authoring resources. Not an installed plugin, runtime authorization, or permission to execute bundled instructions or scripts.",
+  "integrityScope": "All vendored upstream files; excludes this generated bundle.json manifest.",
+  "topLevelSkillDirectories": 7,
+  "skillDefinitions": 7,
+  "skills": [
+    {
+      "id": "ado--boards-backlog-summary",
+      "name": "boards-backlog-summary",
+      "description": "Get the team's Requirements-level backlog (Product Backlog Items and Bugs) filtered to Active items assigned to the current user. Shows parent/child hierarchy and sorts by priority. Use this skill when the user wants to see their backlog items, sprint assignments, or work they own on a team board.",
+      "path": ".github/skills/boards-backlog-summary/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "ado--boards-my-work",
+      "name": "boards-my-work",
+      "description": "This skill retrieves and displays work items assigned to the user in Azure DevOps, organized by type and sorted by recently changed. It prompts for a project name or lists available projects if not provided, then fetches work item details and displays them in a formatted table with clickable links.",
+      "path": ".github/skills/boards-my-work/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "ado--boards-team-active-work",
+      "name": "boards-team-active-work",
+      "description": "Get active work items for a team showing dependencies, priorities, and sprint assignments. Displays items that are blocking others, high priority items first, and items due this sprint. Shows parent/child hierarchy with Title, State, Priority, ChangedDate, Iteration Name, and Iteration End Date.",
+      "path": ".github/skills/boards-team-active-work/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "ado--boards-work-item-summary",
+      "name": "boards-work-item-summary",
+      "description": "Summarize a single Azure DevOps work item (and its links and comments) by ID.",
+      "path": ".github/skills/boards-work-item-summary/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "ado--pipelines-build-summary",
+      "name": "pipelines-build-summary",
+      "description": "List, inspect, and troubleshoot Azure DevOps pipeline builds. Shows recent builds for a pipeline definition, drills into a specific build's status and result, displays logs for failed steps, and lists the changes associated with a build.",
+      "path": ".github/skills/pipelines-build-summary/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "ado--security-alert-review",
+      "name": "security-alert-review",
+      "description": "List and review Advanced Security alerts for an Azure DevOps repository. Shows dependency vulnerabilities, secret exposure, and code scanning findings with filtering by severity, state, and alert type.",
+      "path": ".github/skills/security-alert-review/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    },
+    {
+      "id": "ado--work-iterations",
+      "name": "work-iterations",
+      "description": "List, create, and assign iterations for Azure DevOps projects and teams.",
+      "path": ".github/skills/work-iterations/SKILL.md",
+      "family": "azure-devops",
+      "discoveryProfile": "inventory",
+      "pipelineStatus": "No pipeline associated yet"
+    }
+  ],
+  "fileCount": 8,
+  "totalBytes": 35425,
+  "files": [
+    {
+      "path": ".github/skills/boards-backlog-summary/SKILL.md",
+      "sourcePath": ".github/skills/boards-backlog-summary/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/boards-backlog-summary/SKILL.md",
+      "gitBlobSha": "0af155180e12d269623c0d9ba6d7a11b6b2aca3e",
+      "sha256": "63d0dfedd43a6f9b4c8cfb2139ae3cd07055f9b136169e04e86470fdc98d053f",
+      "bytes": 4570
+    },
+    {
+      "path": ".github/skills/boards-my-work/SKILL.md",
+      "sourcePath": ".github/skills/boards-my-work/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/boards-my-work/SKILL.md",
+      "gitBlobSha": "318844b5db46a4dab4da8d2cfae79dc427826671",
+      "sha256": "5e9e526dc952c1caf8d8040e020e9da9174a9fd32c4d8f0d83d2132e5613236f",
+      "bytes": 3389
+    },
+    {
+      "path": ".github/skills/boards-team-active-work/SKILL.md",
+      "sourcePath": ".github/skills/boards-team-active-work/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/boards-team-active-work/SKILL.md",
+      "gitBlobSha": "91d6c20b4b379203a6be4cbbb0b5c63c0f1a52c8",
+      "sha256": "915446bd7eeb5ec172580a5ddfcfbb26e3c57ced38faa93bb5ccfda72c2d62c7",
+      "bytes": 6855
+    },
+    {
+      "path": ".github/skills/boards-work-item-summary/SKILL.md",
+      "sourcePath": ".github/skills/boards-work-item-summary/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/boards-work-item-summary/SKILL.md",
+      "gitBlobSha": "5f5215713a0fdcf32abc89ed5ce8b00c7ed0e291",
+      "sha256": "d1817654dcac4c8474c4b7764278163e020712f2f4a7d22c3ee610fad376ac8f",
+      "bytes": 3297
+    },
+    {
+      "path": ".github/skills/pipelines-build-summary/SKILL.md",
+      "sourcePath": ".github/skills/pipelines-build-summary/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/pipelines-build-summary/SKILL.md",
+      "gitBlobSha": "5d4096d7e4cad044ef04cf484d9a62fc3f7c8a3a",
+      "sha256": "6ef38786608d59cf446f74c780eea97f08da5001ab860762ebd072f4ff43c884",
+      "bytes": 5242
+    },
+    {
+      "path": ".github/skills/security-alert-review/SKILL.md",
+      "sourcePath": ".github/skills/security-alert-review/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/security-alert-review/SKILL.md",
+      "gitBlobSha": "5cd2a0dd1ed904f8c6b5071892cfeade5d5cfd22",
+      "sha256": "d075d251ade61caf793d8b55ea4f3a9156c45dfa3b0688a94a49bd7fc4a3e8dd",
+      "bytes": 5636
+    },
+    {
+      "path": ".github/skills/work-iterations/SKILL.md",
+      "sourcePath": ".github/skills/work-iterations/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/.github/skills/work-iterations/SKILL.md",
+      "gitBlobSha": "85a03cca2e2b1fd2a51158663669979f10183ead",
+      "sha256": "a0efa14bd50fe554e736fbe06ad07509948a3d0744c1e44c10c9dd854940edb8",
+      "bytes": 5364
+    },
+    {
+      "path": "LICENSE.md",
+      "sourcePath": "LICENSE.md",
+      "sourceUrl": "https://raw.githubusercontent.com/microsoft/azure-devops-skills/844a1f6f5202aa920ce5b1be95c056d529d63ded/LICENSE.md",
+      "gitBlobSha": "631a2b25ecd1b45eb5c79aefe52d85ab7c15d171",
+      "sha256": "18d3bb3458bb9dabcdf5e74dacf256a339b8a6486338ab09a97ba865d3214928",
+      "bytes": 1072
+    }
+  ]
+}

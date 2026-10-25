@@ -135,6 +135,23 @@ public sealed class AgentTests
         for (var i = 0; i < 12; i++) await bridge.Call(Call("platform_evidence"), CancellationToken.None);
         await Assert.ThrowsAsync<PortalException>(() => bridge.Call(Call("platform_evidence"), CancellationToken.None));
     }
+    [Fact] public async Task ExactPlatformNamespaceCanReadBothRequiredEvidenceTools()
+    {
+        await using var bridge = await AgentMcpBridge.Create("namespaced evidence", "namespaced skill", () => true, CancellationToken.None);
+        var evidence = Json(await bridge.Call(Json(new { tool = "platform_evidence", arguments = new { }, @namespace = AgentPolicy.ToolNamespace }), CancellationToken.None));
+        Assert.True(evidence.GetProperty("success").GetBoolean()); Assert.False(bridge.EvidenceRead);
+        var skill = Json(await bridge.Call(Json(new { tool = "platform_skill", arguments = new { }, @namespace = AgentPolicy.ToolNamespace }), CancellationToken.None));
+        Assert.True(skill.GetProperty("success").GetBoolean()); Assert.True(bridge.EvidenceRead);
+        Assert.Equal(2, bridge.Audit.Count);
+    }
+    [Theory][InlineData("functions")][InlineData("platform_studio.other")][InlineData("mcp__azure")][InlineData("Platform_Studio")][InlineData("")]
+    public async Task EvidenceBridgeRejectsEveryOtherNamespace(string toolNamespace)
+    {
+        await using var bridge = await AgentMcpBridge.Create("evidence", "skill", () => true, CancellationToken.None);
+        await Assert.ThrowsAsync<PortalException>(() => bridge.Call(Json(new { tool = "platform_evidence", arguments = new { }, @namespace = toolNamespace }), CancellationToken.None));
+        Assert.False(bridge.EvidenceRead);
+        Assert.False(Json(bridge.Audit.Single()).GetProperty("success").GetBoolean());
+    }
     [NativeCodexFact] public async Task NativeHostHasIsolatedUnauthenticatedAccountAndNoInheritedMcp()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

@@ -1,17 +1,16 @@
 #requires -Version 7.4
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param()
 . "$PSScriptRoot/local-common.ps1"
 $state = Get-LocalState
 if (!$state) { Write-Host 'No local run is recorded.'; return }
-$records = @($state.processes)
-[array]::Reverse($records)
-foreach ($record in $records) {
-    $process = Get-OwnedProcess $record
-    if ($process) {
-        & taskkill.exe /PID $process.Id /T /F | Out-Null
-        if ($LASTEXITCODE -ne 0 -and (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) { throw "Could not stop owned process $($process.Id)." }
-    }
-}
-Remove-Item -LiteralPath (Join-Path $localRoot 'run.json')
+if (!$PSCmdlet.ShouldProcess('Owned local Functions and Azurite','Stop the local run; preserve emulator data, tools, builds and logs')) { return }
+$lock = $null
+try {
+    $lock = [IO.File]::Open((Assert-LocalPath (Join-Path $localRoot 'local-lifecycle.lock')),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+    $state = Get-LocalState
+    if (!$state) { Write-Host 'The local run was already stopped.'; return }
+    Stop-LocalOwnedRun $state
+    Remove-Item -LiteralPath (Assert-LocalPath (Join-Path $localRoot 'run.json')) -ErrorAction Stop
+} finally { if ($lock) { $lock.Dispose() } }
 Write-Host 'Local host and Azurite stopped. Data, tools, and logs retained.'

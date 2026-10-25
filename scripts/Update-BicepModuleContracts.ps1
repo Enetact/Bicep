@@ -5,7 +5,9 @@ param([switch]$Check)
 $root=Get-ProjectRoot
 $output=Join-Path $root 'artifacts/module-audit'
 New-Item -ItemType Directory -Path $output -Force|Out-Null
-$contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*.bicep' -Recurse|Sort-Object FullName){
+# Fabric and Managed DevOps Pools use reviewed product adapters, with separate
+# service/network ownership gates. They are not generic leaf-module draft inputs.
+$contracts=@(foreach($file in Get-ChildItem (Join-Path $root modules) -Filter '*.bicep' -Recurse|Where-Object {$modulePath=[IO.Path]::GetRelativePath((Join-Path $root modules),$_.FullName).Replace('\','/');!$modulePath.StartsWith('avm/') -and !$modulePath.StartsWith('fabric/') -and !$modulePath.StartsWith('devops/managed-devops-pool/')}|Sort-Object FullName){
     $path=[IO.Path]::GetRelativePath($root,$file.FullName).Replace('\','/')
     $id=$path.Replace('modules/','').Replace('/main.bicep','').Replace('.bicep','').Replace('/','-')
     $compiled=Join-Path $output "$id.json"
@@ -25,3 +27,4 @@ if($Check){
     if(!(Test-Path -LiteralPath $path) -or ([IO.File]::ReadAllText($path).Replace("`r`n","`n").Trim() -cne $json.Replace("`r`n","`n").Trim())){throw 'Bicep module contracts changed. Regenerate, review and commit the contract with its source.'}
     Write-Host "PASS: $($contracts.Count) compiled module contracts match source. No Azure calls."
 }else{[IO.File]::WriteAllText($path,$json+"`n",[Text.UTF8Encoding]::new($false));Write-Host "Updated $($contracts.Count) module contracts. No Azure calls."}
+& "$PSScriptRoot/Update-AvmModuleContracts.ps1" -Check:$Check

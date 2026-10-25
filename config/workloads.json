@@ -222,6 +222,57 @@
         "application": false,
         "kubernetes": true
       }
+    },
+    "fabric": {
+      "menuSlug": "fabric",
+      "capabilities": {
+        "analytics": true,
+        "observability": false,
+        "privateNetworking": true,
+        "application": false
+      },
+      "displayName": "Fabric Premium Workspace",
+      "summary": "F64-or-larger Fabric capacity with a separately provisioned Managed DevOps Pool for protected delivery. Existing private workspaces use their reviewed workspace API endpoint, isolated subnets and private DNS checks.",
+      "adapter": "product",
+      "composition": "workloads/fabric/main.bicep",
+      "providers": [
+        "Microsoft.Fabric",
+        "Microsoft.Network",
+        "Microsoft.OperationalInsights"
+      ],
+      "requirements": "Complete the selected environment's fabric-<env>-agents pool binding: existing DevCenter project, stateless Windows Gen2 agents with a pinned image, approved ADO project and pool IDs. The dedicated agent subnet must be delegated to Microsoft.DevOpsInfrastructure/pools, with reviewed Reader and Network Contributor grants. Fabric endpoints use a separate subnet in the same VNet; this profile requires Azure DNS and private IPv4 connectivity. Configure WIF deployment identity, job-token pool-read access, Fabric tenant/workspace roles, F capacity quota/admin users and monitoring. Source readiness is shown separately from pipeline verification; native Fabric deployment pipelines remain unsupported for deny-public workspaces.",
+      "phaseParameter": "releaseActivated",
+      "dnsKeys": [],
+      "costDescription": "F64-or-larger capacity compute, OneLake storage, connection/gateway operations, private endpoints and log ingestion; referenced managed-agent VM/disk use, networking and ADO parallel-job entitlement also incur costs. No complete reviewed estimate; not free.",
+      "packageKind": "infrastructure",
+      "stack": "workloads/fabric/stack.bicep",
+      "templateSpecName": "fabric"
+    },
+    "managed-devops-pool": {
+      "composition": "workloads/managed-devops-pool/main.bicep",
+      "stack": "workloads/managed-devops-pool/stack.bicep",
+      "packageKind": "infrastructure",
+      "phaseParameter": "releaseActivated",
+      "templateSpecName": "managed-devops-pool",
+      "adapter": "product",
+      "menuSlug": "devopspool",
+      "displayName": "Managed DevOps Pool",
+      "providers": [
+        "Microsoft.DevOpsInfrastructure",
+        "Microsoft.DevCenter",
+        "Microsoft.Network",
+        "Microsoft.OperationalInsights"
+      ],
+      "dnsKeys": [],
+      "summary": "Microsoft-managed stateless Windows Gen2 build agents injected into an existing exclusive delegated subnet, bounded concurrency, pinned image, zero standby and project-scoped Azure DevOps pool access. Reuses an approved DevCenter project.",
+      "requirements": "Existing same-region DevCenter project and dedicated subnet delegated to Microsoft.DevOpsInfrastructure/pools, reviewed service-principal network permissions, outbound routing/DNS, ADO project pool-creation rights and explicit administrator groups. Uses a separate existing bootstrap agent pool; never creates itself from its own agents.",
+      "costDescription": "Ephemeral agent VM compute, OS disk/storage, Azure DevOps parallel-job entitlement, network egress/NAT/firewall, image maintenance and optional logs. No complete reviewed estimate; zero standby is not zero cost.",
+      "capabilities": {
+        "privateNetworking": true,
+        "observability": false,
+        "application": false,
+        "devops": true
+      }
     }
   }
 }

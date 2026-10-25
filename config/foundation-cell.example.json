@@ -1,0 +1,31 @@
+{
+  "cellId": "00000000-0000-0000-0000-000000000003",
+  "customerId": "00000000-0000-0000-0000-000000000001",
+  "audience": "99999999-9999-9999-9999-999999999999",
+  "databasePath": "../.local/foundation/customer-a/cell.db",
+  "bootstrapActorKey": "user:11111111-1111-1111-1111-111111111111:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "bootstrapApproverKey": "user:11111111-1111-1111-1111-111111111111:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  "repositoryRoot": "..",
+  "enableEntraDiscovery": false,
+  "listenPort": 5107,
+  "loopbackHttps": null,
+  "requireActivationAuthority": false,
+  "activationAuthorityDirectory": null,
+  "requireSignedEntitlement": false,
+  "entitlementTrustKeys": [],
+  "projectId": "default",
+  "environmentId": "dev",
+  "trustedIssuersByTenant": {
+    "11111111-1111-1111-1111-111111111111": [
+      "https://login.microsoftonline.com/11111111-1111-1111-1111-111111111111/v2.0"
+    ]
+  },
+  "allowedClients": [
+    {"tenantId": "11111111-1111-1111-1111-111111111111", "clientId": "33333333-3333-3333-3333-333333333333", "kind": "User", "servicePrincipalObjectId": null},
+    {"tenantId": "11111111-1111-1111-1111-111111111111", "clientId": "55555555-5555-5555-5555-555555555555", "kind": "Workload", "servicePrincipalObjectId": "cccccccc-cccc-cccc-cccc-cccccccccccc"}
+  ],
+  "publicKeys": [
+    {"keyId": "REPLACE_WITH_TRUSTED_SIGNING_KEY_ID", "pem": "REPLACE_WITH_TRUSTED_PUBLIC_RSA_KEY_PEM"}
+  ],
+  "mockEndpoint": null
+}

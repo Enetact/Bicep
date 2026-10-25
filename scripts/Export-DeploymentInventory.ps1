@@ -60,7 +60,7 @@ foreach ($vnet in $vnets) {
         $prefixes=if ($_.Contains('addressPrefixes')) { @($_.addressPrefixes) } else { @($_.addressPrefix) }
         $largeEnough=@($prefixes | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+/(\d+)$' -and [int]$Matches[1] -le 26 }).Count -gt 0
         $hasPrivateEndpoints=$_.Contains('privateEndpoints') -and @($_.privateEndpoints).Count -gt 0
-        @{id=$_.id;name=$_.name;addressPrefixes=@($prefixes);delegations=$delegations;privateEndpointNetworkPolicies=$_.privateEndpointNetworkPolicies;
+        @{id=$_.id;name=$_.name;addressPrefixes=@($prefixes);delegations=$delegations;privateEndpointNetworkPolicies=$_.privateEndpointNetworkPolicies;ipConfigurationCount=$(if($_.Contains('ipConfigurations')){@($_.ipConfigurations).Count}else{0});privateEndpointCount=$(if($_.Contains('privateEndpoints')){@($_.privateEndpoints).Count}else{0});serviceAssociationLinks=$(if($_.Contains('serviceAssociationLinks')){@($_.serviceAssociationLinks)}else{@()});resourceNavigationLinks=$(if($_.Contains('resourceNavigationLinks')){@($_.resourceNavigationLinks)}else{@()});
           integrationCandidate=($delegations.Count -eq 1 -and $delegations[0] -eq 'Microsoft.Web/serverFarms' -and $largeEnough -and !$hasPrivateEndpoints);
           privateEndpointCandidate=($delegations.Count -eq 0 -and $_.privateEndpointNetworkPolicies -eq 'Disabled')}
     })

@@ -10,7 +10,7 @@ function Candidate([string]$Id='private-storage'){
 }
 function Blocked($c,[string]$code){$r=Get-RecoveryAssessment $c;Check ($r.status -ceq 'Blocked');Check ($code -cin @($r.issues.code));Check (!$r.canExecute)}
 Case 'all registered products and operations have rules; configuration cannot enable execution' {
-    $catalog=Read-RecoveryCatalog;Check ($catalog.policies.Count -eq 17);Check (!$catalog.executionEnabled)
+    $catalog=Read-RecoveryCatalog;Check ($catalog.policies.Count -eq 19);Check (!$catalog.executionEnabled)
     $workloads=(Get-Content (Join-Path (Get-ProjectRoot) config/workloads.json) -Raw|ConvertFrom-Json -AsHashtable).workloads
     foreach($id in $workloads.Keys){Check ((Get-RecoveryPolicy $id).policy.id -ceq $id)}
 }
@@ -40,7 +40,7 @@ Case 'duplicate resource IDs ignore case' {$c=Candidate;$copy=$c.changes[0].Clon
 Case 'app recovery requires package compatibility and processing impact review' {$c=Candidate 'http-functions';$c.checks.Remove('packageCompatible');Blocked $c 'packageCompatible';$c.checks.Remove('processingImpactReviewed');Blocked $c 'processingImpactReviewed'}
 Case 'tag compensation requires ownership and matching current values' {$c=Candidate 'tags-external';$c.changes[0].action='RestoreTag';$c.changes[0].impact='OwnedTagValues';Check ((Get-RecoveryAssessment $c).status -ceq 'ChecksSatisfiedUnverified');$c.checks.tagCurrentMatchesApplied=$false;Blocked $c 'tagCurrentMatchesApplied';$c.checks.tagKeysOwned=$false;Blocked $c 'tagKeysOwned'}
 Case 'new tag removal has no qualified adapter' {$c=Candidate 'tags-external';$c.changes[0].action='RemoveTag';$c.changes[0].impact='OwnedTagValues';Blocked $c 'unsupportedAction'}
-foreach($id in @('network-ipam','pipeline-registration','tags-source','discovery','agent-review','bicep-draft')){
+foreach($id in @('managed-devops-pool','fabric','network-ipam','pipeline-registration','tags-source','discovery','agent-review','bicep-draft')){
     Case "manual source or read-only workflow cannot become executable: $id" {$c=Candidate $id;$c.canExecute=$true;$r=Get-RecoveryAssessment $c;Check (!$r.canExecute -and !$r.executorRegistered);Check ($r.status -cin @('ManualRecoveryRequired','SourceChangeRequired','NotApplicable'))}
 }
 $root=Join-Path (Get-ProjectRoot) ('artifacts/recovery-tests/'+[guid]::NewGuid().ToString('N'))

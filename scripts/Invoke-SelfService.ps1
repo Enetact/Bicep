@@ -4,6 +4,9 @@ param([Parameter(Mandatory)][ValidateSet('PlanFoundation','ApplyFoundation','Pla
     [Parameter(Mandatory)][string]$BundleDirectory,[Parameter(Mandatory)][string]$EvidenceDirectory,
     [string]$PlanDirectory='',[Parameter(Mandatory)][string]$BoundServiceConnection,
     [Parameter(Mandatory)][string]$BoundEnvironment,[Parameter(Mandatory)][string]$BoundAgentPool)
+. "$PSScriptRoot/PlatformTrace.ps1"
+$platformTrace = Start-PlatformTrace -Name 'platform.workflow.self_service' -Attributes @{ 'platform.phase'=$Action }
+try {
 . "$PSScriptRoot/self-service-common.ps1"
 New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
 $receipt=@{schemaVersion=1; action=$Action;ready=$false;status='Failed';startedUtc=[DateTimeOffset]::UtcNow.ToString('O')}
@@ -39,3 +42,7 @@ try {
     $receipt.finishedUtc=[DateTimeOffset]::UtcNow.ToString('O')
     Write-ServiceJson $receipt (Join-Path $EvidenceDirectory receipt.json)
 }
+} catch {
+    Set-PlatformTraceFailure -Trace $platformTrace -Exception $_.Exception
+    throw
+} finally { Complete-PlatformTrace $platformTrace }

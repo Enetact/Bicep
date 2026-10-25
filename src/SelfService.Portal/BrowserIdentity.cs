@@ -7,14 +7,21 @@ namespace SelfService.Portal;
 // Registered-app tokens stay in memory; optional CLI sessions own an isolated on-disk cache.
 public sealed class BrowserSession(PortalOptions options) : IDisposable
 {
+    readonly byte[] viewBoundaryKey = RandomNumberGenerator.GetBytes(32);
+    // Opaque UI invalidation marker only; never an authentication or authorization credential.
+    public string ViewIdentityBoundary => Convert.ToHexStringLower(HMACSHA256.HashData(viewBoundaryKey,
+        System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new[]
+        { Account?.HomeAccountId.Identifier, Cli?.AccountId, AzureTenantId, Cli?.TenantId }))));
     public string Csrf { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     public DateTimeOffset Created { get; } = DateTimeOffset.UtcNow;
     public SemaphoreSlim Gate { get; } = new(1, 1);
+    public SessionResumeGate ResumeGate { get; } = new();
     public IPublicClientApplication? Client { get; } = options.AuthenticationConfigured ? PublicClientApplicationBuilder.Create(options.ClientId)
         .WithAuthority($"https://login.microsoftonline.com/{options.TenantId}").WithRedirectUri("http://localhost").Build() : null;
     public IAccount? Account { get; set; }
     public LocalCliSession? Cli { get; set; }
     public GitHubSession GitHub { get; } = new();
+    public McpProviderSession Mcp { get; } = new();
     public string? AzureTenantId { get; set; }
     public ConcurrentDictionary<string, bool> Connected { get; } = new();
     public string State { get; set; } = "Not connected";
@@ -26,16 +33,20 @@ public sealed class BrowserSession(PortalOptions options) : IDisposable
     public SemaphoreSlim NetworkGate { get; } = new(1, 1);
     public ConcurrentDictionary<string, System.Text.Json.JsonElement> NetworkReports { get; } = new();
     public long NetworkEpoch;
+    public long MicrosoftIdentityEpoch;
     public ConcurrentDictionary<string, PendingNetworkAllocation> NetworkPending { get; } = new();
     public Dictionary<string, RegistrationReview> RegistrationPending { get; } = new();
     public ConcurrentDictionary<string, SelfService.Tagging.TagInventory> TagReports { get; } = new();
     public ConcurrentDictionary<string, PendingTagQueue> TagPending { get; } = new();
     public void ClearMicrosoftEvidence()
     {
+        foreach (var provider in new[] { "azure", "ado", "bicep", "fabric" })
+            if (Mcp.Connections.TryGetValue(provider, out var connection)) connection.Lifetime.Cancel();
+        Interlocked.Increment(ref MicrosoftIdentityEpoch); Agent.CancelRun();
         Connected.Clear(); Interlocked.Increment(ref NetworkEpoch); Operations.Clear(); NetworkReports.Clear(); NetworkPending.Clear(); TagReports.Clear(); TagPending.Clear();
         lock (Pending) Pending.Clear(); lock (RegistrationPending) RegistrationPending.Clear();
     }
-    public void Dispose() { Login?.Cancel(); GitHub.Dispose(); _ = Agent.DisposeAsync(); _ = CleanupCli(); }
+    public void Dispose() { Login?.Cancel(); GitHub.Dispose(); _ = Agent.DisposeAsync(); _ = Mcp.DisposeAsync(); _ = CleanupCli(); }
     async Task CleanupCli() { try { if (Cli is { } cli) await cli.DisposeAsync(); } catch { /* Governed Stop-Portal also removes owned credential caches. */ } }
 }
 public record PendingRequest(RunRequest Request, DateTimeOffset Expires);
@@ -64,6 +75,7 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
     {
         "ado" => ["499b84ac-1321-427f-aa17-267ca6975798/.default"],
         "azure" => ["https://management.azure.com/.default"],
+        "fabric" => ["https://api.fabric.microsoft.com/.default"],
         _ => throw new PortalException("Unknown sign-in service.")
     };
     public void Begin(BrowserSession s, string audience)
@@ -89,9 +101,9 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
                 await s.Client.RemoveAsync(result.Account); throw new PortalException("Use the same Microsoft account for both connections.");
             }
             s.Account = result.Account;
-            if (audience == "azure")
+            if (audience is "azure" or "fabric")
             {
-                if (s.AzureTenantId is not null && s.AzureTenantId != result.TenantId) { Interlocked.Increment(ref s.NetworkEpoch); s.Operations.Clear(); s.NetworkReports.Clear(); }
+                if (s.AzureTenantId is not null && s.AzureTenantId != result.TenantId) s.ClearMicrosoftEvidence();
                 s.AzureTenantId = result.TenantId;
             }
             s.Connected[audience] = true; s.State = "Connected";
@@ -109,7 +121,7 @@ public sealed class BrowserIdentity(AzureCliIdentity? cliIdentity = null) : ITok
         if (s.Cli is not null && cliIdentity is not null) return await cliIdentity.Token(s, audience);
         if (s.Client is null || s.Account is null || !s.Connected.ContainsKey(audience)) throw new PortalException($"Connect {audience} first.", 401);
         try { return (await s.Client.AcquireTokenSilent(Scopes(audience), s.Account).ExecuteAsync()).AccessToken; }
-        catch (MsalException) { s.Connected.TryRemove(audience, out _); throw new PortalException("Session needs consent or renewal. Connect again.", 401); }
+        catch (MsalException) { s.ClearMicrosoftEvidence(); throw new PortalException("Session needs consent or renewal. Connect again.", 401); }
     }
     public async Task SignOut(BrowserSession s)
     {

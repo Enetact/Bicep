@@ -1,5 +1,9 @@
 # Register the pipeline suite from Platform Studio
 
+**Managed DevOps Pool increment — 20 October 2026:** the reviewed registry now contains 30 roots, including Discover/Deploy - Managed DevOps Pool. Registering them does not create the bootstrap runner, pool/network permissions, WIF grants or protected environments. The consumer canary under the workload examples is not part of bulk root registration. [Setup](../workloads/managed-devops-pool/README.md).
+
+**20 October 2026:** the reviewed registry now contains 28 roots, including Fabric Discover, Deploy and Workspace/promotion. Registration does not create WIF grants, the private agent pool or protected `fabric-workspace-<env>` approvals. [Fabric onboarding](../workloads/fabric/README.md).
+
 Implemented locally on 27 September 2026; data-platform entries added 4 October 2026. **ADO setup** inventories all 25 root YAML entry points and can register the missing definitions in one reviewed batch. It does not queue runs. Existing definitions, GitHub source, service connections, permissions, environments and approval checks remain unchanged. Live authenticated ADO creation is still an acceptance step; local tests use synthetic responses.
 
 ## Use it

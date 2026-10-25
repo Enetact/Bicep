@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+  "acquiredUtc": "2026-10-17T18:05:45.8413103Z",
+  "purpose": "Pinned official Azure Verified Modules compiled ARM dependencies for local Bicep source drafting; no deployment authorization.",
+  "modules": [
+    {
+      "id": "identity-user-assigned-identity",
+      "version": "0.6.0",
+      "registry": "mcr.microsoft.com/bicep/avm/res/managed-identity/user-assigned-identity:0.6.0",
+      "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+      "sourceCommit": "a9370ad48e31b2de5a679dd630da28612ad95471",
+      "sourceTag": "avm/res/managed-identity/user-assigned-identity/0.6.0",
+      "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/a9370ad48e31b2de5a679dd630da28612ad95471/avm/res/managed-identity/user-assigned-identity/main.bicep",
+      "templatePath": "identity-user-assigned-identity/main.json",
+      "templateSha256": "6fffc6f6e465e51af5caf59bd305d0a08316fca0e33a8214955f5cd5b43e6bf7",
+      "templateBytes": 21448,
+      "manifestPath": "identity-user-assigned-identity/manifest.json",
+      "manifestSha256": "af3108d4973ce5252f08442e2e97b1fc6c67e19a7143ea58ba21ac1a58dc807e",
+      "manifestDigest": "sha256:af3108d4973ce5252f08442e2e97b1fc6c67e19a7143ea58ba21ac1a58dc807e",
+      "manifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/managed-identity/user-assigned-identity/manifests/sha256:af3108d4973ce5252f08442e2e97b1fc6c67e19a7143ea58ba21ac1a58dc807e",
+      "versionManifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/managed-identity/user-assigned-identity/manifests/0.6.0",
+      "templateBlobUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/managed-identity/user-assigned-identity/blobs/sha256:6fffc6f6e465e51af5caf59bd305d0a08316fca0e33a8214955f5cd5b43e6bf7",
+      "license": "MIT"
+    },
+    {
+      "id": "containers-container-registry",
+      "version": "0.13.1",
+      "registry": "mcr.microsoft.com/bicep/avm/res/container-registry/registry:0.13.1",
+      "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+      "sourceCommit": "f1f4ba28698437d9a683d68bf181341ad3547e48",
+      "sourceTag": "avm/res/container-registry/registry/0.13.1",
+      "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/f1f4ba28698437d9a683d68bf181341ad3547e48/avm/res/container-registry/registry/main.bicep",
+      "templatePath": "containers-container-registry/main.json",
+      "templateSha256": "239c56c43fcb59891b04ee59748978f463357e6c80c7a7825e35760eae23e4ee",
+      "templateBytes": 163258,
+      "manifestPath": "containers-container-registry/manifest.json",
+      "manifestSha256": "2ee6ba8e32e9392ed7a5c0eee39910ce5222c35d4c463b087d0f6928139789bd",
+      "manifestDigest": "sha256:2ee6ba8e32e9392ed7a5c0eee39910ce5222c35d4c463b087d0f6928139789bd",
+      "manifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/container-registry/registry/manifests/sha256:2ee6ba8e32e9392ed7a5c0eee39910ce5222c35d4c463b087d0f6928139789bd",
+      "versionManifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/container-registry/registry/manifests/0.13.1",
+      "templateBlobUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/container-registry/registry/blobs/sha256:239c56c43fcb59891b04ee59748978f463357e6c80c7a7825e35760eae23e4ee",
+      "license": "MIT"
+    },
+    {
+      "id": "configuration-app-configuration",
+      "version": "0.10.1",
+      "registry": "mcr.microsoft.com/bicep/avm/res/app-configuration/configuration-store:0.10.1",
+      "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+      "sourceCommit": "f1f4ba28698437d9a683d68bf181341ad3547e48",
+      "sourceTag": "avm/res/app-configuration/configuration-store/0.10.1",
+      "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/f1f4ba28698437d9a683d68bf181341ad3547e48/avm/res/app-configuration/configuration-store/main.bicep",
+      "templatePath": "configuration-app-configuration/main.json",
+      "templateSha256": "52615e0dbbce6d374bd421750f5af1744d80d259bfac5c106658938c2e6d4904",
+      "templateBytes": 97658,
+      "manifestPath": "configuration-app-configuration/manifest.json",
+      "manifestSha256": "9405d1dc0ea6801538fea96ffb78350249adfcdd6d59b8acab12aefb57af7a11",
+      "manifestDigest": "sha256:9405d1dc0ea6801538fea96ffb78350249adfcdd6d59b8acab12aefb57af7a11",
+      "manifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/app-configuration/configuration-store/manifests/sha256:9405d1dc0ea6801538fea96ffb78350249adfcdd6d59b8acab12aefb57af7a11",
+      "versionManifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/app-configuration/configuration-store/manifests/0.10.1",
+      "templateBlobUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/app-configuration/configuration-store/blobs/sha256:52615e0dbbce6d374bd421750f5af1744d80d259bfac5c106658938c2e6d4904",
+      "license": "MIT"
+    },
+    {
+      "id": "monitoring-application-insights",
+      "version": "0.8.0",
+      "registry": "mcr.microsoft.com/bicep/avm/res/insights/component:0.8.0",
+      "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+      "sourceCommit": "4f750c70f333b2df6170e3b56ae90faa852361d2",
+      "sourceTag": "avm/res/insights/component/0.8.0",
+      "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/4f750c70f333b2df6170e3b56ae90faa852361d2/avm/res/insights/component/main.bicep",
+      "templatePath": "monitoring-application-insights/main.json",
+      "templateSha256": "f599e8ef7f166cd876cbd06a48792594541e046e0eab9c0ec8d6ef959d1cbdb5",
+      "templateBytes": 32743,
+      "manifestPath": "monitoring-application-insights/manifest.json",
+      "manifestSha256": "ab732413f1131a8915500e3b9ec12e21964b015cf7dfcdf9ce5c8ed95deba8b3",
+      "manifestDigest": "sha256:ab732413f1131a8915500e3b9ec12e21964b015cf7dfcdf9ce5c8ed95deba8b3",
+      "manifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/insights/component/manifests/sha256:ab732413f1131a8915500e3b9ec12e21964b015cf7dfcdf9ce5c8ed95deba8b3",
+      "versionManifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/insights/component/manifests/0.8.0",
+      "templateBlobUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/insights/component/blobs/sha256:f599e8ef7f166cd876cbd06a48792594541e046e0eab9c0ec8d6ef959d1cbdb5",
+      "license": "MIT"
+    },
+    {
+      "id": "network-network-security-group",
+      "version": "0.5.4",
+      "registry": "mcr.microsoft.com/bicep/avm/res/network/network-security-group:0.5.4",
+      "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+      "sourceCommit": "99f7bd7e64b6067691330b63744a999269431d2c",
+      "sourceTag": "avm/res/network/network-security-group/0.5.4",
+      "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/99f7bd7e64b6067691330b63744a999269431d2c/avm/res/network/network-security-group/main.bicep",
+      "templatePath": "network-network-security-group/main.json",
+      "templateSha256": "27a286fc20375f94cec61fd07a360b318f486e63c4bffb27dc96dbc1954b2c2d",
+      "templateBytes": 29440,
+      "manifestPath": "network-network-security-group/manifest.json",
+      "manifestSha256": "c5d7a58038a524309b5a392a2f72540eaa93466cd14659fcc8ff3ccc62b1008a",
+      "manifestDigest": "sha256:c5d7a58038a524309b5a392a2f72540eaa93466cd14659fcc8ff3ccc62b1008a",
+      "manifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/network/network-security-group/manifests/sha256:c5d7a58038a524309b5a392a2f72540eaa93466cd14659fcc8ff3ccc62b1008a",
+      "versionManifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/network/network-security-group/manifests/0.5.4",
+      "templateBlobUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/network/network-security-group/blobs/sha256:27a286fc20375f94cec61fd07a360b318f486e63c4bffb27dc96dbc1954b2c2d",
+      "license": "MIT"
+    },
+    {
+      "id": "network-route-table",
+      "version": "0.5.0",
+      "registry": "mcr.microsoft.com/bicep/avm/res/network/route-table:0.5.0",
+      "sourceRepository": "https://github.com/Azure/bicep-registry-modules",
+      "sourceCommit": "38e14b5cc5a386be8620c26c25d368e8aeaa0bf2",
+      "sourceTag": "avm/res/network/route-table/0.5.0",
+      "sourceUrl": "https://github.com/Azure/bicep-registry-modules/blob/38e14b5cc5a386be8620c26c25d368e8aeaa0bf2/avm/res/network/route-table/main.bicep",
+      "templatePath": "network-route-table/main.json",
+      "templateSha256": "04406e9cc7642af8ad3764196294eda7cbdccb7f128d40cf4d4f4c788cf424d0",
+      "templateBytes": 12572,
+      "manifestPath": "network-route-table/manifest.json",
+      "manifestSha256": "59067d0b5aed599eb7b1e778cab5961630d82115e64ffba22c7afe72f194a590",
+      "manifestDigest": "sha256:59067d0b5aed599eb7b1e778cab5961630d82115e64ffba22c7afe72f194a590",
+      "manifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/network/route-table/manifests/sha256:59067d0b5aed599eb7b1e778cab5961630d82115e64ffba22c7afe72f194a590",
+      "versionManifestUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/network/route-table/manifests/0.5.0",
+      "templateBlobUrl": "https://mcr.microsoft.com/v2/bicep/avm/res/network/route-table/blobs/sha256:04406e9cc7642af8ad3764196294eda7cbdccb7f128d40cf4d4f4c788cf424d0",
+      "license": "MIT"
+    }
+  ],
+  "licenses": [
+    {
+      "path": "LICENSE",
+      "spdx": "MIT",
+      "sourceCommit": "a9370ad48e31b2de5a679dd630da28612ad95471",
+      "sourceUrl": "https://raw.githubusercontent.com/Azure/bicep-registry-modules/a9370ad48e31b2de5a679dd630da28612ad95471/LICENSE",
+      "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+      "verifiedSourceCopies": [
+        {
+          "sourceCommit": "38e14b5cc5a386be8620c26c25d368e8aeaa0bf2",
+          "sourceUrl": "https://raw.githubusercontent.com/Azure/bicep-registry-modules/38e14b5cc5a386be8620c26c25d368e8aeaa0bf2/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        },
+        {
+          "sourceCommit": "4f750c70f333b2df6170e3b56ae90faa852361d2",
+          "sourceUrl": "https://raw.githubusercontent.com/Azure/bicep-registry-modules/4f750c70f333b2df6170e3b56ae90faa852361d2/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        },
+        {
+          "sourceCommit": "99f7bd7e64b6067691330b63744a999269431d2c",
+          "sourceUrl": "https://raw.githubusercontent.com/Azure/bicep-registry-modules/99f7bd7e64b6067691330b63744a999269431d2c/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        },
+        {
+          "sourceCommit": "a9370ad48e31b2de5a679dd630da28612ad95471",
+          "sourceUrl": "https://raw.githubusercontent.com/Azure/bicep-registry-modules/a9370ad48e31b2de5a679dd630da28612ad95471/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        },
+        {
+          "sourceCommit": "f1f4ba28698437d9a683d68bf181341ad3547e48",
+          "sourceUrl": "https://raw.githubusercontent.com/Azure/bicep-registry-modules/f1f4ba28698437d9a683d68bf181341ad3547e48/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "identity-user-assigned-identity/main.json",
+      "sha256": "6fffc6f6e465e51af5caf59bd305d0a08316fca0e33a8214955f5cd5b43e6bf7",
+      "bytes": 21448
+    },
+    {
+      "path": "identity-user-assigned-identity/manifest.json",
+      "sha256": "af3108d4973ce5252f08442e2e97b1fc6c67e19a7143ea58ba21ac1a58dc807e",
+      "bytes": 1181
+    },
+    {
+      "path": "containers-container-registry/main.json",
+      "sha256": "239c56c43fcb59891b04ee59748978f463357e6c80c7a7825e35760eae23e4ee",
+      "bytes": 163258
+    },
+    {
+      "path": "containers-container-registry/manifest.json",
+      "sha256": "2ee6ba8e32e9392ed7a5c0eee39910ce5222c35d4c463b087d0f6928139789bd",
+      "bytes": 1168
+    },
+    {
+      "path": "configuration-app-configuration/main.json",
+      "sha256": "52615e0dbbce6d374bd421750f5af1744d80d259bfac5c106658938c2e6d4904",
+      "bytes": 97658
+    },
+    {
+      "path": "configuration-app-configuration/manifest.json",
+      "sha256": "9405d1dc0ea6801538fea96ffb78350249adfcdd6d59b8acab12aefb57af7a11",
+      "bytes": 1180
+    },
+    {
+      "path": "monitoring-application-insights/main.json",
+      "sha256": "f599e8ef7f166cd876cbd06a48792594541e046e0eab9c0ec8d6ef959d1cbdb5",
+      "bytes": 32743
+    },
+    {
+      "path": "monitoring-application-insights/manifest.json",
+      "sha256": "ab732413f1131a8915500e3b9ec12e21964b015cf7dfcdf9ce5c8ed95deba8b3",
+      "bytes": 1149
+    },
+    {
+      "path": "network-network-security-group/main.json",
+      "sha256": "27a286fc20375f94cec61fd07a360b318f486e63c4bffb27dc96dbc1954b2c2d",
+      "bytes": 29440
+    },
+    {
+      "path": "network-network-security-group/manifest.json",
+      "sha256": "c5d7a58038a524309b5a392a2f72540eaa93466cd14659fcc8ff3ccc62b1008a",
+      "bytes": 1168
+    },
+    {
+      "path": "network-route-table/main.json",
+      "sha256": "04406e9cc7642af8ad3764196294eda7cbdccb7f128d40cf4d4f4c788cf424d0",
+      "bytes": 12572
+    },
+    {
+      "path": "network-route-table/manifest.json",
+      "sha256": "59067d0b5aed599eb7b1e778cab5961630d82115e64ffba22c7afe72f194a590",
+      "bytes": 1148
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+      "bytes": 1141
+    }
+  ]
+}

@@ -7,6 +7,8 @@ const entry = (field, type, role = 'primary', parent = 'group') => ({field,type,
 const endpoints = roles => roles.map(role => entry(role.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())+'Endpoint',pe,role));
 const networkChildren = () => [entry('integrationSubnet','Microsoft.Network/virtualNetworks/subnets','integration','vnet'),entry('endpointSubnet','Microsoft.Network/virtualNetworks/subnets','endpoints','vnet'),entry('dnsLink','Microsoft.Network/privateDnsZones/virtualNetworkLinks','primary','dnsblob')];
 export const extraBindings = {
+  'managed-devops-pool': [entry('pool','Microsoft.DevOpsInfrastructure/pools')],
+  'fabric': [entry('capacity','Microsoft.Fabric/capacities'),entry('workspacePrivateLink','Microsoft.Fabric/privateLinkServicesForFabric'),entry('workspaceEndpoint',pe)],
   'http-functions': [entry('storage',storage),entry('identity',identity),entry('app',app),entry('plan',plan),...endpoints(['blob','queue','table','sites'])],
   'service-bus-worker': [entry('storage',storage),entry('identity',identity),entry('app',app),entry('plan',plan),entry('bus','Microsoft.ServiceBus/namespaces'),...endpoints(['blob','queue','table','sites','servicebus'])],
   'private-aks': [entry('cluster','Microsoft.ContainerService/managedClusters'),entry('applicationIdentity',identity),entry('nodeGroup',rg,'nodes',null)],

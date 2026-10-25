@@ -66,7 +66,7 @@ test('provider assigned names stay unknown', () => { const i = copy(); i.compone
 test('extension resource ID parsing preserves full scope', () => { const id = `/subscriptions/${sample.intent.subscriptionId}/resourceGroups/shared/providers/Microsoft.Storage/storageAccounts/test/providers/Microsoft.Authorization/roleAssignments/11111111-1111-4111-8111-111111111111`; const r = parseArmId(id); assert.equal(r.type, 'Microsoft.Authorization/roleAssignments'); assert(r.parentId.endsWith('/storageAccounts/test')); });
 for (const bad of ['https://example.com', '/subscriptions/nope', `/subscriptions/${sample.intent.subscriptionId}/providers/X.Y`, `/subscriptions/${sample.intent.subscriptionId}/resourceGroups/test?sig=a`, `/subscriptions/${sample.intent.subscriptionId}/resourceGroups/../`]) test(`reject malformed ARM ID ${bad}`, () => assert.throws(() => parseArmId(bad)));
 test('source inventory covers declared ARM types and inline review locations exist', () => {
-  const data = inventory(policy); assert.equal(data.types.length, 47); assert(data.declarations.length > 47);
+  const data = inventory(policy); assert.equal(data.types.length, 50); assert(data.declarations.length > 50);
   for (const x of data.inlineAndServiceContracts) assert(fs.existsSync(new URL('../../' + x.file, import.meta.url)));
   const nodeGroup = data.inlineAndServiceContracts.find(x => x.field === 'properties.nodeResourceGroup');
   assert.equal(nodeGroup.classification, 'explicitManagedScope');

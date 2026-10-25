@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "cliVersion": "13.6.0",
+  "dashboardUrl": "http://127.0.0.1:18888",
+  "otlpGrpcUrl": "http://127.0.0.1:4317",
+  "otlpHttpUrl": "http://127.0.0.1:4318",
+  "maxLogCount": 5000,
+  "maxTraceCount": 5000,
+  "maxMetricsCount": 5000
+}

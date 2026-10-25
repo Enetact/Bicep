@@ -1,6 +1,10 @@
 using System.Text;
 using System.Net.Http.Headers;
 using SelfService.Tagging;
+using SelfService.Telemetry;
+
+return await TelemetryCommand.Run("platform-tagging-cli", "tagging.command", async () =>
+{
 
 try
 {
@@ -50,3 +54,4 @@ try
     Console.WriteLine("Tagging evidence saved. No raw tag values written to console.");return 0;
 }
 catch(Exception e)when(e is TagException or System.Text.Json.JsonException or FormatException or HttpRequestException or OperationCanceledException){Console.Error.WriteLine(e is TagException?e.Message:"Tagging operation failed; inspect sanitized receipts. No retry inferred.");return 1;}
+});

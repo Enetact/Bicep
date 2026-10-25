@@ -200,6 +200,28 @@
         "Persistent data, external effects and old credentials",
         "Unreviewed Helm rollback or resource deletion"
       ]
+    },
+    {
+      "id": "fabric",
+      "summary": "Retain reviewed capacity source and separate Fabric REST receipts. Recover with a new protected forward Preview; no automatic inverse.",
+      "name": "Fabric Premium Workspace",
+      "mode": "ManualRecovery",
+      "exclusions": [
+        "OneLake data, workspace items, identities, connections and native deployment history",
+        "Capacity deletion, SKU downgrade or public-access relaxation",
+        "Replaying unknown workspace/item mutations"
+      ]
+    },
+    {
+      "id": "managed-devops-pool",
+      "name": "Managed DevOps Pool",
+      "mode": "ManualRecovery",
+      "summary": "Recover with a new reviewed forward Preview. Pool recreation and Azure DevOps policy repair require separate platform review; no automatic inverse.",
+      "exclusions": [
+        "Running jobs, agent local files and caches",
+        "ADO pool permissions, pipeline authorizations and project rebindings",
+        "Subnet/DevCenter/image replacement or replaying unknown ARM operations"
+      ]
     }
   ]
 }

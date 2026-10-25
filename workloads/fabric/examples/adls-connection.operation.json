@@ -1,0 +1,14 @@
+{
+  "parameters": [
+    {
+      "dataType": "Text",
+      "name": "url",
+      "value": "https://examplestorage.dfs.core.windows.net"
+    }
+  ],
+  "displayName": "Claims ADLS landing",
+  "connectionType": "AzureDataLakeStorage",
+  "workspaceId": "00000000-0000-0000-0000-000000000000",
+  "creationMethod": "AzureDataLakeStorage",
+  "kind": "CreateConnection"
+}

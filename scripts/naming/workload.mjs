@@ -3,7 +3,7 @@ import { validateInstances } from './instances.mjs';
 import { extraBindings } from './bindings.mjs';
 
 export const supportedWorkloads = ['private-storage', 'key-vault', 'observability', ...Object.keys(extraBindings)];
-// Reviewed bindings for all nine registered workloads. Unsupported workloads never receive a partial map.
+// Reviewed bindings for all registered workloads. Unsupported workloads never receive a partial map.
 export function workloadNames(request, policy, catalog) {
   if (!request || typeof request !== 'object' || Array.isArray(request) || Object.keys(request).sort().join() !== 'intent,workloadType' || !supportedWorkloads.includes(request.workloadType)) throw new Error('Unsupported naming request or workload.');
   const { intent, workloadType } = request;

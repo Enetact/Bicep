@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$CheckOnly)
+param([switch]$CheckOnly, [switch]$WriteReceipt)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 # This initial section also runs under Windows PowerShell 5.1.
@@ -112,7 +112,7 @@ foreach ($entry in @(@{path=$dotnet; args=@('--version')}, @{path=$node; args=@(
     & $entry.path @($entry.args)
     if ($LASTEXITCODE -ne 0) { throw "Prerequisite could not run: $($entry.path)" }
 }
-if (!$CheckOnly) {
+if (!$CheckOnly -or $WriteReceipt) {
     $local = Join-Path $root '.local'
     New-Item -ItemType Directory -Path $local -Force | Out-Null
     @{ dotnet=$dotnet; node=$node; func=$func; azurite=$azurite; powershell=(Get-Process -Id $PID).Path; checkedUtc=[DateTimeOffset]::UtcNow.ToString('O') } |

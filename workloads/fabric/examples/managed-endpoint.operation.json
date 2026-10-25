@@ -1,0 +1,7 @@
+{
+  "workspaceId": "00000000-0000-0000-0000-000000000000",
+  "kind": "CreateManagedPrivateEndpoint",
+  "targetPrivateLinkResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/source/providers/Microsoft.Storage/storageAccounts/examplestorage",
+  "name": "claims-dfs",
+  "targetSubresourceType": "dfs"
+}

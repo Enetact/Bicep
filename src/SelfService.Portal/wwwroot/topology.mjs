@@ -49,7 +49,7 @@ export function networkTopology(report) {
 export function proposedTopology(product, target, region, definition) {
   const root = `proposal:${product.id}:${target.environment}:${region}`;
   const nodes = [{ id: root, label: product.name, type: `${target.environment} · ${region}`, status: 'Proposed', level: 0, detail: `Subscription ${target.subscriptionId} · network ${target.network}` }];
-  for (const [id, label, detail, symbol] of definition.nodes) nodes.push({ id, label, detail: `${detail} · ${definition.source} (${symbol})`, type: 'Component group', status: 'Proposed', level: 1 });
+  for (const [id, label, detail, symbol, nodeSource] of definition.nodes) nodes.push({ id, label, detail: `${detail} · ${nodeSource || definition.source} (${symbol})`, type: nodeSource ? 'Required dependency' : 'Component group', status: 'Proposed', level: 1 });
   return { title: 'Proposed workload', subtitle: `${product.name} · ${target.environment} · ${region}`, nodes,
     edges: [...definition.nodes.map(n => ({ from: root, to: n[0], label: 'includes / requires' })), ...definition.edges.map(([from, to, label]) => ({ from, to, label }))],
     note: 'Conceptual component groups from the registered workload. Names, counts, conditions and create/reuse decisions require discovery and Azure Preview. No resources have been created by this diagram.', coverage: [] };

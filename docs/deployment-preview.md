@@ -1,5 +1,9 @@
 # Bicep Preview and Deploy
 
+**Managed DevOps Pool Preview:** the standard product adapter validates the existing project, delegated subnet, source-scoped pool alias/image settings and live platform network pregrants before protected Apply. Conservative update rules reject network/organization/admin/project rebinding. Preview and Azure read-back do not establish ADO permissions, image availability, quota or successful agent jobs. [Pool qualification](../workloads/managed-devops-pool/README.md).
+
+**Fabric Preview:** capacity and optional workspace networking use Azure What-If through the standard dedicated product flow. The separate Fabric workspace root saves a typed API operation plan with tenant/principal/source/state binding and a 30-minute expiry; it is labelled API Preview, not ARM What-If. [Fabric stages and receipt rules](../workloads/fabric/README.md).
+
 **5 October 2026 — optional named Preview:** dedicated workload Deploy menus now include `namingInstanceId` (default `legacy`). Source-reviewed draft UUIDs matching workload/environment/subscription/region may be selected for **Preview only**. Prepare freezes and revalidates the complete name map and stack identity; named Deploy is rejected. The portal exposes the same reviewed choices, while its local editor creates a draft for source review. The registry is empty until platform review adds entries. See [naming setup and boundaries](resource-naming.md).
 
 **Nested evidence update, 4 October 2026:** the dedicated Deploy path now captures reviewed nested ARM properties and child-resource configurations. Unresolved desired expressions and incomplete probes block qualification; the retained before-state fingerprint is rechecked before Apply. Old approvals require a new Preview. See [coverage, limits and manual acceptance](nested-iac-evidence.md).

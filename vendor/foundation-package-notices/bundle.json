@@ -1,0 +1,699 @@
+{
+  "schema": "platform-studio.foundation-package-notices.v1",
+  "scope": "Supplementary license and notice texts for exact verified NuGet package identities; original package metadata is authoritative and preserved.",
+  "authority": "Official package repository URL and exact repository commit declared by verified nuspec, plus GitHub commit-addressed contents metadata.",
+  "legalClearance": false,
+  "distributionRightsGranted": false,
+  "productionReady": false,
+  "packages": [
+    {
+      "id": "Microsoft.Data.Sqlite",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "9fd331cf8f4c4026f1b7b9c651fb33e80ce1d0e0d6f46dd00e41e71e598cfefb8e318ccb8519064ca4fb9f82d4126d08f42041e5987e186676adaa2595e229d4",
+      "nuspecSha256": "16b655355dbd383a73d7157ef84325485f9898535ba48305bd0f6f9d42b7d0a3",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Data.Sqlite.Core",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "723a1b77bfe3966982ca0242256b2dc320ed878c4ed9480680d75d91b716ac27013fa5fe533800c50c7c6000e50046ac10af5dbc48e3ca4eb885c6ed65bc2cb1",
+      "nuspecSha256": "c7d659363a4ec5e56d17920f798f3f29b1aecd5b578cea0459e79c738d4e3d68",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.AI.Abstractions",
+      "version": "10.8.3",
+      "licenseExpression": "MIT",
+      "archiveSha512": "b9401d016f92d9acd97367aff1992781e6ae46196c297e9be13404eee69e0095296f65e8012130901b7666978353af25a12720986091d9b9b539f82c699430c5",
+      "nuspecSha256": "9f2e355f903f871fd84582786988d347a5e9fefdd0896925044efa1aa6916a72",
+      "repository": "https://github.com/dotnet/extensions",
+      "commit": "ccb356f31db9d894807c4fd0c97c2f41553d1524",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-extensions-ccb356f31db9d894807c4fd0c97c2f41553d1524/LICENSE",
+          "sourcePath": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/extensions/ccb356f31db9d894807c4fd0c97c2f41553d1524/LICENSE",
+          "gitBlobSha": "793ac5e0f2032449e529d1d11a44d95630321efb",
+          "sha256": "47f0ad8ba753eae5de6178291cd8f38bbb42d2368b177f8e11714ad17c701275",
+          "bytes": 1121
+        },
+        {
+          "path": "licenses/dotnet-extensions-ccb356f31db9d894807c4fd0c97c2f41553d1524/THIRD-PARTY-NOTICES.TXT",
+          "sourcePath": "THIRD-PARTY-NOTICES.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/extensions/ccb356f31db9d894807c4fd0c97c2f41553d1524/THIRD-PARTY-NOTICES.TXT",
+          "gitBlobSha": "ac67471b6e5d8e36d2bcc8ad29182442b3d42af7",
+          "sha256": "07f3e74329ed32ac9229a75ae994b98b30aadb1d9947eee926eed3d3fc4cf0c6",
+          "bytes": 354
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Caching.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "02858a6f1e814d2fcba5506a1e5e1bc125186fe76e89235d073b0dca84c62802e6680e6c13ad8ac07ac5b6358a0691cf473c80122c062a7ac8ae557d7a5a7a5b",
+      "nuspecSha256": "f711589381828be613ead1bc3dd1f0f1fedb2dc06c7eb63893aa57be75f3822a",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Configuration.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "7bf4cd6f25d7e030e366cc9cb593b79a890f347df598062c0d2030cdb62d23f465f69ccdfc7e83d3e709fcbe12edc4bd4af68229c2d889216aa84ebd43a6b162",
+      "nuspecSha256": "9782906731f192523e01dde11f749492c342738614c73f2fb794b13232eb5e8c",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "c40af270352d0049fbddb6403eb0b5206f0b6318760146e8093a9972b2ab965d7a5213a28e473742712e54f7abb288eab7a46659b41c7426d454ecee4a931eac",
+      "nuspecSha256": "0c95e70ef7abddd0120b259dd80f5677c22b4f638fb8c5aa50846c03c65a7569",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Diagnostics.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "b163e11ddd5e10ceb4d4091cfbe35a24a61ca70a29d48d988e9ca48f5e9a799b40e1c7752701f7f78d3a586b1787507581357e4a2813a8f561be9cb80a3bb4af",
+      "nuspecSha256": "343d515100c9dd789f91cb1dffcd966ef482b688cdc5711c2b4de20adfb82474",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.FileProviders.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "6f38363d1eeec3034c1bcff9058b295f19c4f26e9cedaaec671af3fa22d212e671db8cab0688ddb01609c850a06d0c2c5b103176f862f7f7dcaba16481d51c51",
+      "nuspecSha256": "7c4a745071335ffaf8c632cef40da244796bed7c529948e73343bc52f74cbbed",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Hosting.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "029b3b822be940a6994b3a7333046e64c75e471c7f3225c690c0cb3cec6c19d20594aadab5efc28602c2fa37ee3bcd745ed26632b7f7a4580cd0294d3b966dc9",
+      "nuspecSha256": "26d203bead3f6166038cd3b07befe2cd69c94918a085cb352eba94d995291c7b",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Logging.Abstractions",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "6fcc5a6cd33bcca73b47c0771bd1ad9cc044eac53d3af43c017cc684932f1f107981c7a0312922c14e6e2aa9b8df1d3a70655dd0acdcf9b97d3ce975fc21d588",
+      "nuspecSha256": "bedb09d9a04ea6d879e6566e886f200ae741a364d1d5b234e09376217a948e56",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Options",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "538322a27fd9bb004c4c3fc21fc584ec08ede88740b54dc95cbc241b553339633594d167a0ef0d02e42d6482cda642b218414ff6dec5bd06a48079cc0948d929",
+      "nuspecSha256": "ee55c6f0fca958a27d90d3c9a9d974ff1b8dd7e625565bb8219d84c3bed4e894",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Extensions.Primitives",
+      "version": "10.0.10",
+      "licenseExpression": "MIT",
+      "archiveSha512": "b3f778d24afdf4711beba10de673f9eb3abaec108b86862fdf1de64f554b543a503fb3bbb0abc38e0af8b800ef39d3660fc660943235c734786faeb11d4fad64",
+      "nuspecSha256": "7c5215df6da89c10f7a9813d8f5c8968a7ac6870afb71129fd045c37f5861bbe",
+      "repository": "https://github.com/dotnet/dotnet",
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/LICENSE.TXT",
+          "gitBlobSha": "a616ed188dfce68ee308f674350ad242d8588c2b",
+          "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+          "bytes": 1115
+        },
+        {
+          "path": "licenses/dotnet-dotnet-f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "d5b8eb06d5e9047fafc8449a253b3761d0447313",
+          "sha256": "4bef6a7e7b359869d751c9ff70274a80a0f626927afa5a0681583c1b1861267b",
+          "bytes": 265585
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.Identity.Client",
+      "version": "4.90.1",
+      "licenseExpression": "MIT",
+      "archiveSha512": "9014e7d2c242d3fb6cbbcc64b410bbc67454edab31c6ad73ecae46cd33b5ed7bc3720a8f08890780c88451057b4e6e7d6b8c2bc24a7f7ff71feb49d7b1810592",
+      "nuspecSha256": "67570fd464c8ee82cc96975f91fb6c5fc5b1abf9fa03ce4f1acb98078d65bb4a",
+      "repository": "https://github.com/AzureAD/microsoft-authentication-library-for-dotnet",
+      "commit": "2e5ecc708f00ff3db93d823cf3d802cba945090f",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/AzureAD-microsoft-authentication-library-for-dotnet-2e5ecc708f00ff3db93d823cf3d802cba945090f/LICENSE",
+          "sourcePath": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/microsoft-authentication-library-for-dotnet/2e5ecc708f00ff3db93d823cf3d802cba945090f/LICENSE",
+          "gitBlobSha": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+          "bytes": 1073
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.IdentityModel.Abstractions",
+      "version": "8.16.0",
+      "licenseExpression": "MIT",
+      "archiveSha512": "ac50abfaa71f96654ccc6d6043f86be6b2c704b03aab073091a1528a3a17fdd0f3cf09e486cefd46e8b5a0b1959ee318e8f70b4fbdd9dc40fb6d475fc561a91b",
+      "nuspecSha256": "e4547c1410a16cb88686db74433dfe90aa8d5f3bda6add30340a70d1630e59e5",
+      "repository": "https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet",
+      "commit": "f8172402e711c043a59bef81bba2609cf1fb9f46",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "sourcePath": "LICENSE.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "gitBlobSha": "e76165455b59fa89f59ddcbbf78741e52d75a328",
+          "sha256": "cba03f5387b05405e56b688376421acae396136af4b5116738dc6e5160f87ddd",
+          "bytes": 1085
+        },
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "sourcePath": "NOTICE.html",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "gitBlobSha": "464135948f55faaa0cab7e58fa6a9c83b69c0f7d",
+          "sha256": "d9f0289a2c38b4eedf5f22a045b6b37212d0989afb5f416a5f9ace59958136f7",
+          "bytes": 128929
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.IdentityModel.JsonWebTokens",
+      "version": "8.16.0",
+      "licenseExpression": "MIT",
+      "archiveSha512": "ce127ec9b6034e11cefec82a88b9e4cfc6c598f8e38d4978c64ea5bc68233f30dafc915f88ccceabee3cb1c05ed78ed18f60c8fe0c32a5f2d3954aeadfd59f18",
+      "nuspecSha256": "86437872036be2a6c3a864c7214c0d69870fd2b42304323448845d87948f1849",
+      "repository": "https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet",
+      "commit": "f8172402e711c043a59bef81bba2609cf1fb9f46",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "sourcePath": "LICENSE.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "gitBlobSha": "e76165455b59fa89f59ddcbbf78741e52d75a328",
+          "sha256": "cba03f5387b05405e56b688376421acae396136af4b5116738dc6e5160f87ddd",
+          "bytes": 1085
+        },
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "sourcePath": "NOTICE.html",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "gitBlobSha": "464135948f55faaa0cab7e58fa6a9c83b69c0f7d",
+          "sha256": "d9f0289a2c38b4eedf5f22a045b6b37212d0989afb5f416a5f9ace59958136f7",
+          "bytes": 128929
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.IdentityModel.Logging",
+      "version": "8.16.0",
+      "licenseExpression": "MIT",
+      "archiveSha512": "eca1a2b1a576ba1a63653bcc8d82619d2cc2046ced825be34f4ab3aa46ae3d410c10b9e5a5171299452924e12b4847b538d992e1e50b7b571d2f9693e25c17ee",
+      "nuspecSha256": "2ee47996d612bd9eb11ec502bee5f70b0590a268fbbcf8c861c746f10c7b7520",
+      "repository": "https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet",
+      "commit": "f8172402e711c043a59bef81bba2609cf1fb9f46",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "sourcePath": "LICENSE.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "gitBlobSha": "e76165455b59fa89f59ddcbbf78741e52d75a328",
+          "sha256": "cba03f5387b05405e56b688376421acae396136af4b5116738dc6e5160f87ddd",
+          "bytes": 1085
+        },
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "sourcePath": "NOTICE.html",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "gitBlobSha": "464135948f55faaa0cab7e58fa6a9c83b69c0f7d",
+          "sha256": "d9f0289a2c38b4eedf5f22a045b6b37212d0989afb5f416a5f9ace59958136f7",
+          "bytes": 128929
+        }
+      ]
+    },
+    {
+      "id": "Microsoft.IdentityModel.Tokens",
+      "version": "8.16.0",
+      "licenseExpression": "MIT",
+      "archiveSha512": "25c1702aa98557d0910e944d5920a72ae6ef4f6186c1a9334d520049b05c72c6919ef8e8b1f85ff04ac025c9f8649b15cfd8828914ec75d82ab5dde0602410c5",
+      "nuspecSha256": "4ffc02b171b5ce7eb91b785f3654c1ae97e566fed247fa5f46f2f9535d98e6b2",
+      "repository": "https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet",
+      "commit": "f8172402e711c043a59bef81bba2609cf1fb9f46",
+      "declaredCopyright": "© Microsoft Corporation. All rights reserved.",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "sourcePath": "LICENSE.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/LICENSE.txt",
+          "gitBlobSha": "e76165455b59fa89f59ddcbbf78741e52d75a328",
+          "sha256": "cba03f5387b05405e56b688376421acae396136af4b5116738dc6e5160f87ddd",
+          "bytes": 1085
+        },
+        {
+          "path": "licenses/AzureAD-azure-activedirectory-identitymodel-extensions-for-dotnet-f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "sourcePath": "NOTICE.html",
+          "sourceUrl": "https://raw.githubusercontent.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/f8172402e711c043a59bef81bba2609cf1fb9f46/NOTICE.html",
+          "gitBlobSha": "464135948f55faaa0cab7e58fa6a9c83b69c0f7d",
+          "sha256": "d9f0289a2c38b4eedf5f22a045b6b37212d0989afb5f416a5f9ace59958136f7",
+          "bytes": 128929
+        }
+      ]
+    },
+    {
+      "id": "ModelContextProtocol",
+      "version": "2.2.0",
+      "licenseExpression": "Apache-2.0",
+      "archiveSha512": "8296e6227fc510fedc6f4b1a4a8c7d7705aef5abc92601afe6354e79d832929190b1248fd54f58d0f42ad8fcaeca730d87da81b72fdf8a720f5e1341bbfbef7b",
+      "nuspecSha256": "b226feb3d8bddefccc36106e0545382888b150c7b8ea53520999c5abba33e7f0",
+      "repository": "https://github.com/modelcontextprotocol/csharp-sdk",
+      "commit": "6fa3825973949a9c4f0cd8af344e15a8db09dc35",
+      "declaredCopyright": "© Model Context Protocol a Series of LF Projects, LLC.",
+      "status": "Pinned",
+      "licensingReviewRequired": true,
+      "reviewReason": "UpstreamLicenseTransitionReviewRequired",
+      "files": [
+        {
+          "path": "licenses/modelcontextprotocol-csharp-sdk-6fa3825973949a9c4f0cd8af344e15a8db09dc35/LICENSE",
+          "sourcePath": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/6fa3825973949a9c4f0cd8af344e15a8db09dc35/LICENSE",
+          "gitBlobSha": "185054bef9dfb083b7ab2db43908ffa173a0f48e",
+          "sha256": "7c6a686d2b34b86ad8c726e0ac4d76903b525f251d73e617f8db3879fa8f11fc",
+          "bytes": 12227
+        },
+        {
+          "path": "licenses/modelcontextprotocol-csharp-sdk-6fa3825973949a9c4f0cd8af344e15a8db09dc35/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/6fa3825973949a9c4f0cd8af344e15a8db09dc35/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "27514aeb1c013ca127350f9633890816c1529b45",
+          "sha256": "b9c35f6ab075077d5c2b644fdc58eb5696b8b70f539947f9e1e57331599fc5ce",
+          "bytes": 3313
+        }
+      ]
+    },
+    {
+      "id": "ModelContextProtocol.Core",
+      "version": "2.2.0",
+      "licenseExpression": "Apache-2.0",
+      "archiveSha512": "5304511a1b6b9fa50cdd7f08b39893df4020d520949b3d25a907d136695d9087f9e26869c942c6568c0bd9c4cd8dcd4c3e1d52f7501e96db2665c16ac3aac829",
+      "nuspecSha256": "1c25587a2aa82c679dcfd74b3089732eaa76012bb676b3be8cdd5915b900ceb0",
+      "repository": "https://github.com/modelcontextprotocol/csharp-sdk",
+      "commit": "6fa3825973949a9c4f0cd8af344e15a8db09dc35",
+      "declaredCopyright": "© Model Context Protocol a Series of LF Projects, LLC.",
+      "status": "Pinned",
+      "licensingReviewRequired": true,
+      "reviewReason": "UpstreamLicenseTransitionReviewRequired",
+      "files": [
+        {
+          "path": "licenses/modelcontextprotocol-csharp-sdk-6fa3825973949a9c4f0cd8af344e15a8db09dc35/LICENSE",
+          "sourcePath": "LICENSE",
+          "sourceUrl": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/6fa3825973949a9c4f0cd8af344e15a8db09dc35/LICENSE",
+          "gitBlobSha": "185054bef9dfb083b7ab2db43908ffa173a0f48e",
+          "sha256": "7c6a686d2b34b86ad8c726e0ac4d76903b525f251d73e617f8db3879fa8f11fc",
+          "bytes": 12227
+        },
+        {
+          "path": "licenses/modelcontextprotocol-csharp-sdk-6fa3825973949a9c4f0cd8af344e15a8db09dc35/THIRD-PARTY-NOTICES.txt",
+          "sourcePath": "THIRD-PARTY-NOTICES.txt",
+          "sourceUrl": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/6fa3825973949a9c4f0cd8af344e15a8db09dc35/THIRD-PARTY-NOTICES.txt",
+          "gitBlobSha": "27514aeb1c013ca127350f9633890816c1529b45",
+          "sha256": "b9c35f6ab075077d5c2b644fdc58eb5696b8b70f539947f9e1e57331599fc5ce",
+          "bytes": 3313
+        }
+      ]
+    },
+    {
+      "id": "SQLitePCLRaw.bundle_e_sqlite3",
+      "version": "3.0.5",
+      "licenseExpression": "Apache-2.0",
+      "archiveSha512": "12f980014c25f0c3e20c7b331418933fc84c7635b65597ceab09c20ea00c055043c866bef8614ea6bc38d7a484d8ff339d4387bbe760bc892f4e2702cd23ab2f",
+      "nuspecSha256": "22841a35aa62d16a8e393d3a187fab4e3454200e6502ce552bbca4b89399447b",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "commit": "",
+      "declaredCopyright": "Copyright 2014-2026 SourceGear, LLC",
+      "status": "MissingRepositoryCommit",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": []
+    },
+    {
+      "id": "SQLitePCLRaw.config.e_sqlite3",
+      "version": "3.0.5",
+      "licenseExpression": "Apache-2.0",
+      "archiveSha512": "0a25e95ee323ddfeb8fc920d26551b4afed854a3d9dda833c3507331ab2043e0c9f16d62c2100560373afc20e54d3f69f42abdd6da6e75ef7dcc0ea861b5af12",
+      "nuspecSha256": "010bdb201bc641031ab0c9deaed6843193416215fc9e6d91a216317e087118b5",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "commit": "96043b8cff323f21919df86a431c136655d81b4a",
+      "declaredCopyright": "Copyright 2014-2026 SourceGear, LLC",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/ericsink-SQLitePCL.raw-96043b8cff323f21919df86a431c136655d81b4a/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/96043b8cff323f21919df86a431c136655d81b4a/LICENSE.TXT",
+          "gitBlobSha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "bytes": 11358
+        },
+        {
+          "path": "licenses/ericsink-SQLitePCL.raw-96043b8cff323f21919df86a431c136655d81b4a/NOTICE.TXT",
+          "sourcePath": "NOTICE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/96043b8cff323f21919df86a431c136655d81b4a/NOTICE.TXT",
+          "gitBlobSha": "d728ea62485dc1f4a73fe54bbd73d23aa680d283",
+          "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9",
+          "bytes": 1697
+        }
+      ]
+    },
+    {
+      "id": "SQLitePCLRaw.core",
+      "version": "3.0.5",
+      "licenseExpression": "Apache-2.0",
+      "archiveSha512": "24209d65527e0f82bb4e151b610195d39cb4732891ce1f0e2ba0965371da381f1e636cd9256ae7dc5b76c604e36d33b7ca63afde09e6a8a40a9b2fcb5f01aa03",
+      "nuspecSha256": "094854edfffc182626e9787e8005198bc1cb881666ca7fd68d75336e9b53bf2c",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "commit": "ed046114d5a30534e13294d94d78eb73de896ad4",
+      "declaredCopyright": "Copyright 2014-2025 SourceGear, LLC",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/ericsink-SQLitePCL.raw-ed046114d5a30534e13294d94d78eb73de896ad4/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/ed046114d5a30534e13294d94d78eb73de896ad4/LICENSE.TXT",
+          "gitBlobSha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "bytes": 11358
+        },
+        {
+          "path": "licenses/ericsink-SQLitePCL.raw-ed046114d5a30534e13294d94d78eb73de896ad4/NOTICE.TXT",
+          "sourcePath": "NOTICE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/ed046114d5a30534e13294d94d78eb73de896ad4/NOTICE.TXT",
+          "gitBlobSha": "d728ea62485dc1f4a73fe54bbd73d23aa680d283",
+          "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9",
+          "bytes": 1697
+        }
+      ]
+    },
+    {
+      "id": "SQLitePCLRaw.provider.e_sqlite3",
+      "version": "3.0.5",
+      "licenseExpression": "Apache-2.0",
+      "archiveSha512": "716ee95a124695ce5b2e2c834509e66991585b5ad1843b4cc6d135fe078dfe2d2e867a2e83978def09b8691833370803251f792537e59203455054ac24f82cc9",
+      "nuspecSha256": "8fd3ecbac20be3144f10d021bba5962eec6a55f2fd2cbb67f816644a5bdcc46d",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "commit": "ed046114d5a30534e13294d94d78eb73de896ad4",
+      "declaredCopyright": "Copyright 2014-2025 SourceGear, LLC",
+      "status": "Pinned",
+      "licensingReviewRequired": false,
+      "reviewReason": null,
+      "files": [
+        {
+          "path": "licenses/ericsink-SQLitePCL.raw-ed046114d5a30534e13294d94d78eb73de896ad4/LICENSE.TXT",
+          "sourcePath": "LICENSE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/ed046114d5a30534e13294d94d78eb73de896ad4/LICENSE.TXT",
+          "gitBlobSha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "bytes": 11358
+        },
+        {
+          "path": "licenses/ericsink-SQLitePCL.raw-ed046114d5a30534e13294d94d78eb73de896ad4/NOTICE.TXT",
+          "sourcePath": "NOTICE.TXT",
+          "sourceUrl": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/ed046114d5a30534e13294d94d78eb73de896ad4/NOTICE.TXT",
+          "gitBlobSha": "d728ea62485dc1f4a73fe54bbd73d23aa680d283",
+          "sha256": "5a1ab2f670f86dd2f8d42e40a8459cc278ca6d5225a7e2a5fa3ea0184396a6d9",
+          "bytes": 1697
+        }
+      ]
+    }
+  ],
+  "acquiredDateUtc": "2026-10-24"
+}

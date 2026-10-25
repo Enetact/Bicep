@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "tenantId": "00000000-0000-0000-0000-000000000000",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "deploymentPrincipalObjectId": "00000000-0000-0000-0000-000000000000",
+  "environmentName": "prod",
+  "execution": {
+    "kind": "ManagedDevOpsPool",
+    "poolResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-devopspool-prod/providers/Microsoft.DevOpsInfrastructure/pools/REPLACE_REVIEWED_POOL_NAME",
+    "location": "eastus2",
+    "adoOrganizationUrl": "https://dev.azure.com/REPLACE_ORGANIZATION",
+    "adoProjectName": "REPLACE_PROJECT_NAME",
+    "adoPoolName": "fabric-prod-agents",
+    "adoPoolId": 0,
+    "agentSubnetId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/REPLACE_NETWORK_RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/REPLACE_VNET/subnets/REPLACE_DEDICATED_AGENT_SUBNET",
+    "devCenterProjectResourceId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/REPLACE_DEVCENTER_RESOURCE_GROUP/providers/Microsoft.DevCenter/projects/REPLACE_DEVCENTER_PROJECT",
+    "maximumConcurrency": 2,
+    "agentVmSize": "Standard_D2ds_v5",
+    "agentImageVersion": "REPLACE_PINNED_IMAGE_VERSION",
+    "poolAdministratorGroupEmails": [
+      "REPLACE_ADMIN_GROUP_EMAIL"
+    ],
+    "devOpsInfrastructurePrincipalObjectId": "00000000-0000-0000-0000-000000000000"
+  },
+  "operation": {
+    "kind": "CreateWorkspace",
+    "displayName": "Fabric-prod",
+    "capacityId": "00000000-0000-0000-0000-000000000000",
+    "capacityDisplayName": "REPLACE_REVIEWED_CAPACITY_NAME"
+  }
+}

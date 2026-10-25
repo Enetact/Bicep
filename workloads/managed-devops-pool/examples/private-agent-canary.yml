@@ -1,0 +1,47 @@
+# Register and run separately only after the pool exists and this pipeline has
+# explicit pool permission. Replace these source-owned onboarding values first.
+trigger: none
+pr: none
+pool:
+  name: REPLACE_CREATED_ADO_POOL_NAME
+  demands:
+    - ImageOverride -equals platform-windows
+jobs:
+  - job: QualifyPrivateAgent
+    timeoutInMinutes: 15
+    workspace:
+      clean: all
+    steps:
+      - checkout: self
+        clean: true
+        persistCredentials: false
+      - pwsh: |
+          $ErrorActionPreference='Stop'
+          if (!$IsWindows -or $PSVersionTable.PSVersion.Major -lt 7) { throw 'A qualified Windows/PowerShell 7 image is required.' }
+          $nodeVersion=(& node --version).Trim()
+          if ($LASTEXITCODE -ne 0 -or [int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 22) { throw 'Node.js 22 or later is required.' }
+          $sdkVersions=@(& dotnet --list-sdks)
+          if ($LASTEXITCODE -ne 0 -or !@($sdkVersions | Where-Object { $_ -match '^10\.0\.3\d{2} ' }).Count) { throw 'The repository .NET 10 SDK feature band must be installed in the qualified image or by reviewed setup.' }
+          & az version --output none
+          if ($LASTEXITCODE -ne 0) { throw 'Azure CLI is required.' }
+          $bicepVersion=if (Get-Command bicep -CommandType Application -ErrorAction SilentlyContinue) { & bicep --version } else { & az bicep version }
+          if ($LASTEXITCODE -ne 0 -or ($bicepVersion -join ' ') -notmatch '\b0\.48\.1\b') { throw 'The reviewed Bicep 0.48.1 tool must be installed by the qualified image or setup.' }
+          & git --version
+          if ($LASTEXITCODE -ne 0) { throw 'Git is required.' }
+          # Review this list in source; no arbitrary hostnames enter a queue-time field.
+          $privateTargets=@('REPLACE_ACCOUNT.blob.core.windows.net')
+          if (@($privateTargets | Where-Object { $_ -match 'REPLACE_' }).Count) { throw 'Complete the reviewed private endpoint DNS targets before qualification.' }
+          foreach ($hostname in $privateTargets) {
+            if ($hostname -cnotmatch '^[a-z0-9][a-z0-9.-]{2,252}$') { throw 'Invalid reviewed hostname.' }
+            $addresses=@(Resolve-DnsName -Name $hostname -Type A -DnsOnly -ErrorAction Stop | Where-Object { $_.Type -eq 'A' } | ForEach-Object { [Net.IPAddress]::Parse($_.IPAddress) })
+            if (!$addresses.Count) { throw 'Private endpoint DNS returned no IPv4 address.' }
+            foreach ($address in $addresses) {
+              $bytes=$address.GetAddressBytes()
+              $private=$bytes.Length -eq 4 -and ($bytes[0] -eq 10 -or ($bytes[0] -eq 172 -and $bytes[1] -ge 16 -and $bytes[1] -le 31) -or ($bytes[0] -eq 192 -and $bytes[1] -eq 168))
+              if (!$private) { throw 'A reviewed private dependency resolved outside RFC1918 address space.' }
+              if ($bytes[0] -eq 172 -and $bytes[1] -eq 17) { throw 'Private dependency overlaps the Managed DevOps Pools internal service range.' }
+            }
+            if (!(Test-NetConnection -ComputerName $hostname -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue)) { throw 'Private dependency TCP 443 connectivity failed.' }
+          }
+          Write-Host 'Agent toolchain and reviewed private DNS/TCP checks passed. Application authorization and data access require separate smoke tests.'
+        displayName: Check qualified image and private dependency path

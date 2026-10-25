@@ -16,7 +16,8 @@ public static class WorkflowReviews
         new("tagging","Tag governance review","platform-tagging-review","azure","tag-evidence","Selected saved tag evidence. Structured advice validated against rules and resource IDs. Explicit selection creates an editable draft; no agent write tools."),
         new("bicep-draft","Design Bicep source draft","platform-bicep-composition","azure","composition","Saved network discovery plus selected workload context and allowlisted target overrides. Generates local module-based source drafts; compile and qualify before registration. No pipeline queue, deployment or IPAM reservation."),
         new("private-dns","Private DNS analysis review","platform-private-dns-review","azure","operations","Saved DNS assessment with bounded configuration evidence. Structured advisory proposals only; migration and Azure writes are unavailable."),
-        new("drift","DNS drift and desired-change review","platform-drift-review","azure","operations","Three-way DNS property comparison. Local reference is not an accepted deployment baseline. No remediation or deployment authorization.")
+        new("drift","DNS drift and desired-change review","platform-drift-review","azure","operations","Three-way DNS property comparison. Local reference is not an accepted deployment baseline. No remediation or deployment authorization."),
+        new("mcp-orchestration","MCP orchestration","platform-mcp-orchestration",null,"mcp","Full discovered catalogs from explicitly connected providers. Reads through the broker; changes require an exact, expiring human-approved plan. Provider permissions and protected deployment boundaries remain independent.")
     ];
     public static WorkflowReview Tags(string output,TagInventory inventory,TagProfile profile)
     {

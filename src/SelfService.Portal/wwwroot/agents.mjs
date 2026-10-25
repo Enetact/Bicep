@@ -1,4 +1,5 @@
 import { renderTopology } from './topology.mjs';
+import { renderModuleOptions } from './avm-modules.mjs';
 // AHP coordinates a browser-owned session. Typed HTTP requests execute bounded workflows.
 export async function connectAgentHost(csrf) {
   const socket = new WebSocket(`ws://${location.host}/api/agent/ahp`, ['platform-studio', csrf]);
@@ -11,13 +12,13 @@ export async function connectAgentHost(csrf) {
   socket.addEventListener('close', () => { for (const task of pending.values()) { clearTimeout(task.timer); task.reject(new Error('Agent host disconnected.')); } pending.clear(); });
   await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', () => reject(new Error('Agent host unavailable.')), { once: true }); });
   const call = (method, params) => new Promise((resolve, reject) => {
-    const n = ++id, timer = setTimeout(() => { pending.delete(n); reject(new Error('Agent host timed out.')); socket.close(); }, 50000);
+    const n = ++id, timer = setTimeout(() => { pending.delete(n); reject(new Error('Agent host timed out. Check the saved receipt before retrying.')); socket.close(); }, method === 'dispatchAction' ? 330000 : 50000);
     pending.set(n, { resolve, reject, timer }); socket.send(JSON.stringify({ jsonrpc: '2.0', id: n, method, params }));
   });
   await call('initialize', { channel: 'ahp-root://', protocolVersions: ['0.9.0'], clientId: crypto.randomUUID() });
   const channel = `ahp-session:/${crypto.randomUUID()}`;
   await call('createSession', { channel, provider: 'codex' });
-  return { status: async () => (await call('subscribe', { channel })).snapshot.state.platformStudio, close: () => socket.close() };
+  return { status: async () => (await call('subscribe', { channel })).snapshot.state.platformStudio, run: request => call('dispatchAction', { channel, action: { type: 'platform/workflowRun', request } }), close: () => socket.close() };
 }
 
 export function setupAgents({ api, data, notice }) {
@@ -30,14 +31,17 @@ export function setupAgents({ api, data, notice }) {
     $('agent-network-fields').hidden = w.scope !== 'resource-group' || !!networkReportId; $('agent-workload-fields').hidden = !['workload', 'preview', 'composition', 'iac'].includes(w.scope);
     $('agent-network-snapshot').hidden = !networkReportId || !['resource-group', 'composition'].includes(w.scope); $('agent-clear-snapshot').hidden = $('agent-network-snapshot').hidden;
     $('agent-draft-fields').hidden = w.scope !== 'composition';
+    $('agent-mcp-fields').hidden = w.scope !== 'mcp';
     $('agent-preview-field').hidden = !['preview','iac'].includes(w.scope); $('agent-iac-phase-field').hidden=w.scope!=='iac'; $('agent-iac-artifact-field').hidden=w.scope!=='iac'; $('agent-limits').textContent = w.limits;
     $('agent-tag-snapshot').hidden = w.scope !== 'tag-evidence';
     $('agent-operations-snapshot').hidden = w.scope !== 'operations';
+    $('agent-run').textContent = w.scope === 'mcp' ? 'Run orchestration task →' : 'Collect evidence and run review →';
     $('agent-run').disabled = busy || !w.ready || (w.scope === 'tag-evidence' && !tagEvidence) || (w.scope === 'composition' && (!networkReportId || !$('agent-draft-goal').value.trim()));
     if(w.scope==='operations' && (!operationsAssessment || operationsAssessment.workflow!==w.id)) $('agent-run').disabled=true;
+    if(w.scope==='mcp' && !$('agent-mcp-goal').value.trim()) $('agent-run').disabled=true;
     $('agent-connect').disabled = busy || !status.installed || status.provider.authenticated || status.provider.ready || String(status.provider.state).includes('Waiting');
     $('agent-groups').disabled = busy || !w.evidenceReady;
-    for (const id of ['agent-workflow','agent-subscription','agent-group','agent-product','agent-environment','agent-region','agent-preview','agent-draft-goal','agent-iac-phase','agent-iac-artifact']) $(id).disabled = busy;
+    for (const id of ['agent-workflow','agent-subscription','agent-group','agent-product','agent-environment','agent-region','agent-preview','agent-draft-goal','agent-mcp-goal','agent-iac-phase','agent-iac-artifact']) $(id).disabled = busy;
     $('agent-requirements').textContent = `${w.requires} · ${w.ready ? 'Ready to collect evidence and review' : 'Connect the required services to enable this workflow'}`;
   }
   function environments() {
@@ -67,8 +71,13 @@ export function setupAgents({ api, data, notice }) {
   environments();
   $('agent-workflow').addEventListener('change', fields); $('agent-product').addEventListener('change', environments);
   $('agent-draft-goal').addEventListener('input', fields);
+  $('agent-mcp-goal').addEventListener('input', fields);
   $('agent-subscription').addEventListener('change', () => opts('agent-group', [{ id: '', name: 'Refresh resource groups' }]));
   action('agent-refresh', refresh);
+  action('agent-browse-modules', async () => {
+    const catalog = await api('bicep/modules');
+    renderModuleOptions($('agent-module-options'), catalog);
+  });
   action('agent-connect', async () => {
     const result = await api('agent/connect', {});
     // A visible link survives popup blockers. The backend validates the provider URL.
@@ -84,13 +93,14 @@ export function setupAgents({ api, data, notice }) {
     opts('agent-group', [{ id: '', name: 'Choose a resource group' }, ...report.resources.map(g => ({ id: g.name, name: g.name }))]);
   });
   action('agent-run', async () => {
-    busy = true; fields(); $('agent-result').hidden = true; $('agent-status').textContent = 'Collecting evidence and running Codex. This can take several minutes…'; $('agent-cancel').hidden = false;
+    busy = true; fields(); $('agent-result').hidden = true; $('agent-status').textContent = selected()?.scope === 'mcp' ? 'Running the task through connected MCP providers. Requested changes will appear as plans for approval…' : 'Collecting evidence and running Codex. This can take several minutes…'; $('agent-cancel').hidden = false;
     try {
-      const result = await api('agent/run', { workflow: $('agent-workflow').value, subscriptionId: $('agent-subscription').value,
+      const request = { workflow: $('agent-workflow').value, subscriptionId: $('agent-subscription').value,
         resourceGroup: $('agent-group').value, product: $('agent-product').value, environment: $('agent-environment').value,
         region: $('agent-region').value, iacArtifact:selected()?.scope==='iac'?$('agent-iac-artifact').value:null, iacPhase: selected()?.scope==='iac'?$('agent-iac-phase').value:null, previewRunId: Number($('agent-preview').value) || null,
         networkReportId: ['resource-group','composition'].includes(selected()?.scope) ? networkReportId : null, evidenceId: selected()?.scope === 'operations' ? operationsAssessment?.id : selected()?.scope === 'tag-evidence' ? tagEvidence?.id : null, resourceIds: selected()?.scope === 'tag-evidence' ? tagEvidence?.resourceIds : null,
-        draftGoal: selected()?.scope === 'composition' ? $('agent-draft-goal').value.trim() : null });
+        draftGoal: selected()?.scope === 'mcp' ? $('agent-mcp-goal').value.trim() : selected()?.scope === 'composition' ? $('agent-draft-goal').value.trim() : null };
+      const result = host ? await host.run(request) : await api('agent/run', request);
       $('agent-review').textContent = result.review; $('agent-receipt').textContent = JSON.stringify(result.receipt, null, 2);
       lastResult = result; $('agent-tag-advice').replaceChildren(); $('agent-use-tags').hidden = !result.structuredReview;
       $('agent-operations-advice').replaceChildren();
@@ -104,7 +114,7 @@ export function setupAgents({ api, data, notice }) {
       if (result.diagram?.status === 'Validated') renderTopology($('agent-diagram'), result.diagram);
       $('agent-mermaid').disabled = !result.diagram?.source;
       $('agent-saved').textContent = `Saved: ${result.path}. Advisory output; no deployment approval.`; $('agent-result').hidden = false;
-    } finally { busy = false; $('agent-cancel').hidden = true; await refresh(); }
+    } finally { busy = false; $('agent-cancel').hidden = true; window.dispatchEvent(new Event('platform-mcp-plans-changed')); await refresh(); }
   });
   action('agent-cancel', () => api('agent/cancel', {}));
   action('agent-download', () => { const url = URL.createObjectURL(new Blob([$('agent-review').textContent], { type: 'text/markdown' })); const a = document.createElement('a'); a.href = url; a.download = 'agent-review.md'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); });
@@ -126,5 +136,6 @@ export function setupAgents({ api, data, notice }) {
   window.addEventListener('platform-operations-review', async event => { if(busy){notice('Wait for the current agent review.',true);return;}operationsAssessment=event.detail;await refresh();$('agent-workflow').value=operationsAssessment.workflow;$('agent-operations-snapshot').textContent='Using your selected saved operations assessment. Click Run to send its bounded configuration evidence through the existing AHP/Codex/MCP workflow.';fields(); });
   window.addEventListener('platform-disconnected', () => { operationsAssessment=null;$('agent-operations-advice').replaceChildren(); });
   window.addEventListener('platform-disconnected', () => { tagEvidence=null; lastResult=null; networkReportId=null; $('agent-result').hidden=true; $('agent-review').textContent=''; $('agent-receipt').textContent=''; $('agent-tag-advice').replaceChildren(); $('agent-tag-snapshot').textContent='Open Tag governance and select evidence for this review.'; });
+  document.addEventListener('platform-mcp-status-changed', () => { void refresh().catch(e => notice(e.message, true)); });
   return refresh;
 }

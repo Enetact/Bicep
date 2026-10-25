@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3,
+  "workloadType": "fabric",
+  "subscriptionAlias": "azure-subscription-a",
+  "networkProfile": "central-private",
+  "parameterOverrides": {},
+  "enabled": false,
+  "workload": "fabric",
+  "environmentName": "dev",
+  "subscriptionId": "f4f2eafe-2512-4c2f-9b5b-c88f6767e778",
+  "resourceGroup": "rg-fabric-dev",
+  "parameterFile": "workloads/fabric/environments/main.dev.bicepparam",
+  "serviceConnection": "SC-AZ-A-Bicep",
+  "agentPool": "fabric-dev-agents",
+  "deploymentEnvironment": "fabric-dev",
+  "smokePrefix": "smoke/"
+}

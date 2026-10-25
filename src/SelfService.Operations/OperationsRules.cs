@@ -1,9 +1,22 @@
+using System.Diagnostics;
+
 namespace SelfService.Operations;
 
 public static class OperationsRules
 {
+    static readonly ActivitySource Traces = new("PlatformStudio.Operations");
+
+    // Pure rules share a host's current trace but have no exporter, token provider or execution authority.
+    static T Observe<T>(string operation, Func<T> action)
+    {
+        using var span = Traces.StartActivity(operation);
+        try { var result = action(); span?.SetStatus(ActivityStatusCode.Ok); return result; }
+        catch (Exception e) { span?.SetTag("error.type", e.GetType().FullName); span?.SetStatus(ActivityStatusCode.Error); throw; }
+    }
     public static OperationsAssessment Assess(string workflow, OperationsEvidence observed, OperationsEvidence? reference, DesiredEdit[] edits)
     {
+        return Observe("operations.assess", () =>
+        {
         if (!OperationsRegistry.AnalysisWorkflows.Contains(workflow)) throw new OperationsException("Workflow has no implemented analysis adapter.");
         if (edits is null || workflow == "private-dns" && edits.Length != 0) throw new OperationsException("Desired property edits require the drift workflow.");
         var findings = PrivateDnsRules.Analyze(observed);
@@ -14,6 +27,7 @@ public static class OperationsRules
         var result = new OperationsAssessment("platform.operations-assessment/v1", Guid.NewGuid().ToString("N"), workflow, observed.Digest, reference?.Digest,
             OperationsJson.Hash(edits), reference is null ? "Missing accepted baseline" : "Local observed reference; not an accepted deployment baseline", edits, findings, comparisons);
         return result with { Digest = OperationsJson.Hash(result with { Digest = "" }) };
+        });
     }
     public static OperationsAdvice Advice(string output, OperationsAssessment assessment, OperationsEvidence evidence)
     {
@@ -49,9 +63,12 @@ public static class OperationsRules
     }
     public static OperationsPreview Preview(OperationsProposal proposal, OperationsAssessment assessment, DateTimeOffset now)
     {
+        return Observe("operations.preview", () =>
+        {
         if (proposal.Digest != OperationsJson.Hash(proposal with { Digest = "" }) || proposal.AssessmentDigest != assessment.Digest || proposal.ExpiresUtc <= now)
             throw new OperationsException("Proposal changed, belongs to another assessment or expired. Create a new proposal.");
-        return new("Proposal review — not ARM What-If or a deployable migration plan", proposal.Digest, assessment.Digest, proposal.ExpiresUtc,
+        return new OperationsPreview("Proposal review — not ARM What-If or a deployable migration plan", proposal.Digest, assessment.Digest, proposal.ExpiresUtc,
             proposal.ResourceIds.Select(id => $"{proposal.Operation}: {id}").Concat(assessment.DesiredEdits.Where(e => proposal.ResourceIds.Contains(e.ResourceId)).Select(e => $"Proposed {e.Property} = {e.Value} on {e.ResourceId}; unqualified source edit")).ToArray(), proposal.Blockers);
+        });
     }
 }

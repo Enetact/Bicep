@@ -535,6 +535,118 @@
           "Proposed control-plane telemetry"
         ]
       ]
+    },
+    "fabric": {
+      "edges": [
+        [
+          "capacity",
+          "delivery",
+          "Workspace capacity assignment uses the separate Fabric API workflow"
+        ],
+        [
+          "pool",
+          "agents",
+          "Managed agents use an existing exclusive delegated subnet"
+        ],
+        [
+          "pool",
+          "delivery",
+          "Protected delivery verifies the selected managed pool and current ADO job"
+        ],
+        [
+          "agents",
+          "private",
+          "Same VNet; Fabric endpoint subnet must be separate from the agent subnet"
+        ],
+        [
+          "dns",
+          "private",
+          "Private DNS link and endpoint NIC address membership require pipeline verification"
+        ],
+        [
+          "delivery",
+          "private",
+          "Supported workspace APIs use the reviewed private FQDN; native deny-public promotion is blocked"
+        ]
+      ],
+      "nodes": [
+        [
+          "capacity",
+          "Fabric F capacity",
+          "F64-or-larger capacity; explicit administrator user identities",
+          "capacity"
+        ],
+        [
+          "pool",
+          "Required Managed DevOps Pool",
+          "Provisioned separately by the Managed DevOps Pool workload; source-bound environment alias, pinned stateless Windows Gen2 image and existing DevCenter project",
+          "pool",
+          "modules/devops/managed-devops-pool/main.bicep"
+        ],
+        [
+          "agents",
+          "Dedicated agent subnet reference",
+          "Existing exclusive Microsoft.DevOpsInfrastructure/pools delegation, sufficient addresses and reviewed network grants; never used for Fabric private endpoints",
+          "agentSubnetId",
+          "workloads/managed-devops-pool/main.bicep"
+        ],
+        [
+          "private",
+          "Existing-workspace Private Link pass",
+          "Optional second ARM pass for an existing workspace; approved endpoint in a separate subnet, private API FQDN and deny-public policy require verification",
+          "workspacePrivateLink"
+        ],
+        [
+          "dns",
+          "Existing Fabric private DNS zone",
+          "Same-VNet direct Azure DNS and private IPv4 profile; custom DNS and peered-VNet paths need separate qualification",
+          "privateDnsZoneIds",
+          "workloads/fabric/main.bicep"
+        ],
+        [
+          "delivery",
+          "Protected Fabric API delivery",
+          "Separate Preview, Apply and Verify lifecycle; pool identity, private reachability and frozen-plan drift are checked in the pipeline, never inferred from this diagram",
+          "Test-FabricExecutionRequirements",
+          "scripts/fabric-execution-common.ps1"
+        ]
+      ],
+      "source": "workloads/fabric/main.bicep"
+    },
+    "devopspool": {
+      "edges": [
+        [
+          "pool",
+          "subnet",
+          "Agents injected into the existing dedicated subnet"
+        ],
+        [
+          "pool",
+          "ado",
+          "Creates the reviewed named agent pool; separate pipeline authorization required"
+        ]
+      ],
+      "nodes": [
+        [
+          "pool",
+          "Managed DevOps Pool",
+          "Stateless pinned Windows Gen2 agents; zero warm standby; bounded concurrency",
+          "pool"
+        ],
+        [
+          "subnet",
+          "Existing dedicated agent subnet",
+          "Same-region exclusive delegation and reviewed routing/DNS; referenced only",
+          "pool"
+        ],
+        [
+          "ado",
+          "Approved ADO projects",
+          "Explicit project names, openAccess false and reviewed administrator groups",
+          "pool"
+        ]
+      ],
+      "source": "workloads/managed-devops-pool/main.bicep"
     }
   }
 }

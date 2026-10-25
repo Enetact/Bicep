@@ -27,28 +27,52 @@ export function renderResourceNames(host, rows, title, evidence) {
 }
 
 // This editor never modifies the deployment form/request. It calculates explicit local drafts only.
-export function renderNamingEditor(host, api, product, target, region) {
+// Drafts live only in this browser view. A session/identity reset discards all input and invalidates pending responses.
+export function createNamingDrafts(uuid = () => crypto.randomUUID()) {
+  const drafts = new Map(); let generation = 0;
+  const key = (product, target, region) => JSON.stringify([product.id, product.type, target.environment, target.subscriptionId.toLowerCase(), target.workload, target.network, region]);
+  return {
+    get generation() { return generation; },
+    select(product, target, region) {
+      const id = key(product, target, region);
+      if (!drafts.has(id)) {
+        if (drafts.size >= 32) drafts.delete(drafts.keys().next().value);
+        drafts.set(id, { stackDisplayName:'', stackAcronym:'', instanceId:uuid(), instanceOrdinal:'01', subscriptionId:target.subscriptionId, namespaceSalt:'', previewInstance:'legacy' });
+      }
+      return drafts.get(id);
+    },
+    newDraft(product, target, region) { drafts.delete(key(product, target, region)); generation++; },
+    reset() { drafts.clear(); generation++; }
+  };
+}
+const hostDrafts = new WeakMap(), hostVersions = new WeakMap();
+export function renderNamingEditor(host, api, product, target, region, drafts, redraw) {
+  if (!drafts) { if (!hostDrafts.has(host)) hostDrafts.set(host, createNamingDrafts()); drafts = hostDrafts.get(host); }
+  const view = (hostVersions.get(host) ?? 0) + 1; hostVersions.set(host, view);
   host.replaceChildren(); const title = el('h3', 'New stack naming draft'); host.append(title);
-  if (!['private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer'].includes(product.type)) { host.append(el('p', 'Concrete naming maps for this workload are still being qualified. Existing deployment naming is unchanged.')); return; }
+  if (!['managed-devops-pool','fabric','private-storage','key-vault','observability','http-functions','service-bus-worker','private-aks','private-data-platform','logic-app-event-grid','blob-transfer'].includes(product.type)) { host.append(el('p', 'Concrete naming maps for this workload are still being qualified. Existing deployment naming is unchanged.')); return; }
   host.append(el('p', 'Local calculation only. Discovery supplies observed names; a fresh Azure Preview is required for planned changes. Save this draft for source review. Only source-registered instances can be selected for ADO Preview.'));
-  const fields = {};
-  for (const [key, label, initial] of [['stackDisplayName','Stack display name',''], ['stackAcronym','Stack acronym (2–4 lowercase letters/numbers)',''], ['instanceId','New instance UUID',crypto.randomUUID()], ['instanceOrdinal','Instance ordinal (01–99)','01'], ['subscriptionId','Subscription ID for this draft',target.subscriptionId], ['namespaceSalt','Persistent collision salt (optional)','']]) {
-    const wrapper = el('label', label), input = el('input'); input.value = initial; input.name = key; input.autocomplete = 'off'; fields[key] = input; wrapper.append(input); host.append(wrapper);
+  const values = drafts.select(product, target, region), generation = drafts.generation, fields = {};
+  for (const [key, label] of [['stackDisplayName','Stack display name'], ['stackAcronym','Stack acronym (2–4 lowercase letters/numbers)'], ['instanceId','New instance UUID'], ['instanceOrdinal','Instance ordinal (01–99)'], ['subscriptionId','Subscription ID for this draft'], ['namespaceSalt','Persistent collision salt (optional)']]) {
+    const wrapper = el('label', label), input = el('input'); input.value = values[key]; input.name = key; input.autocomplete = 'off'; fields[key] = input; wrapper.append(input); host.append(wrapper);
   }
   host.append(el('p', `Environment: ${target.environment} · Region: ${region} · Exposure: internal`));
   const button = el('button', 'Calculate names'), message = el('p'), result = el('div'), diagram = el('div'); button.type = 'button'; message.setAttribute('role','status');
-  host.append(button, message, result, diagram); let version = 0;
+  const reset = el('button', 'Start new naming draft'); reset.type = 'button'; reset.className = 'secondary';
+  reset.onclick = () => { drafts.newDraft(product, target, region); if (redraw) redraw(); else renderNamingEditor(host, api, product, target, region, drafts); };
+  host.append(button, reset, message, result, diagram); let version = 0;
+  const currentView = () => drafts.generation === generation && hostVersions.get(host) === view && host.isConnected;
   const clear = () => { version++; result.replaceChildren(); diagram.replaceChildren(); message.textContent = 'Settings changed; calculate a new draft.'; };
-  for (const input of Object.values(fields)) input.addEventListener('input', clear);
+  for (const [key, input] of Object.entries(fields)) input.addEventListener('input', () => { if (!currentView()) return; values[key] = input.value; clear(); });
   button.onclick = async () => {
     const current = ++version; result.replaceChildren(); diagram.replaceChildren(); button.disabled = true; message.textContent = 'Calculating locally…';
     try {
       const draft = await api('naming/draft', { workloadType: product.type, intent: { namingProfile:'standard-v2', environment:target.environment, region, exposure:'internal', ...Object.fromEntries(Object.entries(fields).map(([k,v]) => [k,v.value])) } });
-      if (current !== version || !host.isConnected) return;
+      if (current !== version || !currentView()) return;
       renderResourceNames(result, draft.plan.resources, 'Calculated names — not observed', draft.coverage); renderTopology(diagram, namingGraph(draft));
       const download = el('button','Download draft and parameter patch'); download.type='button'; download.className='secondary'; download.onclick=()=>save(draft,'workload-naming-draft.json'); result.prepend(download);
       message.textContent = `Draft ${draft.draftSha256}. No registration, discovery, What-If or deployment was started.`;
-    } catch (e) { if (current === version) message.textContent = e.message; }
+    } catch (e) { if (current === version && currentView()) message.textContent = e.message; }
     finally { button.disabled = false; }
   };
 }

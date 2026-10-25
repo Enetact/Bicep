@@ -1,6 +1,6 @@
 # Exact local workflow and method calls
 
-Traced from the repository on 17 September 2026. This describes the existing local blob-transfer application and its scripts. Services were stopped after the recorded smoke run; reading this guide does not restart them.
+Traced from the repository on 17 September 2026. This records the local blob-transfer application and startup scripts at that date. For current startup commands, isolated build/run paths, explicit tool-installation controls and collector ordering, use [local development](local-development.md) and [the suite lifecycle](local-suite.md). Services were stopped after the recorded smoke run; reading this guide does not restart them.
 
 The diagrams show repository-owned methods and storage SDK calls. Functions listener polling, internal receipt handling, SDK HTTP retries, and operating-system scheduling are framework internals, not methods implemented here. Their individual calls were not captured in a distributed trace. Independent triggers can overlap; there is no single global call order.
 

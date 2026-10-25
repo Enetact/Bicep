@@ -1,0 +1,146 @@
+# Dedicated customer foundation service
+
+Revision 23 adds separate [scoped destination authentication](foundation-scoped-recovery-staging.md), [complete-scope durable human review](foundation-scoped-recovery-review.md) and [scoped latest-set checkpoint custody](foundation-scoped-recovery-checkpoints.md). Destination AES and purpose-separated absence HMAC verification run under actual custody; schema v9 adds separate immutable review tables and restore quarantine while preserving migration literals 1–8. No existing customer database is upgraded by this local qualification. No default HTTP/AHP/MCP/model/worker route, live vault adoption or activation is added.
+
+Revision 22 adds separate [source-v2 retained recovery](foundation-scoped-recovery.md) contracts: guarded full dependency inventory and signed capture, strict retained structural/signature checks, actual retained AES/HMAC rehearsal and advisory combined key holds. Default v1 consumers stay separate. No new SQL, role, default HTTP/AHP/MCP/model route, destination staging or customer review eligibility is added.
+
+Revision 21 adds [fresh opt-in source absence proofs](foundation-absence-scope-provenance.md) and [read-only authenticated inspection](foundation-absence-scope-inspection.md). A distinct strong-root format preserves an original scope proof before first publication; explicit abandonment retains it, retries authenticate its original key and reject scope retargeting, and successful publication can remove it. Default v1 roots and formats are preserved. The v1 recovery inventory/capture paths explicitly refuse this new source format until versioned retained recovery and staging/review support exists. No new SQL migration, role or default HTTP/AHP/MCP/model route is added.
+
+Revision 20 adds [local credential-set checkpoints](foundation-credential-recovery-checkpoints.md) and [checkpoint-backed inactive staging](foundation-credential-checkpoint-staging.md). A fresh protected authority fixes the source namespace and signer, verifies the selected signed set and every retained encrypted profile before accepting a strictly increasing source generation with exact head CAS. A retained read lease keeps the selected checkpoint fixed through staging. These explicit trusted-owner APIs add no role, default HTTP/AHP/MCP/model route, database migration or activation authority. Independent latest/key custody and customer approval for promotion remain separate gates.
+
+Revision 19 adds [durable recovery-stage reviews](foundation-credential-recovery-review.md) and [one-use read-only execution](foundation-credential-recovery-review-execution.md). One human requester and a distinct approver must each hold current grants in every authenticated source profile scope. Exact target, actor versions, policy and database instance are bound to the request; admission precedes destination-key access. Completion rechecks authority while holding the stage guard. This verification does not activate credentials or authorize adoption. Customer HTTP/AHP/MCP/model routes and production qualification remain separate work.
+
+Revision 18 adds [reviewed inactive credential recovery staging](foundation-credential-recovery-staging.md) and [independent read-only output verification](foundation-credential-recovery-stage-verification.md). Trusted cell-owner composition binds an exact signed source set, fresh destination/owner commitment and destination-key identity to a separately reviewed plan digest. Staging preserves full authenticated profile metadata while re-encrypting; its held layout has no live vault namespace and cannot dispatch credentials. Promotion/adoption, independent key/latest-set custody, customer-facing approval/audit routes and production qualification remain separate gates.
+
+Revision 17 adds [signed encrypted credential recovery-set capture](foundation-credential-recovery-set.md) and [read-only rehearsal](foundation-credential-recovery-rehearsal.md). Capture retains existing source guards; rehearsal verifies the selected retained artifact and authenticates its encrypted profiles using explicitly supplied existing source keys, without consulting the current vault. These trusted-owner APIs create no restored vault, key backup, default runtime route or schema migration. Exact-set selection, latest-checkpoint custody and independent backup coverage remain distinct.
+
+Continued implementation, 25 October 2026, roadmap revision 23. The dedicated service reuses existing Bicep/AVM, MCP and isolated Codex adapters through customer-authorized HTTP/AHP workflows. [Reviewed local credential maintenance](foundation-credential-maintenance.md) adds human-only exact approval, gate-held revoke/rewrap and durable schema-v6 admission/outcome records. [Current-publication observation](foundation-maintenance-observation.md) adds separate current approval and schema-v7 evidence for an exact authenticated candidate while preserving the original `OutcomeUnknown`. [Observation evidence and restore fencing](foundation-maintenance-observation-evidence.md) reuse the existing audit/export/backup path. No maintenance HTTP/AHP/MCP/model route or live transport is registered by default. Complete customer UI migration and production/provider acceptance remain open. [Release plan](plans/platform-studio-commercial-release.md) · [Architecture](plans/platform-studio-foundations-and-customer-isolation.md) · [Security and operations](foundation-security-operations.md) · [SQLite ADR](adr/0001-foundation-dedicated-cell-sqlite.md).
+
+Revision 14 strengthens [fresh activation reservation](foundation-cell-activation.md), [software namespace isolation](foundation-preview-installation.md) and [read-only backup schema admission](foundation-signed-backups.md). The schema remains v7; these changes do not migrate an existing customer or enable a live transport.
+
+Revision 15 adds [authenticated credential recovery inventory](foundation-credential-recovery-inventory.md) and [advisory source-key retention assessment](foundation-credential-recovery-retention.md). These trusted C# APIs expose bounded metadata without credential export, key retirement, independent-backup attestation, a database migration or default HTTP/AHP/MCP/model registration.
+
+Revision 16 adds [protected local backup checkpoint custody](foundation-backup-checkpoint-custody.md) and [concrete custody-backed verify/restore](foundation-backup-checkpoint-recovery.md). The configured authority supplies the latest checkpoint under a held guard. No private-key import, credential export, default route, activation, schema migration or live transport is added.
+
+## Implemented flow
+
+```mermaid
+flowchart LR
+    T[Signed access token] --> C[Server-resolved customer and scope]
+    C --> P[Immutable pipeline plan]
+    P --> A[Different human approves exact digest]
+    A --> J[Transactional job and outbox]
+    J --> W[Leased and fenced worker]
+    W --> R[Recheck grants, policy and connection]
+    R --> M[Disconnected customer pipeline adapter]
+    M --> E[Mock dispatch receipt or reconciliation hold]
+    C --> D[(Dedicated cell SQLite)]
+    P --> D
+    A --> D
+    J --> D
+    E --> D
+```
+
+`src/SelfService.Foundation` contains rotating-key identity validation, scoped/temporary access, permission proposals, encrypted credential custody/acquisition, SQLite migrations/state, audit/anchors/artifacts, jobs, snapshots and provider adapters. `src/SelfService.Foundation.Host` supplies the separate API, AHP channel, shared workflow service, bounded model runtime and worker. It references the existing portal's Bicep emitter, MCP bridge and Codex runtime rather than cloning them. Tests use genuine RSA-signed synthetic tokens, TestServer/WebSockets/MCP pipes, real SQLite and ephemeral cryptographic state. Models/providers are mocked; native DPAPI tests create only new test custody directories.
+
+Configuration fixes CustomerId and CellId separately from EntraTenantId. Human signed-token roles intersect current project/environment membership; no route/body/header selector or paid entitlement grants another customer's access. Workloads require an admitted caller/service-principal pair and Worker.Execute, and cannot create requests or approve privileged work. CustomerAdmin has membership/configuration duties without implicit evidence, audit or cloud rights. New privileged grants require exact independent review. Purpose-bound SupportDelegate leases are reviewed, scoped, read-only, limited to one day and revalidated/audited on each read; they cannot approve, dispatch, inspect audit or run a model.
+
+The SQLite store binds its file to one customer/cell; it persists memberships, connections, immutable plans, exact approvals, jobs, inbox/outbox, artifact bytes/digests and audit events. Mutable connection generations and membership/policy versions invalidate stale plans. Enqueue is idempotent and permits one job per immutable plan, even with a different idempotency key. Up to 128 active jobs are admitted. Claims are transactional with fenced leases; predispatch crash attempts are capped at three. A lost lease after dispatch or an ambiguous provider response becomes OutcomeUnknown and cannot automatically replay. Request, approval, job and required audit/outbox changes commit together. The in-process worker polls durable SQL; the persisted outbox/inbox supplies tested duplicate-consumption semantics, without claiming a separately qualified message broker.
+
+Audit interfaces are append-only and hash chained. Artifact reads verify SHA-256. These controls detect tested corruption through the application boundary; the database is not encrypted and an OS/database administrator can bypass local triggers or rewrite hashes. Protect cell files and backups using OS access controls. Externally anchored audit, retention, export and encryption remain production work.
+
+## Run tests and start the host
+
+From the repository root, with .NET SDK 10.0.300 or the supported roll-forward version on PATH:
+
+```powershell
+./scripts/Test-Foundation.ps1
+```
+
+The script uses locked restore with NuGet auditing and isolated Release builds. Each new execution retains its own source inventories, TRX and summary under a fresh `artifacts/foundation-test-executions/<run>/` directory; earlier fixed-path results remain historical. [The execution-evidence contract](foundation-test-execution-evidence.md) records exact paths and provenance limits. The profile starts TestServer, owned worker processes and loopback-only synthetic fixtures. It neither accesses the desktop portal's credential cache nor starts a Codex login/model turn. The standard `Test-Project.ps1` includes this profile and the customer pipeline YAML/source contract check. The separately documented guarded Bicep example test requires a preinstalled pinned compiler. The normal Studio/Full lifecycle does not automatically start the new service or independent worker.
+
+`Test-FoundationLoad.ps1` separately measures fixed local queue-flood, isolated signed-API and existing worker-crash scenarios and records hardware/runtime, latency distributions and observed timings. `Test-Project.ps1` includes that profile and the synthetic dependency-evidence fixtures. Targets and their version are fixed before measurement; actual results and skips remain explicit. Passing them establishes a local regression baseline, not a production SLO.
+
+Local preview packaging is explicit and separate from production delivery:
+
+```powershell
+./scripts/Publish-Foundation.ps1 -LocalPreview
+./tests/release/foundation-package.tests.ps1
+```
+
+The publisher produces a framework-dependent .NET 10 ZIP with API, worker and trusted-owner entry points, public cell/Entra examples and guides, final-entry hashes and a receipt under a new `artifacts/foundation-packages/<run>/` path. It rejects reused/linked/outside destinations, ambiguous Windows ZIP aliases, directory payloads/floods and runtime credential/database artifacts. Dependency evidence includes all three entry closures. Source-backed Bicep/skill operations require the complete reviewed checkout. Signing, clean-machine ARM64/x64 acceptance and source-freeze/production qualification remain false. The package test verifies the actual ZIP and runs owned isolated API/default-disabled worker/read-only owner smoke commands with synthetic state; it never signs into a provider.
+
+`Manage-FoundationPreviewInstallation.ps1` separately stages a pinned LocalPreview ZIP under an OS-owner-bound software root, verifies it and restages repair into a new immutable generation. It preserves damaged originals and external customer databases/keys. Runtime prerequisite inspection is separate from application identity/activation/provider readiness. It does not select an active version, launch, stop or uninstall anything. [Commands and limits](foundation-preview-installation.md).
+
+The ZIP includes dependency evidence, SPDX 2.3, supplied third-party notices and their own hash manifest. The generator verifies actual runtime assets against NuGet archive/content hashes and declared licenses, classifying source-only vendor bundles separately. [Pinned supplementary notices](foundation-dependency-evidence.md) cover 22 exact package bindings while preserving archive-missing findings. Eight undeclared first-party licenses, one unresolved SQLite source commit and two MCP license-transition reviews leave eleven distribution findings. LocalPreview records them; it does not grant rights or legal clearance. ZIP validation bounds actual decompressed bytes and checks both outer and dependency manifests against the enclosed runtime.
+
+To start separately, copy [the public configuration example](../config/foundation-cell.example.json) into a protected local configuration file and replace every identifier and the trusted **public** RSA signing key. The example deliberately has an invalid key placeholder. Never place a private signing key, access token, PAT or secret in this file. Provision and review real identity registrations/consent separately; loading this file does not perform onboarding or grant permissions.
+
+```powershell
+$env:PLATFORM_FOUNDATION_CONFIG = 'C:\path\to\protected\cell.json'
+dotnet run --project src/SelfService.Foundation.Host --no-launch-profile --artifacts-path artifacts/foundation-build
+```
+
+The host defaults to `http://127.0.0.1:5107`, accepts literal loopback and single Bearer authentication, and rejects browser-origin requests. Anonymous `/health` exposes storage readiness and disabled dispatch only. Strict JSON rejects unknown/duplicate/null-required fields, excessive nesting and bodies above 128 KiB; authorization is checked again after body reads. Per-cell admission allows 16 concurrent HTTP/AHP requests, a 120-request burst and 20 tokens/second replenishment. Bootstrap seeds CustomerAdmin and an optional distinct initial Approver once; restart never restores revoked grants. Reviewed project onboarding is implemented. Recovery of a lost final administrator remains a trusted operations procedure; there is no public bootstrap endpoint.
+
+Pinned public RSA keys remain the default. Optional `enableEntraDiscovery` adds bounded tenant-specific public Entra v2 metadata/JWKS, per-key issuer checks, atomic rotation, throttled refresh and expiry/backoff. Token-supplied URLs and static fallback after discovery failure are rejected. Live customer Entra/consent and sovereign/custom claims-mapping authority acceptance remain unqualified. A distinct configured bootstrap reviewer can be seeded once; restart never restores revoked grants. `listenPort` defaults to 5107 and accepts only nonprivileged ports; each host remains loopback-only. No desktop Microsoft, GitHub or Codex cache is imported. [Identity and custody details](foundation-security-operations.md).
+
+## API and customer-owned pipelines
+
+All resource routes begin with `/api/foundation/customers/{customerId}/projects/{projectId}/environments/{environmentId}`. The server derives the acting identity and validates the exact route scope before the operation. Resource reads additionally pass scope into storage; a foreign scoped identifier returns the same 404 as a missing identifier.
+
+| Route suffix | Method and required role | Purpose |
+|---|---|---|
+| `/memberships` | PUT, CustomerAdmin | Grant or disable another stable actor in this exact scope. |
+| `/connections/{id}` | PUT, CustomerAdmin | Admit customer-owned GitHub Actions or ADO metadata, allowlisted refs/environments/inputs and an opaque authProfileId. No secret values. |
+| `/plans` | POST, Requester | Freeze validated pipeline inputs, source revision, connection generation, expiry and digest. |
+| `/plans/{id}` | GET, evidence role | Read an immutable plan within scope. |
+| `/plans/{id}/approve` | POST, Approver | Require exact digest and another human requester. |
+| `/plans/{id}/enqueue` | POST, Operator | Require exact approval/digest and idempotency key; disabled without an explicit disconnected transport. |
+| `/jobs`, `/jobs/{id}` | GET, evidence role | Read scoped state and sanitized mock receipt. |
+| `/jobs/{id}/cancel`, `/jobs/{id}/reconcile` | POST, Operator | Fence cancellation; evidence-bearing resolution of uncertain outcomes. |
+| `/recovery/jobs`, `/recovery/jobs/{id}` | GET, human Operator | Read bounded case metadata while Suspended/Offboarding, without reopening ordinary evidence access. |
+| `/recovery/jobs/{id}/reconcile` | POST, human Operator | Require exact case digest and evidence; record an outcome without reactivation or replay. |
+| `/artifacts` | POST, Requester | Store bounded source/parameter text with its SHA-256. |
+| `/artifacts/{id}` | GET, evidence role | Read verified artifact bytes within scope. |
+| `/audit` | GET, Auditor | Read scoped history and audit-chain integrity result. |
+| `/artifacts/{id}/content`, `/source/bicep` | GET evidence role / POST Requester | Scoped source download or existing reviewed native/AVM emitter with typed child validation and persisted ZIP. |
+| `/agent/tools`, `/agent/tool`, `/agent/ahp` | Scoped signed identity | Shared workflow handlers, existing MCP bridge, seven typed foundation tools plus evidence/skill, and AHP 0.9.0 actions. No approval/credential tool. |
+| `/agent/review` | POST Requester | Optional isolated customer model adapter; default disabled, advice only. AHP also exposes platform/foundationReview. |
+| `/operations/health` | GET PlatformOperator | Aggregate cell health without source/actor/credential details; available while suspended through a separate operations source. |
+
+Customers can select `github-actions` or `azure-devops`; no vendor-owned repository or organization is required. Each connection binds its own owner/organization, repository, workflow/pipeline and reviewed input contract. GitHub requires a reviewed workflow source-revision guard; ADO pins its repository version in the run request. ADO identifiers should use canonical project/repository GUIDs so returned IDs can be matched. [Validation-only customer examples and provider contracts](../examples/customer-pipelines/README.md).
+
+Plans contain a server-created request ID, explicit source revision/ref/environment and parameter inputs. The adapter injects reserved request/plan/source/environment values. It rejects reserved-input spoofing, secret-shaped parameters, customer/cell/connection mismatch, expired approval and unsafe response URLs. Connection generation remains server-owned. GitHub workflow dispatch on a mutable ref cannot by itself pin the workflow definition; `EnforcesSourceRevision` records an admitted contract and is **not** proof that a customer's repository actually enforces it. Review and live qualification remain required.
+
+The running host remains disconnected: default dispatch is denied, and configuration may select only a credential-free bounded loopback fixture. Live execution transports are rejected. Its receipts remain Mock=true and deploymentVerified=false; Succeeded means the mock dispatch received a correlated accepted run. Uncorrelated 202/204, source mismatch, interruption or unsafe response requires reconciliation. Separately, the code now includes AES-GCM credential profiles, optional CurrentUser DPAPI custody, GitHub App/Entra federated exchange and authenticated HTTP adapters protected by exact one-use permits and a final pre-send authority/expiry check. Those production-capable classes are mock-qualified and not enabled by this host. Actual provider rights, consent, credentials and operational acceptance remain external gates. [Implementation and limits](foundation-security-operations.md).
+
+Permission manifests validate exact, canonical least-privilege **proposals** tied to customer, identity, operation and scope. They always report IdentityGrantAuthorized=false, ExecutionAuthorized=false and ProviderPermissionsVerified=false. They do not verify or grant Entra/Azure/GitHub/ADO rights. Current complete MCP provider catalogs, skills and exact approval controls remain in the existing portal; selecting a pipeline provider is separate from an MCP connection.
+
+## Reviewed administration, model workflow and storage limits
+
+`/administration/scopes/plan` and `/administration/lifecycle/plan` prepare reviewed onboarding or Suspend/Resume/Offboarding operations from bootstrap authority scope. `/administration/memberships/plan` and `/administration/support/plan` prepare exact role changes or purpose/time-bound support. Read `/administration/plans/{id}`, approve through `/approve`, then execute the exact digest through `/execute`; review and execution recheck current versions. No such approval action is advertised to a model. `/administration/access/revoke` provides urgent deny-only removal with last-administrator protection.
+
+Auditor `/administration/exports` retains the legacy 1,000-items-per-kind/1 MiB metadata export with explicit overflow. [Frozen export snapshots](foundation-paged-exports.md) add owner-bound, expiring cursor pages and offline hash verification without loading all source rows at once. Export storage is bounded at 256 MiB per cell. `/administration/retention/plan` freezes exact artifact IDs/hashes and requires independent review, at least 30-day age and quiescence; retention batches are capped at 100. SecureErasureVerified remains false because SQLite free pages, WAL and backups may retain bytes. Audit history is preserved. Offboarded remains terminal for ordinary work; safe administrator/reviewer/auditor duties remain available without re-enabling operations.
+
+The source workflow reuses BicepDrafts and reviewed native/AVM closures. Use platform_foundation_catalog to read exact contracts/expanded child parameters before proposing source. Generated archives keep unresolved inputs and NotCollected discovery explicit; they are not repository commits, Preview or deployment authority. The optional model adapter uses the existing Codex runtime/policy, a manifest-pinned skill and fresh customer/cell/actor homes; an explicit customer/actor-bound authentication callback is required. Mock model acceptance is tested; real customer model authorization, current protocol and inference acceptance remain unqualified. Responses are advice with false execution/deployment flags. [Indexed instructions](../.agents/skills/platform-mcp-orchestration/instruction.md).
+
+SQLite schema v8 has additive transactional v1–v7 upgrades, immutable migration history/checksums and SQLite/foreign-key/audit/guard preflight. Frozen earlier migration checksums remain unchanged. The database instance identity persists across normal reopening and rotates on restore; recovered worker registrations are fenced and stopped in the copied database, without claiming the source processes stopped. Independent workers require the existing current schema and cannot bootstrap or migrate it. Logical limits are 128 active jobs, 64 pending administrative plans, 1,000 artifacts/256 MiB artifact bytes, 10,000 pipeline plans, 100,000 audit events, 16 live worker registrations and 2,048 executed feature configurations, 64 pending credential-maintenance intents and 2,048 retained maintenance intents, plus 64 pending publication-observation reviews and 2,048 retained observation requests, and 64 pending recovery-stage reviews/2,048 retained recovery reviews with at most 256 distinct scopes per request. Exhaustion rejects new work without partial state; audit exhaustion fails closed. These limits and local concurrency/process-crash fixtures do not establish physical disk quotas, a multi-host cluster or production SLOs.
+
+When `requireActivationAuthority` is true, API and worker startup require an existing current database and separately provisioned protected authority directory. Both retain shared leases; switching the exact active path/instance requires every participating runtime to stop. Store operations recheck the binding, including dispatch inside its transaction. Neither startup nor restore provisions/switches the authority. Legacy development mode remains explicit and does not enforce this coordination. [Owner workflow and limits](foundation-cell-activation.md).
+
+## Backup and restoration
+
+Schema-v6 maintenance records preserve independent approval, one-use admission and typed public outcomes in the existing audit/export boundary. A restored unfinished intent is quarantined, including an uncertain consumed execution; successful records remain history. Revoke/rewrap never run during restore. Existing schema-v5 cells require a separately reviewed staged upgrade before a new runtime starts: current-schema preflight refuses them unchanged. This increment performs no upgrade or credential migration against an existing customer cell.
+
+The trusted cell-owner API offers `FoundationStore.CreateBackup(newPath)` and `FoundationStore.RestoreBackup(manifest, newPath)`. These have no customer HTTP endpoint. Snapshot creation uses SQLite online backup; restore requires a new destination and checks an independently protected digest/length manifest, cell/customer binding, SQLite integrity/foreign keys and audit chain. A restored database increments policy version and holds recovered pending/dispatched jobs as OutcomeUnknown with new fences. It does not replay them or preserve stale approval authority.
+
+The additional signed path commits snapshot schema, customer/cell, bytes, time and generation with RSA-PSS. `RestoreSignedBackup` requires a separately protected latest authority and pinned public key, verifies them before touching a restore target and retains the existing quarantine. Protect the signer and latest authority independently; deriving that authority from an incoming packet defeats rollback protection. This does not fence a running source host or replace production DR custody. [API and limits](foundation-signed-backups.md).
+
+Fence or stop the original host before activating a restored host; a backup cannot prevent two independent copies of a cell running. Protect manifests outside the backup's trust boundary. These tests prove the local snapshot path, not production disaster recovery, external manifest signing, retention or RPO/RTO objectives.
+
+Audit can also be anchored with independently signed RSA-PSS manifests. Verification permits legitimate later appends and detects tested full-chain rewrites. Protect the signer and latest anchor independently; local files are not WORM or OS-administrator proof. SQLite itself remains unencrypted. [Custody, operations and release evidence commands](foundation-security-operations.md).
+
+## Remaining release gates
+
+P0/P1 local code covers the shared customer workflow slice, reviewed privileges/configuration, protected credentials, isolated model adapter, durable state/jobs/audit/recovery, paged exports, workers, metrics, signed backups, local activation coordination, optional loopback TLS and measured local regression targets. F0–F2/commercial gates remain open for complete customer UI/workflow migration, live tenant/model/provider consent and permissions, supported production hosting/PKI/OS/disk/encryption/backup/signer/exporter custody, multi-host DR fencing and production SLO acceptance, signed cross-architecture installation, and commercial rights/privacy/support decisions. Supplementary notices supply pinned source text without resolving ownership or ambiguous license transitions. All Azure targets remain disabled; no live provider/model turn, deployment, pipeline submission or new permission grant occurred.

@@ -1,0 +1,33 @@
+{
+  "_links": {
+    "self": {
+      "href": "https://dev.azure.com/customer-a/e1111111-1111-1111-1111-111111111111/_apis/pipelines/42/runs/440"
+    },
+    "web": {
+      "href": "https://dev.azure.com/customer-a/e1111111-1111-1111-1111-111111111111/_build/results?buildId=440"
+    }
+  },
+  "pipeline": {
+    "id": 42,
+    "name": "platform-infrastructure",
+    "revision": 4
+  },
+  "id": 440,
+  "name": "20261024.1",
+  "url": "https://dev.azure.com/customer-a/e1111111-1111-1111-1111-111111111111/_apis/pipelines/42/runs/440",
+  "resources": {
+    "repositories": {
+      "self": {
+        "repository": {
+          "id": "d1111111-1111-1111-1111-111111111111",
+          "type": "azureReposGit"
+        },
+        "refName": "refs/heads/main",
+        "version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  },
+  "state": "inProgress",
+  "result": null,
+  "createdDate": "2026-10-24T12:00:00Z"
+}

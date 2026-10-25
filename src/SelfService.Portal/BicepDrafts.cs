@@ -8,7 +8,8 @@ using SelfService.Tagging;
 namespace SelfService.Portal;
 
 public record BicepModuleContract(string Id, string Path, string SourceSha256, bool DraftSelectable,
-    Dictionary<string, JsonElement> Parameters, Dictionary<string, JsonElement> Outputs, string[] ResourceTypes);
+    Dictionary<string, JsonElement> Parameters, Dictionary<string, JsonElement> Outputs, string[] ResourceTypes,
+    Dictionary<string, JsonElement>? Definitions = null, Dictionary<string, string>? Sources = null, JsonElement? Origin = null);
 public record BicepModuleCatalog(int SchemaVersion, string Purpose, BicepModuleContract[] Modules);
 public record BicepBinding(string Kind, string? Reference = null, string? Module = null, string? Output = null);
 public record BicepNode(string Id, string ModuleId, string Rationale, Dictionary<string, BicepBinding> Bindings);
@@ -20,7 +21,7 @@ public record BicepDraftContext(string Schema, string EvidenceDigest, string Cat
 public record BicepDraftResult(string Status, string Summary, string[] RequiredInputs, string[] Gaps,
     Dictionary<string, string> Files, string ArchiveBase64);
 
-// The model chooses typed bindings. Only this emitter writes source, using locally pinned leaf modules.
+// The model chooses typed bindings. Only this emitter writes source, using reviewed local modules and pinned AVM closures.
 // It has no Azure client, pipeline gateway, shell, publication or deployment method.
 public static class BicepDrafts
 {
@@ -47,7 +48,20 @@ public static class BicepDrafts
                 Hash(File.ReadAllText(Path.Combine(root, m.Path))) != m.SourceSha256)
                 throw new PortalException("Module source differs from its reviewed contract. Regenerate and review the catalog.", 409);
         }
-        return catalog;
+        BicepModuleCatalog avm;
+        try { avm = TagJson.Read<BicepModuleCatalog>(File.ReadAllText(Path.Combine(root, "config/avm-module-contracts.json"))); }
+        catch { throw new PortalException("Refresh the reviewed AVM module contracts.", 409); }
+        if (avm.SchemaVersion != 1 || avm.Modules.Length != BicepAvmSources.Paths.Length ||
+            avm.Modules.Select(m => m.Path).Distinct(StringComparer.Ordinal).Count() != BicepAvmSources.Paths.Length)
+            throw new PortalException("Refresh the reviewed AVM module contracts.", 409);
+        foreach (var module in avm.Modules)
+        {
+            _ = BicepAvmSources.Read(root, module);
+            foreach (var parameter in module.Parameters.Values) _ = BicepParameterSchema.Expand(parameter, module.Definitions);
+        }
+        var merged = catalog.Modules.Concat(avm.Modules).ToArray();
+        if (merged.Select(m => m.Id).Distinct(StringComparer.Ordinal).Count() != merged.Length) throw new PortalException("Duplicate module contract identifier.", 409);
+        return catalog with { Modules = merged };
     }
     public static BicepDraftContext Context(string root, Catalog catalog, BrowserSession session, AgentRequest request)
     {
@@ -111,7 +125,7 @@ public static class BicepDrafts
             if (node is null || node.Id is null || !Identifier.IsMatch(node.Id) || !nodes.TryAdd(node.Id, node) ||
                 !modules.Any(m => m.Id == node.ModuleId) || node.Rationale is not { Length: > 0 and <= 2000 } || node.Bindings is null)
                 throw new PortalException("Unknown, duplicate or invalid composition node.");
-        var declarations = new List<string>(); var bodies = new List<string>(); var required = new List<string>(); var parameterNames = new List<string>();
+        var declarations = new List<string>(); var types = new List<string>(); var bodies = new List<string>(); var required = new List<string>(); var parameterNames = new List<string>();
         var values = new Dictionary<string, JsonElement>(); var provenance = new Dictionary<string, object>();
         var edges = nodes.Keys.ToDictionary(k => k, _ => new List<string>(), StringComparer.OrdinalIgnoreCase);
         var files = new Dictionary<string, string>();
@@ -120,15 +134,15 @@ public static class BicepDrafts
             var contract = modules.Single(m => m.Id == node.ModuleId);
             if (node.Bindings.Keys.Any(k => !contract.Parameters.ContainsKey(k))) throw new PortalException("Unknown module parameter.");
             var body = new StringBuilder($"module m_{node.Id} './{contract.Path}' = {{\n  params: {{\n");
-            foreach (var (key, definition) in contract.Parameters)
+            foreach (var (key, rawDefinition) in contract.Parameters)
             {
+                var definition = BicepParameterSchema.Expand(rawDefinition, contract.Definitions);
                 if (!Identifier.IsMatch(key)) throw new PortalException("Unsupported parameter identifier.");
                 var supplied = node.Bindings.TryGetValue(key, out var binding);
                 if (supplied && binding is null) throw new PortalException("Null binding is not a reviewed input.");
                 if (!supplied && definition.TryGetProperty("defaultValue", out _)) continue;
                 binding ??= new("Input");
                 var name = $"p_{node.Id}_{key}"; var type = definition.GetProperty("type").GetString();
-                if (type is not ("string" or "int" or "bool" or "array" or "object")) throw new PortalException("Secure or advanced types require a separately qualified adapter.");
                 if (binding.Kind != "Output" && (binding.Module is not null || binding.Output is not null) || binding.Kind == "Output" && binding.Reference is not null || binding.Kind == "Input" && binding.Reference is not null)
                     throw new PortalException("Unexpected binding fields.");
                 if (binding.Kind == "Output")
@@ -137,6 +151,7 @@ public static class BicepDrafts
                         throw new PortalException("Unknown output dependency.");
                     var producerContract = modules.Single(m => m.Id == producer.ModuleId);
                     if (!producerContract.Outputs.TryGetValue(binding.Output, out var source) || source.GetProperty("type").GetString() != type || !Identifier.IsMatch(binding.Output)) throw new PortalException("Output type or reference mismatch.");
+                    if (definition.TryGetProperty("properties", out _) || definition.TryGetProperty("items", out _)) throw new PortalException("Structured output bindings require a separately qualified adapter.");
                     edges[node.Id].Add(producer.Id); body.AppendLine($"    {key}: m_{producer.Id}.outputs.{binding.Output}");
                     provenance[name] = new { binding.Kind, binding.Module, binding.Output, status = "Proposed output; semantic compatibility requires review" }; continue;
                 }
@@ -154,25 +169,32 @@ public static class BicepDrafts
                         value = JsonSerializer.SerializeToElement(resource.Id); break;
                     default: throw new PortalException("Only Input, Setting, Resource and Output bindings are permitted.");
                 }
-                foreach (var constraint in new[] { "allowedValues", "minLength", "maxLength", "minValue", "maxValue" })
-                    if (definition.TryGetProperty(constraint, out var bound)) declarations.Add($"@{(constraint == "allowedValues" ? "allowed" : constraint)}({Literal(bound)})");
-                declarations.Add($"param {name} {type}");
+                declarations.AddRange(BicepParameterSchema.Decorators(definition));
+                declarations.Add($"param {name} {BicepParameterSchema.Type(definition, name, types)}");
                 parameterNames.Add(name);
-                if (value is { } resolved) { ValidateValue(resolved, definition); values[name] = resolved; } else required.Add(name);
+                if (value is { } resolved) { BicepParameterSchema.Validate(resolved, definition); values[name] = resolved; } else required.Add(name);
                 provenance[name] = new { binding.Kind, binding.Reference, status = value is null ? "Required input" : binding.Kind == "Resource" ? "Observed ID; eligibility and reuse not authorized" : "Source setting; live validation required" };
                 body.AppendLine($"    {key}: {name}");
             }
             body.AppendLine("  }\n}"); bodies.Add(body.ToString());
-            var moduleSource = File.ReadAllText(Path.Combine(root, contract.Path)).Replace("\r\n", "\n");
-            if (Hash(moduleSource) != contract.SourceSha256) throw new PortalException("Module source changed while emitting the draft.", 409);
-            files.TryAdd(contract.Path, moduleSource);
+            if (contract.Sources is not null)
+            {
+                foreach (var source in BicepAvmSources.Read(root, contract))
+                    if (!files.TryAdd(source.Key, source.Value) && files[source.Key] != source.Value) throw new PortalException("Conflicting module source closure.", 409);
+            }
+            else
+            {
+                var moduleSource = File.ReadAllText(Path.Combine(root, contract.Path)).Replace("\r\n", "\n");
+                if (Hash(moduleSource) != contract.SourceSha256) throw new PortalException("Module source changed while emitting the draft.", 409);
+                files.TryAdd(contract.Path, moduleSource);
+            }
         }
         var visiting = new HashSet<string>(); var done = new HashSet<string>();
         void Visit(string id) { if (done.Contains(id)) return; if (!visiting.Add(id)) throw new PortalException("Cyclic module dependency."); foreach (var next in edges[id]) Visit(next); visiting.Remove(id); done.Add(id); }
         foreach (var id in nodes.Keys) Visit(id);
-        files["main.bicep"] = "// UNQUALIFIED SOURCE DRAFT. Review ownership, parameters and dependencies before promotion.\ntargetScope = 'resourceGroup'\n\n" + string.Join('\n', declarations) + "\n\n" + string.Join('\n', bodies);
+        files["main.bicep"] = "// UNQUALIFIED SOURCE DRAFT. Review ownership, parameters and dependencies before promotion.\ntargetScope = 'resourceGroup'\n\n" + string.Join('\n', types) + "\n\n" + string.Join('\n', declarations) + "\n\n" + string.Join('\n', bodies);
         files["main.bicepparam"] = "using './main.bicep'\n\n" + string.Join('\n', values.Keys.Select(k => $"param {k} = loadJsonContent('./resolved-values.json').{k}")) + "\n" + string.Join('\n', required.Select(k => $"// REQUIRED: supply param {k} after platform review.")) + "\n";
-        files["stack.bicep"] = "// UNQUALIFIED subscription wrapper. Resource group ownership must be reviewed.\ntargetScope = 'subscription'\nparam workloadResourceGroupName string\nparam deploymentLocation string\nparam workloadTags object\n" + string.Join('\n', declarations) +
+        files["stack.bicep"] = "// UNQUALIFIED subscription wrapper. Resource group ownership must be reviewed.\ntargetScope = 'subscription'\nparam workloadResourceGroupName string\nparam deploymentLocation string\nparam workloadTags object\n" + string.Join('\n', types) + "\n\n" + string.Join('\n', declarations) +
             "\nresource group 'Microsoft.Resources/resourceGroups@2024-03-01' = {\n  name: workloadResourceGroupName\n  location: deploymentLocation\n  tags: workloadTags\n}\nmodule composition './main.bicep' = {\n  scope: group\n  params: {\n" + string.Join('\n', parameterNames.Select(p => $"    {p}: {p}")) + "\n  }\n}\n";
         files["stack.bicepparam"] = files["main.bicepparam"].Replace("using './main.bicep'", "using './stack.bicep'", StringComparison.Ordinal) + "// REQUIRED: supply workloadResourceGroupName, deploymentLocation and workloadTags after ownership review.\n";
         files["resolved-values.json"] = JsonSerializer.Serialize(values, Json);
@@ -184,27 +206,10 @@ public static class BicepDrafts
             context.SubscriptionId, context.Product, context.Environment, context.Region, context.DiscoveryStatus,
             status = "UnqualifiedSourceDraft", compilation = "Required", deploymentAuthorized = false, requiredInputs = required,
             requiredStackSettings = new[] { "workloadResourceGroupName", "deploymentLocation", "workloadTags" },
-            modules = proposal.Modules.Select(n => new { n.Id, n.ModuleId, sourceSha256 = modules.Single(m => m.Id == n.ModuleId).SourceSha256 }),
+            modules = proposal.Modules.Select(n => { var module = modules.Single(m => m.Id == n.ModuleId); return new { n.Id, n.ModuleId, sourceSha256 = module.SourceSha256, sources = module.Sources, origin = module.Origin }; }),
             files = files.ToDictionary(p => p.Key, p => Hash(p.Value)) }, Json);
         using var bytes = new MemoryStream();
         using (var zip = new ZipArchive(bytes, ZipArchiveMode.Create, true)) foreach (var (path, content) in files) { using var writer = new StreamWriter(zip.CreateEntry(path).Open(), new UTF8Encoding(false)); writer.Write(content); }
         return new("UnqualifiedSourceDraft", proposal.Summary, required.ToArray(), proposal.Gaps, files, Convert.ToBase64String(bytes.ToArray()));
-    }
-    static string Literal(JsonElement value) => value.ValueKind switch {
-        JsonValueKind.String => "'" + value.GetString()!.Replace("\\", "\\\\").Replace("'", "\\'").Replace("${", "\\${").Replace("\r", "\\r").Replace("\n", "\\n") + "'",
-        JsonValueKind.Array => "[" + string.Join(", ", value.EnumerateArray().Select(Literal)) + "]",
-        JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => value.GetRawText(),
-        _ => throw new PortalException("Unsupported module constraint.") };
-    static void ValidateValue(JsonElement value, JsonElement definition)
-    {
-        var type = definition.GetProperty("type").GetString();
-        var valid = type switch { "string" => value.ValueKind == JsonValueKind.String, "object" => value.ValueKind == JsonValueKind.Object,
-            "array" => value.ValueKind == JsonValueKind.Array, "int" => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
-            "bool" => value.ValueKind is JsonValueKind.True or JsonValueKind.False, _ => false };
-        if (!valid) throw new PortalException("Setting type differs from module input.");
-        if (definition.TryGetProperty("allowedValues", out var allowed) && !allowed.EnumerateArray().Any(x => JsonElement.DeepEquals(x, value))) throw new PortalException("Setting is outside module allowed values.");
-        var length = value.ValueKind == JsonValueKind.String ? value.GetString()!.Length : value.ValueKind == JsonValueKind.Array ? value.GetArrayLength() : (int?)null;
-        if (length is { } n && (definition.TryGetProperty("minLength", out var min) && n < min.GetInt32() || definition.TryGetProperty("maxLength", out var max) && n > max.GetInt32())) throw new PortalException("Setting length is outside module bounds.");
-        if (type == "int" && (definition.TryGetProperty("minValue", out var lo) && value.GetInt64() < lo.GetInt64() || definition.TryGetProperty("maxValue", out var hi) && value.GetInt64() > hi.GetInt64())) throw new PortalException("Setting number is outside module bounds.");
     }
 }

@@ -5,6 +5,8 @@ export const RULE_VERSION = '1.1.0';
 export const MAX_RESOURCES = 5000;
 const kinds = new Map([[1, ['blob-transfer-discovery', 'blob-transfer']], [2, ['workload-discovery', 'logic-app-event-grid']]]);
 const productProviders = {
+  'managed-devops-pool': ['Microsoft.DevOpsInfrastructure','Microsoft.DevCenter','Microsoft.Network','Microsoft.OperationalInsights'],
+  'fabric': ['Microsoft.Fabric','Microsoft.Network','Microsoft.OperationalInsights'],
   'private-aks': ['Microsoft.ContainerService','Microsoft.ManagedIdentity','Microsoft.ContainerRegistry','Microsoft.Network','Microsoft.Insights','Microsoft.OperationalInsights'],
   'private-data-platform': ['Microsoft.Databricks','Microsoft.DataFactory','Microsoft.Storage','Microsoft.Network','Microsoft.Insights','Microsoft.OperationalInsights'],
   'private-storage': ['Microsoft.Storage','Microsoft.Network','Microsoft.Insights'],

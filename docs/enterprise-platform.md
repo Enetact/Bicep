@@ -1,5 +1,11 @@
 # Enterprise platform architecture and implementation review
 
+**Foundation continuation — 24 October 2026:** [The customer service](foundation-service.md) reuses application Bicep/AVM, MCP and Codex code behind signed customer HTTP/AHP, with SQLite v4, reviewed access/configuration and signed technical entitlements, encrypted credentials, independent local workers, frozen paged exports, durable audit/anchors/recovery and admission/health. [ADR 0001](adr/0001-foundation-dedicated-cell-sqlite.md) records the qualified local backend; SQL Server and multi-host/production acceptance remain open. Complete legacy browser-workflow migration remains open. [Roadmap revision 6](plans/platform-studio-commercial-release.md) records implemented local portions and keeps F0–F2/P2 release gates explicit. Earlier dated reviews retain their scope.
+
+**Managed DevOps Pool foundation:** use the new product to create Microsoft-managed private agents from an independent existing bootstrap runner. It references platform Dev Center/subnet/network grants and exposes no automatic broad Azure job identity. Qualify a real consumer job before changing product runners. [Architecture and acceptance](../workloads/managed-devops-pool/README.md).
+
+**Fabric architecture:** the suite now includes a premium Fabric product with separate ARM foundation and SaaS workspace/ALM lifecycles. Reuse approved identity, network, DNS and protected delivery controls; select native ALM or restricted inbound release qualification explicitly. [Architecture, best practices and acceptance](../workloads/fabric/README.md).
+
 Current scope reviewed 26 September 2026: two governed products, Blob copy and Event flow, with explicit typed adapters rather than arbitrary Azure application registration. All eight targets are disabled. Dedicated Deploy supports hosted Preview for configured inputs; hosted SetupOnly belongs to the generic compatibility route. Azure deployment acceptance remains unverified in the reviewed evidence. See the [catalog](self-service-catalog.md), [current status](completion-status.md) and [expansion plan](self-service-expansion-plan.md).
 
 The ownership rule is: **application teams request a supported capability; platform engineers own its topology and lifecycle**.

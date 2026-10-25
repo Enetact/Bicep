@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "skill": "platform-mcp-orchestration",
+  "manifestSha256": "6a910f6759549e773621c4f686ddf802d2cd4b65409c9de9d14f0d4c8e5c9c9a",
+  "sources": [
+    {
+      "path": "instruction.md",
+      "sha256": "7af94a0815e8d14fb6e64a0e267ecf197010d7ad6edade32a6573672832892e8",
+      "bytes": 6826
+    },
+    {
+      "path": "providers/bicep/SKILL.md",
+      "sha256": "96deb75abc2b9856cc040fe016f022d7abecaaf088548b5544163d49e8691d53",
+      "bytes": 421
+    },
+    {
+      "path": "providers/bicep/instruction.md",
+      "sha256": "98fb9064ca14ab9ad17ebf3960f56c326dc539f31ae55124ad0c5b0dad2271dc",
+      "bytes": 4412
+    },
+    {
+      "path": "providers/azure/SKILL.md",
+      "sha256": "22f8c3cce22a6240512fdba0b744858f7142a8414e103102fcef5fb44db56999",
+      "bytes": 434
+    },
+    {
+      "path": "providers/azure/instruction.md",
+      "sha256": "2eb50a71f5acc1a1bad50e1ce64a65a2d7dc5b8974f9b05fb44f77e140616f00",
+      "bytes": 2046
+    },
+    {
+      "path": "providers/ado/SKILL.md",
+      "sha256": "162cf8c735ca001770c57ce42932a74e18cb9c3ca64416c68e4be9013532d712",
+      "bytes": 407
+    },
+    {
+      "path": "providers/ado/instruction.md",
+      "sha256": "b2b10e4a3b9f3dcd230dcca01c14228ad25112497029a3705971cfe9e7e28d2a",
+      "bytes": 2009
+    },
+    {
+      "path": "providers/github/SKILL.md",
+      "sha256": "3bcc487eed7d79e24a23e811150c32bb329f18087e5e2c7edbd39e1091d5dc61",
+      "bytes": 407
+    },
+    {
+      "path": "providers/github/instruction.md",
+      "sha256": "2967377d5d2982d6e570c2c323f93fa7621c3fe0d938e0f94b7f3f1c849b3227",
+      "bytes": 2026
+    },
+    {
+      "path": "providers/learn/SKILL.md",
+      "sha256": "2acc080beb0569140601bdd84a5184dabcd9c592074de6cd912f84b7b0dd5afb",
+      "bytes": 420
+    },
+    {
+      "path": "providers/learn/instruction.md",
+      "sha256": "ccfa7ab288eee4049c689c50925df655ed0ad887b35be04614606da0fd79b843",
+      "bytes": 1752
+    },
+    {
+      "path": "providers/fabric/SKILL.md",
+      "sha256": "fa99b31e92041f5526a5b64f51ed1a273364c7fede25e11ce77a2365297cc57b",
+      "bytes": 452
+    },
+    {
+      "path": "providers/fabric/instruction.md",
+      "sha256": "7b18c05a6e7af4c59f9f9c09a188a4b4dcfdd9cff1ccbcb868d94c60e988efb4",
+      "bytes": 2539
+    },
+    {
+      "path": "providers/aspire/SKILL.md",
+      "sha256": "399f74d21d989c650a775e27c8a56974b0d8c2ca6da038484720f901b2f3a478",
+      "bytes": 434
+    },
+    {
+      "path": "providers/aspire/instruction.md",
+      "sha256": "fac14a3bc3e47426901568b5f3741c404c481e4d4baaee965ad091a6c43a05be",
+      "bytes": 1864
+    },
+    {
+      "path": "references/workflows.md",
+      "sha256": "09c95fee182df4deae156b86799550cf54bfd17937214ea8b3133dea289406a1",
+      "bytes": 4961
+    },
+    {
+      "path": "references/provenance.md",
+      "sha256": "227c6acc00d8ebbf7c46fe3c64a4289b9fba5982518d74a91fecab49e8f49211",
+      "bytes": 3190
+    },
+    {
+      "path": "assets/public-read.plan.json",
+      "sha256": "79a3b905eb70798620bf47962c10122e6458a95de6578d0822fbfa9dbd6e4a26",
+      "bytes": 213
+    },
+    {
+      "path": "assets/scoped-read.plan.json",
+      "sha256": "999e36c57e77dcba40365b1303ae4ef87c7cc5e974f5732ee8546ce77fdaa960",
+      "bytes": 285
+    },
+    {
+      "path": "assets/github-branch-change.plan.json",
+      "sha256": "3912249aa3205daf5286dee93b364fc47f80a51a9fc7acbef0c9123c96476c01",
+      "bytes": 223
+    }
+  ],
+  "resources": [
+    {
+      "path": "agents/openai.yaml",
+      "sha256": "b139807b542960a58ea5675da85d9099a73c461a0b9a1e0a9cf739a706650b5e",
+      "bytes": 330
+    }
+  ],
+  "bundleSha256": "15950dd0836d08e6f0dccd1c8f00986b0e5f64a81f48b92ca617550dbdca1301",
+  "outputSha256": "52e4ec945878663ba101cc21ad215b60994dd4c4dc65b03b577f733cbb95b8c9",
+  "outputBytes": 37477
+}

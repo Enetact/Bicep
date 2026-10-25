@@ -4,7 +4,11 @@
 
 **Reviewed 5 October 2026. Status: review completed; redesign proposed, not implemented.** The actual ARM64 Release application was rebuilt and launched on `http://localhost:5099/`. The primary app on port 5087 and its authentication were left running. This review used disconnected screens and synthetic form input; it did not invoke Azure discovery, ADO pipelines, Codex inference or deployments.
 
+**24 October 2026 sequencing note, revision 2:** the [foundation-first commercial roadmap](platform-studio-commercial-release.md) reuses U1–U5 after customer identity/isolation, durable data/audit and reliable execution pass F2. A narrow existing draft-loss repair may proceed as maintenance; it cannot qualify a customer release or bypass the gate. This review's historical claim that a credential-preserving restart is unimplemented is superseded by [the implemented 17 October protected restart handoff](../portal-fresh-restart.md). The remaining UX findings retain their original evidence and proposed status.
+
 The platform exposes substantial capabilities and useful evidence boundaries. Its main usability problem is continuity: developers must navigate independent tools and translate scopes, connection requirements and run IDs between them. Improve that journey before adding more top-level forms.
+
+**24 October maintenance update:** naming intent, salt and instance UUID now survive workload redraws and operation changes in memory, with separate bounded drafts per workload/target/environment/region. A server-generated opaque identity marker and disconnect clear all drafts; starting a new draft explicitly creates a new UUID. Old async results cannot populate a redrawn scope. Registered preview-instance selection also survives ordinary redraws. No private draft input is written to browser storage. Four deterministic DOM/state tests and an isolated browser fixture verify these cases without provider calls. This closes the narrow naming-reset finding; the broader U1–U5 redesign remains gated by F2.
 
 ## Rebuild and authentication
 

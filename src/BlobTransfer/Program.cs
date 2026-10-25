@@ -5,11 +5,17 @@ using Azure.Storage.Queues;
 using BlobTransfer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Azure.Functions.Worker.OpenTelemetry;
+using SelfService.Telemetry;
 
-var host = new HostBuilder().ConfigureFunctionsWorkerDefaults()
+using var host = new HostBuilder().ConfigureFunctionsWorkerDefaults()
+    .ConfigureLogging((context, logging) => logging.AddPlatformTelemetry(context.Configuration, "platform-blob-transfer"))
     .ConfigureServices((context, services) =>
     {
         var config = context.Configuration;
+        // The worker bridge links invocation spans to the Functions host; register the exporter only once.
+        services.AddPlatformTelemetry(config, "platform-blob-transfer");
+        services.AddOpenTelemetry().UseFunctionsWorkerDefaults();
         string Required(string key) => config[key] ?? throw new InvalidOperationException($"Missing setting: {key}");
         int Number(string key, int fallback, int minimum, int maximum)
         {

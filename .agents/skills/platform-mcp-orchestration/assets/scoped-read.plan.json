@@ -1,0 +1,7 @@
+{
+  "steps": [
+    { "provider": "azure", "tool": "subscription_list", "arguments": {} },
+    { "provider": "ado", "tool": "core_list_projects", "arguments": { "top": 1, "projectNameFilter": "selected-project" } },
+    { "provider": "github", "tool": "get_me", "arguments": {} }
+  ]
+}

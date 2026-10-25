@@ -1,0 +1,123 @@
+# Separate Fabric REST lifecycle. ARM capacity uses the generated Fabric Discover/Deploy pair.
+# Configure approval, branch control and an exclusive lock on fabric-workspace-<environment>.
+# Complete the source-owned Managed DevOps Pool binding and qualify its network before onboarding.
+trigger: none
+pr: none
+lockBehavior: sequential
+parameters:
+  - name: operation
+    displayName: Reviewed Fabric operation
+    type: string
+    default: Preview only
+    values: [Preview only, Preview and deploy]
+  - name: environment
+    displayName: Reviewed source manifest environment
+    type: string
+    default: dev
+    values: [dev, qa, uat, prod]
+variables:
+  - template: pipelines/fabric-execution-bindings.yml
+    parameters:
+      environment: ${{ parameters.environment }}
+pool:
+  name: ${{ variables.fabricAgentPool }}
+  demands:
+    - ImageOverride -equals platform-windows
+stages:
+  - stage: Preview
+    displayName: Discover Fabric state and freeze one reviewed operation
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
+    jobs:
+      - job: PreviewFabric
+        timeoutInMinutes: 30
+        steps:
+          - checkout: self
+            clean: true
+            persistCredentials: false
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: SC-AZ-A-Bicep
+              scriptType: pscore
+              scriptLocation: inlineScript
+              visibleAzLogin: false
+              inlineScript: |
+                $directory='$(Build.ArtifactStagingDirectory)/fabric-preview'
+                New-Item -ItemType Directory -Path $directory -Force | Out-Null
+                ./scripts/Invoke-FabricWorkspace.ps1 -Mode Preview -ManifestPath 'self-service/fabric/workspace.${{ parameters.environment }}.json' -PlanPath "$directory/plan.json" -ReceiptPath "$directory/receipt.json"
+            displayName: Read Fabric scope and save exact Preview
+            env:
+              BOUND_FABRIC_AGENT_POOL: ${{ variables.fabricAgentPool }}
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          - publish: $(Build.ArtifactStagingDirectory)/fabric-preview
+            artifact: fabric-preview
+            condition: always()
+  - ${{ if eq(parameters.operation, 'Preview and deploy') }}:
+    - stage: Apply
+      dependsOn: Preview
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.Reason'], 'Manual'))
+      jobs:
+        - deployment: ApplyFabric
+          timeoutInMinutes: 30
+          environment: fabric-workspace-${{ parameters.environment }}
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                    clean: true
+                    persistCredentials: false
+                  - download: current
+                    artifact: fabric-preview
+                  - task: AzureCLI@2
+                    inputs:
+                      azureSubscription: SC-AZ-A-Bicep
+                      scriptType: pscore
+                      scriptLocation: inlineScript
+                      visibleAzLogin: false
+                      inlineScript: |
+                        $directory='$(Build.ArtifactStagingDirectory)/fabric-receipt'
+                        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+                        $plan='$(Pipeline.Workspace)/fabric-preview/plan.json'
+                        $digest=(Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
+                        ./scripts/Invoke-FabricWorkspace.ps1 -Mode Apply -ManifestPath 'self-service/fabric/workspace.${{ parameters.environment }}.json' -PlanPath $plan -ReceiptPath "$directory/receipt.json" -ExpectedPlanSha256 $digest
+                    displayName: Recheck identity and drift, then apply the approved operation
+                    env:
+                      BOUND_FABRIC_AGENT_POOL: ${{ variables.fabricAgentPool }}
+                      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                  - publish: $(Build.ArtifactStagingDirectory)/fabric-receipt
+                    artifact: fabric-receipt
+                    condition: always()
+    - stage: Verify
+      dependsOn: Apply
+      condition: succeeded()
+      jobs:
+        - job: VerifyFabric
+          timeoutInMinutes: 30
+          steps:
+            - checkout: self
+              clean: true
+              persistCredentials: false
+            - download: current
+              artifact: fabric-preview
+            - download: current
+              artifact: fabric-receipt
+            - task: AzureCLI@2
+              inputs:
+                azureSubscription: SC-AZ-A-Bicep
+                scriptType: pscore
+                scriptLocation: inlineScript
+                visibleAzLogin: false
+                inlineScript: |
+                  $directory='$(Build.ArtifactStagingDirectory)/fabric-verification'
+                  New-Item -ItemType Directory -Path $directory -Force | Out-Null
+                  Copy-Item -LiteralPath '$(Pipeline.Workspace)/fabric-receipt/receipt.json' -Destination "$directory/receipt.json"
+                  $plan='$(Pipeline.Workspace)/fabric-preview/plan.json'
+                  $digest=(Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
+                  ./scripts/Invoke-FabricWorkspace.ps1 -Mode Verify -ManifestPath 'self-service/fabric/workspace.${{ parameters.environment }}.json' -PlanPath $plan -ReceiptPath "$directory/receipt.json" -ExpectedPlanSha256 $digest
+              displayName: Read back Fabric operation and retain verification evidence
+              env:
+                BOUND_FABRIC_AGENT_POOL: ${{ variables.fabricAgentPool }}
+                SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+            - publish: $(Build.ArtifactStagingDirectory)/fabric-verification
+              artifact: fabric-verification
+              condition: always()

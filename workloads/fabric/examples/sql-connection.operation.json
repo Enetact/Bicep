@@ -1,0 +1,19 @@
+{
+  "parameters": [
+    {
+      "dataType": "Text",
+      "name": "server",
+      "value": "example.database.windows.net"
+    },
+    {
+      "dataType": "Text",
+      "name": "database",
+      "value": "claims"
+    }
+  ],
+  "displayName": "Claims SQL",
+  "connectionType": "SQL",
+  "workspaceId": "00000000-0000-0000-0000-000000000000",
+  "creationMethod": "SQL",
+  "kind": "CreateConnection"
+}
