@@ -112,8 +112,14 @@ public sealed class CredentialScopedRecoverySetJsonConverter : JsonConverter<Cre
 }
 public sealed class CredentialScopedRecoverySetVerification
 {
-    internal CredentialScopedRecoverySetVerification(CredentialScopedRecoverySetSignature signature, CredentialScopedRecoveryInventory inventory, string sha256, int fileCount)
-    { Signature = signature; Inventory = inventory; Sha256 = sha256; FileCount = fileCount; }
+    internal CredentialScopedRecoverySetVerification(CredentialScopedRecoverySetSignature signature, CredentialScopedRecoveryInventory inventory, string sha256, int fileCount,
+        IReadOnlyDictionary<string, string>? preservedProfileHashes = null)
+    {
+        Signature = signature; Inventory = inventory; Sha256 = sha256; FileCount = fileCount;
+        PreservedProfileHashes = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(preservedProfileHashes ?? new Dictionary<string, string>(), StringComparer.Ordinal));
+    }
+    internal IReadOnlyDictionary<string, string> PreservedProfileHashes { get; }
     public string Schema => "platform-studio.credential-scoped-recovery-set-verification.v1";
     public CredentialScopedRecoverySetSignature Signature { get; }
     public CredentialScopedRecoveryInventory Inventory { get; }

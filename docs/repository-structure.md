@@ -1,5 +1,7 @@
 # Bicep repository structure and authoring conventions
 
+Revision 23 adds separate scoped staging/proof/verifier and checkpoint files plus scoped review contracts/store/coordinator/validation and additive schema-v9 storage. [Staging](foundation-scoped-recovery-staging.md), [review](foundation-scoped-recovery-review.md) and [checkpoints](foundation-scoped-recovery-checkpoints.md) describe the explicit composition boundaries. V1 wire contracts and migration DDL/checksums 1–8 remain unchanged.
+
 Revision 22 adds separate scoped recovery inventory/artifact/parser/rehearsal, live vault capture and metadata-only retention files under `src/SelfService.Foundation/`. [The guide](foundation-scoped-recovery.md) distinguishes signed retained structure from actual AES/HMAC authentication. Existing v1 contracts and SQL schema v8 are unchanged; no default route is added.
 
 Revision 21 adds source absence-proof contracts/cryptography and a guarded inspection partial under `src/SelfService.Foundation/`. The explicit fresh source mode versions rollback binding/state while retaining default v1 serialization and kinds. [Source proofs](foundation-absence-scope-provenance.md) and [inspection](foundation-absence-scope-inspection.md) describe the executable scope and recovery gates. SQL schema v8 and existing signed-set/stage/review formats are unchanged.

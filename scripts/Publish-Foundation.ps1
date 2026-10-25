@@ -138,7 +138,8 @@ function Get-FoundationPublicFiles {
       'docs/foundation-credential-recovery-review.md','docs/foundation-credential-recovery-review-execution.md',
       'docs/foundation-credential-recovery-checkpoints.md','docs/foundation-credential-checkpoint-staging.md',
       'docs/foundation-absence-scope-provenance.md','docs/foundation-absence-scope-inspection.md',
-      'docs/foundation-scoped-recovery.md')
+      'docs/foundation-scoped-recovery.md','docs/foundation-scoped-recovery-staging.md',
+      'docs/foundation-scoped-recovery-review.md','docs/foundation-scoped-recovery-checkpoints.md')
 }
 function Get-FoundationRequiredPackageFiles {
     foreach ($entry in @(Get-FoundationEntryNames)) { foreach ($extension in @('.dll','.deps.json','.runtimeconfig.json')) { 'runtime/' + $entry + $extension } }

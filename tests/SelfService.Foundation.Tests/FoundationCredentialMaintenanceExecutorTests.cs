@@ -105,10 +105,16 @@ public sealed class FoundationCredentialMaintenanceExecutorTests
     {
         using var f = new MaintenanceExecutorFixture(true); await f.Initialize(); var intent = await f.Plan(); var bytes = f.VaultBytes();
         var blocking = new BlockingKeys(f.Cell.Keys); var vault = new CredentialVault(f.Options, blocking, f.Cell.Clock);
-        var executor = f.Executor(vault, timeout ? TimeSpan.FromMilliseconds(100) : null); using var cancellation = new CancellationTokenSource();
+        // Leave enough budget for native custody/SQLite preflight under full-suite load;
+        // the deadline must expire inside the deliberately blocked provider, before admission.
+        var executor = f.Executor(vault, timeout ? TimeSpan.FromSeconds(3) : null); using var cancellation = new CancellationTokenSource();
         var executing = executor.ExecuteAsync(await f.Context(FoundationCapabilities.CredentialMaintenanceExecute), intent.Id, intent.Digest, cancellation.Token);
-        await blocking.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); if (!timeout) cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executing); blocking.Release.TrySetResult();
+        try
+        {
+            await blocking.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)); if (!timeout) cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executing);
+        }
+        finally { blocking.Release.TrySetResult(); }
         Assert.Equal(bytes, f.VaultBytes()); Assert.Null((await f.Read(intent.Id)).Execution); Assert.Equal(0, f.Count("CredentialMaintenanceAdmitted"));
         Assert.Equal("Succeeded", (await f.Execute(intent)).Execution!.State);
     }

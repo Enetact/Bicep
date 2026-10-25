@@ -1,5 +1,7 @@
 # Protected credential namespaces
 
+Revision 23 uses the existing generic stage/checkpoint sentinels with distinct [scoped destination](foundation-scoped-recovery-staging.md) and [scoped checkpoint](foundation-scoped-recovery-checkpoints.md) document kinds. Partial and completed inactive roots remain protected from normal vault/key/database/installation/activation operations. Cross-mode constructors refuse adoption or conversion.
+
 Revision 22 adds [separate source-v2 signed recovery](foundation-scoped-recovery.md). Retained validation checks the exact scoped namespace markers, binding/state and complete positive-plus-absence inventory without reopening live roots. The distinct source kinds and fresh-only provisioning remain unchanged; the v1 stage/checkpoint/review protocols do not accept scoped sets.
 
 Revision 21 adds distinct namespace kinds for [fresh opt-in scoped strong roots](foundation-absence-scope-provenance.md). Explicit mode/factory selection prevents legacy construction, format stripping or silent in-place conversion. Existing namespace markers and vault/authority guards continue to protect these roots. The default v1 namespace kinds and on-disk data remain unchanged; retained recovery support for source v2 is still gated.

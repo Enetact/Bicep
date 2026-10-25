@@ -55,7 +55,7 @@ public sealed class FoundationCredentialRecoveryReviewMigrationTests
         using var f = new StoreFixture();
         f.Execute("DROP TRIGGER schema_migrations_no_update; UPDATE schema_migrations SET checksum='modified' WHERE version=8; CREATE TRIGGER schema_migrations_no_update BEFORE UPDATE ON schema_migrations BEGIN SELECT RAISE(ABORT,'immutable migration history'); END;");
         Assert.Equal("MigrationHistoryMismatch", Assert.Throws<FoundationStoreException>(() => f.Reopen()).Code);
-        Assert.Equal(8, f.Scalar("SELECT schema_version FROM cell"));
+        Assert.Equal(FoundationStore.CurrentSchemaVersion, f.Scalar("SELECT schema_version FROM cell"));
         Assert.Equal(1, f.Scalar("SELECT count(*) FROM schema_migrations WHERE version=8 AND checksum='modified'"));
     }
 

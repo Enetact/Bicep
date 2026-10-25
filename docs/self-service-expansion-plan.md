@@ -1,5 +1,7 @@
 # Self-service expansion and enhancement plan
 
+**25 October 2026 — foundation continuation, roadmap revision 23:** [Scoped destination proofs](foundation-scoped-recovery-staging.md), [complete-scope review](foundation-scoped-recovery-review.md) and [scoped checkpoints](foundation-scoped-recovery-checkpoints.md) now support explicit local inactive recovery. Customer isolation includes absent scopes; no current membership/connection can backfill legacy provenance. Promotion/adoption, joint activation authority and independently held latest/key custody precede feature breadth and live release.
+
 **25 October 2026 — foundation continuation, roadmap revision 22:** [Scoped signed retained recovery](foundation-scoped-recovery.md) adds full positive-plus-absence inventory/capture, strict separate artifact validation, detached AES/HMAC rehearsal and metadata-only combined key holds. Destination proof propagation and complete-scope human review come next, before promotion/activation or new feature breadth.
 
 **25 October 2026 — foundation continuation, roadmap revision 21:** [Fresh source absence proofs](foundation-absence-scope-provenance.md) and [authenticated inspection](foundation-absence-scope-inspection.md) preserve original scope after an abandoned first write. This is a source prerequisite for later retained recovery and scope-complete review; the [commercial roadmap](plans/platform-studio-commercial-release.md) keeps those propagation, activation and release gates open before feature expansion.

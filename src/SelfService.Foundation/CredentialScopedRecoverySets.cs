@@ -61,7 +61,8 @@ public static partial class CredentialScopedRecoverySets
             var content = Decode(artifact.Content, MaximumContentBytes); owned.Add(content); RequireContentDigest(signature, content);
             var (inventory, files, proofs) = ValidateContent(signature, content, owned);
             var envelopes = files.Where(f => IsProfileName(f.Key)).Select(f => new RetainedCredentialRecoveryEnvelope(f.Key[6..70], f.Value));
-            return new(new(signature, inventory, CredentialRecoverySets.Hash(bytes), files.Count), envelopes, proofs, owned);
+            var preserved = files.Where(f => IsProfileName(f.Key)).ToDictionary(f => f.Key[6..70], f => CredentialVault.RecoveryProfileSha256(f.Value), StringComparer.Ordinal);
+            return new(new(signature, inventory, CredentialRecoverySets.Hash(bytes), files.Count, preserved), envelopes, proofs, owned);
         }
         catch (CredentialException) { foreach (var bytes in owned) CryptographicOperations.ZeroMemory(bytes); throw; }
         catch (Exception error) when (BadInput(error)) { foreach (var bytes in owned) CryptographicOperations.ZeroMemory(bytes); throw Failure("invalid"); }

@@ -2,7 +2,7 @@
 
 The fresh [source-v2 format](foundation-absence-scope-provenance.md) can retain an original attempted scope after an abandoned first credential publication. `CredentialVault.InspectScopedRecoveryDependenciesAsync` authenticates every present envelope and committed absence proof in one guarded observation. `CaptureScopedSignedRecoverySetAsync` captures those same source bytes into a separate signed private artifact. `CredentialScopedRecoveryRehearsal` authenticates that retained material without consulting the current source folders.
 
-These are explicit trusted C# composition APIs. The default v1 roots, signed sets, staging, human review and checkpoint consumers retain their existing types and formats. They do not accept a scoped recovery artifact. No HTTP, AHP, MCP, model, worker or owner CLI route automatically selects these APIs. There is no existing-root conversion, schema migration, key export, import, credential renewal, deployment or activation.
+These are explicit trusted C# composition APIs. The default v1 roots, signed sets, staging, human review and checkpoint consumers retain their existing types and formats. They do not accept a scoped recovery artifact. Revision 23 adds separate [scoped staging](foundation-scoped-recovery-staging.md), [human review](foundation-scoped-recovery-review.md) and [checkpoint](foundation-scoped-recovery-checkpoints.md) consumers. No HTTP, AHP, MCP, model, worker or owner CLI route automatically selects them. Source retained recovery itself adds no existing-root conversion, key export, import, credential renewal, deployment or activation.
 
 ## Capture one complete source observation
 
@@ -61,6 +61,6 @@ The assessment performs no AES, HMAC, signing, key-provider or filesystem operat
 
 ## Remaining recovery gates
 
-The source-v2 retained protocol closes source capture/rehearsal and combined dependency accounting only. Destination staging must first carry and authenticate those proofs against separately pinned destination custody and keys. Customer review must then authorize the complete union of present and absent project/environment scopes. The existing v1 customer-review refusal of unsupported/unscoped absences remains in force. Existing v1 checkpoint selection is also not a scoped-set acceptance protocol.
+The source-v2 retained protocol closes source capture/rehearsal and combined dependency accounting. Revision 23 adds separate destination AES/HMAC authentication, complete present-plus-absence human review and scoped retained-set checkpoints. Existing v1 customer-review refusal of unsupported/unscoped absences remains in force; v1 checkpoint selection is not widened. Scoped checkpoint custody ends when staging returns, while later human review pins that completed stage. Final adoption still needs joint current-authority checks and coordinated activation.
 
 Separately reviewed promotion/adoption, coordinated database/credential activation, independently held latest-set/key backup custody, complete historical coverage, supported service identity/storage, clean-machine delivery, signing, independent security review and commercial rights acceptance remain open. Same-owner or administrator replacement of local roots is outside this protocol's guarantee. The [commercial roadmap](plans/platform-studio-commercial-release.md) retains those priorities and evidence limits.
