@@ -28,6 +28,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Authenticate scoped destination ciphertext and absence proofs under inactive custody | [Scoped destination staging](foundation-scoped-recovery-staging.md) |
 | Approve exact verification across every present and absent project/environment | [Complete-scope human review](foundation-scoped-recovery-review.md) |
 | Hold the accepted scoped retained-set checkpoint through stage completion | [Scoped checkpoint custody](foundation-scoped-recovery-checkpoints.md) |
+| Verify an approved scoped stage while its current checkpoint remains held through the database commit | [Joint checkpoint and stage verification](foundation-scoped-recovery-joint-verification.md) |
 | Retain the latest accepted backup checkpoint and verify/stage recovery against that custody | [Local checkpoint authority](foundation-backup-checkpoint-custody.md) → [Custody-backed recovery](foundation-backup-checkpoint-recovery.md) |
 | Operate separate workers, export frozen audit metadata or review feature policy | [Independent worker](foundation-independent-worker.md) → [Paged exports](foundation-paged-exports.md) → [Feature configuration](foundation-feature-configuration.md) |
 | Measure cell health/load, verify signed recovery or inspect distribution evidence | [Cell metrics](foundation-cell-metrics.md) → [Local load qualification](foundation-load-qualification.md) → [Signed backups](foundation-signed-backups.md) → [Dependency evidence](foundation-dependency-evidence.md) |

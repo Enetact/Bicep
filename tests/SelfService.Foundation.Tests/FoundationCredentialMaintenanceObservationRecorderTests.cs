@@ -140,12 +140,25 @@ public sealed class FoundationCredentialMaintenanceObservationRecorderTests
     {
         using var f = new ObservationRecorderFixture(true); await f.Unknown(); var request = await f.Approve(await f.Prepare());
         var keys = new PausedSourceKeys(f.Maintenance.Cell.Keys); var vault = new CredentialVault(f.Maintenance.Options, keys, f.Maintenance.Cell.Clock);
-        var recorder = f.Recorder(vault, timeout ? TimeSpan.FromMilliseconds(100) : null); using var cancellation = new CancellationTokenSource();
+        // Current DB authority and native custody checks precede provider entry. Allow that preflight
+        // under the parallel native cohort, then exercise cancellation while the provider is actually paused.
+        var recorder = f.Recorder(vault, timeout ? TimeSpan.FromSeconds(3) : null); using var cancellation = new CancellationTokenSource();
         var bytes = f.Maintenance.VaultBytes(); var rows = f.OriginalRows(); var recording = recorder.RecordAsync(await f.Context(FoundationCapabilities.CredentialMaintenanceExecute), request.Id, request.Digest, cancellation.Token);
-        await keys.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); if (!timeout) cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => recording); keys.Release.TrySetResult();
+        try
+        {
+            await keys.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)); if (!timeout) cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => recording.WaitAsync(TimeSpan.FromSeconds(15)));
+            Assert.False(keys.Release.Task.IsCompleted); // Cancellation, rather than releasing the provider, ended this attempt.
+            Assert.Equal(!timeout, cancellation.IsCancellationRequested);
+        }
+        finally
+        {
+            cancellation.Cancel(); keys.Release.TrySetResult();
+            try { await recording; } catch { } // Observe actual completion and release custody before disposing the owned fixture.
+        }
         Assert.Equal(0, f.ReceiptCount()); Assert.Equal(rows, f.OriginalRows()); Assert.Equal(bytes, f.Maintenance.VaultBytes());
-        Assert.Equal("ObservedPublished", (await f.Record(request)).Receipt!.Status);
+        Assert.Equal("OutcomeUnknown", (await f.Maintenance.Read(f.Original!.Id)).Execution!.State);
+        Assert.Equal("ObservedPublished", (await f.Record(request).WaitAsync(TimeSpan.FromSeconds(15))).Receipt!.Status);
     }
 
     [WindowsCredentialFact]

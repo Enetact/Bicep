@@ -21,7 +21,7 @@ function NewExecutionFixture([string]$Name){
     WriteFixture (Join-Path $directory '.agents/skills/fixture/SKILL.md') "synthetic instruction fixture`n"
     WriteFixture (Join-Path $directory 'tests/SelfService.Foundation.Tests/SelfService.Foundation.Tests.csproj') '<Project Sdk="Microsoft.NET.Sdk" />'
     $null=New-Item -ItemType Directory -Path (Join-Path $directory 'scripts')
-    foreach($name in @('FoundationTestExecutionEvidence.ps1','Test-Foundation.ps1')){Copy-Item -LiteralPath (Join-Path $repositoryRoot ('scripts/'+$name)) -Destination (Join-Path $directory ('scripts/'+$name)) -ErrorAction Stop}
+    foreach($name in @('FoundationTestExecutionEvidence.ps1','Test-Foundation.ps1','FoundationBuildRetention.ps1','Remove-OldBuildIntermediates.ps1')){Copy-Item -LiteralPath (Join-Path $repositoryRoot ('scripts/'+$name)) -Destination (Join-Path $directory ('scripts/'+$name)) -ErrorAction Stop}
     foreach($arguments in @(@('init','--quiet'),@('config','core.autocrlf','false'),@('config','user.email','synthetic@example.invalid'),@('config','user.name','Synthetic execution fixture'),@('add','--all'),@('commit','--quiet','-m','Owned synthetic fixture'))){$null=Get-FTEGit $directory $arguments}
     $directory
 }
@@ -102,6 +102,121 @@ foreach($mode in @('valid','change','manifest-change','add','remove','no-trx','s
     $runs.Add([ordered]@{fixture=$mode;run=$run[0].FullName;completed=($mode -ceq 'valid')})
 }
 
+# Retention uses the actual successful synthetic execution. Production process inspection has no bypass.
+. (Join-Path $repositoryRoot 'scripts/FoundationBuildRetention.ps1')
+$retentionRoot=Split-Path (Split-Path $valid -Parent) -Parent | Split-Path -Parent
+function SetRetentionAge([string]$Directory,[int]$Minutes) {
+    $old=[DateTime]::UtcNow.AddMinutes(-$Minutes)
+    foreach($item in @(Get-ChildItem -LiteralPath $Directory -Recurse -Force)+(Get-Item -LiteralPath $Directory)) { $item.LastWriteTimeUtc=$old }
+}
+function NewRetentionTree([string]$Relative,[int]$AgeMinutes,[string]$File='') {
+    $directory=Join-Path $retentionRoot ('artifacts/'+$Relative);$project=Join-Path $directory 'OwnedCompiler'
+    foreach($name in @('project.assets.json','project.nuget.cache','OwnedCompiler.csproj.nuget.dgspec.json','OwnedCompiler.csproj.nuget.g.props','OwnedCompiler.csproj.nuget.g.targets')) { WriteFixture (Join-Path $project $name) 'owned synthetic SDK metadata name' }
+    foreach($name in @('OwnedCompiler.dll','OwnedCompiler.pdb','OwnedCompiler.assets.cache')) { WriteFixture (Join-Path $project ('release/'+$name)) 'owned synthetic compiler bytes' }
+    if($File) { WriteFixture (Join-Path $directory $File) 'owned preservation canary' }
+    SetRetentionAge $directory $AgeMinutes;return $directory
+}
+$newest=NewRetentionTree 'retention-newest/build/obj' 120
+$second=NewRetentionTree 'retention-second/build/obj' 180
+$old=NewRetentionTree 'retention-old/build/obj' 240
+$explicit=NewRetentionTree 'retention-keep/.build/obj' 300
+$database=NewRetentionTree 'retention-data/build/obj' 360 'customer.sqlite-journal'
+$key=NewRetentionTree 'retention-key/build/obj' 360 'private.pem'
+$package=NewRetentionTree 'foundation-packages/build/obj' 360
+$release=NewRetentionTree 'commercial-release/build/obj' 360
+$preview=NewRetentionTree 'foundation-preview/build/obj' 360
+$nested=NewRetentionTree ('retention-check/'+('a'*32)+'/build/obj') 240
+$active=NewRetentionTree 'retention-active/build/obj' 300
+$unrelatedActivation=Join-Path $retentionRoot 'artifacts/foundation-activation-provision-check/keep.txt';WriteFixture $unrelatedActivation 'owned unrelated check family'
+$unrelatedBackup=Join-Path $retentionRoot 'artifacts/foundation-backup-checkpoint-check/keep.txt';WriteFixture $unrelatedBackup 'owned unrelated check family'
+Check ((Get-FBRTree $retentionRoot $old).path -ieq $old) 'Unrelated protected check-family siblings falsely implied ancestor custody.'
+$unknown=NewRetentionTree 'retention-unknown/build/obj' 400 'unrecognized-private-payload.json'
+$unrecognized=Join-Path $retentionRoot 'artifacts/retention-arbitrary/build/obj';WriteFixture (Join-Path $unrecognized 'compile.cache') 'not an SDK layout'
+$unsupported=NewRetentionTree 'retention-unsupported/build/obj' 400 'OwnedCompiler/release/new-sdk-layout.bin'
+WriteFixture (Join-Path (Split-Path $old -Parent) 'bin/keep.dll') 'owned synthetic binary';$bin=Join-Path (Split-Path $old -Parent) 'bin/keep.dll'
+$target=Join-Path $retentionRoot 'artifacts/retention-link-target';WriteFixture (Join-Path $target 'keep.txt') 'owned link target'
+$linkBuild=Join-Path $retentionRoot 'artifacts/retention-link/build';$null=New-Item -ItemType Directory -Path $linkBuild -Force
+$junction=Join-Path $linkBuild 'obj';$null=New-Item -ItemType Junction -Path $junction -Target $target
+$request=@{Root=$retentionRoot;RunDirectory=$valid;CompletedSha256=(Get-FileHash -LiteralPath (Join-Path $valid 'completed.json')).Hash.ToLowerInvariant();KeepBuildDirectories=@((Split-Path $explicit -Parent))}
+$wrongPin=$request.Clone();$wrongPin.CompletedSha256='0'*64
+Reject { Invoke-FoundationBuildRetention @wrongPin -Apply } '*ArtifactPinMismatch*'
+$input=Join-Path $retentionRoot 'input.txt';$originalInput=[IO.File]::ReadAllBytes($input)
+try { [IO.File]::AppendAllText($input,'changed after successful execution');Reject { Invoke-FoundationBuildRetention @request -Apply } '*BuildRetentionSourceChanged*' }
+finally { [IO.File]::WriteAllBytes($input,$originalInput) }
+Check (Test-Path -LiteralPath $old) 'Failed qualification mutated a candidate.'
+Reject { Get-FBRTree $retentionRoot $unknown } '*UnknownCompilerContent*'
+Reject { Get-FBRTree $retentionRoot $unrecognized } '*UnknownCompilerContent*'
+Reject { Get-FBRTree $retentionRoot $unsupported } '*UnknownCompilerContent*'
+foreach($marker in @('.activation.guard','authority.json','state.json','binding.json','completion.json','.installation-owner.json','.installation.guard','.package-owner.json',
+    '.credential-namespace.json','.vault.lock','.keys.lock','.rollback.lock','.backup-checkpoint.guard','cell-binding.json','.foundation-owner-initialization.json',
+    '.credential-recovery-stage.guard','.credential-recovery-stage.json','.credential-recovery-checkpoint.guard','.credential-recovery-checkpoint.json','legacy.credential.json','legacy.dpapi.json')) {
+    foreach($directoryMarker in @($false,$true)) {
+        $scope='retention-marker-'+[Guid]::NewGuid().ToString('N');$canary=NewRetentionTree ($scope+'/build/obj') 500
+        $markerPath=Join-Path (Split-Path (Split-Path $canary -Parent) -Parent) $marker
+        if($directoryMarker){$null=New-Item -ItemType Directory -Path $markerPath}else{WriteFixture $markerPath 'owned sentinel'}
+        Reject { Get-FBRTree $retentionRoot $canary } '*ProtectedAncestor*';Check (Test-Path -LiteralPath $markerPath) 'Operational ancestor sentinel was modified.'
+    }
+}
+$treeMarker=NewRetentionTree 'retention-tree-marker/build/obj' 500 'OwnedCompiler/release/.keys.lock'
+Reject { Get-FBRTree $retentionRoot $treeMarker } '*ProtectedContent*'
+foreach($process in @([pscustomobject]@{ProcessId=111;ExecutablePath=$null;CommandLine=$null},[pscustomobject]@{ProcessId=112;ExecutablePath='owned.exe';CommandLine=$null},[pscustomobject]@{ProcessId=113;ExecutablePath=$null;CommandLine='owned command'})) {
+    Reject { Assert-FBRProcessVisibility $process } '*ProcessInspectionUnavailable*'
+}
+Assert-FBRProcessVisibility ([pscustomobject]@{ProcessId=0;ExecutablePath=$null;CommandLine=$null});Assert-FBRProcessVisibility ([pscustomobject]@{ProcessId=4;ExecutablePath=$null;CommandLine=$null})
+$relativeActive=[IO.Path]::GetRelativePath($retentionRoot,(Split-Path $active -Parent))
+foreach($argument in @((Split-Path $active -Parent),$relativeActive,('./'+$relativeActive.Replace('\','/')))) {
+    $records=@([pscustomobject]@{ProcessId=200;ExecutablePath='C:\owned\dotnet.exe';CommandLine=('dotnet build --artifacts-path "'+$argument+'"')})
+    Check (Test-FBRProcessReference $records (Split-Path $active -Parent) $retentionRoot) 'Absolute/relative active build reference was missed.'
+}
+$processDefinition=${function:Get-FBRProcesses}
+try { function Get-FBRProcesses { throw 'BuildRetentionProcessInspectionUnavailable' };Reject { Invoke-FoundationBuildRetention @request -Apply } '*BuildRetentionProcessInspectionUnavailable*' }
+finally { Set-Item -LiteralPath Function:\Get-FBRProcesses -Value $processDefinition }
+Check (Test-Path -LiteralPath $old) 'Unavailable process inspection mutated a candidate.'
+$nativeVisibility='Available'
+try { $nativeRecords=@(Get-FBRProcesses);Check ($nativeRecords.Count -gt 0) 'Native process inventory was empty.' }
+catch { if($_.Exception.Message -cne 'BuildRetentionProcessInspectionUnavailable'){throw};$nativeVisibility='Unavailable';Check (Test-Path -LiteralPath $old) 'Opaque native process visibility changed an intermediate.' }
+$child=$null;$oldMode=$env:FOUNDATION_TEST_EXECUTION_FIXTURE
+try {
+    $env:FOUNDATION_TEST_EXECUTION_FIXTURE='native-stall'
+    $start=[Diagnostics.ProcessStartInfo]::new($standIn);$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WorkingDirectory=$retentionRoot
+    foreach($arg in @('test','--artifacts-path',$relativeActive)) { $start.ArgumentList.Add($arg) }
+    $child=[Diagnostics.Process]::Start($start)
+    $deadline=[DateTime]::UtcNow.AddSeconds(10)
+    do { $seen=@(Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId='+$child.Id) -ErrorAction Stop);if($seen.Count -eq 1 -and $seen[0].CommandLine -and $seen[0].ExecutablePath){break};Start-Sleep -Milliseconds 50 } while([DateTime]::UtcNow -lt $deadline)
+    Check ($seen.Count -eq 1 -and $seen[0].ExecutablePath -and $seen[0].CommandLine) 'Owned active child lacked complete CIM metadata.'
+    $script:retentionVisibleOwnedProcess=$seen[0]
+    # TEST ONLY: an actual owned child subset qualifies deletion mechanics, not global native visibility.
+    function Get-FBRProcesses { @($script:retentionVisibleOwnedProcess) }
+    $previewResult=Invoke-FoundationBuildRetention @request
+    Check ($previewResult.removedCount -eq 0 -and (Test-Path -LiteralPath $old)) 'Retention preview deleted files.'
+    $whatIf=Invoke-FoundationBuildRetention @request -Apply -WhatIf
+    Check ($whatIf.removedCount -eq 0 -and (Test-Path -LiteralPath $old)) 'Retention WhatIf deleted files.'
+    $retained=Invoke-FoundationBuildRetention @request -Apply
+    Check ($retained.removedCount -eq 2 -and !(Test-Path -LiteralPath $old) -and !(Test-Path -LiteralPath $nested)) 'Recognized old ordinary/GUID obj trees were not removed.'
+    foreach($path in @($newest,$second,$explicit,$database,$key,$package,$release,$preview,$active,$unrelatedActivation,$unrelatedBackup,$unknown,$unsupported,$unrecognized,$treeMarker,$junction,$target,$bin,(Join-Path $valid 'completed.json'),(Join-Path $valid 'results/foundation.trx'))) { Check (Test-Path -LiteralPath $path) ('Retention changed protected/current/evidence path: '+$path) }
+    Check (@($retained.decisions | Where-Object { $_.path -ieq $active -and $_.reason -ceq 'ProcessReference' }).Count -eq 1) 'Owned relative-path active build was not explicitly retained.'
+    Check (!$retained.continuousProcessFencing -and !$retained.physicalSpaceReclaimedVerified -and $retained.revisionHistory -ceq 'GitHub') 'Cleanup overstated its process/space/version boundary.'
+    $partial=NewRetentionTree 'retention-partial/build/obj' 600
+    function Remove-Item { param($LiteralPath,[switch]$Recurse,[switch]$Force,$ErrorAction)
+        if($LiteralPath -ine $script:retentionPartialTarget){throw 'Unexpected synthetic deletion target'}
+        [IO.File]::Delete((Join-Path $LiteralPath 'OwnedCompiler/release/OwnedCompiler.dll'));throw 'Synthetic partial removal'
+    }
+    $script:retentionPartialTarget=$partial
+    try {
+        $uncertain=Invoke-FoundationBuildRetention @request -Apply
+        Check ($uncertain.removalUncertainCount -eq 1 -and $uncertain.removedCount -eq 0 -and $uncertain.removedBytes -eq 0) 'Partial deletion was falsely counted as preserved/reclaimed.'
+        Check ((Test-Path -LiteralPath $partial) -and !(Test-Path -LiteralPath (Join-Path $partial 'OwnedCompiler/release/OwnedCompiler.dll'))) 'Partial-removal fixture did not actually remove one owned intermediate.'
+    } finally { Microsoft.PowerShell.Management\Remove-Item -LiteralPath Function:\Remove-Item -Force }
+} finally {
+    Set-Item -LiteralPath Function:\Get-FBRProcesses -Value $processDefinition
+    $env:FOUNDATION_TEST_EXECUTION_FIXTURE=$oldMode
+    if($child) { try { if(!$child.HasExited){$child.Kill();$null=$child.WaitForExit(10000)} } finally { $child.Dispose() } }
+}
+$cleanupFile=Join-Path $valid 'build-cleanup.json';Check (Test-Path -LiteralPath $cleanupFile) 'Successful test execution did not save its independent cleanup observation.'
+$cleanupObservation=Get-Content -LiteralPath $cleanupFile -Raw|ConvertFrom-Json -AsHashtable
+Check ($cleanupObservation.state -cin @('Skipped','Completed')) 'Cleanup observation was not a bounded independent outcome.'
+$buildRetentionObservation=[ordered]@{nativeProcessInventory=$nativeVisibility;deletionFixtureProcessInventory='TestOnlyActualOwnedChildSubset';actualRepositoryCleanupPerformed=$false;syntheticObjTreesRemoved=2;partialRemovalQualified=$true;continuousProcessFencing=$false;physicalSpaceReclaimedVerified=$false}
+
 $normalization=NewExecutionFixture 'normalization';$before=Get-FTESourceSnapshot $normalization
 [IO.File]::WriteAllText((Join-Path $normalization 'input.txt'),"synthetic input`nsecond line`n")
 $after=Get-FTESourceSnapshot $normalization;$a=@($before.files|Where-Object path -CEQ 'input.txt')[0];$b=@($after.files|Where-Object path -CEQ 'input.txt')[0]
@@ -146,6 +261,6 @@ foreach($mode in @('native-stall','native-overflow')){
 }
 $validTrx=Join-Path $valid 'results/foundation.trx';$changed=[xml](Get-Content -LiteralPath $validTrx -Raw);$changed.DocumentElement.SetAttribute('id',[Guid]::NewGuid().ToString('D'));$changed.Save($validTrx)
 Reject {Test-FTEExecutionReceipt $valid $validPin} '*TrxReceiptMismatch*'
-$summary=[ordered]@{schema='platform-studio.foundation-test-execution-fixtures.v1';passed=$true;checks=$script:checks;runs=$runs.ToArray();actualFoundationSuiteExecuted=$false;constantOwnedStandInExecuted=$true;restorePerformed=$false;noNetworkAttested=$false;independentAttestation=$false;productionReady=$false;cloudOperationsPerformed=$false}
+$summary=[ordered]@{schema='platform-studio.foundation-test-execution-fixtures.v1';passed=$true;checks=$script:checks;buildRetention=$buildRetentionObservation;runs=$runs.ToArray();actualFoundationSuiteExecuted=$false;constantOwnedStandInExecuted=$true;restorePerformed=$false;noNetworkAttested=$false;independentAttestation=$false;productionReady=$false;cloudOperationsPerformed=$false}
 $null=Write-FTEJson (Join-Path $fixtureRoot 'summary.json') $summary
 Write-Host "Foundation execution evidence: $script:checks checks passed. $fixtureRoot"

@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+The explicit local [joint checkpoint and stage verifier](foundation-scoped-recovery-joint-verification.md) strengthens customer foundation recovery evidence. It adds no catalog product, pipeline, HTTP/AHP/MCP/model action or Azure permission; actual adoption and activation remain separately governed work.
+
 **20 October 2026 — local developer lifecycle:** [the suite controller](local-suite.md) builds all maintained application entry projects, starts the authenticated Aspire collector before the portal and optional local Functions producers, and stops producers before telemetry. It preserves eligible sign-ins by default; Azure resources, pipelines and cloud-backed sample workers are not started by the local lifecycle. This changes developer operations without adding a workload target or deployment permission.
 
 **20 October 2026 — Managed DevOps Pool:** current source now has eleven products, 44 disabled Azure targets, 22 dedicated workload menus and 30 registered roots. The portal card and standard Discover/Deploy flow create one private pool against approved existing foundations; consumer migration is separate. [Parameters, bootstrap and acceptance](../workloads/managed-devops-pool/README.md). Earlier entries retain dated increment counts.

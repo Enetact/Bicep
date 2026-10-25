@@ -59,6 +59,50 @@ rejection code; raw process output remains in the protected run directory when
 that operation completed observation. Interrupted/failed capture can have no
 post-observation or final receipt and must not be promoted to a completed run.
 
+## Clean old compiler intermediates after success
+
+GitHub commits, reviewed tags and Releases define revision history. These local
+test records and cleanup logs are evidence, not a second product version system.
+After successful full execution, the runner now attempts conservative compiler
+housekeeping. `-SkipBuildCleanup` opts out. Cleanup occurs after the test verdict
+is committed; a refused or failed cleanup does not turn a successful test into a
+rejected run. The returned `buildCleanup` describes the attempt, and a completed
+attempt writes `build-cleanup.json` inside that same protected run.
+
+For a separate review, preview is the default; `-Apply` enables deletion and
+`-WhatIf` previews it even with `-Apply`:
+
+```powershell
+.\scripts\Remove-OldBuildIntermediates.ps1 `
+    -RunDirectory $run.runDirectory -CompletedSha256 $run.receiptSha256
+```
+
+The helper requires an accepted full, unfiltered execution from this repository
+within the past 24 hours and an exact current source/HEAD match. It only considers
+ordinary-check `artifacts/<check>/build/obj` or `.build/obj`, optionally under a
+32-hex run directory. It retains at least the newest two eligible build trees,
+all activity within the past hour, explicit `-KeepBuildDirectories`, and any build
+referenced by the current Windows process inventory. Unavailable process
+inspection refuses cleanup. It rechecks qualification, processes and the tree
+immediately before each deletion, using canonical literal paths in PowerShell.
+
+All `bin` outputs, complete test-execution directories, packages, commercial and
+release evidence, published/installed/preview generations, runtime/cache/storage,
+credential/key/backup families and `.local` remain outside the deletion scope.
+Only recognized .NET SDK project layouts and a bounded generated-file allowlist
+qualify; unexpected files or layouts are preserved. Linked paths, foreign-owned
+files, protected data/key/evidence names inside the candidate, operational custody
+markers in the tree or its ancestors, oversized trees and changed trees are refused. Unrelated sibling check-family names do not establish ancestor custody. Both final evidence and
+rejected runs remain. Except for the known Idle/System kernel identities, every
+process must expose executable and command-line metadata; an opaque record skips
+cleanup. Absolute and root-relative build references are retained.
+An inactive compiler intermediate is rebuildable; a database or key is not treated
+as an intermediate. The process observations and metadata comparisons are local
+cooperating-process checks, not continuous fencing against a concurrent owner or
+administrator. An OS deletion failure can leave a partially removed `obj` tree;
+the result records `RemovalUncertain`, counts only completely removed trees, and
+does not claim physical disk-space reclamation.
+
 ## Captured source identity
 
 The helper inventories all paths reported by local

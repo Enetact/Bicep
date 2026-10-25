@@ -19,6 +19,8 @@ Each operation needs exactly one `CustomerContext` per affected project/environm
 
 The approver must differ from both requester and executor. Approval binds the exact request digest. Request validity is at most 15 minutes and cannot outlive the earliest requester context. The approval captures its earliest context expiry. Fresh signed-role intersection is enforced when resolving contexts, and the durable store rechecks all standing grants, enabled state and actor versions. Durable distinct human-principal authorization is local evidence; it does not attest physical human presence or independent organizational or host custody.
 
+For execution that must also retain the current configured checkpoint, use the [joint checkpoint and stage coordinator](foundation-scoped-recovery-joint-verification.md) with this same approved review. It adds an execution-time checkpoint constraint and consumes the same one-use ordinary admission. The human approval still covers the exact stage; it does not assert that a checkpoint head was approved or current at approval. The ordinary `ExecuteAsync` method retains its stage-only behavior.
+
 ## Admission, verification and interruption
 
 Preparation authorizes the complete scope union before opening private stage metadata. It then holds the concrete stage read lease while persisting a typed target with plan, source set, inventory, namespace, destination key commitment, stage IDs, binding, state, completion-core and receipt hashes; present and absence counts; and the complete scope union. Public records contain redacted hashes and scope IDs, not private root paths, full credential scopes, raw proofs, MACs, credentials or keys.
@@ -34,6 +36,8 @@ Cancellation, verification failure, lost authority, process interruption or unav
 ## Schema 9 and recovery
 
 Schema 9 adds separate `credential_scoped_recovery_stage_review_requests`, `credential_scoped_recovery_stage_review_approvals` and `credential_scoped_recovery_stage_review_executions` tables, immutable authority fields, one-use execution and retained success guards. Earlier DDL and checksums remain fixed. Current runtime opening with `initializeSchema:false` refuses an older schema; it does not migrate or repair it.
+
+The optional joint execution uses additive schema 10 evidence linked to the same ordinary execution; it does not change these review types, approval digests or frozen schema-9 definition. See the joint guide for its atomic two-row admission/completion and restore boundaries.
 
 Use the existing trusted-owner signed backup and fresh staging flow for reviewed upgrades. This increment exercises upgrades only on disposable fixtures; it does not migrate an existing customer database. Backup validation requires the exact versioned schema and checksum chain before creating a restore destination. Restoring rotates database instance and policy, preserves completed history, and quarantines every unfinished scoped review, including consumed unknown executions. Restored history is evidence rather than replay authority.
 

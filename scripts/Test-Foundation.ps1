@@ -1,6 +1,6 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([string]$DotNetPath = 'dotnet')
+param([string]$DotNetPath = 'dotnet',[switch]$SkipBuildCleanup)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'FoundationTestExecutionEvidence.ps1')
 $root=[IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
@@ -46,8 +46,6 @@ try{
     $summaryFile=Write-FTEJson (Join-Path $results 'summary.json') $summary;$summaryFile.path='results/summary.json'
     $completed=[ordered]@{schema='platform-studio.foundation-test-execution.v1';state='Completed';passed=$true;startedUnixMilliseconds=$started;finishedUnixMilliseconds=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();profile=$summary.profile;started=$startedFile;sourceBefore=$beforeFile;sourceAfter=$afterFile;sourceInputsUnchanged=$true;commands=$commands.ToArray();trx=$trx;summary=$summaryFile;limits=$flags}
     $commit=Write-FTEJson (Join-Path $run 'completed.json') $completed
-    Write-Host "Foundation disconnected profile: $($trx.passed) passed, 0 failed, 0 not executed. Evidence: $run"
-    [pscustomobject]@{runDirectory=$run;receipt=(Join-Path $run 'completed.json');receiptSha256=$commit.sha256;resultsDirectory=$results;passed=$trx.passed;failed=0;notExecuted=0;independentAttestation=$false;productionReady=$false}
 }catch{
     $message=$_.Exception.Message;$failure=if($message -cmatch '\ATestExecution[A-Za-z]+\z'){$message}else{'TestExecutionRejected'}
     if($before -and !$after){try{$after=Get-FTESourceSnapshot $root;$afterFile=Write-FTEJson (Join-Path $run 'source-after.json') $after}catch{}}
@@ -55,3 +53,19 @@ try{
     $null=Write-FTEJson (Join-Path $run 'rejected.json') $rejected
     throw "Foundation test execution rejected ($failure). Evidence: $run"
 }finally{if($toolHandle){$toolHandle.Dispose()}}
+# Housekeeping is outside the test-verdict transaction and cannot create a rejected test record.
+$cleanup=[pscustomobject]@{state='Skipped';reason='NotInstalledOrExplicitlySkipped'}
+if(!$SkipBuildCleanup -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'FoundationBuildRetention.ps1'))) {
+    try {
+        . (Join-Path $PSScriptRoot 'FoundationBuildRetention.ps1')
+        $cleanup=Invoke-FoundationBuildRetention -Root $root -RunDirectory $run -CompletedSha256 $commit.sha256 -Apply
+    } catch {
+        $reason=if($_.Exception.Message -ceq 'BuildRetentionProcessInspectionUnavailable'){'ProcessInspectionUnavailable'}else{'QualificationOrInspectionRefused'}
+        $cleanup=[pscustomobject]@{state='Skipped';reason=$reason;removedCount=$(if($reason -ceq 'ProcessInspectionUnavailable'){0}else{$null});removedBytes=$(if($reason -ceq 'ProcessInspectionUnavailable'){0}else{$null});continuousProcessFencing=$false}
+        Write-Warning 'Build cleanup was skipped; the successful test result is unchanged.' -WarningAction Continue
+    }
+}
+try { $null=Write-FTEJson (Join-Path $run 'build-cleanup.json') $cleanup }
+catch { Write-Warning 'Build cleanup observation could not be saved; the successful test result is unchanged.' -WarningAction Continue }
+Write-Host "Foundation disconnected profile: $($trx.passed) passed, 0 failed, 0 not executed. Evidence: $run"
+[pscustomobject]@{runDirectory=$run;receipt=(Join-Path $run 'completed.json');receiptSha256=$commit.sha256;resultsDirectory=$results;passed=$trx.passed;failed=0;notExecuted=0;buildCleanup=$cleanup;independentAttestation=$false;productionReady=$false}

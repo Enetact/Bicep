@@ -12,6 +12,7 @@ using Xunit;
 namespace SelfService.Foundation.Tests;
 
 [SupportedOSPlatform("windows")]
+[Collection(nameof(CredentialAbsenceScopeCapacityCollection))]
 public sealed class CredentialAbsenceScopeBoundaryTests
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -439,3 +440,8 @@ public sealed class CredentialAbsenceScopeBoundaryTests
         public void Dispose() => Cell.Dispose();
     }
 }
+
+// Maximum-cell crypto/custody scans retain the production 20-second cooperative deadline.
+// Run this native cohort without competing test collections; explicit in-test writer races remain concurrent.
+[CollectionDefinition(nameof(CredentialAbsenceScopeCapacityCollection), DisableParallelization = true)]
+public sealed class CredentialAbsenceScopeCapacityCollection { }

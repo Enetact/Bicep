@@ -250,7 +250,7 @@ public sealed class CredentialScopedRecoverySetCheckpointAuthority
     static string HeaderDigest(Header header) => Digest(JsonSerializer.SerializeToUtf8Bytes(new
     { header.Schema, header.Kind, header.RootPath, header.OwnerSid, header.AuthorityId, header.SourceNamespace, header.SignerKeyId,
         header.PublicKeySha256, createdUnixMilliseconds = header.CreatedUtc.ToUnixTimeMilliseconds() }, Json));
-    static string CheckpointDigest(CredentialScopedRecoverySetCheckpoint checkpoint) => Digest(JsonSerializer.SerializeToUtf8Bytes(new
+    internal static string CheckpointDigest(CredentialScopedRecoverySetCheckpoint checkpoint) => Digest(JsonSerializer.SerializeToUtf8Bytes(new
     { schema = 1, kind = "credential-scoped-recovery-checkpoint", checkpoint.AuthorityId, checkpoint.AuthorityCommitmentSha256, checkpoint.Sequence,
         checkpoint.PreviousSha256, acceptedUnixMilliseconds = checkpoint.AcceptedUtc.ToUnixTimeMilliseconds(), checkpoint.SourceNamespace, checkpoint.SetAuthority,
         checkpoint.InventorySha256, checkpoint.RehearsalSha256, capturedUnixMilliseconds = checkpoint.CapturedUtc.ToUnixTimeMilliseconds(),

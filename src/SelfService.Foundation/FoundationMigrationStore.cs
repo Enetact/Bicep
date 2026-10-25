@@ -6,7 +6,7 @@ public sealed record FoundationSchemaStatus(int Version, int SupportedVersion, s
 
 public sealed partial class FoundationStore
 {
-    public const int CurrentSchemaVersion = 9;
+    public const int CurrentSchemaVersion = 10;
     const string SchemaV2 = """
         CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL,applied INTEGER NOT NULL);
         CREATE TRIGGER schema_migrations_no_update BEFORE UPDATE ON schema_migrations BEGIN SELECT RAISE(ABORT,'immutable migration history'); END;
@@ -282,8 +282,22 @@ public sealed partial class FoundationStore
             { var scope = BootstrapScope(db, tx); Audit(db, tx, "cell-maintenance", scope.Project, scope.Environment, "SchemaMigrated", CellId, "Succeeded", "SchemaV8ToV9", SchemaV9Checksum); }
         }
         history = Rows(db, tx, "SELECT version,checksum FROM schema_migrations ORDER BY version", r => (Version: r.GetInt32(0), Checksum: r.GetString(1)));
-        if (history.Count != 9 || history[8] != (9, SchemaV9Checksum)) throw new FoundationStoreException("MigrationHistoryMismatch");
+        if (history.Count < 9 || history[8] != (9, SchemaV9Checksum)) throw new FoundationStoreException("MigrationHistoryMismatch");
         ValidateCredentialScopedRecoveryReviewSchema(db, tx);
+        if (version <= 9)
+        {
+            if (history.Count != 9) throw new FoundationStoreException("MigrationHistoryMismatch");
+            if (ScalarText(db, tx, "PRAGMA quick_check") != "ok" || Rows(db, tx, "PRAGMA foreign_key_check", r => r.GetString(0)).Count != 0)
+                throw new FoundationStoreException("MigrationIntegrityFailed");
+            ValidateAdministrativeAuditChain(db, tx, "MigrationIntegrityFailed"); Exec(db, tx, SchemaV10);
+            Exec(db, tx, "INSERT INTO schema_migrations VALUES(10,$checksum,$now); UPDATE cell SET schema_version=10 WHERE singleton=1",
+                ("$checksum", SchemaV10Checksum), ("$now", Now));
+            if (Number(db, tx, "SELECT count(*) FROM actors") > 0)
+            { var scope = BootstrapScope(db, tx); Audit(db, tx, "cell-maintenance", scope.Project, scope.Environment, "SchemaMigrated", CellId, "Succeeded", "SchemaV9ToV10", SchemaV10Checksum); }
+        }
+        history = Rows(db, tx, "SELECT version,checksum FROM schema_migrations ORDER BY version", r => (Version: r.GetInt32(0), Checksum: r.GetString(1)));
+        if (history.Count != 10 || history[9] != (10, SchemaV10Checksum)) throw new FoundationStoreException("MigrationHistoryMismatch");
+        ValidateCredentialScopedRecoveryJointSchema(db, tx);
     }
 
     static void ValidateCredentialMaintenanceObservationSchema(SqliteConnection db, SqliteTransaction? tx)
@@ -338,6 +352,7 @@ public sealed partial class FoundationStore
     static string SchemaV7Checksum => Hash(SchemaV7.Replace("\r\n", "\n", StringComparison.Ordinal));
     static string SchemaV8Checksum => Hash(SchemaV8.Replace("\r\n", "\n", StringComparison.Ordinal));
     static string SchemaV9Checksum => Hash(SchemaV9.Replace("\r\n", "\n", StringComparison.Ordinal));
+    static string SchemaV10Checksum => Hash(SchemaV10.Replace("\r\n", "\n", StringComparison.Ordinal));
     static string ScalarText(SqliteConnection db, SqliteTransaction? tx, string sql)
     { using var command = Command(db, tx, sql); return command.ExecuteScalar()?.ToString() ?? ""; }
 

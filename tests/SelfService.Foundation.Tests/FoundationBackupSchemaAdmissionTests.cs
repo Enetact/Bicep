@@ -8,10 +8,11 @@ namespace SelfService.Foundation.Tests;
 public sealed class FoundationBackupSchemaAdmissionTests
 {
     [Theory]
-    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)]
+    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)] [InlineData(9)]
     public void Valid_frozen_versions_verify_readonly_and_restore_through_staged_upgrade_with_recovery_holds(int version)
     {
         using var f = new SignedBackupFixture(); var job = f.Cell.Queue(); Downgrade(f.Cell, version); var signed = f.Create();
+        Assert.Equal(version, f.Cell.Scalar("SELECT schema_version FROM cell"));
         using var key = f.PublicKey(); var before = File.ReadAllBytes(signed.Backup.DatabasePath); var files = Files(f);
         var claims = FoundationStore.VerifySignedBackup(signed, FoundationBackupSignatures.Authority(signed.Manifest), key, f.Cell.Customer, f.Cell.Cell, f.Cell.Clock);
         Assert.Equal(version, claims.CellSchemaVersion); Assert.Equal(files, Files(f)); Assert.Equal(before, File.ReadAllBytes(signed.Backup.DatabasePath));

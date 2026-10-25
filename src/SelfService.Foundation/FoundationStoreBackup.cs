@@ -130,6 +130,7 @@ public sealed partial class FoundationStore
         }
         HoldRecoveredCredentialRecoveryReviews(db, tx);
         HoldRecoveredCredentialScopedRecoveryReviews(db, tx);
+        HoldRecoveredCredentialScopedRecoveryJointVerifications(db, tx);
         var ids = Rows(db, tx, "SELECT id FROM jobs WHERE customer_id=$c AND state IN ('Queued','Claimed','Dispatched')",
             r => r.GetString(0), ("$c", CustomerId));
         foreach (var id in ids)
@@ -222,6 +223,7 @@ public sealed partial class FoundationStore
             if (version >= 7) Exec(reference, null, SchemaV7);
             if (version >= 8) Exec(reference, null, SchemaV8);
             if (version >= 9) Exec(reference, null, SchemaV9);
+            if (version >= 10) Exec(reference, null, SchemaV10);
             return reference;
         }
         catch { reference.Dispose(); throw; }
@@ -287,8 +289,8 @@ public sealed partial class FoundationStore
             return;
         }
         var checksums = new[] { Hash("platform-studio.foundation.schema.v1"), SchemaV2Checksum, SchemaV3Checksum,
-            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum };
-        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 10", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
+            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum };
+        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 11", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
         if (history.Count != version || history.Where((entry, i) => entry.Version != i + 1 || entry.Checksum != checksums[i]).Any())
             throw new FoundationStoreException("BackupIntegrityFailed");
     }

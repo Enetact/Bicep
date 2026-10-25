@@ -55,14 +55,14 @@ public sealed class FoundationCredentialScopedRecoveryReviewMigrationTests
         using var f = new StoreFixture();
         f.Execute("DROP TRIGGER schema_migrations_no_update; UPDATE schema_migrations SET checksum='modified' WHERE version=9; CREATE TRIGGER schema_migrations_no_update BEFORE UPDATE ON schema_migrations BEGIN SELECT RAISE(ABORT,'immutable migration history'); END;");
         Assert.Equal("MigrationHistoryMismatch", Assert.Throws<FoundationStoreException>(() => f.Reopen()).Code);
-        Assert.Equal(9, f.Scalar("SELECT schema_version FROM cell"));
+        Assert.Equal(FoundationStore.CurrentSchemaVersion, f.Scalar("SELECT schema_version FROM cell"));
         Assert.Equal(1, f.Scalar("SELECT count(*) FROM schema_migrations WHERE version=9 AND checksum='modified'"));
     }
 
     [Fact]
-    public void Fresh_store_has_exact_nine_immutable_migrations_and_no_legacy_review_wire_change()
+    public void Fresh_store_has_current_immutable_migrations_and_no_legacy_review_wire_change()
     {
-        using var f = new StoreFixture(); Assert.Equal(9, f.Store.SchemaStatus().Version); Assert.Equal(9, History(f).Length);
+        using var f = new StoreFixture(); Assert.Equal(FoundationStore.CurrentSchemaVersion, f.Store.SchemaStatus().Version); Assert.Equal(FoundationStore.CurrentSchemaVersion, History(f).Length);
         Assert.Equal(3, f.Scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name LIKE 'credential_scoped_recovery_stage_review_%'"));
         Assert.Equal(3, f.Scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name LIKE 'credential_recovery_stage_review_%'"));
         Assert.Equal(0, f.Scalar("SELECT count(*) FROM credential_scoped_recovery_stage_review_requests"));
