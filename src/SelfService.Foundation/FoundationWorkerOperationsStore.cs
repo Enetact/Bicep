@@ -18,12 +18,24 @@ public sealed partial class FoundationStore
 
     // Trusted local worker API; deliberately has no HTTP/MCP route and grants no human or provider authority.
     public FoundationWorkerHandle RegisterWorker(string customerId, string workerId, int processId,
-        DateTimeOffset processStartedUtc, string mode)
+        DateTimeOffset processStartedUtc, string mode) => RegisterWorkerCore(customerId, workerId, processId, processStartedUtc, mode, null);
+
+    internal FoundationWorkerHandle RegisterWorkerForBoundConsumer(FoundationCredentialBoundPipelineRun run, string customerId,
+        string workerId, int processId, DateTimeOffset processStartedUtc, string mode) =>
+        RegisterWorkerCore(customerId, workerId, processId, processStartedUtc, mode, run);
+
+    FoundationWorkerHandle RegisterWorkerCore(string customerId, string workerId, int processId,
+        DateTimeOffset processStartedUtc, string mode, FoundationCredentialBoundPipelineRun? run)
     {
         Scope(customerId); ValidateId(workerId);
         if (processId <= 0 || mode is not ("Disabled" or "MockLoopback" or "ClaimHold"))
             throw new FoundationStoreException("InvalidWorkerRegistration", 400);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
+        if (mode != "Disabled")
+        {
+            RequireNoRecoveryExecutionHold(db, tx);
+            RequireBoundConsumerAdmission(db, tx, run);
+        }
         var now = Now; var cutoff = now - 30000;
         var existing = Rows(db, tx, "SELECT generation,state,heartbeat FROM worker_heartbeats WHERE customer_id=$c AND worker_id=$w",
             r => (Generation: r.GetInt64(0), State: r.GetString(1), Heartbeat: r.GetInt64(2)), ("$c", CustomerId), ("$w", workerId)).SingleOrDefault();
@@ -47,7 +59,13 @@ public sealed partial class FoundationStore
         var scope = BootstrapScope(db, tx);
         Audit(db, tx, "worker:" + workerId, scope.Project, scope.Environment, "WorkerRegistered", workerId,
             "Succeeded", mode == "Disabled" ? "DispatchDisabled" : "SyntheticQualificationOnly", handle.InstanceId);
-        tx.Commit(); return handle;
+        if (mode != "Disabled")
+        {
+            RequireNoRecoveryExecutionHold(db, tx);
+            CommitBoundConsumerAdmission(db, tx, run);
+        }
+        else tx.Commit();
+        return handle;
     }
 
     public void HeartbeatWorker(string customerId, FoundationWorkerHandle handle)

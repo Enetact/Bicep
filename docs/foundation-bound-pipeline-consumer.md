@@ -8,7 +8,7 @@ This qualifies one selected consumer. Credential acquisition, direct vault acces
 
 ```mermaid
 flowchart TD
-    H[Separate signed human HTTP approval] --> P[Key-free configured scope check]
+    H[Separate signed human HTTP approval] --> P[Held run and transactional scope admission]
     A[Signed HTTP or AHP enqueue] --> P
     P --> Q[Existing durable queue]
     Q --> L[Acquire actual activation lease]
@@ -29,7 +29,21 @@ The runner obtains a concrete activation-held run scope before claiming work and
 
 Host disposal requests shutdown and refuses new owned runner uses before claim. Concrete active-use tokens retain the existing actual host activation lease until their awaited work and outcome handling finish; disposal does not detach the work or wait indefinitely for a handler. Releasing the last active use after shutdown releases that lease. Retention does not extend a job/plan lease, role, grant or credential expiry. A process crash, expiry or genuine loss of current store authority can still leave a durable dispatched intent for lease-expiry/reconciliation; it cannot be reported as a verified deployment or automatically replayed.
 
-Enqueue also holds a concrete run scope while checking the actual scoped plan/current connection against the configured allowlist and committing through `EnqueuePlan`. `RequireConnection` is a target constraint, not an authorization grant or a scope resolver. The store still checks current approval, digest, role and connection generation in the enqueue transaction; unsupported connections are refused before queue mutation, and drift cannot reuse the earlier eligibility check. Directly queued library work remains subject to final dispatch-time validation.
+Enqueue also holds a concrete run scope while checking the actual scoped plan/current connection against the configured allowlist and committing through the run's typed enqueue method. `RequireConnection` is an early target constraint, not an authorization grant or a scope resolver. The store checks current binding policy, actual scope eligibility, approval, digest, role and connection generation in the enqueue transaction; unsupported connections are refused before queue mutation, and drift cannot reuse the earlier eligibility check. Direct public store calls cannot substitute for the concrete run on a bound cell.
+
+## Admit fresh work in the write transaction
+
+Startup readiness and a prior policy read do not authorize a later SQL mutation. Enqueue, claim, dispatch intent and execution-worker registration re-read binding/history requirements inside their existing write transaction. Bound cells require the actual concrete run/session and exact store, current instance, namespace, activation custody/generation and persisted binding. Actual metadata/activation handles remain held while waiting for the write lock and through commit; no incoming DTO, boolean or callback can stand in for them.
+
+The legacy public store signatures remain valid for never-bound cells. Once binding history is required they refuse unbound enqueue, claim, both dispatch-start paths and changing worker registration. Enqueue performs the check even for an idempotent return. Claim checks before lease-expiry/reaping, fence or attempt changes. Dispatch checks precede intent/denial mutation, and changing registration checks the restore execution hold before binding policy, registry pruning, heartbeat or audit changes. Disabled registrations retain their disconnected monitoring behavior; they grant no execution authority.
+
+The binding provisioner and these admissions use the same database write serialization. If old work commits first, the existing queued/claimed/dispatched/active-worker quiescence check refuses cutover. If binding commits first, a stale legacy actor is refused in its later transaction. Selected target eligibility uses the actual stored plan and connection in that same snapshot. Unsupported existing queue entries may need cancellation or rerouting; this does not introduce a new fairness or recovery policy.
+
+The concrete run exposes `EnqueuePlan`, `ClaimNext`, `StartMockDispatch` and `RegisterWorker` with the existing customer/job/worker arguments. These call internal store entry points with the actual run; public legacy signatures do not accept a proof DTO or enable bound execution. The host and HTTP/AHP service use the typed methods whenever the consumer is configured. A shared bounded stored-connection mapper supplies target metadata to admission, host loading and credential-wire verification; it grants no authority.
+
+Bound commit failure or loss of proof/availability after a completed SQL operation reports `BoundConsumerAdmissionUncertain` (503). Inspect existing job/idempotency, outbox, audit or worker state before deciding what happened; do not automatically retry a changing operation, repair a binding or treat missing acknowledgement as no effect. Definite pre-commit bound-admission proof/policy refusals roll back that admission; existing dispatch-authority denials retain their recorded `Blocked` behavior and audit evidence.
+
+Completion/failure recording, heartbeat/stop, authorized reads and human reconciliation retain their existing rules so uncertainty can still be recorded. Existing cell-wide expiry/outcome housekeeping remains available to the dedicated worker under a valid concrete run; configured target eligibility restricts fresh job admission, not that safe housekeeping. The change adds no role, schema, credential provisioning, live provider permission or recovery release. It closes this Foundation database-admission race, while direct vault/token acquisition, legacy Portal/Codex, other hosts and outstanding provider tokens remain separate coverage work.
 
 ## Registration and refusal rules
 

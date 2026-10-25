@@ -445,7 +445,8 @@ public sealed class FoundationBoundPipelineConsumerBoundaryTests
             var request = Template.Request with { RequestId = Guid.NewGuid().ToString("D") };
             var plan = Store.CreatePlan(Customer, Actor("requester"), new("default", "dev", Template.Connection.Id, "pipeline.dispatch", JsonSerializer.Serialize(request, FoundationApplication.Json), true,
                 DateTimeOffset.UtcNow.AddMinutes(10), request.SourceRevision)); Store.ApprovePlan(Customer, Actor("approver"), plan.Id, plan.Digest);
-            return Store.EnqueuePlan(Customer, Actor("operator"), plan.Id, plan.Digest, Guid.NewGuid().ToString("N"));
+            using var run = Selected.OpenRun(Store);
+            return run.EnqueuePlan(Customer, Actor("operator"), plan.Id, plan.Digest, Guid.NewGuid().ToString("N"));
         }
         public FoundationJob ReadJob(string id) => Store.GetJob(Customer, Actor("viewer"), id);
         public string[] LogicalRows() => Rows("SELECT 'actor',actor_key,roles,version,enabled FROM actors JOIN memberships USING(customer_id,actor_key) UNION ALL SELECT 'audit',action,target_id,sequence,created FROM audit ORDER BY 1,2,3");

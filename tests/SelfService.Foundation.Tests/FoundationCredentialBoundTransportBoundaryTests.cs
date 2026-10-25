@@ -399,9 +399,16 @@ public sealed class FoundationCredentialBoundTransportBoundaryTests
             var request = Template.Request with { RequestId = Guid.NewGuid().ToString("D") };
             var plan = Store.CreatePlan(Customer, "requester", new("default", "dev", Template.Connection.Id, "pipeline.dispatch", JsonSerializer.Serialize(request,
                 new JsonSerializerOptions(JsonSerializerDefaults.Web)), true, Template.Clock.Now.AddMinutes(20), request.SourceRevision));
-            Store.ApprovePlan(Customer, "approver", plan.Id, plan.Digest); var job = Store.EnqueuePlan(Customer, "operator", plan.Id, plan.Digest, Guid.NewGuid().ToString("N"));
-            if (state != "Queued") job = Store.ClaimNext(Customer, "bound-worker", TimeSpan.FromMinutes(2))!;
-            if (state == "Dispatched") job = Store.StartDispatch(Customer, job.Id, "bound-worker", job.Fence).Job;
+            Store.ApprovePlan(Customer, "approver", plan.Id, plan.Digest);
+            using var admission = Binding is not null ? new BoundFixtureAdmission(Store, Vault, Authority, Template.Scope, Template.Clock) : null;
+            var key = Guid.NewGuid().ToString("N"); var keyReads = Template.Keys.Requests.Count;
+            var job = admission is null ? Store.EnqueuePlan(Customer, "operator", plan.Id, plan.Digest, key) :
+                admission.Run.EnqueuePlan(Customer, "operator", plan.Id, plan.Digest, key);
+            if (state != "Queued") job = admission is null ? Store.ClaimNext(Customer, "bound-worker", TimeSpan.FromMinutes(2))! :
+                admission.Run.ClaimNext(Customer, "bound-worker", TimeSpan.FromMinutes(2))!;
+            if (state == "Dispatched") job = admission is null ? Store.StartDispatch(Customer, job.Id, "bound-worker", job.Fence).Job :
+                admission.Run.StartMockDispatch(Customer, job.Id, "bound-worker", job.Fence, new([], Template.Clock), "1.0.0").Job;
+            Assert.Equal(keyReads, Template.Keys.Requests.Count);
             Dispatch = MakeDispatchPins(job.Id, job.WorkerId ?? "bound-worker", Math.Max(1, job.Fence), plan.Digest);
             Wire = PipelineRequestFactory.Create(Template.Connection, request, new(Customer, CellId, Template.Connection.Id, Template.Connection.Generation,
                 PipelineRequestFactory.ConnectionDigest(Template.Connection), PipelineRequestFactory.RequestDigest(Template.Connection, request), plan.Digest, plan.ExpiresAt), Template.Clock.Now);

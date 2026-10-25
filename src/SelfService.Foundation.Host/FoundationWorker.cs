@@ -17,10 +17,15 @@ public sealed class FoundationJobRunner(FoundationStore store, PipelineDispatche
         if (run is null && store.GetCredentialRuntimeBindingStatus().BindingRequired)
             throw new FoundationStoreException("BoundPipelineConsumerRequired", 403);
         cancellationToken.ThrowIfCancellationRequested();
-        var job = store.ClaimNext(store.CustomerId, workerId, TimeSpan.FromMinutes(2));
+        var job = run is null ? store.ClaimNext(store.CustomerId, workerId, TimeSpan.FromMinutes(2)) :
+            run.ClaimNext(store.CustomerId, workerId, TimeSpan.FromMinutes(2));
         if (job is null) return false;
         FoundationDispatch dispatch;
-        try { dispatch = store.StartMockDispatch(store.CustomerId, job.Id, workerId, job.Fence, verifier, FoundationWorkflowService.RuntimeVersion); }
+        try
+        {
+            dispatch = run is null ? store.StartMockDispatch(store.CustomerId, job.Id, workerId, job.Fence, verifier, FoundationWorkflowService.RuntimeVersion) :
+                run.StartMockDispatch(store.CustomerId, job.Id, workerId, job.Fence, verifier, FoundationWorkflowService.RuntimeVersion);
+        }
         catch (FoundationStoreException) { return true; } // Authority changes are durably recorded as Blocked.
         try
         {

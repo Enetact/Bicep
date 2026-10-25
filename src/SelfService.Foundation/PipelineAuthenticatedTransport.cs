@@ -41,16 +41,7 @@ public sealed class CredentialDispatchPermit
                 c.CustomerId != scope.CustomerId || c.Id != scope.ConnectionId || c.Generation != scope.ConnectionGeneration || !c.Enabled ||
                 c.ProjectId != scope.ProjectId || c.EnvironmentId != scope.EnvironmentId || c.Provider != scope.Provider || p.ConnectionId != c.Id || p.ConnectionGeneration != c.Generation)
                 throw new CredentialException("credential-dispatch-authority-invalid");
-            using var doc = CredentialRules.Document(Encoding.UTF8.GetBytes(c.ConfigurationJson)); var config = doc.RootElement;
-            string Text(string name) => config.GetProperty(name).GetString()!;
-            string[] List(string name) => config.GetProperty(name).EnumerateArray().Select(e => e.GetString()!).ToArray();
-            var connection = new PipelineConnection(scope.CustomerId, scope.CellId, c.Id, c.Provider, Text("organization"),
-                config.GetProperty("project").ValueKind == JsonValueKind.Null ? null : Text("project"), Text("repository"), Text("pipelineOrWorkflowId"),
-                List("allowedRefs"), List("allowedEnvironments"), List("allowedInputKeys"), Text("authProfileId"), c.Generation)
-            {
-                EnforcesSourceRevision = config.TryGetProperty("enforcesSourceRevision", out var guard) && guard.GetBoolean(),
-                PipelineVersion = config.TryGetProperty("pipelineVersion", out var version) && version.ValueKind != JsonValueKind.Null ? version.GetInt32() : null
-            };
+            var connection = FoundationPipelineConnection.FromStored(c, scope.CellId);
             if (connection.CredentialReference != scope.AuthProfileId || PipelineRequestFactory.ConnectionDigest(connection) != scope.ConnectionDigest)
                 throw new CredentialException("credential-dispatch-connection-invalid");
             var request = JsonSerializer.Deserialize<PipelineDispatchRequest>(p.PayloadJson, CredentialRules.Json)!;
@@ -63,7 +54,7 @@ public sealed class CredentialDispatchPermit
             var expiry = new[] { p.ExpiresAt, j.LeaseUntil.Value, now.AddMinutes(1) }.Min();
             return new(Digest(wire), scope, expiry);
         }
-        catch (Exception e) when (e is JsonException or InvalidOperationException or KeyNotFoundException or NullReferenceException or PipelineContractException)
+        catch (Exception e) when (e is JsonException or InvalidOperationException or KeyNotFoundException or NullReferenceException or PipelineContractException or FoundationStoreException)
         { throw new CredentialException("credential-dispatch-authority-invalid"); }
     }
 

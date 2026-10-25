@@ -136,9 +136,15 @@ internal sealed class BoundTransportFixture : IDisposable
                 "pipeline.dispatch", JsonSerializer.Serialize(fixture.Cell.Request, new JsonSerializerOptions(JsonSerializerDefaults.Web)), true,
                 fixture.Cell.Clock.Now.AddMinutes(20), fixture.Cell.Request.SourceRevision));
             fixture.Store.ApprovePlan(fixture.Cell.Scope.CustomerId, "approver", plan.Id, plan.Digest);
-            var job = fixture.Store.EnqueuePlan(fixture.Cell.Scope.CustomerId, "operator", plan.Id, plan.Digest, "bound-request");
-            var claim = fixture.Store.ClaimNext(fixture.Cell.Scope.CustomerId, "bound-worker", TimeSpan.FromMinutes(2))!;
-            fixture.Dispatch = fixture.Store.StartDispatch(fixture.Cell.Scope.CustomerId, job.Id, "bound-worker", claim.Fence);
+            using var admission = bind ? new BoundFixtureAdmission(fixture.Store, fixture.Vault, fixture.Authority, fixture.Cell.Scope, fixture.Cell.Clock) : null;
+            var keyReads = fixture.Cell.Keys.Requests.Count;
+            var job = admission is null ? fixture.Store.EnqueuePlan(fixture.Cell.Scope.CustomerId, "operator", plan.Id, plan.Digest, "bound-request") :
+                admission.Run.EnqueuePlan(fixture.Cell.Scope.CustomerId, "operator", plan.Id, plan.Digest, "bound-request");
+            var claim = admission is null ? fixture.Store.ClaimNext(fixture.Cell.Scope.CustomerId, "bound-worker", TimeSpan.FromMinutes(2))! :
+                admission.Run.ClaimNext(fixture.Cell.Scope.CustomerId, "bound-worker", TimeSpan.FromMinutes(2))!;
+            fixture.Dispatch = admission is null ? fixture.Store.StartDispatch(fixture.Cell.Scope.CustomerId, job.Id, "bound-worker", claim.Fence) :
+                admission.Run.StartMockDispatch(fixture.Cell.Scope.CustomerId, job.Id, "bound-worker", claim.Fence, fixture.Verifier, Runtime);
+            Assert.Equal(keyReads, fixture.Cell.Keys.Requests.Count);
             fixture.Wire = PipelineRequestFactory.Create(fixture.Cell.Connection, fixture.Cell.Request,
                 new(fixture.Cell.Scope.CustomerId, fixture.Cell.Scope.CellId, fixture.Cell.Connection.Id, 1,
                     PipelineRequestFactory.ConnectionDigest(fixture.Cell.Connection),

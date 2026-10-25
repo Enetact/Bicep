@@ -213,11 +213,16 @@ public sealed class FoundationBoundConsumerHostIntegrationTests
             }
             catch { await f.DisposeAsync(); throw; }
         }
-        public async Task<HttpResponseMessage> Send(string actor, HttpMethod method, string path, object? body = null, string? root = null)
+        public HttpRequestMessage Request(string actor, HttpMethod method, string path, string? root = null)
         {
             var role = actor switch { "admin" => "CustomerAdmin", "requester" => "Requester", "approver" => "Approver", "operator" => "Operator", "viewer" => "Viewer", _ => "Auditor" };
             var claims = issuer.UserClaims(role, FoundationApiTests.ApiCell.Subjects[actor]);
-            using var request = new HttpRequestMessage(method, (root ?? Root) + path); request.Headers.Authorization = new("Bearer", issuer.Token(claims));
+            var request = new HttpRequestMessage(method, (root ?? Root) + path); request.Headers.Authorization = new("Bearer", issuer.Token(claims));
+            return request;
+        }
+        public async Task<HttpResponseMessage> Send(string actor, HttpMethod method, string path, object? body = null, string? root = null)
+        {
+            using var request = Request(actor, method, path, root);
             if (body is not null) request.Content = new StringContent(JsonSerializer.Serialize(body, FoundationApplication.Json), Encoding.UTF8, "application/json");
             return await Client.SendAsync(request);
         }

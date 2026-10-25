@@ -15,20 +15,29 @@ public sealed partial class FoundationStore
     public const int MaximumPendingJobs = 128;
     public const int MaximumClaimAttempts = 3;
 
-    public FoundationJob EnqueuePlan(string customerId, string operatorKey, string planId, string expectedDigest, string idempotencyKey)
+    public FoundationJob EnqueuePlan(string customerId, string operatorKey, string planId, string expectedDigest, string idempotencyKey) =>
+        EnqueuePlanCore(customerId, operatorKey, planId, expectedDigest, idempotencyKey, null);
+
+    internal FoundationJob EnqueuePlanForBoundConsumer(FoundationCredentialBoundPipelineRun run, string customerId, string operatorKey,
+        string planId, string expectedDigest, string idempotencyKey) => EnqueuePlanCore(customerId, operatorKey, planId, expectedDigest, idempotencyKey, run);
+
+    FoundationJob EnqueuePlanCore(string customerId, string operatorKey, string planId, string expectedDigest, string idempotencyKey,
+        FoundationCredentialBoundPipelineRun? run)
     {
         Scope(customerId); ValidateId(planId); ValidateId(idempotencyKey);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
         var plan = ReadPlan(db, tx, planId);
         var version = Require(db, tx, operatorKey, plan.ProjectId, plan.EnvironmentId, "Operator");
         RequireNoRecoveryExecutionHold(db, tx);
+        RequireBoundConsumerAdmission(db, tx, run);
+        RequireBoundPlanEligibility(db, tx, run, plan);
         MatchDigest(plan.Digest, expectedDigest);
         var existing = Rows(db, tx, "SELECT id,plan_id,operator_key FROM jobs WHERE customer_id=$c AND idempotency_key=$key",
             r => (Id: r.GetString(0), Plan: r.GetString(1), Operator: r.GetString(2)), ("$c", CustomerId), ("$key", idempotencyKey)).SingleOrDefault();
         if (existing.Id is not null)
         {
             if (existing.Plan != planId || existing.Operator != operatorKey) throw new FoundationStoreException("IdempotencyConflict");
-            var duplicate = ReadJob(db, tx, existing.Id); tx.Commit(); return duplicate;
+            var duplicate = ReadJob(db, tx, existing.Id); CommitBoundConsumerAdmission(db, tx, run); return duplicate;
         }
         if (Number(db, tx, "SELECT count(*) FROM jobs WHERE customer_id=$c AND plan_id=$plan", ("$c", CustomerId), ("$plan", planId)) != 0)
             throw new FoundationStoreException("PlanAlreadyQueued");
@@ -44,7 +53,7 @@ public sealed partial class FoundationStore
         Exec(db, tx, "INSERT INTO outbox VALUES($c,$event,$job,'JobReady',$now,NULL)", ("$c", CustomerId),
             ("$event", eventId), ("$job", id), ("$now", now));
         Audit(db, tx, operatorKey, plan.ProjectId, plan.EnvironmentId, "JobQueued", id, "Accepted", "IntentCommitted", planId);
-        var result = ReadJob(db, tx, id); tx.Commit(); return result;
+        var result = ReadJob(db, tx, id); CommitBoundConsumerAdmission(db, tx, run); return result;
     }
 
     public FoundationJob GetJob(string customerId, string actorKey, string jobId, string? projectId = null, string? environmentId = null)
@@ -68,12 +77,19 @@ public sealed partial class FoundationStore
     }
 
     // Internal worker entry points remain cell-bound. The host must not expose them as human API commands.
-    public FoundationJob? ClaimNext(string customerId, string workerId, TimeSpan leaseDuration)
+    public FoundationJob? ClaimNext(string customerId, string workerId, TimeSpan leaseDuration) =>
+        ClaimNextCore(customerId, workerId, leaseDuration, null);
+
+    internal FoundationJob? ClaimNextForBoundConsumer(FoundationCredentialBoundPipelineRun run, string customerId, string workerId,
+        TimeSpan leaseDuration) => ClaimNextCore(customerId, workerId, leaseDuration, run);
+
+    FoundationJob? ClaimNextCore(string customerId, string workerId, TimeSpan leaseDuration, FoundationCredentialBoundPipelineRun? run)
     {
         Scope(customerId); ValidateId(workerId); ValidateLease(leaseDuration);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
         RequireNoRecoveryExecutionHold(db, tx);
-        if (Number(db, tx, "SELECT enabled FROM cell WHERE singleton=1") != 1) { tx.Commit(); return null; }
+        RequireBoundConsumerAdmission(db, tx, run);
+        if (Number(db, tx, "SELECT enabled FROM cell WHERE singleton=1") != 1) { CommitBoundConsumerAdmission(db, tx, run); return null; }
         var expired = Rows(db, tx, "SELECT id,state FROM jobs WHERE customer_id=$c AND state IN ('Claimed','Dispatched') AND lease_until<=$now ORDER BY created LIMIT 128",
             r => (Id: r.GetString(0), State: r.GetString(1)), ("$c", CustomerId), ("$now", Now));
         foreach (var old in expired)
@@ -89,36 +105,47 @@ public sealed partial class FoundationStore
         }
         var next = Rows(db, tx, "SELECT id FROM jobs WHERE customer_id=$c AND state='Queued' ORDER BY created,id LIMIT 1",
             r => r.GetString(0), ("$c", CustomerId)).SingleOrDefault();
-        if (next is null) { tx.Commit(); return null; }
+        if (next is null) { CommitBoundConsumerAdmission(db, tx, run); return null; }
+        var selected = ReadJob(db, tx, next);
+        RequireBoundPlanEligibility(db, tx, run, ReadPlan(db, tx, selected.PlanId));
         Exec(db, tx, """
             UPDATE jobs SET state='Claimed',worker_id=$worker,lease_until=$lease,fence=fence+1,attempt=attempt+1,updated=$now
             WHERE customer_id=$c AND id=$id AND state='Queued'
             """, ("$worker", workerId), ("$lease", Now + (long)leaseDuration.TotalMilliseconds), ("$now", Now), ("$c", CustomerId), ("$id", next));
         var claimed = ReadJob(db, tx, next);
         Audit(db, tx, workerId, claimed.ProjectId, claimed.EnvironmentId, "JobClaimed", next, "Claimed", "LeaseGranted", claimed.PlanId);
-        tx.Commit(); return claimed;
+        CommitBoundConsumerAdmission(db, tx, run); return claimed;
     }
 
     public FoundationDispatch StartDispatch(string customerId, string jobId, string workerId, long fence) =>
-        StartDispatchCore(customerId, jobId, workerId, fence, null, null);
+        StartDispatchCore(customerId, jobId, workerId, fence, null, null, null);
 
     // Disconnected runners must use this path: feature/config policy and authority share the dispatch transaction.
     public FoundationDispatch StartMockDispatch(string customerId, string jobId, string workerId, long fence,
         EntitlementVerifier verifier, string runtimeVersion)
     {
         ArgumentNullException.ThrowIfNull(verifier);
-        return StartDispatchCore(customerId, jobId, workerId, fence, verifier, runtimeVersion);
+        return StartDispatchCore(customerId, jobId, workerId, fence, verifier, runtimeVersion, null);
+    }
+
+    internal FoundationDispatch StartMockDispatchForBoundConsumer(FoundationCredentialBoundPipelineRun run, string customerId, string jobId,
+        string workerId, long fence, EntitlementVerifier verifier, string runtimeVersion)
+    {
+        ArgumentNullException.ThrowIfNull(verifier);
+        return StartDispatchCore(customerId, jobId, workerId, fence, verifier, runtimeVersion, run);
     }
 
     FoundationDispatch StartDispatchCore(string customerId, string jobId, string workerId, long fence,
-        EntitlementVerifier? verifier, string? runtimeVersion)
+        EntitlementVerifier? verifier, string? runtimeVersion, FoundationCredentialBoundPipelineRun? run)
     {
         Scope(customerId); ValidateId(jobId); ValidateId(workerId);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
         AssertActivation(db, tx);
         RequireNoRecoveryExecutionHold(db, tx);
+        RequireBoundConsumerAdmission(db, tx, run);
         var job = ReadJob(db, tx, jobId); Lease(job, workerId, fence, "Claimed");
         var plan = ReadPlan(db, tx, job.PlanId);
+        RequireBoundPlanEligibility(db, tx, run, plan);
         try
         {
             ValidatePlanAuthority(db, tx, plan);
@@ -132,12 +159,12 @@ public sealed partial class FoundationStore
             Exec(db, tx, "UPDATE jobs SET state='Blocked',reason=$reason,worker_id=NULL,lease_until=NULL,updated=$now WHERE customer_id=$c AND id=$id",
                 ("$reason", error.Code), ("$now", Now), ("$c", CustomerId), ("$id", jobId));
             Audit(db, tx, workerId, job.ProjectId, job.EnvironmentId, "DispatchDenied", jobId, "Blocked", error.Code, plan.Id);
-            tx.Commit(); throw;
+            CommitBoundConsumerAdmission(db, tx, run); throw;
         }
         var connection = FindConnection(db, tx, plan.ConnectionId)!;
         Exec(db, tx, "UPDATE jobs SET state='Dispatched',updated=$now WHERE customer_id=$c AND id=$id", ("$now", Now), ("$c", CustomerId), ("$id", jobId));
         Audit(db, tx, workerId, job.ProjectId, job.EnvironmentId, "DispatchIntent", jobId, "Dispatched", "AuthorityRevalidated", plan.Id);
-        var dispatched = ReadJob(db, tx, jobId); tx.Commit(); return new(dispatched, plan, connection);
+        var dispatched = ReadJob(db, tx, jobId); CommitBoundConsumerAdmission(db, tx, run); return new(dispatched, plan, connection);
     }
 
     public FoundationJob RenewLease(string customerId, string jobId, string workerId, long fence, TimeSpan leaseDuration)

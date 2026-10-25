@@ -286,7 +286,7 @@ public static class FoundationApplication
     { if (c.ProjectId != project || c.EnvironmentId != environment) throw new FoundationAuthorizationException("resource_scope"); }
 
     internal static PipelineConnection LoadConnection(FoundationConnection saved, string cellId) =>
-        Connection(saved.CustomerId, cellId, saved.Id, JsonSerializer.Deserialize<ConnectionCommand>(saved.ConfigurationJson, Json)!, saved.Generation);
+        FoundationPipelineConnection.FromStored(saved, cellId);
     static PipelineConnection Connection(CustomerContext c, string id, ConnectionCommand b, long generation) => Connection(c.CustomerId, c.CellId, id, b, generation);
     static PipelineConnection Connection(string customer, string cell, string id, ConnectionCommand b, long generation) =>
         new(customer, cell, id, b.Provider, b.Organization, b.Project, b.Repository, b.PipelineOrWorkflowId,

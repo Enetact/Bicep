@@ -1,6 +1,6 @@
 # Self-service catalog and how it works
 
-[The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. It adds no workload, provider permission, model approval tool or default live transport.
+[The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. Concrete run authority and target eligibility are checked in the same SQL transactions as fresh-work admission. It adds no workload, provider permission, model approval tool or default live transport.
 
 [Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.
 

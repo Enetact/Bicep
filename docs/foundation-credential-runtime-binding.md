@@ -6,6 +6,8 @@ This is a prerequisite for supported recovery and source-use fencing. It does no
 
 [The concrete mock consumer composition](foundation-bound-pipeline-consumer.md) connects the in-process Foundation runner to this contract through an explicit typed host option. It checks binding before startup mutation and retains actual activation from before claim through durable outcome handling. Other consumer paths and production coverage remain separate.
 
+Fresh-work admission additionally checks the binding/history requirement inside enqueue, claim, dispatch-start and execution-registration write transactions. The concrete run supplies actual held custody; a prior status read or legacy store call cannot bypass policy committed before that transaction. Binding cutover uses the same writer serialization and retains its quiescence rule. Safe reads, outcome recording and reconciliation do not gain new fresh-work authority requirements.
+
 ## Provision explicitly, then require the binding
 
 Trusted owner composition establishes the binding once for a fresh, Active, never-restored cell. Provisioning uses the actual activation lease and guarded namespace metadata; a request DTO, boolean or caller-supplied status cannot stand in for those guards. It accesses no credential key or secret. Repeated provisioning, startup repair and rebinding are refused.

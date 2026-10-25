@@ -85,9 +85,11 @@ public sealed class FoundationBoundWorkerStartupTests
         public string Database { get; }
         public FoundationStore Store { get; }
         readonly FoundationCellActivationAuthority authority;
+        readonly bool bound;
 
         WorkerBoundCell(bool bind)
         {
+            bound = bind;
             Database = Path.Combine(template.Root, "worker-bound.sqlite"); Store = new(Database, Cell, Customer);
             Store.BootstrapAdministrator("admin");
             foreach (var (actor, role) in new[] { ("requester", "Requester"), ("approver", "Approver"), ("operator", "Operator") })
@@ -114,7 +116,9 @@ public sealed class FoundationBoundWorkerStartupTests
             var plan = Store.CreatePlan(Customer, "requester", new("default", "dev", template.Connection.Id, "pipeline.dispatch",
                 JsonSerializer.Serialize(template.Request, FoundationApplication.Json), true, DateTimeOffset.UtcNow.AddMinutes(20), template.Request.SourceRevision));
             Store.ApprovePlan(Customer, "approver", plan.Id, plan.Digest);
-            return Store.EnqueuePlan(Customer, "operator", plan.Id, plan.Digest, "worker-bound-request");
+            if (!bound) return Store.EnqueuePlan(Customer, "operator", plan.Id, plan.Digest, "worker-bound-request");
+            using var admission = new BoundFixtureAdmission(Store, Vault, authority, template.Scope);
+            return admission.Run.EnqueuePlan(Customer, "operator", plan.Id, plan.Digest, "worker-bound-request");
         }
         public WorkerConfig Configuration(string mode, Uri? origin = null)
         {

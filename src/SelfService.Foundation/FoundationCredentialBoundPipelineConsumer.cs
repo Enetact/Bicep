@@ -171,6 +171,7 @@ public sealed class FoundationCredentialBoundPipelineConsumer : IDisposable
         catch (Exception error) when (error is PipelineContractException or ArgumentException or InvalidOperationException)
         { throw new FoundationStoreException("BoundPipelineConnectionNotAllowed", 403); }
     }
+    internal void RequireAvailableForAdmission() => EnsureAvailable();
     CredentialScope SelectScope(PipelineConnection connection, string projectId, string environmentId)
     {
         if (connection is null || connection.CustomerId != expectedNamespace.CustomerId || connection.CellId != expectedNamespace.CellId)
@@ -227,6 +228,45 @@ public sealed class FoundationCredentialBoundPipelineRun : IDisposable
     public void RequireConnection(PipelineConnection connection, string projectId, string environmentId)
     {
         AssertCurrent(); owner.RequireConnection(connection, projectId, environmentId); AssertCurrent();
+    }
+
+    internal FoundationCredentialUseSession SessionForAdmission(FoundationStore expectedStore)
+    {
+        if (!ReferenceEquals(store, expectedStore)) throw new FoundationStoreException("BoundPipelineRunMismatch", 403);
+        if (Volatile.Read(ref disposed) != 0) throw new FoundationStoreException("BoundPipelineRunDisposed", 403);
+        owner.RequireAvailableForAdmission(); session.AssertFor(store); return session;
+    }
+    internal void RequireConnectionForAdmission(FoundationStore expectedStore, PipelineConnection connection, string projectId, string environmentId)
+    {
+        _ = SessionForAdmission(expectedStore); owner.RequireConnection(connection, projectId, environmentId);
+    }
+
+    public FoundationJob EnqueuePlan(string customerId, string operatorKey, string planId, string expectedDigest, string idempotencyKey)
+    {
+        AssertCurrent(); var result = store.EnqueuePlanForBoundConsumer(this, customerId, operatorKey, planId, expectedDigest, idempotencyKey);
+        AssertCommittedAdmission(); return result;
+    }
+    public FoundationJob? ClaimNext(string customerId, string workerId, TimeSpan leaseDuration)
+    {
+        AssertCurrent(); var result = store.ClaimNextForBoundConsumer(this, customerId, workerId, leaseDuration); AssertCommittedAdmission(); return result;
+    }
+    public FoundationDispatch StartMockDispatch(string customerId, string jobId, string workerId, long fence,
+        EntitlementVerifier entitlementVerifier, string runtimeVersion)
+    {
+        AssertCurrent(); var result = store.StartMockDispatchForBoundConsumer(this, customerId, jobId, workerId, fence, entitlementVerifier, runtimeVersion);
+        AssertCommittedAdmission(); return result;
+    }
+    public FoundationWorkerHandle RegisterWorker(string customerId, string workerId, int processId, DateTimeOffset processStartedUtc, string mode)
+    {
+        AssertCurrent(); var result = store.RegisterWorkerForBoundConsumer(this, customerId, workerId, processId, processStartedUtc, mode);
+        AssertCommittedAdmission(); return result;
+    }
+
+    void AssertCommittedAdmission()
+    {
+        try { AssertCurrent(); owner.RequireAvailableForAdmission(); }
+        catch (Exception error) when (error is not StackOverflowException and not OutOfMemoryException)
+        { throw new FoundationStoreException("BoundConsumerAdmissionUncertain", 503); }
     }
 
     public void Dispose() { if (Interlocked.Exchange(ref disposed, 1) == 0) session.Dispose(); }

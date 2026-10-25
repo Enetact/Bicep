@@ -68,7 +68,8 @@ public sealed class FoundationWorkflowService(FoundationStore store, FoundationH
             var saved = store.GetConnection(c.CustomerId, c.ActorKey, plan.ConnectionId, c.ProjectId, c.EnvironmentId);
             run.RequireConnection(FoundationApplication.LoadConnection(saved, c.CellId), c.ProjectId, c.EnvironmentId);
         }
-        return store.EnqueuePlan(c.CustomerId, c.ActorKey, id, digest, key);
+        return run is null ? store.EnqueuePlan(c.CustomerId, c.ActorKey, id, digest, key) :
+            run.EnqueuePlan(c.CustomerId, c.ActorKey, id, digest, key);
     }
 
     public FoundationJob ReadJob(FoundationPrincipal principal, FoundationScope scope, string id)
