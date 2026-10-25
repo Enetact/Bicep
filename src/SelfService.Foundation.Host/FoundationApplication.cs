@@ -26,8 +26,16 @@ public static class FoundationApplication
         if (options.ListenPort is < 1024 or > 65535 || options.PollInterval < TimeSpan.FromMilliseconds(10) || options.PollInterval > TimeSpan.FromMinutes(1) ||
             !CustomerContextResolver.ValidId(options.ProjectId) || !CustomerContextResolver.ValidId(options.EnvironmentId))
             throw new ArgumentException("Invalid cell host configuration.");
+        if (options.BoundPipelineConsumer is not null && options.DisconnectedTransport is not null)
+            throw new FoundationStoreException("BoundPipelineConsumerConflict", 400);
         if (options.DisconnectedTransport is IPipelineTransportCharacteristics { IsMock: false })
             throw new ArgumentException("A live transport cannot be supplied to a disconnected host.");
+        if (options.BoundPipelineConsumer is not null && (!options.RequireActivationAuthority || string.IsNullOrWhiteSpace(options.ActivationAuthorityDirectory)))
+            throw new FoundationStoreException("BoundPipelineConsumerActivationRequired", 403);
+        var existingBindingRequired = File.Exists(options.DatabasePath) && FoundationStore.ExistingCredentialRuntimeBindingRequired(
+            options.DatabasePath, options.Identity.CustomerId, options.Identity.CellId);
+        if (existingBindingRequired && options.BoundPipelineConsumer is null && (options.EnableWorker || options.DisconnectedTransport is not null))
+            throw new FoundationStoreException("BoundPipelineConsumerRequired", 403);
         var entitlements = new EntitlementVerifier(options.EntitlementTrustKeys, requireSignedMode: options.RequireSignedEntitlement);
         var builder = WebApplication.CreateBuilder(args ?? []);
         FoundationLoopbackTls.Configure(builder.WebHost, options);
@@ -42,14 +50,16 @@ public static class FoundationApplication
         try
         {
         var store = new FoundationStore(options.DatabasePath, options.Identity.CellId, options.Identity.CustomerId,
-            initializeSchema: !options.RequireActivationAuthority, activationGuard: options.RequireActivationAuthority ? activation.AssertCurrent : null);
+            initializeSchema: !options.RequireActivationAuthority && !existingBindingRequired,
+            activationGuard: options.RequireActivationAuthority ? activation.AssertCurrent : null);
+        ValidateBoundConsumer(store, options);
         store.BootstrapAdministrator(options.BootstrapActorKey, options.ProjectId, options.EnvironmentId, options.BootstrapApproverKey);
         builder.Services.AddSingleton(_ => activation);
         builder.Services.AddSingleton(store);
         builder.Services.AddSingleton<ICustomerMembershipSource, StoreMembershipSource>();
         builder.Services.AddSingleton(sp => new CustomerContextResolver(options.Identity, sp.GetRequiredService<ICustomerMembershipSource>()));
         builder.Services.AddSingleton(new PipelineDispatcher(options.DisconnectedTransport ?? new DeniedPipelineTransport()));
-        builder.Services.AddSingleton<FoundationJobRunner>();
+        builder.Services.AddSingleton(sp => new FoundationJobRunner(store, sp.GetRequiredService<PipelineDispatcher>(), entitlements, options.BoundPipelineConsumer, activation));
         builder.Services.AddSingleton<FoundationWorkflowService>();
         builder.Services.AddSingleton<FoundationModelRuntime>();
         builder.Services.AddSingleton<AdministrativeContextResolver>();
@@ -240,6 +250,23 @@ public static class FoundationApplication
     }
 
     static string Route(HttpContext h, string key) => h.Request.RouteValues[key]?.ToString() ?? "";
+    internal static void ValidateBoundConsumer(FoundationStore store, FoundationHostOptions options)
+    {
+        if (options.BoundPipelineConsumer is not null && options.DisconnectedTransport is not null)
+            throw new FoundationStoreException("BoundPipelineConsumerConflict", 400);
+        if (options.BoundPipelineConsumer is { } consumer)
+        {
+            if (!options.RequireActivationAuthority || string.IsNullOrWhiteSpace(options.ActivationAuthorityDirectory))
+                throw new FoundationStoreException("BoundPipelineConsumerActivationRequired", 403);
+            try { consumer.ValidateStartup(store); }
+            catch (CredentialException) { throw new FoundationStoreException("BoundPipelineConsumerInvalid", 403); }
+            var actualAuthority = new FoundationCellActivationAuthority(options.ActivationAuthorityDirectory, store.CustomerId, store.CellId);
+            if (actualAuthority.DescribeIdentity() != store.GetCredentialRuntimeBindingStatus().CurrentBinding?.ActivationAuthority)
+                throw new FoundationStoreException("BoundPipelineConsumerHostAuthorityMismatch", 403);
+        }
+        else if ((options.EnableWorker || options.DisconnectedTransport is not null) && store.GetCredentialRuntimeBindingStatus().BindingRequired)
+            throw new FoundationStoreException("BoundPipelineConsumerRequired", 403);
+    }
     internal static CustomerContext Context(HttpContext h) => (CustomerContext)h.Items[typeof(CustomerContext)]!;
     static FoundationPrincipal Principal(HttpContext h) => (FoundationPrincipal)h.Items[typeof(FoundationPrincipal)]!;
     static FoundationScope Scope(HttpContext h) => new(Route(h, "customerId"), Route(h, "projectId"), Route(h, "environmentId"));

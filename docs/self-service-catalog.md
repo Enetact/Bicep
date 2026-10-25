@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+[The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. It adds no workload, provider permission, model approval tool or default live transport.
+
 [Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.
 
 [Restore execution holds](foundation-recovery-execution-hold.md) protect the customer foundation before fresh dispatch. They add no workload, Azure permission or default model/MCP action; they preserve authorized inspection and recovery preparation.

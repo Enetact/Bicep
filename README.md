@@ -1,5 +1,7 @@
 # Platform Studio
 
+**Bound consumer composition — 25 October 2026:** [The Foundation in-process pipeline consumer](docs/foundation-bound-pipeline-consumer.md) connects explicitly configured mock workflows to the persisted credential binding, with actual activation held from before claim through the durable outcome. Default hosts and the standalone worker remain disconnected; complete consumer coverage, recovery release and live provider qualification remain open.
+
 **Credential runtime binding — 25 October 2026:** [The activation-held credential path](docs/foundation-credential-runtime-binding.md) explicitly binds one fresh cell instance to its full vault/rollback namespace and actual activation custody. Once bound, Foundation permits cannot fall back to legacy configuration. The operation holds its own activation lease through response completion; recovery release, adoption and live provider enablement remain separate work.
 
 **Restore safety — 25 October 2026:** [A durable cell execution hold](docs/foundation-recovery-execution-hold.md) prevents restored databases from admitting fresh ordinary execution, including after activation. Recovery inspection and preparation remain available; releasing the hold, credential adoption and coordinated activation require a separate reviewed protocol. Existing databases and portal sessions are not changed by local builds.

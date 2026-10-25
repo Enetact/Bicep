@@ -31,6 +31,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Verify an approved scoped stage while its current checkpoint remains held through the database commit | [Joint checkpoint and stage verification](foundation-scoped-recovery-joint-verification.md) |
 | Keep a restored cell from admitting fresh ordinary execution | [Restore execution hold](foundation-recovery-execution-hold.md) |
 | Bind Foundation credential dispatch to an exact active instance and custody namespace | [Credential runtime binding](foundation-credential-runtime-binding.md) |
+| Compose the mock Foundation job consumer with actual activation through its durable outcome | [Bound pipeline consumer](foundation-bound-pipeline-consumer.md) |
 | Build an owned compiler generation and safely remove superseded intermediates after successful full tests | [Owned builds and cleanup](foundation-owned-build-cleanup.md) |
 | Retain the latest accepted backup checkpoint and verify/stage recovery against that custody | [Local checkpoint authority](foundation-backup-checkpoint-custody.md) → [Custody-backed recovery](foundation-backup-checkpoint-recovery.md) |
 | Operate separate workers, export frozen audit metadata or review feature policy | [Independent worker](foundation-independent-worker.md) → [Paged exports](foundation-paged-exports.md) → [Feature configuration](foundation-feature-configuration.md) |

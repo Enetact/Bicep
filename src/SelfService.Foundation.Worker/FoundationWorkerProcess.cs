@@ -89,6 +89,11 @@ public static class FoundationWorkerProcess
         using var receiptFile = WorkerReceiptFile.Reserve(config.ReceiptPath, directory, databasePath, configPath, authorityPath);
         // Preflight is read-only and precedes FoundationStore's normal constructor/migration path.
         Preflight(databasePath, config.CellId, config.CustomerId);
+        // These standalone qualification modes have no trusted bound-consumer composition.
+        // Refuse before registration/heartbeat/claim; configuration-only validation remains software/path-only.
+        if (config.Mode is "MockLoopback" or "ClaimHold" &&
+            FoundationStore.ExistingCredentialRuntimeBindingRequired(databasePath, config.CustomerId, config.CellId))
+            throw new FoundationStoreException("BoundPipelineConsumerRequired", 403);
         using var activation = config.RequireActivationAuthority
             ? new FoundationCellActivationAuthority(authorityPath!, config.CustomerId, config.CellId)
                 .AcquireLease(databasePath)

@@ -77,6 +77,24 @@ internal sealed class CredentialNamespaceCustody
     }
 
     internal void ValidateCurrent() { CheckRoot(); ValidateFile(Path.Combine(root, GuardName)); }
+    // Immutable namespace identity only. Consumer probes deliberately do not open or inspect the mutable admission gate.
+    internal void ValidateMetadataIdentity() => _ = CheckRoot();
+    internal CredentialNamespaceMetadataPin HoldMetadataFile(string name)
+    {
+        if (name is not (MarkerName or "rollback-binding.json" or "authority.json"))
+            throw Failure("credential-namespace-metadata-file-invalid");
+        ValidateMetadataIdentity(); var path = Path.Combine(root, name); ValidateFile(path);
+        FileStream? stream = null;
+        try
+        {
+            stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            ValidateMetadataIdentity(); ValidateFile(path);
+            if (stream.Length is < 1 or > 16384) throw Failure("credential-namespace-file-size-invalid");
+            var bytes = new byte[checked((int)stream.Length)]; stream.ReadExactly(bytes);
+            return new(this, path, stream, bytes);
+        }
+        catch { stream?.Dispose(); throw; }
+    }
     // Pure retained-byte validation only: original namespace paths are metadata, never reopened or adopted here.
     internal static Marker ParseRecoveryMarker(ReadOnlyMemory<byte> bytes, string expectedKind, string expectedCustomer,
         string expectedCell, string expectedNamespace, string? expectedCommitment)

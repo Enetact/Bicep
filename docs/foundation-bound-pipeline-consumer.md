@@ -1,0 +1,66 @@
+# Compose the Foundation bound pipeline consumer
+
+The Foundation host's in-process job runner can explicitly use the [schema-12 credential/runtime binding](foundation-credential-runtime-binding.md) through a concrete, mock-only consumer. It shares the existing signed HTTP/AHP workflow, separate human approval, durable queue, dispatch adapter and reconciliation behavior. Default hosts and the standalone worker remain disconnected. No Azure deployment or live provider operation is enabled.
+
+This qualifies one selected consumer. Credential acquisition, direct vault access, legacy Portal providers, Codex authentication, the standalone worker, other processes/hosts and already-issued provider tokens remain separate coverage work. The consumer does not provision, rebind, adopt credentials or release a [restored-cell execution hold](foundation-recovery-execution-hold.md).
+
+## Authority and operation lifetime
+
+```mermaid
+flowchart TD
+    H[Separate signed human HTTP approval] --> P[Key-free configured scope check]
+    A[Signed HTTP or AHP enqueue] --> P
+    P --> Q[Existing durable queue]
+    Q --> L[Acquire actual activation lease]
+    L --> C[Claim and record dispatch intent]
+    C --> V[Recheck persisted binding and current authority]
+    V --> M[Mock authenticated GitHub or ADO operation]
+    M --> O[Durable result or OutcomeUnknown]
+    O --> R[Release operation and run leases]
+```
+
+Trusted C# composition supplies actual vault and activation-authority objects, independently reviewed namespace/custody identity, exact database instance and binding digest, and a finite immutable credential-scope allowlist. Incoming HTTP/AHP/model arguments cannot select a vault, authority, handler factory or credential scope. The current durable dispatch and validated connection select an exact configured scope; they do not supply custody proof.
+
+Startup validates existing current binding and actual custody without reading a credential key or token. It never calls `BindCurrent`, repairs missing state or migrates a configured bound runtime. This metadata readiness check does not establish key availability, token expiry or provider permissions. A separate explicit owner cutover must already have established the binding.
+
+Consumer startup/run checks retain shared read handles over immutable namespace markers and vault/rollback binding files. They verify actual path, protected ownership/ACLs, current bytes and the pinned identities without taking the credential admission gates or reading mutable rollback state, profiles or keys. Concurrent key-free checks and an unrelated asynchronous key wait can coexist. Binding provisioning and actual authenticated sends retain their existing exclusive custody, mutable rollback-state and credential checks. A metadata run scope cannot authorize an HTTP send in place of that strong per-operation session.
+
+The runner obtains a concrete activation-held run scope before claiming work and retains it through awaited dispatch and durable outcome handling. Each bound HTTP operation also owns its existing activation lease through key lookup, response/body disposal and final authorization. Startup success cannot substitute for those checks. Cancellation or host disposal cannot release operation authority while an uncooperative handler is still running. Changing requests are not automatically replayed; post-admission failures retain uncertain-effect semantics.
+
+Host disposal requests shutdown and refuses new owned runner uses before claim. Concrete active-use tokens retain the existing actual host activation lease until their awaited work and outcome handling finish; disposal does not detach the work or wait indefinitely for a handler. Releasing the last active use after shutdown releases that lease. Retention does not extend a job/plan lease, role, grant or credential expiry. A process crash, expiry or genuine loss of current store authority can still leave a durable dispatched intent for lease-expiry/reconciliation; it cannot be reported as a verified deployment or automatically replayed.
+
+Enqueue also holds a concrete run scope while checking the actual scoped plan/current connection against the configured allowlist and committing through `EnqueuePlan`. `RequireConnection` is a target constraint, not an authorization grant or a scope resolver. The store still checks current approval, digest, role and connection generation in the enqueue transaction; unsupported connections are refused before queue mutation, and drift cannot reuse the earlier eligibility check. Directly queued library work remains subject to final dispatch-time validation.
+
+## Registration and refusal rules
+
+Registration is an explicit typed host option for trusted local qualification. The handler factory must create a fresh synthetic handler per operation; that operation owns its disposal. It is a test seam, not an incoming configuration or model tool. Generic transports and the bound consumer cannot be configured together. The existing `PipelineMockDispatch` feature/entitlement vocabulary remains; no live-dispatch feature is added.
+
+The trusted composition shape is:
+
+```csharp
+var consumer = FoundationCredentialBoundPipelineConsumer.ForMockHandlers(
+    vault, activationAuthority, reviewedNamespace, reviewedActivationIdentity,
+    expectedDatabaseInstanceId, expectedBindingSha256, allowedScopes,
+    () => new SyntheticPipelineHandler());
+var options = existingOptions with
+{
+    RequireActivationAuthority = true,
+    ActivationAuthorityDirectory = reviewedActivationDirectory,
+    BoundPipelineConsumer = consumer,
+    DisconnectedTransport = null
+};
+```
+
+`SyntheticPipelineHandler` is a trusted test handler that returns the existing correlated GitHub/ADO response contract. The scope allowlist holds 1–256 detached scopes; duplicate or ambiguous selectors are refused, and caller mutation cannot change their required scopes. Handler-reference reuse is refused. `ValidateStartup(store)` briefly acquires and releases a real run scope; the runner separately calls `OpenRun(store)` and retains its concrete `FoundationCredentialBoundPipelineRun` through completion. These APIs do not accept a caller-supplied assertion that custody is held.
+
+`BoundPipelineConsumer` is ignored by JSON serialization and is absent from the public configuration loader. Missing required activation, mixed transports and missing required consumer report `BoundPipelineConsumerActivationRequired`, `BoundPipelineConsumerConflict` and `BoundPipelineConsumerRequired`, respectively. A read-only preflight examines existing schema/binding history before constructor initialization, followed by another policy check against the actual store before bootstrap. Valid never-bound legacy initialization remains separate. Configured bound and inspection-only bound runtimes open an existing current schema; they do not migrate it at startup.
+
+A bound/history-bearing cell cannot start a configured legacy changing transport or worker in place of this consumer. Its read-only host remains available when no changing consumer is configured. Direct legacy runner use on a bound cell refuses before claim. Never-bound legacy disconnected behavior remains compatible. Schema-11 recovery holds still deny fresh work independently of transport readiness.
+
+The standalone worker does not register this typed consumer. Its `MockLoopback` and `ClaimHold` qualification modes refuse bound/history-bearing cells after receipt reservation and read-only database preflight, before worker registration, heartbeat or claim. Default `Disabled` behavior remains disconnected. `--validate-config` remains software/path validation without starting a worker or establishing cell/provider readiness. This refusal is not standalone credential-consumer integration or live support.
+
+## Verification and remaining work
+
+Qualification uses disposable databases, identities, keys and mocked provider payloads. GitHub and ADO fixtures follow the existing signed plan, distinct-human approval and enqueue paths, then inspect actual authentication, dispatch result, durable audit and uncertainty. Independent cases cover wrong binding/namespace/custody, scope and connection changes, missing configuration, restoration, cancellation and operation lifetime. Dated execution results belong in [validation](validation.md) after the tests run.
+
+Supported production composition, complete consumer coverage, outstanding provider-token behavior, independently held latest/key custody, reviewed recovery release/adoption and coordinated activation remain open in the [commercial release plan](plans/platform-studio-commercial-release.md). Local mock qualification does not clear those gates or commercial distribution.

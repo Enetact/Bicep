@@ -59,11 +59,31 @@ internal sealed partial class CredentialRollbackAuthority
     }
 
     internal FileStream OpenGuard() => authority.OpenGuard();
+    void ValidateBindingDocuments()
+    {
+        if (Read<Binding>(vault, "rollback-binding.json", 16384) != binding || Read<Binding>(authority, "authority.json", 16384) != binding)
+            throw Failure("credential-rollback-binding-invalid");
+    }
+    internal void ValidateNamespaceMetadata()
+    {
+        authority.ValidateMetadataIdentity(); vault.ValidateMetadataIdentity(); ValidateBindingDocuments();
+    }
+    internal CredentialNamespaceMetadataPin[] HoldNamespaceMetadata()
+    {
+        var pins = new List<CredentialNamespaceMetadataPin>(3);
+        try
+        {
+            pins.Add(authority.HoldMetadataFile(CredentialNamespaceCustody.MarkerName));
+            pins.Add(vault.HoldMetadataFile("rollback-binding.json"));
+            pins.Add(authority.HoldMetadataFile("authority.json"));
+            ValidateNamespaceMetadata(); return pins.ToArray();
+        }
+        catch { foreach (var pin in pins) pin.Dispose(); throw; }
+    }
     internal State ReadState()
     {
         authority.ValidateCurrent(); vault.ValidateCurrent();
-        if (Read<Binding>(vault, "rollback-binding.json", 16384) != binding || Read<Binding>(authority, "authority.json", 16384) != binding)
-            throw Failure("credential-rollback-binding-invalid");
+        ValidateBindingDocuments();
         var count = 0;
         foreach (var path in Directory.EnumerateFileSystemEntries(authority.Root))
         {

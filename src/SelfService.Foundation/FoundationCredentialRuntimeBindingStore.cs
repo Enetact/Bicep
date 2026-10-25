@@ -8,6 +8,21 @@ public sealed partial class FoundationStore
     public const int MaximumCredentialRuntimeBindings = 1024;
     internal string RuntimeDatabasePath => databasePath;
 
+    // Trusted existing-file preflight. No CREATE, migrations, bootstrap, journal-mode PRAGMA or original-root access.
+    // SQLite may still need its normal read-side locking/sidecars; this is not a physical file-immutability promise.
+    public static bool ExistingCredentialRuntimeBindingRequired(string databasePath, string expectedCustomerId, string expectedCellId)
+    {
+        ValidateId(expectedCustomerId); ValidateId(expectedCellId);
+        var path = Path.GetFullPath(databasePath); RejectLinks(path);
+        if (!File.Exists(path)) throw new FoundationStoreException("ExistingCellRequired");
+        using var db = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = path, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+        db.Open(); ValidateSnapshot(db, expectedCellId, expectedCustomerId);
+        var version = Number(db, null, "SELECT schema_version FROM cell WHERE singleton=1");
+        var count = version >= 12 ? ReadCredentialRuntimeBindings(db, null).Count : 0;
+        return CredentialRuntimeBindingRequired(db, null, count);
+    }
+
     public FoundationCredentialRuntimeBindingStatus GetCredentialRuntimeBindingStatus()
     {
         using var db = Open(); using var tx = db.BeginTransaction(deferred: true); AssertActivation(db, tx);

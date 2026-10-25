@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.IdentityModel.Tokens;
 using SelfService.Foundation;
@@ -11,6 +12,8 @@ public sealed record FoundationHostOptions(CellIdentityOptions Identity, string 
 {
     public bool EnableWorker { get; init; }
     public IPipelineTransport? DisconnectedTransport { get; init; }
+    // Trusted in-process composition only. The public file/HTTP/model configuration cannot create this consumer.
+    [JsonIgnore] public FoundationCredentialBoundPipelineConsumer? BoundPipelineConsumer { get; init; }
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(1);
     public string? RepositoryRoot { get; init; }
     public OidcValidationOptions? Oidc { get; init; }

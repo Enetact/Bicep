@@ -59,8 +59,15 @@ public sealed class FoundationWorkflowService(FoundationStore store, FoundationH
     {
         var c = Require(principal, scope, FoundationCapabilities.JobDispatch);
         RequireFeature(c, FoundationFeatures.PipelineMockDispatch);
-        _ = store.GetPlan(c.CustomerId, c.ActorKey, id, c.ProjectId, c.EnvironmentId);
-        if (options.DisconnectedTransport is null) throw new FoundationStoreException("ExternalDispatchDisabled", 503);
+        var plan = store.GetPlan(c.CustomerId, c.ActorKey, id, c.ProjectId, c.EnvironmentId);
+        if (options.DisconnectedTransport is null && options.BoundPipelineConsumer is null) throw new FoundationStoreException("ExternalDispatchDisabled", 503);
+        FoundationApplication.ValidateBoundConsumer(store, options);
+        using var run = options.BoundPipelineConsumer?.OpenRun(store);
+        if (run is not null)
+        {
+            var saved = store.GetConnection(c.CustomerId, c.ActorKey, plan.ConnectionId, c.ProjectId, c.EnvironmentId);
+            run.RequireConnection(FoundationApplication.LoadConnection(saved, c.CellId), c.ProjectId, c.EnvironmentId);
+        }
         return store.EnqueuePlan(c.CustomerId, c.ActorKey, id, digest, key);
     }
 

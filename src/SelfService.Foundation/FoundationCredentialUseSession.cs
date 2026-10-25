@@ -12,6 +12,7 @@ internal sealed class FoundationCredentialUseSession : ICredentialDispatchPermit
     readonly FoundationCredentialDispatchBinding? dispatch;
     readonly EntitlementVerifier? verifier;
     readonly string? runtimeVersion;
+    readonly CredentialBoundNamespaceMetadataLease? metadataLease;
     int disposed;
     int admitted;
 
@@ -24,11 +25,13 @@ internal sealed class FoundationCredentialUseSession : ICredentialDispatchPermit
     FoundationCredentialUseSession(FoundationStore store, CredentialVault vault, FoundationCellActivationAuthority authority,
         FoundationCellActivationLease lease, CredentialVaultNamespaceIdentity expectedNamespace,
         FoundationCellActivationAuthorityIdentity expectedAuthority, string? expectedBindingSha256,
-        FoundationCredentialDispatchBinding? dispatch, EntitlementVerifier? verifier, string? runtimeVersion)
+        FoundationCredentialDispatchBinding? dispatch, EntitlementVerifier? verifier, string? runtimeVersion,
+        CredentialBoundNamespaceMetadataLease? metadataLease = null)
     {
         this.store = store; this.vault = vault; this.authority = authority; activationLease = lease;
         Namespace = expectedNamespace; ActivationAuthority = expectedAuthority; ExpectedBindingSha256 = expectedBindingSha256;
         this.dispatch = dispatch; this.verifier = verifier; this.runtimeVersion = runtimeVersion;
+        this.metadataLease = metadataLease;
     }
 
     internal static FoundationCredentialUseSession Open(FoundationStore store, CredentialVault vault,
@@ -50,6 +53,25 @@ internal sealed class FoundationCredentialUseSession : ICredentialDispatchPermit
         catch { lease.Dispose(); throw; }
     }
 
+    // Consumer custody is namespace identity only. It cannot authorize credentials via AuthorizeAsync and never reads admission state.
+    internal static FoundationCredentialUseSession OpenForConsumer(FoundationStore store, CredentialVault vault,
+        FoundationCellActivationAuthority authority, CredentialVaultNamespaceIdentity expectedNamespace,
+        FoundationCellActivationAuthorityIdentity expectedAuthority, string expectedDatabaseInstanceId, string expectedBindingSha256)
+    {
+        ArgumentNullException.ThrowIfNull(store); ArgumentNullException.ThrowIfNull(vault); ArgumentNullException.ThrowIfNull(authority);
+        ArgumentNullException.ThrowIfNull(expectedNamespace); ArgumentNullException.ThrowIfNull(expectedAuthority);
+        var lease = authority.AcquireLease(store.RuntimeDatabasePath, expectedDatabaseInstanceId);
+        CredentialBoundNamespaceMetadataLease? metadata = null;
+        try
+        {
+            metadata = vault.HoldBoundNamespaceMetadata(expectedNamespace);
+            var session = new FoundationCredentialUseSession(store, vault, authority, lease, expectedNamespace, expectedAuthority,
+                expectedBindingSha256, null, null, null, metadata);
+            session.AssertFor(store); return session;
+        }
+        catch { metadata?.Dispose(); lease.Dispose(); throw; }
+    }
+
     internal void AssertFor(FoundationStore expectedStore)
     {
         if (Volatile.Read(ref disposed) != 0 || !ReferenceEquals(store, expectedStore) ||
@@ -59,7 +81,8 @@ internal sealed class FoundationCredentialUseSession : ICredentialDispatchPermit
         activationLease.AssertCurrent();
         if (authority.ReadHeldIdentity() != ActivationAuthority)
             throw new CredentialException("credential-bound-activation-authority-changed");
-        vault.AssertBoundNamespace(Namespace);
+        if (metadataLease is not null) metadataLease.AssertCurrent();
+        else vault.AssertBoundNamespace(Namespace);
     }
 
     internal void MarkHttpAdmitted() => Interlocked.Exchange(ref admitted, 1);
@@ -81,7 +104,9 @@ internal sealed class FoundationCredentialUseSession : ICredentialDispatchPermit
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref disposed, 1) == 0) activationLease.Dispose();
+        if (Interlocked.Exchange(ref disposed, 1) == 0)
+            try { metadataLease?.Dispose(); }
+            finally { activationLease.Dispose(); }
     }
     public override string ToString() => "[CONCRETE ACTIVATION-HELD CREDENTIAL USE SESSION]";
 }
