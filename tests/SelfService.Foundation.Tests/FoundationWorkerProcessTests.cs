@@ -71,7 +71,7 @@ public sealed class FoundationWorkerProcessTests
         Assert.Equal(auditBefore, cell.Scalar("SELECT count(*) FROM audit"));
         using var replacement = cell.Start("Disabled", runSeconds: 1, database: restoredPath, activationAuthority: authorityPath);
         await replacement.Ready(); await replacement.SuccessfulExit();
-        Assert.Null(restored.ClaimNext(cell.Customer, "worker", TimeSpan.FromSeconds(5)));
+        Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(cell.Customer, "worker", TimeSpan.FromSeconds(5))).Code);
     }
 
     [Fact]

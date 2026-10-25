@@ -8,7 +8,7 @@ namespace SelfService.Foundation.Tests;
 public sealed class FoundationBackupSchemaAdmissionTests
 {
     [Theory]
-    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)] [InlineData(9)]
+    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)]
     public void Valid_frozen_versions_verify_readonly_and_restore_through_staged_upgrade_with_recovery_holds(int version)
     {
         using var f = new SignedBackupFixture(); var job = f.Cell.Queue(); Downgrade(f.Cell, version); var signed = f.Create();
@@ -16,9 +16,15 @@ public sealed class FoundationBackupSchemaAdmissionTests
         using var key = f.PublicKey(); var before = File.ReadAllBytes(signed.Backup.DatabasePath); var files = Files(f);
         var claims = FoundationStore.VerifySignedBackup(signed, FoundationBackupSignatures.Authority(signed.Manifest), key, f.Cell.Customer, f.Cell.Cell, f.Cell.Clock);
         Assert.Equal(version, claims.CellSchemaVersion); Assert.Equal(files, Files(f)); Assert.Equal(before, File.ReadAllBytes(signed.Backup.DatabasePath));
-        var restored = FoundationStore.RestoreSignedBackup(signed, f.Target(), FoundationBackupSignatures.Authority(signed.Manifest), key, f.Cell.Customer, f.Cell.Cell, f.Cell.Clock);
+        var destination = f.Target();
+        var restored = FoundationStore.RestoreSignedBackup(signed, destination, FoundationBackupSignatures.Authority(signed.Manifest), key, f.Cell.Customer, f.Cell.Cell, f.Cell.Clock);
         Assert.Equal(FoundationStore.CurrentSchemaVersion, restored.SchemaStatus().Version);
         Assert.Equal("OutcomeUnknown", restored.GetJob(f.Cell.Customer, "viewer", job.Id).State); Assert.True(restored.VerifyAuditIntegrity(f.Cell.Customer, "auditor"));
+        Assert.Equal("1", Scalar(destination, "SELECT count(*) FROM recovery_execution_holds WHERE database_instance_id=(SELECT database_instance_id FROM cell WHERE singleton=1)"));
+        Assert.Equal(version < 5 ? "LegacyRestoreOriginUnknown" : "RestoredSnapshot", Scalar(destination,
+            "SELECT origin FROM recovery_execution_holds WHERE database_instance_id=(SELECT database_instance_id FROM cell WHERE singleton=1)"));
+        Assert.Equal(version < 5 ? "" : Scalar(f.Cell.Path, "SELECT database_instance_id FROM cell WHERE singleton=1"), Scalar(destination,
+            "SELECT source_database_instance_id FROM recovery_execution_holds WHERE database_instance_id=(SELECT database_instance_id FROM cell WHERE singleton=1)"));
         Assert.Equal(before, File.ReadAllBytes(signed.Backup.DatabasePath));
     }
 

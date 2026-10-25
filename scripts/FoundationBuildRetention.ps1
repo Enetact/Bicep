@@ -2,6 +2,103 @@
 # Local compiler housekeeping, not revision history or an independent attestation.
 . (Join-Path $PSScriptRoot 'FoundationTestExecutionEvidence.ps1')
 
+function Initialize-FBROwnedNative {
+    $path=Join-Path $PSScriptRoot 'FoundationOwnedBuildNative.cs';$null=Assert-FTEUnlinkedPath $path
+    $sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    $loaded=[AppDomain]::CurrentDomain.GetData('PlatformStudio.FoundationOwnedBuild.NativeSha256')
+    if('PlatformStudio.FoundationOwnedBuild.Native' -as [type]) { if($loaded -cne $sha){throw 'OwnedBuildNativeChanged'};return $sha }
+    Add-Type -Path $path -ErrorAction Stop
+    [AppDomain]::CurrentDomain.SetData('PlatformStudio.FoundationOwnedBuild.NativeSha256',$sha);return $sha
+}
+
+function Assert-FBROwnedPrivate([string]$Path) {
+    $full=Assert-FTEUnlinkedPath $Path;$item=Get-Item -LiteralPath $full -Force -ErrorAction Stop
+    $acl=Get-Acl -LiteralPath $full -ErrorAction Stop;$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $raw=[Security.AccessControl.RawSecurityDescriptor]::new($acl.GetSecurityDescriptorBinaryForm(),0)
+    if($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $sid -or $null -eq $raw.DiscretionaryAcl -or ($raw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclPresent) -eq 0){throw 'OwnedBuildPrivateCustodyRequired'}
+    foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
+        if($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and $rule.IdentityReference.Value -cne $sid){throw 'OwnedBuildPrivateCustodyRequired'}
+    }
+    return $full
+}
+
+function Read-FBROwnedJson([string]$Path,[string]$ExpectedSha256='') {
+    $null=Assert-FBROwnedPrivate $Path;$stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try {
+        if($stream.Length -gt 16777216){throw 'OwnedBuildMetadataLimit'}
+        $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)).ToLowerInvariant()
+        if($ExpectedSha256 -and $ExpectedSha256 -cne $sha){throw 'OwnedBuildMetadataChanged'}
+        $value=Read-FTEJsonArtifact $Path $sha
+        [pscustomobject]@{sha256=$sha;value=$value}
+    } finally {$stream.Dispose()}
+}
+
+function Get-FBROwnedArguments([string]$Root,[string]$BuildRoot) {
+    @('build',(Join-Path $Root 'src/SelfService.Foundation/SelfService.Foundation.csproj'),'-c','Release','--artifacts-path',$BuildRoot,
+        '-m:1','-nodeReuse:false','-p:UseSharedCompilation=false','-p:RestoreLockedMode=true')
+}
+
+function Assert-FBROwnedBuildNamespace([string]$Root,[string]$Parent) {
+    $null=Assert-FTEUnlinkedPath $Parent
+    if($Parent -ine (Join-Path $Root 'artifacts/foundation-owned-builds')){throw 'OwnedBuildParentBindingInvalid'}
+    $count=0
+    for($ancestor=$Parent;$ancestor;$ancestor=Split-Path $ancestor -Parent) {
+        if(Test-Path -LiteralPath $ancestor -PathType Container) {
+            foreach($entry in Get-ChildItem -LiteralPath $ancestor -Force -ErrorAction Stop) {
+                if(++$count -gt 100000){throw 'OwnedBuildAncestorLimit'}
+                if(Test-FBRNamespaceSentinel $entry.Name){throw 'OwnedBuildProtectedAncestor'}
+            }
+        }
+        if($ancestor -ieq $Root){break}
+    }
+}
+
+function Open-FBROwnedCompletion([string]$Root,[string]$GenerationDirectory) {
+    $directory=Assert-FBROwnedPrivate $GenerationDirectory;$parent=Join-Path $Root 'artifacts/foundation-owned-builds'
+    if((Split-Path $directory -Parent) -ine $parent -or (Split-Path $directory -Leaf) -cnotmatch '\A[a-f0-9]{32}\z'){throw 'OwnedBuildGenerationBindingRequired'}
+    $guardPath=Join-Path $directory '.compiler-build.lock';$null=Assert-FBROwnedPrivate $guardPath
+    $guard=[IO.FileStream]::new($guardPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+    try {
+        if($guard.Length -ne 0){throw 'OwnedBuildGuardInvalid'}
+        $null=Assert-FBROwnedPrivate $directory;$null=Assert-FBROwnedPrivate $guardPath
+        foreach($entry in Get-ChildItem -LiteralPath $directory -Force) {
+            if($entry.Name -cnotin @('.compiler-build.json','.compiler-build.lock','source.json','started.json','completed.json','stdout.txt','stderr.txt','build','cli-home') -or ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'OwnedBuildIncompleteOrUnknown'}
+        }
+        $marker=Read-FBROwnedJson (Join-Path $directory '.compiler-build.json');$m=$marker.value
+        Assert-FTEFields $m @('schema','repositoryRoot','generation','buildRoot','ownerSid','createdUnixMilliseconds','executable','executableSha256','nativeHelperSha256','sourceSha256','arguments')
+        $build=Join-Path $directory 'build'
+        if($m.schema -cne 'platform-studio.foundation-owned-build.v1' -or $m.repositoryRoot -cne $Root -or $m.generation -cne (Split-Path $directory -Leaf) -or
+            $m.buildRoot -cne $build -or $m.ownerSid -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value -or
+            $m.createdUnixMilliseconds -isnot [long] -or $m.createdUnixMilliseconds -le 0 -or $m.executableSha256 -cnotmatch '\A[a-f0-9]{64}\z' -or
+            $m.nativeHelperSha256 -cnotmatch '\A[a-f0-9]{64}\z' -or $m.sourceSha256 -cnotmatch '\A[a-f0-9]{64}\z' -or
+            (ConvertTo-Json -InputObject $m.arguments -Compress) -cne (ConvertTo-Json -InputObject @(Get-FBROwnedArguments $Root $build) -Compress)){throw 'OwnedBuildMarkerInvalid'}
+        $completed=Read-FBROwnedJson (Join-Path $directory 'completed.json');$c=$completed.value
+        Assert-FTEFields $c @('schema','markerSha256','startedSha256','sourceSha256','sourceInputsUnchanged','observation','objFingerprint','stdout','stderr','independentAttestation','productionReady')
+        if($c.schema -cne 'platform-studio.foundation-owned-build-completed.v1' -or $c.markerSha256 -cne $marker.sha256 -or $c.sourceSha256 -cne $m.sourceSha256 -or
+            $c.sourceInputsUnchanged -isnot [bool] -or !$c.sourceInputsUnchanged -or $c.independentAttestation -isnot [bool] -or $c.independentAttestation -or
+            $c.productionReady -isnot [bool] -or $c.productionReady -or $c.objFingerprint -cnotmatch '\A[a-f0-9]{64}\z'){throw 'OwnedBuildCompletionInvalid'}
+        $source=(Read-FBROwnedJson (Join-Path $directory 'source.json') $c.sourceSha256).value
+        if($source.schema -cne 'platform-studio.foundation-test-source.v1' -or $source.fileCount -lt 1 -or $source.fileCount -gt 30000 -or $source.fileCount -ne $source.files.Count -or
+            @($source.files|Where-Object {$_.path -ceq 'scripts/FoundationOwnedBuildNative.cs' -and $_.rawSha256 -ceq $m.nativeHelperSha256}).Count -ne 1){throw 'OwnedBuildSourceBindingInvalid'}
+        $started=(Read-FBROwnedJson (Join-Path $directory 'started.json') $c.startedSha256).value;$o=$c.observation
+        Assert-FTEFields $started @('schema','processId','processStartTicks','executable','executableSha256','startedUnixMilliseconds')
+        Assert-FTEFields $o @('processId','processStartTicks','executable','exitCode','totalProcesses','activeProcesses','finishedUnixMilliseconds')
+        if($started.schema -cne 'platform-studio.foundation-owned-build-started.v1' -or $started.executable -cne $m.executable -or $started.executableSha256 -cne $m.executableSha256 -or
+            $started.processId -le 0 -or $started.processStartTicks -le 0 -or $started.startedUnixMilliseconds -lt $m.createdUnixMilliseconds -or
+            $o.processId -ne $started.processId -or $o.processStartTicks -ne $started.processStartTicks -or $o.executable -cne $m.executable -or $o.exitCode -ne 0 -or
+            $o.totalProcesses -lt 1 -or $o.totalProcesses -gt 128 -or $o.activeProcesses -ne 0 -or $o.finishedUnixMilliseconds -lt $started.startedUnixMilliseconds -or
+            $o.finishedUnixMilliseconds -gt [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()){throw 'OwnedBuildProcessBindingInvalid'}
+        foreach($name in @('stdout','stderr')) {
+            $binding=$c[$name];Assert-FTEFields $binding @('path','bytes','sha256')
+            if($binding.path -cne ($name+'.txt') -or $binding.bytes -lt 0 -or $binding.bytes -gt 4194304){throw 'OwnedBuildOutputBindingInvalid'}
+            $path=Join-Path $directory $binding.path;$null=Assert-FBROwnedPrivate $path
+            if((Get-Item -LiteralPath $path).Length -ne $binding.bytes -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $binding.sha256){throw 'OwnedBuildOutputBindingInvalid'}
+        }
+        $lease=[pscustomobject]@{guard=$guard;completedSha256=$completed.sha256;objFingerprint=$c.objFingerprint;generation=$directory;buildRoot=$build;finishedUnixMilliseconds=$o.finishedUnixMilliseconds}
+        $guard=$null;return $lease
+    } finally {if($guard){$guard.Dispose()}}
+}
+
 function Get-FBRProcesses {
     # Do not emit command lines: they can contain private arguments. Missing visibility refuses cleanup.
     if (!$IsWindows) { throw 'BuildRetentionWindowsRequired' }
@@ -169,7 +266,11 @@ function Invoke-FoundationBuildRetention {
     )
     $root=Assert-FTEUnlinkedPath $Root
     $null=Assert-FBRQualification $root $RunDirectory $CompletedSha256
-    $processes=Get-FBRProcesses
+    $processes=@();$processInspection='Available'
+    try {$processes=@(Get-FBRProcesses)} catch {
+        if($_.Exception.Message -cne 'BuildRetentionProcessInspectionUnavailable'){throw}
+        $processInspection='Unavailable'
+    }
     $keep=@($KeepBuildDirectories | ForEach-Object { Assert-FTEUnlinkedPath $_ })
     $items=[Collections.Generic.List[object]]::new();$decisions=[Collections.Generic.List[object]]::new()
     $artifacts=Join-Path $root 'artifacts'
@@ -180,39 +281,63 @@ function Invoke-FoundationBuildRetention {
             foreach($build in @('build','.build')) {
                 $target=Join-Path $generation ($build+'/obj')
                 if(!(Test-Path -LiteralPath $target)) { continue }
-                try { $items.Add((Get-FBRTree $root $target)) }
+                try {
+                    $item=Get-FBRTree $root $target
+                    $owned=$null
+                    try {
+                        if($family.Name -ceq 'foundation-owned-builds') {
+                            $owned=Open-FBROwnedCompletion $root $generation
+                            if($owned.objFingerprint -cne $item.fingerprint){throw 'OwnedBuildObjectTreeChanged'}
+                            $item|Add-Member -NotePropertyName ownedGeneration -NotePropertyValue $generation;$item|Add-Member -NotePropertyName ownedCompletionSha256 -NotePropertyValue $owned.completedSha256
+                        } else { $item|Add-Member -NotePropertyName ownedGeneration -NotePropertyValue $null;$item|Add-Member -NotePropertyName ownedCompletionSha256 -NotePropertyValue $null }
+                        $items.Add($item)
+                    } finally {if($owned){$owned.guard.Dispose()}}
+                }
                 catch { $decisions.Add([pscustomobject]@{path=$target;state='Preserved';reason='UnsafeOrProtectedTree';bytes=0}) }
             }
         }
     }
+    # Never turn an opaque inventory into permission for unregistered legacy trees.
+    if($processInspection -ceq 'Unavailable' -and !@($items|Where-Object ownedGeneration).Count){throw 'BuildRetentionProcessInspectionUnavailable'}
     $ordered=@($items | Sort-Object latestUtc -Descending)
+    $recent=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($ownedClass in @($false,$true)) {
+        foreach($candidate in @($ordered|Where-Object {[bool]$_.ownedGeneration -eq $ownedClass}|Select-Object -First $KeepRecentBuilds)){$null=$recent.Add($candidate.path)}
+    }
     for($index=0;$index -lt $ordered.Count;$index++) {
         $item=$ordered[$index];$reason=$null
-        if($index -lt $KeepRecentBuilds) { $reason='RecentBuildRetained' }
-        elseif($item.latestUtc -gt [DateTime]::UtcNow.AddMinutes(-$MinimumAgeMinutes)) { $reason='RecentActivity' }
+        if($recent.Contains($item.path)) { $reason='RecentBuildRetained' }
+        elseif(!$item.ownedGeneration -and $item.latestUtc -gt [DateTime]::UtcNow.AddMinutes(-$MinimumAgeMinutes)) { $reason='RecentActivity' }
         elseif($keep -icontains $item.buildDirectory -or $keep -icontains $item.path) { $reason='ExplicitlyRetained' }
-        elseif(Test-FBRProcessReference $processes $item.buildDirectory $root) { $reason='ProcessReference' }
+        elseif(!$item.ownedGeneration -and $processInspection -ceq 'Unavailable') { $reason='ProcessInspectionUnavailable' }
+        elseif($processInspection -ceq 'Available' -and (Test-FBRProcessReference $processes $item.buildDirectory $root)) { $reason='ProcessReference' }
         if($reason) { $decisions.Add([pscustomobject]@{path=$item.path;state='Preserved';reason=$reason;bytes=$item.bytes});continue }
         $state='Eligible';$reason='SupersededCompilerIntermediates'
         if($Apply -and $PSCmdlet.ShouldProcess($item.path,'Remove superseded compiler obj tree')) {
-            $removalAttempted=$false
+            $removalAttempted=$false;$owned=$null;$files=$null
             try {
                 # Recheck successful current-source evidence, live processes and exact unlinked tree immediately before deletion.
                 $null=Assert-FBRQualification $root $RunDirectory $CompletedSha256
-                if(Test-FBRProcessReference (Get-FBRProcesses) $item.buildDirectory $root) { throw 'BuildRetentionProcessReference' }
+                if($item.ownedGeneration) {
+                    $owned=Open-FBROwnedCompletion $root $item.ownedGeneration
+                    if($owned.completedSha256 -cne $item.ownedCompletionSha256 -or $owned.objFingerprint -cne $item.fingerprint){throw 'OwnedBuildCompletionChanged'}
+                    $null=Initialize-FBROwnedNative
+                    $files=[PlatformStudio.FoundationOwnedBuild.Native]::AcquireFiles($item.path)
+                } elseif(Test-FBRProcessReference (Get-FBRProcesses) $item.buildDirectory $root) { throw 'BuildRetentionProcessReference' }
                 $current=Get-FBRTree $root $item.path
                 if($current.fingerprint -cne $item.fingerprint) { throw 'BuildRetentionTreeChanged' }
                 $verified=Assert-FBRTarget $root $item.path
                 $removalAttempted=$true
-                Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction Stop
+                if($files){$files.AssertCurrent();$files.Delete()}
+                else {Remove-Item -LiteralPath $verified -Recurse -Force -ErrorAction Stop}
                 if([IO.Path]::Exists($verified)) { throw 'BuildRetentionRemovalIncomplete' }
                 $state='Removed'
             } catch {
                 if($removalAttempted) { $state='RemovalUncertain';$reason='RemovalIncompleteOrChanged' }
                 else { $state='Preserved';$reason='RecheckRefused' }
-            }
+            } finally {if($files){$files.Dispose()};if($owned){$owned.guard.Dispose()}}
         }
         $decisions.Add([pscustomobject]@{path=$item.path;state=$state;reason=$reason;bytes=$item.bytes})
     }
-    [pscustomobject]@{state='Completed';applied=[bool]$Apply;removedCount=@($decisions | Where-Object state -CEQ 'Removed').Count;removedBytes=[long](($decisions | Where-Object state -CEQ 'Removed' | Measure-Object bytes -Sum).Sum);removalUncertainCount=@($decisions | Where-Object state -CEQ 'RemovalUncertain').Count;decisions=$decisions.ToArray();physicalSpaceReclaimedVerified=$false;continuousProcessFencing=$false;revisionHistory='GitHub'}
+    [pscustomobject]@{state='Completed';applied=[bool]$Apply;processInspection=$processInspection;ownedCompletedBuilds=@($items|Where-Object ownedGeneration).Count;removedCount=@($decisions | Where-Object state -CEQ 'Removed').Count;removedBytes=[long](($decisions | Where-Object state -CEQ 'Removed' | Measure-Object bytes -Sum).Sum);removalUncertainCount=@($decisions | Where-Object state -CEQ 'RemovalUncertain').Count;decisions=$decisions.ToArray();physicalSpaceReclaimedVerified=$false;continuousProcessFencing=$false;revisionHistory='GitHub'}
 }

@@ -48,9 +48,14 @@ public sealed partial class FoundationStore
         if (input.Length != backup.Length || Convert.ToHexString(SHA256.HashData(input)).ToLowerInvariant() != backup.Sha256)
             throw new FoundationStoreException("BackupIntegrityFailed");
         RequireStandaloneSnapshot(sourcePath, input);
+        string? sourceInstance = null;
         using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
             { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
-        { source.Open(); ValidateSnapshot(source, backup.CellId, backup.CustomerId); }
+        {
+            source.Open(); ValidateSnapshot(source, backup.CellId, backup.CustomerId);
+            if (Number(source, null, "SELECT schema_version FROM cell WHERE singleton=1") >= 5)
+                sourceInstance = ScalarText(source, null, "SELECT database_instance_id FROM cell WHERE singleton=1");
+        }
         var destination = NewSnapshotPath(destinationPath);
         try
         {
@@ -58,7 +63,7 @@ public sealed partial class FoundationStore
             using (var output = new FileStream(destination, FileMode.Open, FileAccess.Write, FileShare.None))
             { input.CopyTo(output); output.Flush(flushToDisk: true); }
             var restored = new FoundationStore(destination, backup.CellId, backup.CustomerId, timeProvider);
-            restored.HoldRecoveredWork(backup.Sha256); return restored;
+            restored.HoldRecoveredWork(backup.Sha256, sourceInstance); return restored;
         }
         catch { DeleteFailedSnapshot(destination); throw; }
     }
@@ -84,11 +89,12 @@ public sealed partial class FoundationStore
             "Succeeded", "SnapshotVerified", digest); tx.Commit();
     }
 
-    void HoldRecoveredWork(string backupDigest)
+    void HoldRecoveredWork(string backupDigest, string? sourceInstance)
     {
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
         // Effects may have happened after the snapshot. A restored queue is never safe to replay automatically.
         Exec(db, tx, "UPDATE cell SET policy_version=policy_version+1,database_instance_id=$instance WHERE singleton=1", ("$instance", NewId()));
+        AppendRecoveryExecutionHold(db, tx, sourceInstance, backupDigest, sourceInstance is null ? "LegacyRestoreOriginUnknown" : "RestoredSnapshot");
         var oldWorkers = Number(db, tx, "SELECT count(*) FROM worker_heartbeats WHERE customer_id=$c AND state!='Stopped'", ("$c", CustomerId));
         Exec(db, tx, "UPDATE worker_heartbeats SET state='Stopped',stopped=$now,generation=generation+1 WHERE customer_id=$c", ("$now", Now), ("$c", CustomerId));
         // A copied approval or unknown local effect cannot become authority to repeat credential maintenance.
@@ -190,6 +196,7 @@ public sealed partial class FoundationStore
         if (binding.Version >= 6) ValidateCredentialMaintenanceSchema(db, null);
         if (binding.Version >= 7) ValidateCredentialMaintenanceObservationSchema(db, null);
         ValidateSnapshotSchema(db, checked((int)binding.Version));
+        if (binding.Version >= 11) ValidateRecoveryExecutionHoldSchema(db, null);
         var rows = Rows(db, null, """
             SELECT sequence,customer_id,cell_id,event_id,actor_key,project_id,environment_id,action,target_id,outcome,reason,
               correlation,created,previous_hash,event_hash FROM audit ORDER BY sequence LIMIT 100001
@@ -224,6 +231,7 @@ public sealed partial class FoundationStore
             if (version >= 8) Exec(reference, null, SchemaV8);
             if (version >= 9) Exec(reference, null, SchemaV9);
             if (version >= 10) Exec(reference, null, SchemaV10);
+            if (version >= 11) Exec(reference, null, SchemaV11);
             return reference;
         }
         catch { reference.Dispose(); throw; }
@@ -289,8 +297,8 @@ public sealed partial class FoundationStore
             return;
         }
         var checksums = new[] { Hash("platform-studio.foundation.schema.v1"), SchemaV2Checksum, SchemaV3Checksum,
-            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum };
-        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 11", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
+            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum, SchemaV11Checksum };
+        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 12", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
         if (history.Count != version || history.Where((entry, i) => entry.Version != i + 1 || entry.Checksum != checksums[i]).Any())
             throw new FoundationStoreException("BackupIntegrityFailed");
     }

@@ -79,6 +79,7 @@ public sealed partial class FoundationStore
     {
         using var db = Open(); using var tx = db.BeginTransaction(deferred: true);
         MaintenanceContext(db, tx, executor, FoundationCapabilities.CredentialMaintenanceExecute, ["Operator"]);
+        RequireNoRecoveryExecutionHold(db, tx);
         var intent = ReadMaintenance(db, tx, intentId); MaintenanceScope(executor, intent); RequireMaintenanceApproved(db, tx, intent, executor);
         tx.Commit(); return intent;
     }
@@ -91,6 +92,7 @@ public sealed partial class FoundationStore
         try
         {
             AssertActivation(db, tx);
+            RequireNoRecoveryExecutionHold(db, tx);
             MaintenanceContext(db, tx, executor, FoundationCapabilities.CredentialMaintenanceExecute, ["Operator"]);
             intent = ReadMaintenance(db, tx, intentId); MaintenanceScope(executor, intent); MatchDigest(intent.Digest, expectedDigest);
             RequireMaintenanceApproved(db, tx, intent, executor); ValidateMaintenanceTarget(actualTarget, CustomerId, CellId);
@@ -116,6 +118,7 @@ public sealed partial class FoundationStore
     internal FoundationCredentialMaintenanceIntent CompleteCredentialMaintenance(CredentialMaintenanceAdmission admission, FoundationCredentialMaintenanceResult result)
     {
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false); var intent = RequireMaintenanceAdmission(db, tx, admission);
+        RequireNoRecoveryExecutionHold(db, tx);
         var json = MaintenanceResultJson(intent, result, admission.ExpectedAfterSha256);
         Exec(db, tx, """
             UPDATE credential_maintenance_executions SET state='Succeeded',reason='ExactLocalEffectRecorded',result_json=$json,result_sha256=$sha,completed=$now,updated=$now

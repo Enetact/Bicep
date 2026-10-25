@@ -21,7 +21,7 @@ public sealed class FoundationBackupSignatureTests
         var restored = FoundationStore.RestoreSignedBackup(signed, f.Target(), authority, publicKey, f.Cell.Customer, f.Cell.Cell, f.Cell.Clock);
         var held = restored.GetJob(f.Cell.Customer, "operator", job.Id);
         Assert.Equal("OutcomeUnknown", held.State); Assert.Equal("RecoveryRequiresReconciliation", held.Reason);
-        Assert.Null(restored.ClaimNext(f.Cell.Customer, "restored-worker", TimeSpan.FromMinutes(1)));
+        Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(f.Cell.Customer, "restored-worker", TimeSpan.FromMinutes(1))).Code);
         Assert.Contains(restored.ListAudit(f.Cell.Customer, "auditor"), row => row.Action == "BackupRestored" && row.CorrelationId == signed.Backup.Sha256);
         Assert.Equal(before, f.Cell.Scalar("SELECT policy_version FROM cell WHERE singleton=1"));
         Assert.Equal("Queued", f.Cell.Store.GetJob(f.Cell.Customer, "operator", job.Id).State);

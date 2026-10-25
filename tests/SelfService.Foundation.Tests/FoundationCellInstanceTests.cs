@@ -48,7 +48,7 @@ public sealed class FoundationCellInstanceTests
             Assert.NotEqual(source.DatabaseInstanceId, restored.GetCellInstanceIdentity().DatabaseInstanceId);
             Assert.Equal(source, f.Store.GetCellInstanceIdentity());
             Assert.Equal("OutcomeUnknown", restored.GetJob(f.Customer, "viewer", job.Id).State);
-            Assert.Null(restored.ClaimNext(f.Customer, "worker", TimeSpan.FromSeconds(10)));
+            Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(f.Customer, "worker", TimeSpan.FromSeconds(10))).Code);
         }
         finally { foreach (var path in new[] { backup.DatabasePath, f.Path + ".restored", f.Path + ".restored-wal", f.Path + ".restored-shm" }) if (File.Exists(path)) File.Delete(path); }
     }

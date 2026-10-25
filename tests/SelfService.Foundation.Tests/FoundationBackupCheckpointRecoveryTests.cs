@@ -36,7 +36,7 @@ public sealed class FoundationBackupCheckpointRecoveryTests
         Assert.NotEqual(sourceInstance.DatabaseInstanceId, restored.GetCellInstanceIdentity().DatabaseInstanceId);
         var copied = restored.GetJob(f.Customer, "operator", f.Cell.Dispatch.Job.Id);
         Assert.Equal("OutcomeUnknown", copied.State); Assert.Equal("RecoveryRequiresReconciliation", copied.Reason);
-        Assert.Null(restored.ClaimNext(f.Customer, "restored-worker", TimeSpan.FromMinutes(1)));
+        Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(f.Customer, "restored-worker", TimeSpan.FromMinutes(1))).Code);
         Assert.True(restored.VerifyAuditIntegrity(f.Customer, "auditor"));
         Assert.Contains(restored.ListAudit(f.Customer, "auditor"), a => a.Action == "BackupRestored" && a.CorrelationId == packet.Backup.Sha256);
         Assert.Equal(before, f.Snapshot(exclude: stage)); AssertLimits(result, f);

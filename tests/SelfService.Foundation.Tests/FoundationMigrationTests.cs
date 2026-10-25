@@ -128,7 +128,7 @@ public sealed class FoundationMigrationTests
             var restored = FoundationStore.RestoreBackup(snapshot, restorePath, f.Clock);
             Assert.Equal(FoundationStore.CurrentSchemaVersion, restored.SchemaStatus().Version);
             Assert.Equal("OutcomeUnknown", restored.GetJob(f.Customer, "viewer", job.Id).State);
-            Assert.Null(restored.ClaimNext(f.Customer, "worker", TimeSpan.FromSeconds(10)));
+            Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(f.Customer, "worker", TimeSpan.FromSeconds(10))).Code);
         }
         finally
         {

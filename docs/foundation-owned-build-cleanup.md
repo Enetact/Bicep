@@ -1,0 +1,22 @@
+# Owned compiler builds and cleanup
+
+`scripts/Build-FoundationOwned.ps1` builds only `src/SelfService.Foundation/SelfService.Foundation.csproj` in Release mode. It uses a fresh private GUID directory under `artifacts/foundation-owned-builds`, locked NuGet restore, disabled compiler sharing and node reuse, and an explicit child environment without provider credentials. Standard Windows SDK folder metadata and the configured NuGet package cache remain available; user profile, application-data and temporary directories are private to the new build. Existing user credential/configuration caches are not inherited. These directories describe local process ownership; GitHub history remains the version history.
+
+```powershell
+./scripts/Build-FoundationOwned.ps1 -DotNetPath C:\IT\Package\dotnet\dotnet.exe
+./scripts/Test-Foundation.ps1 -DotNetPath C:\IT\Package\dotnet\dotnet.exe
+```
+
+The launcher refuses operational namespace sentinels in the fixed destination's ancestors before creating a generation. It creates its child suspended, assigns it to an unnamed Windows Job Object, and then resumes it. Only standard input/output/error handles are inherited. The Job Object limits active descendants and terminates its owned processes on an interrupted launch. Completion requires a successful original process, zero active job processes, bounded drained output, unchanged source inputs, and a recognized compiler `obj` tree. A timeout, cancellation, output limit, failed build or uncertain shutdown never produces an eligible completed build. Partial failed directories and available bounded private stdout/stderr remain for diagnosis.
+
+The private generation contains a retained `.compiler-build.lock`, source and executable hashes, original process ID and start time, source snapshot, logs, and a completion binding. Consumers of these registered build directories must acquire the existing exclusive guard and keep it held for their entire use. There is no API to register or adopt earlier output. Incomplete, changed or unknown metadata refuses removal.
+
+After a fresh successful full Foundation test execution matches the current repository source, cleanup retains the newest two eligible owned builds. Older proven-completed owned `obj` trees may be removed immediately; their `bin`, logs, source snapshots and ownership evidence remain. Historical build completion binds its own source snapshot; the successful full test used to authorize cleanup must match today's source. `Remove-OldBuildIntermediates.ps1` can preview or apply the same policy using an exact full-test receipt pin.
+
+Removal holds the generation guard and original file handles, rejects links and multiply linked files, and deletes only the captured objects by handle. A newly introduced child or borrowed file refuses the operation; no recursive path deletion fallback exists for owned output. A partial deletion is reported as `RemovalUncertain` and contributes no confirmed removed bytes. Removed bytes are logical file lengths; physical disk space reclaimed is not verified.
+
+Older unregistered build trees retain the conservative global process inspection, minimum age of 60 minutes and protected-content checks. Missing Windows process metadata still refuses cleanup of those trees. The prospective protocol does not resolve ambiguous ownership of old trees or justify weakening that refusal. Packages, FTE execution evidence, release evidence, `.local` suite data, databases, keys, credential namespaces, backups and active/current outputs remain protected.
+
+This is a Windows-qualified local cooperating-owner protocol. It does not fence a malicious process running as the same owner, administrators, kernel components or consumers that bypass the guard. Directory handles alone do not prevent new child creation; captured-name checks and exact handle deletion bound that race, and failures preserve uncertainty. It does not attest continuous global process visibility, independent custody, network isolation, production readiness or publication authority. No portal/service restart, cloud operation, deployment or credential recovery is performed.
+
+`tests/release/foundation-owned-build.tests.ps1` exercises real Job Objects and original handle deletion with constant synthetic children and a fixed-project stand-in. Its report explicitly distinguishes these native mechanics from actual Foundation compilation and does not claim that the stand-in executed the Foundation test suite.

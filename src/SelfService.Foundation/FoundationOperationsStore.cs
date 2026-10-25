@@ -2,7 +2,11 @@ namespace SelfService.Foundation;
 
 public sealed record FoundationOperationalStatus(int SchemaVersion, string Lifecycle, bool Enabled,
     IReadOnlyDictionary<string, long> JobCounts, long PendingOutbox, long ArtifactCount, long ArtifactBytes,
-    double? OldestQueuedSeconds, int ActiveJobLimit, int MaximumClaimAttempts);
+    double? OldestQueuedSeconds, int ActiveJobLimit, int MaximumClaimAttempts)
+{
+    public bool RecoveryExecutionHeld { get; init; }
+    public string? ExecutionHoldReason { get; init; }
+}
 
 public sealed partial class FoundationStore
 {
@@ -39,12 +43,14 @@ public sealed partial class FoundationStore
         var oldest = Rows(db, tx, "SELECT min(created) FROM jobs WHERE customer_id=$c AND state='Queued'",
             r => r.IsDBNull(0) ? (long?)null : r.GetInt64(0), ("$c", CustomerId)).Single();
         var lifecycle = ReadLifecycle(db, tx);
+        var recoveryHold = ReadCurrentRecoveryExecutionHold(db, tx);
         var result = new FoundationOperationalStatus((int)Number(db, tx, "SELECT schema_version FROM cell WHERE singleton=1"),
             lifecycle.State, lifecycle.Enabled, jobs,
             Number(db, tx, "SELECT count(*) FROM outbox WHERE customer_id=$c AND delivered IS NULL", ("$c", CustomerId)),
             Number(db, tx, "SELECT count(*) FROM artifacts WHERE customer_id=$c", ("$c", CustomerId)),
             Number(db, tx, "SELECT coalesce(sum(length(content)),0) FROM artifacts WHERE customer_id=$c", ("$c", CustomerId)),
-            oldest is null ? null : Math.Max(0, (Now - oldest.Value) / 1000d), MaximumPendingJobs, MaximumClaimAttempts);
+            oldest is null ? null : Math.Max(0, (Now - oldest.Value) / 1000d), MaximumPendingJobs, MaximumClaimAttempts)
+        { RecoveryExecutionHeld = recoveryHold is not null, ExecutionHoldReason = recoveryHold is null ? null : "RecoveryRequiresReconciliation" };
         tx.Commit(); return result;
     }
 }

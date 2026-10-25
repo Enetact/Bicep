@@ -1,5 +1,9 @@
 # Self-service catalog and how it works
 
+[Restore execution holds](foundation-recovery-execution-hold.md) protect the customer foundation before fresh dispatch. They add no workload, Azure permission or default model/MCP action; they preserve authorized inspection and recovery preparation.
+
+[Owned compiler builds and cleanup](foundation-owned-build-cleanup.md) add developer operations with contained child processes and completion-bound intermediate retention, without changing running applications or granting cloud authority.
+
 The explicit local [joint checkpoint and stage verifier](foundation-scoped-recovery-joint-verification.md) strengthens customer foundation recovery evidence. It adds no catalog product, pipeline, HTTP/AHP/MCP/model action or Azure permission; actual adoption and activation remain separately governed work.
 
 **20 October 2026 — local developer lifecycle:** [the suite controller](local-suite.md) builds all maintained application entry projects, starts the authenticated Aspire collector before the portal and optional local Functions producers, and stops producers before telemetry. It preserves eligible sign-ins by default; Azure resources, pipelines and cloud-backed sample workers are not started by the local lifecycle. This changes developer operations without adding a workload target or deployment permission.

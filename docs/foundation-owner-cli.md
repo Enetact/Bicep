@@ -2,6 +2,8 @@
 
 `SelfService.Foundation.Owner` provides bounded, explicit Windows owner operations over the existing Foundation store, signed-backup and activation-authority APIs. It is separate from customer HTTP/AHP commands and from the host/worker runtime. Possession of this executable grants no Entra, Azure, GitHub, Azure DevOps or pipeline permission. This increment is for one trusted Windows owner and local dedicated-cell files; it is not a production service installer or an operating-system administrator boundary.
 
+Selecting a restored database with `authority.activate` does not release its [restore execution hold](foundation-recovery-execution-hold.md). Schema 11 keeps fresh ordinary execution blocked while inspection and recovery preparation remain available. Existing operational status distinguishes execution hold from storage readiness; there is no recovery-release command yet.
+
 Run the published `runtime/SelfService.Foundation.Owner.dll` with the supported .NET runtime, or build its project into an isolated artifacts directory. The command accepts exactly these arguments, in this order:
 
 ```powershell

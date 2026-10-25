@@ -139,20 +139,47 @@ public sealed class FoundationCredentialMaintenanceEvidenceTests
     }
 
     [Fact]
-    public async Task Database_instance_fence_denies_copied_approval_even_if_mutable_quarantine_state_is_forged_back()
+    public async Task Restored_cell_hold_denies_copied_approval_even_if_mutable_quarantine_state_is_forged_back()
     {
         using var f = new EvidenceFixture(); await f.Seed(); var intent = await f.Prepare(); await f.Approve(intent);
         var snapshot = f.Store.CreateBackup(f.Child("instance-snapshot.sqlite")); var target = f.Child("instance-restored.sqlite");
         var restored = FoundationStore.RestoreBackup(snapshot, target, f.Credentials.Clock);
         Assert.Equal("Quarantined", restored.GetCredentialMaintenance(await f.Auditor(restored), intent.Id).State);
         // Synthetic privileged SQL alteration is not a shipped recovery/force-success operation.
-        // A still-matching real vault and copied approval must also fail the independent database-instance pin.
+        // A still-matching real vault and copied approval cannot bypass the whole-cell restore hold.
         f.Sql("UPDATE credential_maintenance_intents SET state='Approved'", target);
         Assert.Equal(intent.Target.ProfileGeneration, (await f.Vault.GetProfileAsync(f.Credentials.Scope.AuthProfileId)).Generation);
         var current = await f.Operator(restored); var before = await File.ReadAllBytesAsync(f.Envelope);
+        f.Credentials.Keys.Requests.Clear();
         var error = await Assert.ThrowsAsync<FoundationStoreException>(() => f.Executor(restored).ExecuteAsync(current, intent.Id, intent.Digest));
-        Assert.Equal("MaintenanceInstanceChanged", error.Code);
+        Assert.Equal("RecoveryExecutionHeld", error.Code);
+        Assert.Empty(f.Credentials.Keys.Requests);
+        Assert.True(restored.GetRecoveryExecutionHold(await f.Context(FoundationCapabilities.AuditRead, "Auditor",
+            IdentityTestIssuer.WorkerSubject, restored)).ExecutionHeld);
         Assert.Equal(0, f.Number("SELECT count(*) FROM credential_maintenance_executions", target));
+        Assert.Equal(before, await File.ReadAllBytesAsync(f.Envelope));
+    }
+
+    [Fact]
+    public async Task Database_instance_fence_independently_denies_old_approval_without_a_restore_hold()
+    {
+        using var f = new EvidenceFixture(); await f.Seed(); var intent = await f.Prepare(); await f.Approve(intent);
+        Assert.Equal(0, f.Number("SELECT count(*) FROM audit WHERE action='BackupRestored'"));
+        Assert.Equal(0, f.Number("SELECT count(*) FROM recovery_execution_holds"));
+        // Synthetic privileged rotation isolates the intent's immutable instance pin from restore quarantine and holds.
+        f.Sql("UPDATE cell SET database_instance_id=lower(hex(randomblob(16))) WHERE singleton=1");
+        Assert.NotEqual(intent.DatabaseInstanceId, f.Store.GetCellInstanceIdentity().DatabaseInstanceId);
+        Assert.False(f.Store.GetRecoveryExecutionHold(await f.Context(FoundationCapabilities.AuditRead, "Auditor",
+            IdentityTestIssuer.WorkerSubject)).ExecutionHeld);
+        var current = await f.Operator(); var before = await File.ReadAllBytesAsync(f.Envelope);
+        // Construct against the new current instance so the executor's own pin does not mask the old approval's pin.
+        var executor = f.Executor(); f.Credentials.Keys.Requests.Clear();
+        var error = await Assert.ThrowsAsync<FoundationStoreException>(() => executor.ExecuteAsync(current, intent.Id, intent.Digest));
+        Assert.Equal("MaintenanceInstanceChanged", error.Code);
+        Assert.Empty(f.Credentials.Keys.Requests);
+        Assert.Equal("Approved", f.Store.GetCredentialMaintenance(await f.Auditor(), intent.Id).State);
+        Assert.Equal(0, f.Number("SELECT count(*) FROM credential_maintenance_executions"));
+        Assert.Equal(0, f.Number("SELECT count(*) FROM recovery_execution_holds"));
         Assert.Equal(before, await File.ReadAllBytesAsync(f.Envelope));
     }
 

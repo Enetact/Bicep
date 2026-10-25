@@ -17,7 +17,7 @@ public sealed class FoundationStoreBackupTests
             f.Store.CancelJob(f.Customer, "operator", job.Id);
             var restored = FoundationStore.RestoreBackup(snapshot, restorePath, f.Clock);
             Assert.Equal("OutcomeUnknown", restored.GetJob(f.Customer, "operator", job.Id).State);
-            Assert.Null(restored.ClaimNext(f.Customer, "recovered-worker", TimeSpan.FromMinutes(1)));
+            Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(f.Customer, "recovered-worker", TimeSpan.FromMinutes(1))).Code);
             Assert.Equal(artifact.Sha256, restored.GetArtifact(f.Customer, "viewer", artifact.Id).Sha256);
             Assert.True(restored.VerifyAuditIntegrity(f.Customer, "auditor"));
             Assert.Contains(restored.ListAudit(f.Customer, "auditor"), e => e.Action == "BackupRestored" && e.CorrelationId == snapshot.Sha256);

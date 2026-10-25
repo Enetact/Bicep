@@ -18,6 +18,7 @@ public sealed partial class FoundationStore
             throw new FoundationStoreException("CredentialDispatchBindingInvalid", 403);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: true);
         AssertActivation(db, tx);
+        RequireNoRecoveryExecutionHold(db, tx);
         if (ReadInstanceIdentity(db, tx, CustomerId, CellId).DatabaseInstanceId != binding.DatabaseInstanceId)
             throw new FoundationStoreException("CredentialDispatchInstanceChanged", 403);
         var job = ReadJob(db, tx, binding.JobId);

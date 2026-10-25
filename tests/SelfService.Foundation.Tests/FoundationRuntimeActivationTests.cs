@@ -36,7 +36,7 @@ public sealed class FoundationRuntimeActivationTests
                 requireActivationAuthority: true, activationAuthorityDirectory: fixture.AuthorityPath));
             await using var replacement = await FoundationApiTests.ApiCell.Start(directory: targetDirectory, issuer: issuer,
                 requireActivationAuthority: true, activationAuthorityDirectory: fixture.AuthorityPath);
-            Assert.Null(restored.ClaimNext(Customer, "worker", TimeSpan.FromSeconds(5)));
+            Assert.Equal("RecoveryExecutionHeld", Assert.Throws<FoundationStoreException>(() => restored.ClaimNext(Customer, "worker", TimeSpan.FromSeconds(5))).Code);
             using var response = await replacement.Send("viewer", HttpMethod.Get, "/jobs"); Assert.True(response.IsSuccessStatusCode);
         }
         finally { await api.DisposeAsync(); }

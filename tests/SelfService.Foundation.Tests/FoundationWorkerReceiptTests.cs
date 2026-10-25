@@ -143,6 +143,60 @@ public sealed class FoundationWorkerReceiptTests
     }
 
     [Fact]
+    public async Task Receipt_reader_waits_for_the_original_private_exclusive_writer_to_close()
+    {
+        using var f = new ReceiptCell(); var receipt = Path.Combine(f.Root, "sharing.json");
+        Task<JsonDocument>? reading = null;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try
+        {
+            using (var writer = CreatePrivateReceipt(receipt))
+            {
+                writer.Write("{\"processId\":123,\"mode\":\"Disabled\"}"u8); writer.Flush(flushToDisk: true);
+                reading = ReadAvailableReceipt(receipt, timeout.Token);
+                await Task.Delay(100); Assert.False(reading.IsCompleted);
+            }
+            using var document = await reading;
+            Assert.Equal(123, document.RootElement.GetProperty("processId").GetInt32());
+            Assert.Equal("Disabled", document.RootElement.GetProperty("mode").GetString()); AssertPrivate(receipt);
+        }
+        finally
+        {
+            timeout.Cancel();
+            if (reading is not null) { try { using var unused = await reading; } catch (OperationCanceledException) { } }
+        }
+    }
+
+    [Fact]
+    public async Task Receipt_reader_does_not_retry_invalid_JSON_or_access_errors()
+    {
+        using var f = new ReceiptCell(); var receipt = Path.Combine(f.Root, "malformed.json");
+        using (var writer = CreatePrivateReceipt(receipt)) writer.Write("{"u8);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await Assert.ThrowsAnyAsync<JsonException>(() => ReadAvailableReceipt(receipt, timeout.Token));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => ReadAvailableReceipt(f.Root, timeout.Token));
+        Assert.Equal("{", File.ReadAllText(receipt)); AssertPrivate(receipt);
+    }
+
+    static async Task<JsonDocument> ReadAvailableReceipt(string receipt, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try { return JsonDocument.Parse(await File.ReadAllBytesAsync(receipt, cancellationToken)); }
+            catch (IOException error) when ((error.HResult & 0xffff) is 32 or 33)
+            { await Task.Delay(20, cancellationToken); } // Windows sharing/lock violation only; no ACL or content repair.
+        }
+    }
+
+    static FileStream CreatePrivateReceipt(string path)
+    {
+        using var identity = WindowsIdentity.GetCurrent(); var acl = new FileSecurity();
+        acl.SetOwner(identity.User!); acl.SetAccessRuleProtection(true, false);
+        acl.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.FullControl, AccessControlType.Allow));
+        return new FileInfo(path).Create(FileMode.CreateNew, FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.WriteThrough, acl);
+    }
+
+    [Fact]
     public async Task Two_owned_processes_racing_for_one_receipt_admit_one_registration_and_preserve_the_losing_cell()
     {
         using var first = new ReceiptCell(); using var second = new ReceiptCell(); var receipt = Path.Combine(first.Root, "shared.json");
@@ -484,7 +538,7 @@ public sealed class FoundationWorkerReceiptTests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             while (!File.Exists(receipt)) { if (process.HasExited) { await Exit(); Assert.Fail("Worker exited before a complete receipt: " + Stderr); } await Task.Delay(20, timeout.Token); }
-            using var document = JsonDocument.Parse(File.ReadAllBytes(receipt)); Assert.Equal(Id, document.RootElement.GetProperty("processId").GetInt32());
+            using var document = await ReadAvailableReceipt(receipt, timeout.Token); Assert.Equal(Id, document.RootElement.GetProperty("processId").GetInt32());
         }
         public void Dispose()
         { if (!process.HasExited) { process.Kill(); Assert.True(process.WaitForExit(5000)); } process.Dispose(); }

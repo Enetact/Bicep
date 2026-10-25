@@ -80,11 +80,21 @@ For a separate review, preview is the default; `-Apply` enables deletion and
 The helper requires an accepted full, unfiltered execution from this repository
 within the past 24 hours and an exact current source/HEAD match. It only considers
 ordinary-check `artifacts/<check>/build/obj` or `.build/obj`, optionally under a
-32-hex run directory. It retains at least the newest two eligible build trees,
-all activity within the past hour, explicit `-KeepBuildDirectories`, and any build
-referenced by the current Windows process inventory. Unavailable process
-inspection refuses cleanup. It rechecks qualification, processes and the tree
-immediately before each deletion, using canonical literal paths in PowerShell.
+32-hex run directory. For legacy unregistered output it retains at least the newest
+two eligible build trees, all activity within the past hour, explicit
+`-KeepBuildDirectories`, and any build referenced by the current Windows process
+inventory. Unavailable process inspection still refuses cleanup of these trees.
+It rechecks qualification, processes and the tree immediately before deletion.
+
+[Prospective owned builds](foundation-owned-build-cleanup.md), started by the fixed
+`Build-FoundationOwned.ps1` launcher, have a separate policy. Completion requires
+an actual Windows Job Object with zero remaining descendants and a successful
+original process, unchanged source inputs, pinned output and a private exclusive
+generation guard. After current full-test qualification, cleanup can remove older
+proven-completed owned `obj` trees without a one-hour delay, retaining the newest
+two owned builds separately. It holds the existing guard and captured original
+file handles through deletion. No global process-visibility bypass is granted to
+legacy trees and no earlier tree can be adopted into this protocol.
 
 All `bin` outputs, complete test-execution directories, packages, commercial and
 release evidence, published/installed/preview generations, runtime/cache/storage,
@@ -94,8 +104,11 @@ qualify; unexpected files or layouts are preserved. Linked paths, foreign-owned
 files, protected data/key/evidence names inside the candidate, operational custody
 markers in the tree or its ancestors, oversized trees and changed trees are refused. Unrelated sibling check-family names do not establish ancestor custody. Both final evidence and
 rejected runs remain. Except for the known Idle/System kernel identities, every
-process must expose executable and command-line metadata; an opaque record skips
-cleanup. Absolute and root-relative build references are retained.
+process must expose executable and command-line metadata for legacy cleanup; an
+opaque record preserves legacy output. Absolute and root-relative build references
+are retained when visibility is available. Owned cleanup never falls back to
+recursive path deletion if its file leases, captured names or completion bindings
+fail; registered build consumers must hold the generation guard throughout use.
 An inactive compiler intermediate is rebuildable; a database or key is not treated
 as an intermediate. The process observations and metadata comparisons are local
 cooperating-process checks, not continuous fencing against a concurrent owner or

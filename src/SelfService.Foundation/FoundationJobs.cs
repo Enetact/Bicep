@@ -21,6 +21,7 @@ public sealed partial class FoundationStore
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
         var plan = ReadPlan(db, tx, planId);
         var version = Require(db, tx, operatorKey, plan.ProjectId, plan.EnvironmentId, "Operator");
+        RequireNoRecoveryExecutionHold(db, tx);
         MatchDigest(plan.Digest, expectedDigest);
         var existing = Rows(db, tx, "SELECT id,plan_id,operator_key FROM jobs WHERE customer_id=$c AND idempotency_key=$key",
             r => (Id: r.GetString(0), Plan: r.GetString(1), Operator: r.GetString(2)), ("$c", CustomerId), ("$key", idempotencyKey)).SingleOrDefault();
@@ -71,6 +72,7 @@ public sealed partial class FoundationStore
     {
         Scope(customerId); ValidateId(workerId); ValidateLease(leaseDuration);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
+        RequireNoRecoveryExecutionHold(db, tx);
         if (Number(db, tx, "SELECT enabled FROM cell WHERE singleton=1") != 1) { tx.Commit(); return null; }
         var expired = Rows(db, tx, "SELECT id,state FROM jobs WHERE customer_id=$c AND state IN ('Claimed','Dispatched') AND lease_until<=$now ORDER BY created LIMIT 128",
             r => (Id: r.GetString(0), State: r.GetString(1)), ("$c", CustomerId), ("$now", Now));
@@ -114,6 +116,7 @@ public sealed partial class FoundationStore
         Scope(customerId); ValidateId(jobId); ValidateId(workerId);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
         AssertActivation(db, tx);
+        RequireNoRecoveryExecutionHold(db, tx);
         var job = ReadJob(db, tx, jobId); Lease(job, workerId, fence, "Claimed");
         var plan = ReadPlan(db, tx, job.PlanId);
         try
@@ -140,6 +143,7 @@ public sealed partial class FoundationStore
     public FoundationJob RenewLease(string customerId, string jobId, string workerId, long fence, TimeSpan leaseDuration)
     {
         Scope(customerId); ValidateLease(leaseDuration); using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
+        RequireNoRecoveryExecutionHold(db, tx);
         var job = ReadJob(db, tx, jobId);
         if (job.State is not ("Claimed" or "Dispatched")) throw new FoundationStoreException("LeaseConflict");
         Lease(job, workerId, fence, job.State);
@@ -153,6 +157,7 @@ public sealed partial class FoundationStore
     {
         Scope(customerId); var receipt = CanonicalJson(receiptJson);
         using var db = Open(); using var tx = db.BeginTransaction(deferred: false);
+        RequireNoRecoveryExecutionHold(db, tx);
         var job = ReadJob(db, tx, jobId); Lease(job, workerId, fence, "Dispatched");
         Exec(db, tx, "UPDATE jobs SET state='Succeeded',receipt=$receipt,reason=NULL,worker_id=NULL,lease_until=NULL,updated=$now WHERE customer_id=$c AND id=$id",
             ("$receipt", receipt), ("$now", Now), ("$c", CustomerId), ("$id", jobId));
