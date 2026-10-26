@@ -27,6 +27,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Capture and rehearse both envelopes and absence proofs from a signed source-v2 artifact | [Scoped retained recovery and key holds](foundation-scoped-recovery.md) |
 | Retain and authenticate a restricted namespace without downgrading its access policy | [Restricted source recovery](foundation-restricted-recovery.md) |
 | Re-encrypt restricted recovery material into a fresh inactive destination and verify it | [Restricted recovery staging](foundation-restricted-recovery-staging.md) |
+| Accept a restricted artifact under pinned local custody and hold its checkpoint through staging | [Restricted checkpoints](foundation-restricted-recovery-checkpoints.md) |
 | Authenticate scoped destination ciphertext and absence proofs under inactive custody | [Scoped destination staging](foundation-scoped-recovery-staging.md) |
 | Approve exact verification across every present and absent project/environment | [Complete-scope human review](foundation-scoped-recovery-review.md) |
 | Hold the accepted scoped retained-set checkpoint through stage completion | [Scoped checkpoint custody](foundation-scoped-recovery-checkpoints.md) |
