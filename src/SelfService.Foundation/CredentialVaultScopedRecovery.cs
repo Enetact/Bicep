@@ -74,7 +74,8 @@ public sealed partial class CredentialVault
             vaultGuard = await Gate(token); authorityGuard = await RollbackGate(token); var identity = NamespaceIdentity();
             if (identity != expected) throw ScopedRecoveryFailure("namespace-mismatch");
             var authorityCustody = new CredentialNamespaceCustody(options.RollbackProtection!.AuthorityDirectory,
-                "credential-rollback-scoped-authority", options.CustomerId, options.CellId);
+                RequiresBoundDispatchSession ? "credential-rollback-scoped-bound-authority" : "credential-rollback-scoped-authority",
+                options.CustomerId, options.CellId);
             if (authorityCustody.NamespaceId != identity.AuthorityNamespaceId) throw ScopedRecoveryFailure("namespace-mismatch");
             var state = rollback!.ReadState();
             if (state.Profiles.Values.Any(entry => entry.Pending is not null)) throw ScopedRecoveryFailure("pending-reconciliation");
@@ -162,6 +163,12 @@ public sealed partial class CredentialVault
         internal CredentialScopedRecoveryInventory Inventory(DateTimeOffset observed)
         {
             if (!authenticated) throw ScopedRecoveryFailure("source-not-authenticated");
+            if (owner.RequiresBoundDispatchSession) throw ScopedRecoveryFailure("restricted-source-projection-unsupported");
+            return new(identity, observed, profiles, absences, state.Revision, state.Sha256);
+        }
+        internal CredentialRestrictedRecoveryInventory RestrictedInventory(DateTimeOffset observed)
+        {
+            if (!authenticated || !owner.RequiresBoundDispatchSession) throw RestrictedRecoveryFailure("source-not-authenticated");
             return new(identity, observed, profiles, absences, state.Revision, state.Sha256);
         }
         public void Dispose()

@@ -7,6 +7,18 @@ internal sealed partial class CredentialRollbackAuthority
     // Pure retained metadata validation. Never opens source paths and never claims the MAC has been authenticated.
     internal static IReadOnlyList<CredentialAbsenceScopeProof> ValidateScopedRecoverySnapshot(CredentialNamespaceCustody.Marker vaultMarker,
         CredentialNamespaceCustody.Marker authorityMarker, IReadOnlyDictionary<string, ReadOnlyMemory<byte>> files, CredentialScopedRecoveryInventory inventory)
+        => ValidateScopedRecoverySnapshotCore(vaultMarker, authorityMarker, files, inventory, CredentialRecoveryContentProfile.GeneralScopedV2);
+
+    internal static IReadOnlyList<CredentialAbsenceScopeProof> ValidateRestrictedRecoverySnapshot(CredentialNamespaceCustody.Marker vaultMarker,
+        CredentialNamespaceCustody.Marker authorityMarker, IReadOnlyDictionary<string, ReadOnlyMemory<byte>> files, CredentialRestrictedRecoveryInventory inventory)
+    {
+        inventory.ValidateIntegrity();
+        return ValidateScopedRecoverySnapshotCore(vaultMarker, authorityMarker, files, inventory.ScopedInventory, CredentialRecoveryContentProfile.RestrictedScopedV3);
+    }
+
+    static IReadOnlyList<CredentialAbsenceScopeProof> ValidateScopedRecoverySnapshotCore(CredentialNamespaceCustody.Marker vaultMarker,
+        CredentialNamespaceCustody.Marker authorityMarker, IReadOnlyDictionary<string, ReadOnlyMemory<byte>> files, CredentialScopedRecoveryInventory inventory,
+        CredentialRecoveryContentProfile contentProfile)
     {
         T Parse<T>(string name)
         {
@@ -21,9 +33,15 @@ internal sealed partial class CredentialRollbackAuthority
             return document.RootElement.Deserialize<T>(CredentialScopedRecoverySets.Json) ?? throw CredentialScopedRecoverySets.Failure("contents-invalid");
         }
         inventory.ValidateIntegrity(); var identity = inventory.Namespace;
+        var kinds = contentProfile switch
+        {
+            CredentialRecoveryContentProfile.GeneralScopedV2 => (Vault: "credential-vault-scoped-fenced", Authority: "credential-rollback-scoped-authority"),
+            CredentialRecoveryContentProfile.RestrictedScopedV3 => (Vault: "credential-vault-scoped-bound-dispatch", Authority: "credential-rollback-scoped-bound-authority"),
+            _ => throw CredentialScopedRecoverySets.Failure("contents-invalid")
+        };
         var binding = Parse<Binding>("vault/rollback-binding.json"); var other = Parse<Binding>("authority/authority.json");
         if (binding != other || binding.Schema != 2 || binding.Kind != "credential-rollback-scoped-binding" ||
-            vaultMarker.Kind != "credential-vault-scoped-fenced" || authorityMarker.Kind != "credential-rollback-scoped-authority" ||
+            vaultMarker.Kind != kinds.Vault || authorityMarker.Kind != kinds.Authority ||
             vaultMarker.CustomerId != identity.CustomerId || vaultMarker.CellId != identity.CellId ||
             authorityMarker.CustomerId != identity.CustomerId || authorityMarker.CellId != identity.CellId || binding.VaultNamespaceId == binding.AuthorityNamespaceId ||
             string.Equals(binding.VaultPath, binding.AuthorityPath, StringComparison.OrdinalIgnoreCase) ||

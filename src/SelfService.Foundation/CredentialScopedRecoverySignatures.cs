@@ -26,8 +26,14 @@ public static partial class CredentialScopedRecoverySets
     }
     internal static void RequireSignature(CredentialScopedRecoverySetSignature s, bool allowUnsigned = false)
     {
+        if (s is null || s.Version != 2 || s.Kind != "credential-scoped-recovery-set") throw Failure("signature-invalid");
+        RequireSignatureMetadata(s, allowUnsigned);
+    }
+    // Common bounded metadata only. Public version entrypoints always check their own closed domain first.
+    internal static void RequireSignatureMetadata(CredentialScopedRecoverySetSignature s, bool allowUnsigned)
+    {
         if (s is null) throw Failure("signature-invalid"); CredentialRecoverySets.RequireIdentity(s.SourceNamespace);
-        if (s.Version != 2 || s.Kind != "credential-scoped-recovery-set" || s.SourceNamespace.AuthorityNamespaceId is null || !CredentialRecoverySets.NamespaceShape(s.SetId) ||
+        if (s.SourceNamespace.AuthorityNamespaceId is null || !CredentialRecoverySets.NamespaceShape(s.SetId) ||
             s.CustomerId != s.SourceNamespace.CustomerId || s.CellId != s.SourceNamespace.CellId || s.Generation is < 1 or > CredentialRecoveryInventory.MaximumCounter ||
             !CredentialRecoverySets.Utc(s.CapturedUtc) || !CredentialRecoverySets.Utc(s.IssuedUtc) || !CredentialRecoverySets.Utc(s.NotBeforeUtc) || !CredentialRecoverySets.Utc(s.ExpiresUtc) ||
             s.CapturedUtc > s.IssuedUtc || s.IssuedUtc >= s.ExpiresUtc || s.NotBeforeUtc >= s.ExpiresUtc || s.ExpiresUtc - s.IssuedUtc > TimeSpan.FromDays(366) ||

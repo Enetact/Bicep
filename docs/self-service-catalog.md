@@ -4,6 +4,8 @@
 
 [Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.
 
+[Restricted source recovery](foundation-restricted-recovery.md) adds explicit policy-preserving artifact capture and detached authentication. It adds no workload, default tool route, restore authority or live provider permission; existing General recovery paths remain separate.
+
 [Restore execution holds](foundation-recovery-execution-hold.md) protect the customer foundation before fresh dispatch. They add no workload, Azure permission or default model/MCP action; they preserve authorized inspection and recovery preparation.
 
 [Owned compiler builds and cleanup](foundation-owned-build-cleanup.md) add developer operations with contained child processes and completion-bound intermediate retention. Successful Foundation publication also cleans its own verified scratch copies while preserving archives and evidence. These operations do not change running applications or grant cloud authority.

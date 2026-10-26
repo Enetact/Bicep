@@ -13,6 +13,12 @@ public sealed partial class CredentialVault
     // Immutable file pins validate the actual marker kinds and both binding copies. They do not read
     // profiles, key material, mutable rollback state or the exclusive dispatch-admission gates.
     internal void RequireGenericCredentialSourceUse(string code)
+        => RequireSourceAccessProfile(CredentialVaultAccessProfile.General, code);
+
+    internal void RequireRestrictedRecoverySourceProfile() => RequireSourceAccessProfile(
+        CredentialVaultAccessProfile.FoundationBoundDispatchOnly, "credential-restricted-recovery-source-profile-required");
+
+    void RequireSourceAccessProfile(CredentialVaultAccessProfile expected, string code)
     {
         CredentialNamespaceMetadataPin? marker = null;
         CredentialNamespaceMetadataPin[]? pins = null;
@@ -21,7 +27,7 @@ public sealed partial class CredentialVault
             marker = custody.HoldMetadataFile(CredentialNamespaceCustody.MarkerName);
             pins = rollback?.HoldNamespaceMetadata();
             marker.AssertCurrent(); custody.ValidateMetadataIdentity(); rollback?.ValidateNamespaceMetadata();
-            if (RequiresBoundDispatchSession) throw new CredentialException(code);
+            if (RequiresBoundDispatchSession != (expected == CredentialVaultAccessProfile.FoundationBoundDispatchOnly)) throw new CredentialException(code);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { throw new CredentialException("credential-namespace-custody-unavailable"); }

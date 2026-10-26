@@ -25,6 +25,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Pin the current accepted credential set and retain its selection through inactive staging | [Credential-set checkpoints](foundation-credential-recovery-checkpoints.md) → [Custody-backed staging](foundation-credential-checkpoint-staging.md) |
 | Preserve original scope after an abandoned first credential write in a fresh opt-in source format | [Source absence proofs](foundation-absence-scope-provenance.md) → [Authenticated scope inspection](foundation-absence-scope-inspection.md) |
 | Capture and rehearse both envelopes and absence proofs from a signed source-v2 artifact | [Scoped retained recovery and key holds](foundation-scoped-recovery.md) |
+| Retain and authenticate a restricted namespace without downgrading its access policy | [Restricted source recovery](foundation-restricted-recovery.md) |
 | Authenticate scoped destination ciphertext and absence proofs under inactive custody | [Scoped destination staging](foundation-scoped-recovery-staging.md) |
 | Approve exact verification across every present and absent project/environment | [Complete-scope human review](foundation-scoped-recovery-review.md) |
 | Hold the accepted scoped retained-set checkpoint through stage completion | [Scoped checkpoint custody](foundation-scoped-recovery-checkpoints.md) |

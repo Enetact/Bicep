@@ -71,10 +71,26 @@ public sealed class CredentialScopedRecoveryRehearsal
         {
             token.ThrowIfCancellationRequested();
             using var retained = CredentialScopedRecoverySets.ValidateRetainedSet(set, pinnedAuthority, pinnedPublicKey, expectedNamespace, clock);
+            var authenticated = await AuthenticateRetainedAsync(expectedNamespace, keys, retained.Verification.Inventory, retained.Envelopes, retained.AbsenceProofs, token);
+            var completed = DateTimeOffset.FromUnixTimeMilliseconds(clock.GetUtcNow().ToUnixTimeMilliseconds());
+            CredentialScopedRecoverySets.ValidateLifetime(retained.Verification.Signature, completed); token.ThrowIfCancellationRequested();
+            return new(retained.Verification, authenticated.Profiles, authenticated.Absences, completed);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        { throw new OperationCanceledException("Scoped credential recovery rehearsal canceled.", cancellationToken); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw Failure("timeout"); }
+        catch (OperationCanceledException) { throw Failure("unavailable"); }
+        catch (CredentialException) { throw; }
+        catch (Exception) { throw Failure("unavailable"); }
+    }
+    internal sealed record AuthenticatedDependencies(IReadOnlyList<CredentialRecoveryProfileDependency> Profiles, IReadOnlyList<CredentialAbsenceScopeDependency> Absences);
+    internal static async Task<AuthenticatedDependencies> AuthenticateRetainedAsync(CredentialVaultNamespaceIdentity expectedNamespace,
+        ICredentialKeyProvider keys, CredentialScopedRecoveryInventory expected, IReadOnlyList<RetainedCredentialRecoveryEnvelope> envelopes,
+        IReadOnlyList<CredentialAbsenceScopeProof> proofs, CancellationToken token)
+    {
             using var cache = new FrozenKeys(expectedNamespace, keys);
-            var expected = retained.Verification.Inventory;
             var profiles = new List<CredentialRecoveryProfileDependency>(expected.ProfileDependencies.Count);
-            foreach (var envelope in retained.Envelopes)
+            foreach (var envelope in envelopes)
             {
                 token.ThrowIfCancellationRequested();
                 var actual = await CredentialVault.AuthenticateRecoveryEnvelopeAsync(envelope.EncryptedBytes, envelope.ProfileIdSha256, expectedNamespace, cache, token);
@@ -84,7 +100,7 @@ public sealed class CredentialScopedRecoveryRehearsal
                 profiles.Add(actual);
             }
             var absences = new List<CredentialAbsenceScopeDependency>(expected.AbsenceScopes.Count);
-            foreach (var proof in retained.AbsenceProofs)
+            foreach (var proof in proofs)
             {
                 token.ThrowIfCancellationRequested(); using var key = await cache.GetKeyAsync(expectedNamespace.CustomerId, expectedNamespace.CellId, proof.KeyId, token);
                 token.ThrowIfCancellationRequested(); var bytes = key.CopyBytes();
@@ -96,16 +112,8 @@ public sealed class CredentialScopedRecoveryRehearsal
             }
             if (profiles.Count != expected.ProfileDependencies.Count || absences.Count != expected.AbsenceScopes.Count ||
                 !cache.KeyIds.SequenceEqual(expected.CurrentRequiredKeyIds, StringComparer.Ordinal)) throw Failure("metadata-mismatch");
-            var completed = DateTimeOffset.FromUnixTimeMilliseconds(clock.GetUtcNow().ToUnixTimeMilliseconds());
-            CredentialScopedRecoverySets.ValidateLifetime(retained.Verification.Signature, completed); token.ThrowIfCancellationRequested();
-            return new(retained.Verification, profiles.OrderBy(p => p.ProfileIdSha256, StringComparer.Ordinal), absences.OrderBy(p => p.ProfileIdSha256, StringComparer.Ordinal), completed);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        { throw new OperationCanceledException("Scoped credential recovery rehearsal canceled.", cancellationToken); }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw Failure("timeout"); }
-        catch (OperationCanceledException) { throw Failure("unavailable"); }
-        catch (CredentialException) { throw; }
-        catch (Exception) { throw Failure("unavailable"); }
+            return new(Array.AsReadOnly(profiles.OrderBy(p => p.ProfileIdSha256, StringComparer.Ordinal).ToArray()),
+                Array.AsReadOnly(absences.OrderBy(p => p.ProfileIdSha256, StringComparer.Ordinal).ToArray()));
     }
     sealed class FrozenKeys(CredentialVaultNamespaceIdentity identity, ICredentialKeyProvider source) : ICredentialKeyProvider, IDisposable
     {

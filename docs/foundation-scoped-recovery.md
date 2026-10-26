@@ -1,5 +1,7 @@
 # Source-v2 signed retained recovery
 
+This guide applies to General scoped-V2 namespaces. Fresh `FoundationBoundDispatchOnly` custody uses the separate [restricted source-V3 protocol](foundation-restricted-recovery.md); these V2 APIs and existing stage/checkpoint/review consumers do not accept or downgrade restricted artifacts.
+
 The fresh [source-v2 format](foundation-absence-scope-provenance.md) can retain an original attempted scope after an abandoned first credential publication. `CredentialVault.InspectScopedRecoveryDependenciesAsync` authenticates every present envelope and committed absence proof in one guarded observation. `CaptureScopedSignedRecoverySetAsync` captures those same source bytes into a separate signed private artifact. `CredentialScopedRecoveryRehearsal` authenticates that retained material without consulting the current source folders.
 
 These are explicit trusted C# composition APIs. The default v1 roots, signed sets, staging, human review and checkpoint consumers retain their existing types and formats. They do not accept a scoped recovery artifact. Revision 23 adds separate [scoped staging](foundation-scoped-recovery-staging.md), [human review](foundation-scoped-recovery-review.md) and [checkpoint](foundation-scoped-recovery-checkpoints.md) consumers. No HTTP, AHP, MCP, model, worker or owner CLI route automatically selects them. Source retained recovery itself adds no existing-root conversion, key export, import, credential renewal, deployment or activation.

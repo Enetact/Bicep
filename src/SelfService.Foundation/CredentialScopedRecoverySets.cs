@@ -12,10 +12,10 @@ public static partial class CredentialScopedRecoverySets
     { MaxDepth = 16, PropertyNameCaseInsensitive = false, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         RespectRequiredConstructorParameters = true, RespectNullableAnnotations = true };
     sealed record Artifact(string Schema, CredentialScopedRecoverySetSignature Signature, string Content);
-    sealed record FileDocument(string Name, long Length, string Sha256, string Bytes);
-    sealed record ProfileDocument(string ProfileIdSha256, string ScopeSha256, string ProjectId, string EnvironmentId,
+    internal sealed record FileDocument(string Name, long Length, string Sha256, string Bytes);
+    internal sealed record ProfileDocument(string ProfileIdSha256, string ScopeSha256, string ProjectId, string EnvironmentId,
         long Generation, bool Enabled, long ExpiresUnixMilliseconds, string SourceKeyId, string EnvelopeSha256, long EnvelopeLength);
-    sealed record InventoryDocument(string Schema, string CustomerId, string CellId, string VaultNamespaceId,
+    internal sealed record InventoryDocument(string Schema, string CustomerId, string CellId, string VaultNamespaceId,
         string NamespaceCommitmentSha256, string AuthorityNamespaceId, string AuthorityBindingSha256, DateTimeOffset ObservedUtc,
         long AuthorityRevision, string AuthorityStateSha256, ProfileDocument[] ProfileDependencies, CredentialAbsenceScopeDependency[] AbsenceScopes,
         string[] CurrentRequiredKeyIds, string IndependentBackupCoverage, bool KeyRetirementAuthorized, string Sha256);
@@ -121,8 +121,23 @@ public static partial class CredentialScopedRecoverySets
             inventory.AbsenceScopes.Count != signature.AbsenceProofCount || !inventory.CurrentRequiredKeyIds.SequenceEqual(raw.CurrentRequiredKeyIds, StringComparer.Ordinal) ||
             !inventory.ProfileDependencies.Select(p => p.ProfileIdSha256).SequenceEqual(raw.ProfileDependencies.Select(p => p.ProfileIdSha256), StringComparer.Ordinal) ||
             !inventory.AbsenceScopes.Select(p => p.ProfileIdSha256).SequenceEqual(raw.AbsenceScopes.Select(p => p.ProfileIdSha256), StringComparer.Ordinal)) throw Failure("contents-invalid");
+        var decoded = DecodeFiles(inventory, content.Files, owned, CredentialRecoveryContentProfile.GeneralScopedV2);
+        return (inventory, decoded.Files, decoded.Proofs);
+    }
+
+    internal static (SortedDictionary<string, ReadOnlyMemory<byte>> Files, IReadOnlyList<CredentialAbsenceScopeProof> Proofs) DecodeFiles(
+        CredentialScopedRecoveryInventory inventory, IReadOnlyList<FileDocument> documents, List<byte[]> owned, CredentialRecoveryContentProfile contentProfile)
+    {
+        inventory.ValidateIntegrity(); var identity = inventory.Namespace;
+        if (documents.Count is < 7 or > MaximumFiles) throw Failure("contents-invalid");
+        var kinds = contentProfile switch
+        {
+            CredentialRecoveryContentProfile.GeneralScopedV2 => (Vault: "credential-vault-scoped-fenced", Authority: "credential-rollback-scoped-authority"),
+            CredentialRecoveryContentProfile.RestrictedScopedV3 => (Vault: "credential-vault-scoped-bound-dispatch", Authority: "credential-rollback-scoped-bound-authority"),
+            _ => throw Failure("contents-invalid")
+        };
         var files = new SortedDictionary<string, ReadOnlyMemory<byte>>(StringComparer.Ordinal); long total = 0; string? previous = null;
-        foreach (var file in content.Files)
+        foreach (var file in documents)
         {
             if (file is null || file.Name is null || previous is not null && StringComparer.Ordinal.Compare(previous, file.Name) >= 0) throw Failure("contents-invalid");
             var maximum = FileMaximum(file.Name);
@@ -140,11 +155,13 @@ public static partial class CredentialScopedRecoverySets
                 JsonSerializer.Serialize(CredentialVault.InspectScopedRecoveryEnvelopeMetadata(retained, profile.ProfileIdSha256, identity), Json) != JsonSerializer.Serialize(profile, Json)) throw Failure("contents-invalid");
         }
         if (!files.Keys.SequenceEqual(expected, StringComparer.Ordinal) || files["vault/.vault.lock"].Length != 0 || files["authority/.rollback.lock"].Length != 0) throw Failure("contents-invalid");
-        var vaultMarker = CredentialNamespaceCustody.ParseRecoveryMarker(files["vault/.credential-namespace.json"], "credential-vault-scoped-fenced",
+        var vaultMarker = CredentialNamespaceCustody.ParseRecoveryMarker(files["vault/.credential-namespace.json"], kinds.Vault,
             identity.CustomerId, identity.CellId, identity.VaultNamespaceId, identity.NamespaceCommitmentSha256);
-        var authorityMarker = CredentialNamespaceCustody.ParseRecoveryMarker(files["authority/.credential-namespace.json"], "credential-rollback-scoped-authority",
+        var authorityMarker = CredentialNamespaceCustody.ParseRecoveryMarker(files["authority/.credential-namespace.json"], kinds.Authority,
             identity.CustomerId, identity.CellId, identity.AuthorityNamespaceId!, null);
-        return (inventory, files, CredentialRollbackAuthority.ValidateScopedRecoverySnapshot(vaultMarker, authorityMarker, files, inventory));
+        return (files, contentProfile == CredentialRecoveryContentProfile.GeneralScopedV2
+            ? CredentialRollbackAuthority.ValidateScopedRecoverySnapshot(vaultMarker, authorityMarker, files, inventory)
+            : CredentialRollbackAuthority.ValidateRestrictedRecoverySnapshot(vaultMarker, authorityMarker, files, new CredentialRestrictedRecoveryInventory(inventory)));
     }
     static int FileMaximum(string name) => name switch
     {
@@ -154,8 +171,8 @@ public static partial class CredentialScopedRecoverySets
         _ when IsProfileName(name) => 131072,
         _ => throw Failure("contents-invalid")
     };
-    static bool IsProfileName(string name) => Regex.IsMatch(name, "\\Avault/[a-f0-9]{64}\\.credential\\.json\\z", RegexOptions.CultureInvariant);
-    static byte[] Decode(string value, int maximum)
+    internal static bool IsProfileName(string name) => Regex.IsMatch(name, "\\Avault/[a-f0-9]{64}\\.credential\\.json\\z", RegexOptions.CultureInvariant);
+    internal static byte[] Decode(string value, int maximum)
     {
         if (value is null || value.Length > ((long)maximum + 2) / 3 * 4) throw Failure("capacity-exceeded");
         var bytes = Convert.FromBase64String(value);
