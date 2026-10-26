@@ -197,15 +197,19 @@ public sealed partial class FoundationCellActivationAuthority
     {
         if (ReadMarker().AuthorityId != authorityId) throw Failure("ActivationAuthorityChanged", 403);
     }
-    Marker ReadMarker()
+    Marker ReadMarker() => ReadMarkerCore(null);
+    Marker ReadMarkerAt(DateTimeOffset observedUtc) => ReadMarkerCore(observedUtc);
+    Marker ReadMarkerCore(DateTimeOffset? observedUtc)
     {
         var marker = Read<Marker>(Path.Combine(root, MarkerName));
         if (marker.Schema != 1 || marker.Kind != "cell-activation-authority" || !InstanceShape(marker.AuthorityId) ||
             marker.CustomerId != customerId || marker.CellId != cellId || !UtcMilliseconds(marker.CreatedUtc) ||
-            marker.CreatedUtc > clock.GetUtcNow() || !FixedDigest(marker.Sha256, MarkerDigest(marker))) throw Failure("ActivationAuthorityInvalid");
+            marker.CreatedUtc > (observedUtc ?? clock.GetUtcNow()) || !FixedDigest(marker.Sha256, MarkerDigest(marker))) throw Failure("ActivationAuthorityInvalid");
         return marker;
     }
-    FoundationCellActivationBinding? ReadState()
+    FoundationCellActivationBinding? ReadState() => ReadStateCore(null);
+    FoundationCellActivationBinding? ReadStateAt(DateTimeOffset observedUtc) => ReadStateCore(observedUtc);
+    FoundationCellActivationBinding? ReadStateCore(DateTimeOffset? observedUtc)
     {
         NoLinks(root); var records = new List<string>();
         foreach (var entry in Directory.EnumerateFileSystemEntries(root))
@@ -226,7 +230,7 @@ public sealed partial class FoundationCellActivationAuthority
                 binding.AuthorityId != authorityId || !InstanceShape(binding.DatabaseInstanceId) || binding.Generation != (current?.Generation ?? 0) + 1 ||
                 binding.Generation > MaximumGenerations || Path.GetFileName(path) != RecordName(binding.Generation) ||
                 binding.DatabasePath != CanonicalDatabasePath(binding.DatabasePath) || binding.PreviousSha256 != (current?.Sha256 ?? "") ||
-                !UtcMilliseconds(binding.ActivatedUtc) || binding.ActivatedUtc > clock.GetUtcNow() ||
+                !UtcMilliseconds(binding.ActivatedUtc) || binding.ActivatedUtc > (observedUtc ?? clock.GetUtcNow()) ||
                 current is not null && binding.ActivatedUtc < current.ActivatedUtc || !FixedDigest(binding.Sha256, BindingDigest(binding)))
                 throw Failure("ActivationAuthorityInvalid");
             current = binding;

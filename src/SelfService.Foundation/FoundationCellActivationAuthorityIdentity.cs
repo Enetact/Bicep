@@ -17,13 +17,17 @@ public sealed partial class FoundationCellActivationAuthority
     }
 
     // Only concrete activation-held composition uses this non-reentrant read. The v1 on-disk marker is unchanged.
-    internal FoundationCellActivationAuthorityIdentity ReadHeldIdentity()
+    internal FoundationCellActivationAuthorityIdentity ReadHeldIdentity() => ReadHeldIdentityCore(null);
+    internal FoundationCellActivationAuthorityIdentity ReadHeldIdentityAt(DateTimeOffset observedUtc) => ReadHeldIdentityCore(observedUtc);
+    FoundationCellActivationAuthorityIdentity ReadHeldIdentityCore(DateTimeOffset? observedUtc)
     {
         if (!OperatingSystem.IsWindows()) throw Failure("ActivationCustodyWindowsRequired", 403);
         try
         {
-            CheckAuthority(); ValidateProtectedDirectory(root);
-            var marker = ReadMarker();
+            if (observedUtc is { } at) { if (ReadMarkerAt(at).AuthorityId != authorityId) throw Failure("ActivationAuthorityChanged", 403); }
+            else CheckAuthority();
+            ValidateProtectedDirectory(root);
+            var marker = observedUtc is { } observed ? ReadMarkerAt(observed) : ReadMarker();
             var owner = new DirectoryInfo(root).GetAccessControl().GetOwner(typeof(SecurityIdentifier)) as SecurityIdentifier
                 ?? throw Failure("ActivationAuthorityAccessDenied", 403);
             var digest = Hash(JsonSerializer.SerializeToUtf8Bytes(new

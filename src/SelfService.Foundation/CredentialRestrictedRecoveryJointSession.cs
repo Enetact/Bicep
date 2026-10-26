@@ -57,6 +57,19 @@ internal sealed class CredentialRestrictedRecoveryJointSession : IDisposable
         var result = await stage.VerifyJointAsync(checkpoint, cancellationToken);
         AssertCurrent(); cancellationToken.ThrowIfCancellationRequested(); return result;
     }
+    internal void AssertSnapshotCurrent(CancellationToken token)
+    {
+        if (Volatile.Read(ref disposed) != 0) throw Failure("session-disposed");
+        checkpoint.AssertCurrentAt(checkpoint.Checkpoint.AcceptedUtc); stage.AssertSnapshotCurrent(token);
+    }
+    internal void AssertCheckpointReference(CredentialRestrictedRecoverySetCheckpointReadLease actual)
+    { if (!ReferenceEquals(actual, checkpoint)) throw Failure("checkpoint-session-mismatch"); }
+    internal async Task<CredentialRestrictedRecoveryStageVerification> VerifyAdoptionAsync(CredentialRestrictedRecoveryAdoptionSession adoption, CancellationToken token)
+    {
+        AssertCurrent(); token.ThrowIfCancellationRequested();
+        var result = await stage.VerifyAdoptionAsync(checkpoint, adoption, token);
+        AssertCurrent(); token.ThrowIfCancellationRequested(); return result;
+    }
 
     internal void AssertVerifiedCurrent(CredentialRestrictedRecoveryStageVerification result, DateTimeOffset observedUtc, CancellationToken token)
     {

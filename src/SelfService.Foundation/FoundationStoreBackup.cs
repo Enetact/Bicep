@@ -138,6 +138,7 @@ public sealed partial class FoundationStore
         HoldRecoveredCredentialScopedRecoveryReviews(db, tx);
         HoldRecoveredCredentialRestrictedRecoveryReviews(db, tx);
         HoldRecoveredCredentialRestrictedRecoveryJointVerifications(db, tx);
+        HoldRecoveredCredentialRestrictedRecoveryAdoptionIntents(db, tx);
         HoldRecoveredCredentialScopedRecoveryJointVerifications(db, tx);
         var ids = Rows(db, tx, "SELECT id FROM jobs WHERE customer_id=$c AND state IN ('Queued','Claimed','Dispatched')",
             r => r.GetString(0), ("$c", CustomerId));
@@ -238,6 +239,7 @@ public sealed partial class FoundationStore
             if (version >= 12) Exec(reference, null, SchemaV12);
             if (version >= 13) Exec(reference, null, SchemaV13);
             if (version >= 14) Exec(reference, null, SchemaV14);
+            if (version >= 15) Exec(reference, null, SchemaV15);
             return reference;
         }
         catch { reference.Dispose(); throw; }
@@ -303,8 +305,8 @@ public sealed partial class FoundationStore
             return;
         }
         var checksums = new[] { Hash("platform-studio.foundation.schema.v1"), SchemaV2Checksum, SchemaV3Checksum,
-            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum, SchemaV11Checksum, SchemaV12Checksum, SchemaV13Checksum, SchemaV14Checksum };
-        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 15", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
+            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum, SchemaV11Checksum, SchemaV12Checksum, SchemaV13Checksum, SchemaV14Checksum, SchemaV15Checksum };
+        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 16", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
         if (history.Count != version || history.Where((entry, i) => entry.Version != i + 1 || entry.Checksum != checksums[i]).Any())
             throw new FoundationStoreException("BackupIntegrityFailed");
     }

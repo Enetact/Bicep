@@ -30,6 +30,7 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | Accept a restricted artifact under pinned local custody and hold its checkpoint through staging | [Restricted checkpoints](foundation-restricted-recovery-checkpoints.md) |
 | Obtain complete-scope human approval for one read-only restricted stage verification | [Restricted recovery review](foundation-restricted-recovery-review.md) |
 | Verify an approved restricted stage while its current checkpoint remains held through commit | [Restricted joint verification](foundation-restricted-recovery-joint-verification.md) |
+| Prepare a separate restored-cell adoption intent and obtain distinct human review | [Restricted adoption-intent review](foundation-restricted-recovery-adoption-intent.md) |
 | Authenticate scoped destination ciphertext and absence proofs under inactive custody | [Scoped destination staging](foundation-scoped-recovery-staging.md) |
 | Approve exact verification across every present and absent project/environment | [Complete-scope human review](foundation-scoped-recovery-review.md) |
 | Hold the accepted scoped retained-set checkpoint through stage completion | [Scoped checkpoint custody](foundation-scoped-recovery-checkpoints.md) |

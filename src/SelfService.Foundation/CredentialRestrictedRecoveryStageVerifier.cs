@@ -92,11 +92,14 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
         }
         internal void AssertSnapshotCurrent(CancellationToken token)
         { retained.AssertCurrent(); token.ThrowIfCancellationRequested(); }
-        internal Task<CredentialRestrictedRecoveryStageVerification> VerifyAsync(CancellationToken token) => VerifyCoreAsync(null, token);
+        internal Task<CredentialRestrictedRecoveryStageVerification> VerifyAsync(CancellationToken token) => VerifyCoreAsync(null, null, token);
         // Only the concrete restricted checkpoint lease can narrow the key admission boundary.
         internal Task<CredentialRestrictedRecoveryStageVerification> VerifyJointAsync(CredentialRestrictedRecoverySetCheckpointReadLease checkpoint, CancellationToken token)
-        { ArgumentNullException.ThrowIfNull(checkpoint); return VerifyCoreAsync(checkpoint, token); }
-        void AssertJointCurrent(CredentialRestrictedRecoverySetCheckpointReadLease? checkpoint, CancellationToken token)
+        { ArgumentNullException.ThrowIfNull(checkpoint); return VerifyCoreAsync(checkpoint, null, token); }
+        internal Task<CredentialRestrictedRecoveryStageVerification> VerifyAdoptionAsync(CredentialRestrictedRecoverySetCheckpointReadLease checkpoint,
+            CredentialRestrictedRecoveryAdoptionSession adoption, CancellationToken token)
+        { ArgumentNullException.ThrowIfNull(checkpoint); ArgumentNullException.ThrowIfNull(adoption); return VerifyCoreAsync(checkpoint, adoption, token); }
+        void AssertJointCurrent(CredentialRestrictedRecoverySetCheckpointReadLease? checkpoint, CredentialRestrictedRecoveryAdoptionSession? adoption, CancellationToken token)
         {
             AssertCurrent();
             if (checkpoint is not null)
@@ -104,14 +107,20 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
                 if (!OperatingSystem.IsWindows()) throw CredentialRestrictedRecoveryStaging.Failure("windows-required");
                 checkpoint.AssertCurrent(); retained.AssertCurrent();
             }
+            if (adoption is not null)
+            {
+                if (!OperatingSystem.IsWindows()) throw CredentialRestrictedRecoveryStaging.Failure("windows-required");
+                adoption.AssertPreKeySelectionCurrent(checkpoint!, token); retained.AssertCurrent();
+            }
             token.ThrowIfCancellationRequested();
         }
-        async Task<CredentialRestrictedRecoveryStageVerification> VerifyCoreAsync(CredentialRestrictedRecoverySetCheckpointReadLease? checkpoint, CancellationToken token)
+        async Task<CredentialRestrictedRecoveryStageVerification> VerifyCoreAsync(CredentialRestrictedRecoverySetCheckpointReadLease? checkpoint,
+            CredentialRestrictedRecoveryAdoptionSession? adoption, CancellationToken token)
         {
             if (Interlocked.Exchange(ref used, 1) != 0) throw CredentialRestrictedRecoveryStaging.Failure("session-already-consumed");
-            token.ThrowIfCancellationRequested(); AssertJointCurrent(checkpoint, token);
+            token.ThrowIfCancellationRequested(); AssertJointCurrent(checkpoint, adoption, token);
             using var key = await CredentialRestrictedRecoveryStaging.ResolvePinnedDestinationKeyAsync(plan.DestinationKey, owner.destinationKeys, token);
-            token.ThrowIfCancellationRequested(); AssertJointCurrent(checkpoint, token);
+            token.ThrowIfCancellationRequested(); AssertJointCurrent(checkpoint, adoption, token);
             CredentialRestrictedStageCompletionProofs.Authenticate(plan, Receipt, retained.CompletionProof, key);
             var context = new CredentialRestrictedStageEnvelopeContext(Receipt.StageId, Receipt.StagedVaultNamespaceId, Receipt.StagedAuthorityNamespaceId, Receipt.BindingSha256);
             foreach (var envelope in retained.Envelopes)
@@ -135,6 +144,11 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
             {
                 if (!OperatingSystem.IsWindows()) throw CredentialRestrictedRecoveryStaging.Failure("windows-required");
                 checkpoint.AssertCurrent();
+            }
+            if (adoption is not null)
+            {
+                if (!OperatingSystem.IsWindows()) throw CredentialRestrictedRecoveryStaging.Failure("windows-required");
+                adoption.AssertPreKeySelectionCurrent(checkpoint!, token);
             }
             retained.AssertCurrent(); token.ThrowIfCancellationRequested(); verifiedResult = result; return result;
         }

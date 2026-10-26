@@ -63,6 +63,8 @@ Ordinary review history retains `HeldRestrictedStageVerified`; joint history rec
 
 Failure after admission leaves both executions consumed and unknown. Process interruption, cancellation, source-head/custody drift, lost authority, verification failure or unavailable final audit cannot authorize a fresh attempt. An ambiguous admission or completion commit requires protected history inspection, not an automatic retry. A committed success is immutable and cannot be demoted by later unknown recording. The default cooperative deadline is 20 seconds; an uncooperative dependency can retain the caller and both guards until it actually returns.
 
+The separate [adoption-intent protocol](foundation-restricted-recovery-adoption-intent.md) records a new restored-instance proposal and distinct human review under actual activation/checkpoint/stage custody. Its approval creates no execution, reservation, adoption or activation authority; this read-only verification result cannot substitute for that intent.
+
 ## Schema 14, restore and remaining gates
 
 Additive schema 14 defines `credential_restricted_recovery_joint_executions`, linked to the same schema-13 ordinary review execution and admission. A new composite parent index and foreign key bind customer, review ID and admission ID as one tuple, preventing a cross-review admission link. Immutable target/authority fields, one-use linkage, legal outcome transitions and retained success guard both histories. Existing DDL/checksums 1–13, ordinary restricted approval digests and General/scoped contracts remain fixed. No new prepare/approve flow is added.
