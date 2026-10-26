@@ -17,6 +17,7 @@ public sealed record CredentialScope(string CustomerId, string CellId, string Pr
 public sealed record CredentialProfile(CredentialScope Scope, string Kind, DateTimeOffset ExpiresUtc,
     long Generation, bool Enabled);
 public enum CredentialRollbackFormat { LegacyV1 = 0, AuthenticatedScopeV2 = 2 }
+public enum CredentialVaultAccessProfile { General = 0, FoundationBoundDispatchOnly = 1 }
 public sealed record CredentialRollbackProtectionOptions(string AuthorityDirectory)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -25,6 +26,8 @@ public sealed record CredentialRollbackProtectionOptions(string AuthorityDirecto
 public sealed record CredentialVaultOptions(string RootPath, string CustomerId, string CellId, string EncryptionKeyId)
 {
     public CredentialRollbackProtectionOptions? RollbackProtection { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public CredentialVaultAccessProfile AccessProfile { get; init; }
 }
 
 // Key custody belongs to the customer host/KMS. There is deliberately no plaintext file/default key implementation.

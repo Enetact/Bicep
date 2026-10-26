@@ -21,7 +21,7 @@ public sealed partial class CredentialVault
     {
         ValidateConfiguration(options, keys);
         this.options = options; this.keys = keys; this.clock = clock ?? TimeProvider.System;
-        custody = new(options.RootPath, options.RollbackProtection is null ? "credential-vault" :
+        custody = new(options.RootPath, options.AccessProfile == CredentialVaultAccessProfile.FoundationBoundDispatchOnly ? "credential-vault-scoped-bound-dispatch" : options.RollbackProtection is null ? "credential-vault" :
             options.RollbackProtection.Format == CredentialRollbackFormat.AuthenticatedScopeV2 ? "credential-vault-scoped-fenced" : "credential-vault-fenced", options.CustomerId, options.CellId); root = custody.Root;
         if (options.RollbackProtection is { } protection) rollback = new(custody, protection.AuthorityDirectory, options.CustomerId, options.CellId, protection.Format);
     }
@@ -29,6 +29,7 @@ public sealed partial class CredentialVault
     public static CredentialVault Provision(CredentialVaultOptions options, ICredentialKeyProvider keys, TimeProvider? clock = null)
     {
         ValidateConfiguration(options, keys);
+        RequireGeneralProvisionProfile(options);
         if (options.RollbackProtection is not null) throw new CredentialException("credential-rollback-explicit-provision-required");
         CredentialNamespaceCustody.Provision(options.RootPath, "credential-vault", options.CustomerId, options.CellId);
         return new(options, keys, clock);
@@ -37,6 +38,7 @@ public sealed partial class CredentialVault
     public static CredentialVault ProvisionStrong(CredentialVaultOptions options, ICredentialKeyProvider keys, TimeProvider? clock = null)
     {
         ValidateConfiguration(options, keys);
+        RequireGeneralProvisionProfile(options);
         if (options.RollbackProtection is not { } protection) throw new CredentialException("credential-rollback-configuration-required");
         if (protection.Format != CredentialRollbackFormat.LegacyV1) throw new CredentialException("credential-rollback-scoped-explicit-provision-required");
         return ProvisionStrongCore(options, keys, clock, scoped: false);
@@ -45,15 +47,25 @@ public sealed partial class CredentialVault
     public static CredentialVault ProvisionStrongScoped(CredentialVaultOptions options, ICredentialKeyProvider keys, TimeProvider? clock = null)
     {
         ValidateConfiguration(options, keys);
+        RequireGeneralProvisionProfile(options);
         if (options.RollbackProtection?.Format != CredentialRollbackFormat.AuthenticatedScopeV2)
             throw new CredentialException("credential-rollback-scoped-configuration-required");
+        return ProvisionStrongCore(options, keys, clock, scoped: true);
+    }
+    public static CredentialVault ProvisionStrongBoundDispatch(CredentialVaultOptions options, ICredentialKeyProvider keys, TimeProvider? clock = null)
+    {
+        ValidateConfiguration(options, keys);
+        if (options.AccessProfile != CredentialVaultAccessProfile.FoundationBoundDispatchOnly ||
+            options.RollbackProtection?.Format != CredentialRollbackFormat.AuthenticatedScopeV2)
+            throw new CredentialException("credential-bound-dispatch-profile-invalid");
         return ProvisionStrongCore(options, keys, clock, scoped: true);
     }
     static CredentialVault ProvisionStrongCore(CredentialVaultOptions options, ICredentialKeyProvider keys, TimeProvider? clock, bool scoped)
     {
         var protection = options.RollbackProtection!;
-        var vaultKind = scoped ? "credential-vault-scoped-fenced" : "credential-vault-fenced";
-        var authorityKind = scoped ? "credential-rollback-scoped-authority" : "credential-rollback-authority";
+        var restricted = options.AccessProfile == CredentialVaultAccessProfile.FoundationBoundDispatchOnly;
+        var vaultKind = restricted ? "credential-vault-scoped-bound-dispatch" : scoped ? "credential-vault-scoped-fenced" : "credential-vault-fenced";
+        var authorityKind = restricted ? "credential-rollback-scoped-bound-authority" : scoped ? "credential-rollback-scoped-authority" : "credential-rollback-authority";
         var vault = CredentialNamespaceCustody.PreflightNew(options.RootPath, vaultKind, options.CustomerId, options.CellId);
         var authority = CredentialNamespaceCustody.PreflightNew(protection.AuthorityDirectory, authorityKind, options.CustomerId, options.CellId);
         if (string.Equals(vault, authority, StringComparison.OrdinalIgnoreCase) || vault.StartsWith(authority + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
@@ -104,8 +116,11 @@ public sealed partial class CredentialVault
         if (options is null || keys is null || !CredentialRules.ProfileId(options.EncryptionKeyId) ||
             !Guid.TryParseExact(options.CustomerId, "D", out var customer) || customer == Guid.Empty ||
             !Guid.TryParseExact(options.CellId, "D", out var cell) || cell == Guid.Empty || string.IsNullOrWhiteSpace(options.RootPath) ||
-            options.RollbackProtection is { } protection && !Enum.IsDefined(protection.Format))
+            !Enum.IsDefined(options.AccessProfile) || options.RollbackProtection is { } protection && !Enum.IsDefined(protection.Format))
             throw new CredentialException("credential-vault-configuration-invalid");
+        if (options.AccessProfile == CredentialVaultAccessProfile.FoundationBoundDispatchOnly &&
+            options.RollbackProtection?.Format != CredentialRollbackFormat.AuthenticatedScopeV2)
+            throw new CredentialException("credential-bound-dispatch-profile-invalid");
     }
 
     public async Task<CredentialProfile> PutAsync(CredentialScope scope, CredentialSecret material, DateTimeOffset expiresUtc,
@@ -159,7 +174,11 @@ public sealed partial class CredentialVault
 
     public async Task<CredentialLease> ResolveAsync(CredentialScope scope, CancellationToken cancellationToken = default)
     {
-        scope = Bound(scope); using var gate = await Gate(cancellationToken);
+        scope = Bound(scope); cancellationToken.ThrowIfCancellationRequested();
+        // An unsupported direct reader must not wait behind a real bound operation's asynchronous key lookup.
+        if (RequiresBoundDispatchSession) RequireGenericCredentialSourceUse("credential-bound-dispatch-session-required");
+        using var gate = await Gate(cancellationToken);
+        RequireCredentialReadSession(scope, null);
         var (envelope, material) = await Read(ProfilePath(scope.AuthProfileId), cancellationToken);
         try
         {
@@ -171,12 +190,15 @@ public sealed partial class CredentialVault
 
     // Trusted transport-only admission lease. The caller releases the gate immediately after SendAsync invocation,
     // while retaining secret custody until its ordinary lease disposal. Authorizers must not reenter this vault.
-    internal async Task<CredentialLease> ResolveForDispatchAsync(CredentialScope scope, CancellationToken cancellationToken)
+    internal async Task<CredentialLease> ResolveForDispatchAsync(CredentialScope scope, CancellationToken cancellationToken,
+        FoundationCredentialUseSession? session = null)
     {
         scope = Bound(scope); var gate = await Gate(cancellationToken); CredentialSecret? material = null;
         try
         {
+            RequireCredentialReadSession(scope, session);
             var (envelope, secret) = await Read(ProfilePath(scope.AuthProfileId), cancellationToken); material = secret;
+            RequireCredentialReadSession(scope, session);
             Require(envelope.Profile, scope); cancellationToken.ThrowIfCancellationRequested();
             return new CredentialLease(Detached(envelope.Profile), material, gate);
         }

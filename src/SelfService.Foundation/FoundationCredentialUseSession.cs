@@ -87,6 +87,16 @@ internal sealed class FoundationCredentialUseSession : ICredentialDispatchPermit
 
     internal void MarkHttpAdmitted() => Interlocked.Exchange(ref admitted, 1);
 
+    // This proof is a private, live session, never a permit DTO or a metadata-only consumer run.
+    internal void AssertCredentialReadFor(CredentialVault expectedVault, CredentialScope scope)
+    {
+        if (!ReferenceEquals(vault, expectedVault) || metadataLease is not null || dispatch is null || verifier is null || runtimeVersion is null ||
+            CredentialRules.ScopeDigest(dispatch.Scope) != CredentialRules.ScopeDigest(scope))
+            throw new CredentialException("credential-bound-dispatch-session-required");
+        AssertFor(store);
+        _ = store.RequireCredentialRuntimeBinding(this);
+    }
+
     public Task<CredentialDispatchPermit?> AuthorizeAsync(PipelineWireRequest wire, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

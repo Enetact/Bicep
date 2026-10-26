@@ -8,6 +8,7 @@ public sealed partial class CredentialVault
         RSA signer, string signerKeyId, long generation, DateTimeOffset notBeforeUtc, DateTimeOffset expiresUtc,
         CancellationToken cancellationToken = default)
     {
+        RequireRecoverySourceProfile("set");
         if (ScopedRollbackFormat) throw CredentialRecoverySets.Failure("scoped-format-unsupported");
         CredentialRecoverySets.RequireIdentity(expectedNamespace);
         if (expectedNamespace.CustomerId != options.CustomerId || expectedNamespace.CellId != options.CellId)

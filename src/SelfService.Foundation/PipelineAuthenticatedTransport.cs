@@ -127,6 +127,7 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
         var admitted = false;
         try
         {
+            if (boundSession is null) vault.RequireGenericCredentialSourceUse("credential-bound-dispatch-session-required");
             if (wire is null || wire.Headers is null) throw new CredentialException("credential-dispatch-wire-invalid");
             wire = wire with { Headers = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(wire.Headers, StringComparer.Ordinal)) };
             ValidateWire(wire);
@@ -137,7 +138,7 @@ public sealed class PipelineAuthenticatedTransport : IPipelineTransport, IPipeli
                 scope.AuthProfileId != wire.Binding.CredentialReference ||
                 scope.Provider == PipelineRequestFactory.GitHub != (wire.Uri.Host == "api.github.com"))
                 throw new CredentialException("credential-dispatch-scope-invalid");
-            using var lease = await vault.ResolveForDispatchAsync(scope, cancellationToken);
+            using var lease = await vault.ResolveForDispatchAsync(scope, cancellationToken, boundSession);
             cancellationToken.ThrowIfCancellationRequested();
             // Key custody may be asynchronous. Recheck current durable authority and the original deadline after it.
             var current = await permitSource.AuthorizeAsync(wire, cancellationToken) ?? throw new CredentialException("credential-dispatch-not-authorized");

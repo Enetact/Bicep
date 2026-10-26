@@ -98,6 +98,7 @@ public sealed class CredentialGitHubInstallationSource
     public async Task<CredentialAcquisitionResult> AcquireAndStoreAsync(long expectedProfileGeneration = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        vault.RequireGenericCredentialSourceUse("credential-bound-dispatch-acquisition-unsupported");
         if (!http.Enabled) throw new CredentialException("credential-token-network-disabled");
         using var deadline = http.BeginOperation(cancellationToken);
         try { return await AcquireCore(expectedProfileGeneration, deadline.Token); }
@@ -173,6 +174,7 @@ public sealed class CredentialEntraFederatedSource
     public async Task<CredentialAcquisitionResult> AcquireAndStoreAsync(long expectedProfileGeneration = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        vault.RequireGenericCredentialSourceUse("credential-bound-dispatch-acquisition-unsupported");
         if (!http.Enabled) throw new CredentialException("credential-token-network-disabled");
         using var deadline = http.BeginOperation(cancellationToken);
         try { return await AcquireCore(expectedProfileGeneration, deadline.Token); }

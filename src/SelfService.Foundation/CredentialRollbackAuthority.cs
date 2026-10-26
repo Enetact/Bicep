@@ -35,7 +35,7 @@ internal sealed partial class CredentialRollbackAuthority
         CredentialRollbackFormat format = CredentialRollbackFormat.LegacyV1)
     {
         this.format = format; this.vault = vault; authority = new(authorityPath,
-            IsScoped ? "credential-rollback-scoped-authority" : "credential-rollback-authority", customer, cell);
+            vault.IsBoundDispatchOnly ? "credential-rollback-scoped-bound-authority" : IsScoped ? "credential-rollback-scoped-authority" : "credential-rollback-authority", customer, cell);
         binding = Read<Binding>(vault, "rollback-binding.json", 16384);
         var other = Read<Binding>(authority, "authority.json", 16384);
         if (binding != other || binding.Schema != (IsScoped ? 2 : 1) || binding.Kind != (IsScoped ? "credential-rollback-scoped-binding" : "credential-rollback-binding") || binding.CustomerId != customer || binding.CellId != cell ||
@@ -48,7 +48,8 @@ internal sealed partial class CredentialRollbackAuthority
         CredentialRollbackFormat format = CredentialRollbackFormat.LegacyV1)
     {
         var scoped = format == CredentialRollbackFormat.AuthenticatedScopeV2;
-        var authorityKind = scoped ? "credential-rollback-scoped-authority" : "credential-rollback-authority";
+        if (vault.IsBoundDispatchOnly && !scoped) throw Failure("credential-bound-dispatch-profile-invalid");
+        var authorityKind = vault.IsBoundDispatchOnly ? "credential-rollback-scoped-bound-authority" : scoped ? "credential-rollback-scoped-authority" : "credential-rollback-authority";
         CredentialNamespaceCustody.Provision(authorityPath, authorityKind, customer, cell);
         var authority = new CredentialNamespaceCustody(authorityPath, authorityKind, customer, cell);
         var unsigned = new Binding(scoped ? 2 : 1, scoped ? "credential-rollback-scoped-binding" : "credential-rollback-binding", customer, cell, vault.Root, vault.NamespaceId, authority.Root, authority.NamespaceId, "");

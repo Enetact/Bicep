@@ -175,11 +175,18 @@ $stampRoot=Join-Path $fixtureRoot 'publish-source-stamp'
 $null=New-Item -ItemType Directory -Path (Join-Path $stampRoot 'src'),(Join-Path $stampRoot 'scripts'),(Join-Path $stampRoot 'config'),(Join-Path $stampRoot 'docs') -Force
 & git init --quiet $stampRoot
 if ($LASTEXITCODE -ne 0) { throw 'Synthetic source-stamp Git initialization failed.' }
-foreach ($file in (@('src/main.cs','scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','scripts/Test-FoundationPackageNoticePins.ps1') + @(Get-FoundationPublicFiles))) {
+foreach ($file in (@('src/main.cs') + @(Get-FoundationPublishHelperFiles) + @(Get-FoundationPublicFiles))) {
     [IO.File]::WriteAllText((Join-Path $stampRoot $file), 'synthetic source input')
 }
 $before=Get-FoundationPublishSourceStamp $stampRoot
 Assert-PackageCheck ($before -ceq (Get-FoundationPublishSourceStamp $stampRoot)) 'Unchanged publish inputs were unstable.'
+foreach($helper in @(Get-FoundationPublishHelperFiles | Where-Object {$_ -cnotin @('scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','scripts/Test-FoundationPackageNoticePins.ps1')})) {
+    $path=Join-Path $stampRoot $helper;$original=[IO.File]::ReadAllBytes($path)
+    [IO.File]::WriteAllText($path,'changed governed publisher helper')
+    Assert-PackageCheck ($before -cne (Get-FoundationPublishSourceStamp $stampRoot)) 'Publisher helper changes were missed.'
+    [IO.File]::WriteAllBytes($path,$original)
+    Assert-PackageCheck ($before -ceq (Get-FoundationPublishSourceStamp $stampRoot)) 'Restored publisher helper changed the original input stamp.'
+}
 [IO.File]::WriteAllText((Join-Path $stampRoot 'src/main.cs'), 'changed compiler input')
 $changed=Get-FoundationPublishSourceStamp $stampRoot
 Assert-PackageCheck ($before -cne $changed) 'Compiler input changes were missed.'

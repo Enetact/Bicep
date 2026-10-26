@@ -8,6 +8,7 @@ public sealed partial class CredentialVault
     public async Task<CredentialAbsenceScopeInspection> InspectAbsenceScopeProvenanceAsync(
         CredentialVaultNamespaceIdentity expectedNamespace, CancellationToken cancellationToken = default)
     {
+        RequireRecoverySourceProfile("absence-scope");
         if (!ScopedRollbackFormat) throw AbsenceInspectionFailure("scoped-format-required");
         if (expectedNamespace is null || expectedNamespace.CustomerId != options.CustomerId || expectedNamespace.CellId != options.CellId)
             throw AbsenceInspectionFailure("namespace-mismatch");

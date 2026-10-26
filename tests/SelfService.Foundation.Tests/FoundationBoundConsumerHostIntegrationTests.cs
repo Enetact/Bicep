@@ -180,7 +180,7 @@ public sealed class FoundationBoundConsumerHostIntegrationTests
         public string? Authorization, Body;
         public static string Actor(string name) => FoundationApiTests.ApiCell.Actor(name);
 
-        BoundHost(string provider, bool pauseKeys)
+        BoundHost(string provider, bool pauseKeys, CredentialVaultAccessProfile accessProfile)
         {
             Template = new(provider); Template.Clock.Now = DateTimeOffset.UtcNow;
             Database = Path.Combine(Template.Root, "host-consumer.sqlite"); AuthorityPath = Path.Combine(Template.Root, "host-activation");
@@ -188,8 +188,11 @@ public sealed class FoundationBoundConsumerHostIntegrationTests
             foreach (var (name, role) in new[] { ("requester", "Requester"), ("approver", "Approver"), ("operator", "Operator"), ("viewer", "Viewer"), ("auditor", "Auditor") })
                 store.SetMembership(Customer, Actor("admin"), Actor(name), "default", "dev", [role]);
             store.PutConnection(Customer, Actor("admin"), Template.Connection.Id, provider, Template.Dispatch.Connection.ConfigurationJson);
-            var options = Template.Options with { RootPath = Path.Combine(Template.Root, "host-vault"), RollbackProtection = new(Path.Combine(Template.Root, "host-rollback")) };
-            var original = writerVault = CredentialVault.ProvisionStrong(options, Keys);
+            var restricted = accessProfile == CredentialVaultAccessProfile.FoundationBoundDispatchOnly;
+            var options = Template.Options with { RootPath = Path.Combine(Template.Root, "host-vault"), AccessProfile = accessProfile,
+                RollbackProtection = new(Path.Combine(Template.Root, "host-rollback"))
+                { Format = restricted ? CredentialRollbackFormat.AuthenticatedScopeV2 : CredentialRollbackFormat.LegacyV1 } };
+            var original = writerVault = restricted ? CredentialVault.ProvisionStrongBoundDispatch(options, Keys) : CredentialVault.ProvisionStrong(options, Keys);
             if (pauseKeys) Held = new(Keys);
             Vault = pauseKeys ? new CredentialVault(options, Held!) : original;
             Namespace = Vault.DescribeNamespace(); Instance = store.GetCellInstanceIdentity().DatabaseInstanceId;
@@ -198,9 +201,10 @@ public sealed class FoundationBoundConsumerHostIntegrationTests
             Consumer = FoundationCredentialBoundPipelineConsumer.ForMockHandlers(Vault, Authority, Namespace, Authority.DescribeIdentity(), Instance,
                 Binding.Sha256, [Template.Scope], () => { Interlocked.Increment(ref FactoryCalls); return new Handler(this); });
         }
-        public static async Task<BoundHost> Create(string provider = PipelineRequestFactory.GitHub, bool worker = false, bool pauseKeys = false)
+        public static async Task<BoundHost> Create(string provider = PipelineRequestFactory.GitHub, bool worker = false, bool pauseKeys = false,
+            CredentialVaultAccessProfile accessProfile = CredentialVaultAccessProfile.General)
         {
-            var f = new BoundHost(provider, pauseKeys);
+            var f = new BoundHost(provider, pauseKeys, accessProfile);
             try
             {
                 using (var token = CredentialSecret.FromUtf8(CredentialFixture.Token))

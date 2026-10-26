@@ -1,5 +1,7 @@
 # Bind credential use to an active cell instance
 
+For newly provisioned custody, the [restricted namespace profile](foundation-bound-pipeline-consumer.md#restrict-a-fresh-credential-namespace) adds enforcement at the vault boundary: general token reads, generic dispatch and token acquisition cannot use that namespace. A schema-12 database binding alone does not impose this profile on an existing general vault. Provisioning the profile does not create the database binding or authorize dispatch; the actual current bound session still needs every existing store, activation, scope and job check.
+
 Schema 12 adds an explicit credential-runtime binding for Foundation-mediated pipeline dispatch. It pins the current database instance and location commitment, the complete vault/rollback namespace identity, and the actual activation authority's custody identity and selected generation. A concrete per-operation activation lease is retained through the owned HTTP request, response body and disposal.
 
 This is a prerequisite for supported recovery and source-use fencing. It does not adopt a staged namespace, release a restored-cell execution hold, revoke an issued provider token or fence generic direct vault consumers, independently composed permit sources, another host or a malicious OS owner. No default HTTP, AHP, MCP, model or worker registration enables a live provider operation.

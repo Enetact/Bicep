@@ -341,11 +341,16 @@ function Merge-FoundationRuntimeClosures {
     Test-FoundationRuntimeTree $PrimaryDirectory
 }
 
+function Get-FoundationPublishHelperFiles {
+    @('scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','scripts/Test-FoundationPackageNoticePins.ps1',
+      'scripts/FoundationPublishRetention.ps1','scripts/FoundationBuildRetention.ps1','scripts/FoundationTestExecutionEvidence.ps1','scripts/FoundationOwnedBuildNative.cs')
+}
+
 function Get-FoundationPublishSourceStamp {
     param([Parameter(Mandatory)][string]$RepositoryRoot)
     $paths = @(& git -C $RepositoryRoot -c core.quotepath=false ls-files --cached --others --exclude-standard -- src vendor global.json NuGet.Config Directory.Build.props Directory.Build.targets LICENSE 'LICENSE.*' 'NOTICE*')
     if ($LASTEXITCODE -ne 0 -or !$paths.Count) { throw 'Publish source inventory is unavailable.' }
-    $paths += @('scripts/Publish-Foundation.ps1','scripts/New-FoundationDependencyEvidence.ps1','scripts/Test-FoundationPackageNoticePins.ps1') + @(Get-FoundationPublicFiles)
+    $paths += @(Get-FoundationPublishHelperFiles) + @(Get-FoundationPublicFiles)
     $rows = foreach ($relative in @($paths | Sort-Object -Unique)) {
         if ($relative -notmatch '\A[A-Za-z0-9_./+-]+\z' -or $relative.Split('/') -contains '..') { throw 'Unsafe publish source path.' }
         $path = Join-Path $RepositoryRoot $relative
@@ -389,12 +394,19 @@ function New-FoundationPackageArchive {
 if (!$LocalPreview) { throw 'Publishing requires explicit -LocalPreview; no production package is authorized or qualified.' }
 if ($ProductionReady) { throw 'This publisher cannot claim production readiness, signing, or clean-machine qualification.' }
 $repositoryRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
+. (Join-Path $PSScriptRoot 'FoundationPublishRetention.ps1')
+if($IsWindows){Assert-FoundationPublishCapacity $repositoryRoot}
 $buildInputsSha256 = Get-FoundationPublishSourceStamp $repositoryRoot
 $selection = Resolve-FoundationPackageDestination $repositoryRoot $OutputDirectory
 $destination = $selection.Destination
-$null = New-Item -ItemType Directory -Path $destination
-[ordered]@{ schema = 'platform-studio.foundation-package-owner.v1'; runId = $selection.RunId; destination = $destination; localPreview = $true } |
-    ConvertTo-Json | Set-Content -LiteralPath (Join-Path $destination '.package-owner.json') -Encoding utf8NoBOM
+$publishContext=$null
+if($IsWindows){$publishContext=New-FoundationPublishContext $repositoryRoot $selection}
+else {
+    $null = New-Item -ItemType Directory -Path $destination
+    [ordered]@{ schema = 'platform-studio.foundation-package-owner.v1'; runId = $selection.RunId; destination = $destination; localPreview = $true } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $destination '.package-owner.json') -Encoding utf8NoBOM
+}
+try {
 $stage = Join-Path $destination '.publish-stage'
 $workerStage = Join-Path $destination '.worker-publish-stage'
 $ownerStage = Join-Path $destination '.owner-publish-stage'
@@ -420,12 +432,15 @@ try {
     $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
     $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
     $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'
-    & $DotNetPath publish $project -c Release --no-self-contained --artifacts-path $build --output $stage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
-    if ($LASTEXITCODE -ne 0) { throw 'Local preview publish or locked dependency audit failed; owned diagnostic output was preserved.' }
-    & $DotNetPath publish (Join-Path $repositoryRoot 'src/SelfService.Foundation.Worker/SelfService.Foundation.Worker.csproj') -c Release --no-self-contained --artifacts-path $build --output $workerStage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
-    if ($LASTEXITCODE -ne 0) { throw 'Independent worker publish or locked dependency audit failed; owned diagnostic output was preserved.' }
-    & $DotNetPath publish (Join-Path $repositoryRoot 'src/SelfService.Foundation.Owner/SelfService.Foundation.Owner.csproj') -c Release --no-self-contained --artifacts-path $build --output $ownerStage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
-    if ($LASTEXITCODE -ne 0) { throw 'Trusted owner publish or locked dependency audit failed; owned diagnostic output was preserved.' }
+    if($publishContext){Invoke-FoundationContainedPublish $publishContext host $DotNetPath;Invoke-FoundationContainedPublish $publishContext worker $DotNetPath;Invoke-FoundationContainedPublish $publishContext owner $DotNetPath}
+    else {
+        & $DotNetPath publish $project -c Release --no-self-contained --artifacts-path $build --output $stage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
+        if ($LASTEXITCODE -ne 0) { throw 'Local preview publish or locked dependency audit failed; owned diagnostic output was preserved.' }
+        & $DotNetPath publish (Join-Path $repositoryRoot 'src/SelfService.Foundation.Worker/SelfService.Foundation.Worker.csproj') -c Release --no-self-contained --artifacts-path $build --output $workerStage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
+        if ($LASTEXITCODE -ne 0) { throw 'Independent worker publish or locked dependency audit failed; owned diagnostic output was preserved.' }
+        & $DotNetPath publish (Join-Path $repositoryRoot 'src/SelfService.Foundation.Owner/SelfService.Foundation.Owner.csproj') -c Release --no-self-contained --artifacts-path $build --output $ownerStage -m:1 -nodeReuse:false -p:RestoreLockedMode=true "-p:RestoreConfigFile=$restoreConfig" -p:UseSharedCompilation=false -p:UseAppHost=false -p:PublishSingleFile=false -p:PublishTrimmed=false -p:DebugType=None -p:DebugSymbols=false -p:StaticWebAssetsEnabled=false -p:EnableDefaultContentItems=false -p:IsTransformWebConfigDisabled=true
+        if ($LASTEXITCODE -ne 0) { throw 'Trusted owner publish or locked dependency audit failed; owned diagnostic output was preserved.' }
+    }
 } finally {
     $env:DOTNET_CLI_HOME = $priorCliHome
     $env:NUGET_HTTP_CACHE_PATH = $priorHttpCache
@@ -519,5 +534,12 @@ $receipt = [ordered]@{
     azureOperationsPerformed = $false; livePipelinesSubmitted = $false; archive = $archive
 }
 $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $destination 'receipt.json') -Encoding utf8NoBOM
+if($publishContext){
+    try {
+        $cleanup=Remove-FoundationPublishedTemporaries $publishContext (Get-FileHash -LiteralPath (Join-Path $destination 'receipt.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+        if($cleanup.state -cne 'Completed' -or $cleanup.preservedCount -or $cleanup.removalUncertainCount){Write-Warning 'Some publisher temporary files were preserved or have uncertain removal; read temporary-cleanup.json. The package receipt is unchanged.'}
+    } catch {Write-Warning 'Publisher temporary cleanup was refused; package receipt and diagnostic files are preserved.'}
+}
 Write-Output "Local preview package: $($archive.Archive)"
 Write-Output "Final ZIP SHA-256: $($archive.Sha256); verified entries: $($archive.EntryCount). Production ready: false."
+} finally {if($publishContext){Close-FoundationPublishContext $publishContext}}

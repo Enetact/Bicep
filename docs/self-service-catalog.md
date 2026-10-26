@@ -1,12 +1,12 @@
 # Self-service catalog and how it works
 
-[The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. Concrete run authority and target eligibility are checked in the same SQL transactions as fresh-work admission. It adds no workload, provider permission, model approval tool or default live transport.
+[The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. Concrete run authority and target eligibility are checked in the same SQL transactions as fresh-work admission. Its optional fresh namespace profile permits concrete bound dispatch and excludes general token reads, generic dispatch and acquisition before provider callbacks. It adds no workload, provider permission, model approval tool or default live transport.
 
 [Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.
 
 [Restore execution holds](foundation-recovery-execution-hold.md) protect the customer foundation before fresh dispatch. They add no workload, Azure permission or default model/MCP action; they preserve authorized inspection and recovery preparation.
 
-[Owned compiler builds and cleanup](foundation-owned-build-cleanup.md) add developer operations with contained child processes and completion-bound intermediate retention, without changing running applications or granting cloud authority.
+[Owned compiler builds and cleanup](foundation-owned-build-cleanup.md) add developer operations with contained child processes and completion-bound intermediate retention. Successful Foundation publication also cleans its own verified scratch copies while preserving archives and evidence. These operations do not change running applications or grant cloud authority.
 
 The explicit local [joint checkpoint and stage verifier](foundation-scoped-recovery-joint-verification.md) strengthens customer foundation recovery evidence. It adds no catalog product, pipeline, HTTP/AHP/MCP/model action or Azure permission; actual adoption and activation remain separately governed work.
 

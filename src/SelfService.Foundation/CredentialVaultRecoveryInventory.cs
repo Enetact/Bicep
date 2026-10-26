@@ -9,6 +9,7 @@ public sealed partial class CredentialVault
     public async Task<CredentialRecoveryInventory> InspectRecoveryDependenciesAsync(CredentialVaultNamespaceIdentity expectedNamespace,
         CancellationToken cancellationToken = default)
     {
+        RequireRecoverySourceProfile("inventory");
         if (ScopedRollbackFormat) throw InventoryFailure("scoped-format-unsupported");
         if (expectedNamespace is null || expectedNamespace.CustomerId != options.CustomerId || expectedNamespace.CellId != options.CellId)
             throw InventoryFailure("namespace-mismatch");

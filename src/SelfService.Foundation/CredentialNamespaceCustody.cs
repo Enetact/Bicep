@@ -17,13 +17,14 @@ internal sealed class CredentialNamespaceCustody
     readonly string root, kind, customer, cell, sid, namespaceId;
     internal string Root => root;
     internal string NamespaceId => namespaceId;
+    internal bool IsBoundDispatchOnly => kind == "credential-vault-scoped-bound-dispatch";
     internal string NamespaceCommitmentSha256 => CheckRoot().Sha256;
     string GuardName => Guard(kind);
     static string Guard(string kind) => kind switch
     {
-        "credential-vault" or "credential-vault-fenced" or "credential-vault-scoped-fenced" => ".vault.lock",
+        "credential-vault" or "credential-vault-fenced" or "credential-vault-scoped-fenced" or "credential-vault-scoped-bound-dispatch" => ".vault.lock",
         "windows-user-keys" => ".keys.lock",
-        "credential-rollback-authority" or "credential-rollback-scoped-authority" => ".rollback.lock",
+        "credential-rollback-authority" or "credential-rollback-scoped-authority" or "credential-rollback-scoped-bound-authority" => ".rollback.lock",
         _ => throw Failure("credential-namespace-binding-invalid")
     };
     internal sealed record Marker(int Schema, string Kind, string CustomerId, string CellId, string RootPath,

@@ -2,7 +2,39 @@
 
 The Foundation host's in-process job runner can explicitly use the [schema-12 credential/runtime binding](foundation-credential-runtime-binding.md) through a concrete, mock-only consumer. It shares the existing signed HTTP/AHP workflow, separate human approval, durable queue, dispatch adapter and reconciliation behavior. Default hosts and the standalone worker remain disconnected. No Azure deployment or live provider operation is enabled.
 
-This qualifies one selected consumer. Credential acquisition, direct vault access, legacy Portal providers, Codex authentication, the standalone worker, other processes/hosts and already-issued provider tokens remain separate coverage work. The consumer does not provision, rebind, adopt credentials or release a [restored-cell execution hold](foundation-recovery-execution-hold.md).
+This qualifies one selected consumer. The optional fresh namespace profile below explicitly excludes direct token access and acquisition for that namespace. Existing general vaults, legacy Portal providers, Codex authentication, the standalone worker, other processes/hosts and already-issued provider tokens remain separate coverage work. The consumer does not provision, rebind, adopt credentials or release a [restored-cell execution hold](foundation-recovery-execution-hold.md).
+
+## Restrict a fresh credential namespace
+
+Trusted owner composition can provision a new namespace with a finite supported credential consumer set:
+
+```csharp
+var vaultOptions = new CredentialVaultOptions(newVaultPath, customerId, cellId, encryptionKeyId)
+{
+    AccessProfile = CredentialVaultAccessProfile.FoundationBoundDispatchOnly,
+    RollbackProtection = new(newRollbackPath)
+    {
+        Format = CredentialRollbackFormat.AuthenticatedScopeV2
+    }
+};
+var vault = CredentialVault.ProvisionStrongBoundDispatch(vaultOptions, trustedKeyProvider);
+// Reopen existing custody with the same explicit profile and format.
+var reopened = new CredentialVault(vaultOptions, trustedKeyProvider);
+```
+
+Both roots must be fresh, separately protected local namespaces. The profile is committed by distinct vault and rollback marker kinds; omitting the profile or selecting a legacy factory cannot reopen or convert those roots. Provisioning does not request a key, create a database binding, register a worker or authorize a dispatch. An owner can explicitly seed a supplied token through the existing `PutAsync` API, which encrypts it at rest; no artifact-import or adoption protocol is added.
+
+| Credential consumer | Behavior for this profile |
+|---|---|
+| Concrete `FoundationCredentialBoundTransport`, including the typed host consumer | Actual current session must match the vault, exact dispatch scope, persisted database binding and activation custody before token resolution and revalidation; ordinary job/plan/role checks still apply. |
+| Direct `ResolveAsync` and `RevalidateAsync` | Refused before credential-key lookup; no token lease is returned. |
+| Generic `PipelineAuthenticatedTransport`, including custom permit sources | Refused before permit callbacks or credential-key lookup. A caller-created permit cannot replace the internal concrete session. |
+| GitHub installation and Entra federated token acquisition | Refused before private-key/assertion callbacks, token HTTP or token storage. Acquisition support for this profile remains unimplemented. |
+| Non-exporting profile/rollback status, owner-supplied token seeding through `PutAsync` and revoke/rewrap | Keep their own existing authorization and custody requirements; they do not grant token-use authority. |
+| Dependency/absence-proof inspection and signed recovery-set capture | Explicitly unsupported before key or signer access. Existing retained-set/stage/checkpoint formats do not preserve the new profile and cannot accept its marker kinds. Policy-preserving recovery formats remain required work. |
+| Legacy Portal/Codex credentials, issued tokens, other credential stores or hosts | Outside this namespace policy. Stop or exclude unsupported consumers separately before a recovery cutover. |
+
+This is fresh namespace enforcement, not an upgrade to existing general vaults or a complete production source-use fence. Encrypted profile payloads keep their existing format; the policy is enforced by protected namespace metadata and cooperating APIs, rather than cryptographic non-portability of ciphertext held with its customer key. Possession of raw keys, an OS owner replacing custody, outstanding provider tokens and admitted remote work remain separate boundaries. No public HTTP, AHP, MCP, model or standalone-worker configuration can mint the internal session. The current host consumer factory remains mock-only; no live integration or recovery release follows from provisioning this profile.
 
 ## Authority and operation lifetime
 
@@ -14,7 +46,8 @@ flowchart TD
     Q --> L[Acquire actual activation lease]
     L --> C[Claim and record dispatch intent]
     C --> V[Recheck persisted binding and current authority]
-    V --> M[Mock authenticated GitHub or ADO operation]
+    V --> N[Validate namespace profile and actual session before keys]
+    N --> M[Mock authenticated GitHub or ADO operation]
     M --> O[Durable result or OutcomeUnknown]
     O --> R[Release operation and run leases]
 ```

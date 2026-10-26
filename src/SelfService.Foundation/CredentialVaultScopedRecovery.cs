@@ -58,6 +58,7 @@ public sealed partial class CredentialVault
 
     void RequireScopedRecoveryNamespace(CredentialVaultNamespaceIdentity expected)
     {
+        RequireRecoverySourceProfile("scoped");
         if (!ScopedRollbackFormat) throw ScopedRecoveryFailure("scoped-format-required");
         CredentialRecoverySets.RequireIdentity(expected);
         if (expected.CustomerId != options.CustomerId || expected.CellId != options.CellId || expected.AuthorityNamespaceId is null)
