@@ -136,6 +136,7 @@ public sealed partial class FoundationStore
         }
         HoldRecoveredCredentialRecoveryReviews(db, tx);
         HoldRecoveredCredentialScopedRecoveryReviews(db, tx);
+        HoldRecoveredCredentialRestrictedRecoveryReviews(db, tx);
         HoldRecoveredCredentialScopedRecoveryJointVerifications(db, tx);
         var ids = Rows(db, tx, "SELECT id FROM jobs WHERE customer_id=$c AND state IN ('Queued','Claimed','Dispatched')",
             r => r.GetString(0), ("$c", CustomerId));
@@ -234,6 +235,7 @@ public sealed partial class FoundationStore
             if (version >= 10) Exec(reference, null, SchemaV10);
             if (version >= 11) Exec(reference, null, SchemaV11);
             if (version >= 12) Exec(reference, null, SchemaV12);
+            if (version >= 13) Exec(reference, null, SchemaV13);
             return reference;
         }
         catch { reference.Dispose(); throw; }
@@ -299,8 +301,8 @@ public sealed partial class FoundationStore
             return;
         }
         var checksums = new[] { Hash("platform-studio.foundation.schema.v1"), SchemaV2Checksum, SchemaV3Checksum,
-            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum, SchemaV11Checksum, SchemaV12Checksum };
-        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 13", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
+            SchemaV4Checksum, SchemaV5Checksum, SchemaV6Checksum, SchemaV7Checksum, SchemaV8Checksum, SchemaV9Checksum, SchemaV10Checksum, SchemaV11Checksum, SchemaV12Checksum, SchemaV13Checksum };
+        var history = Rows(db, null, "SELECT version,checksum FROM schema_migrations ORDER BY version LIMIT 14", r => (Version: r.GetInt64(0), Checksum: r.GetString(1)));
         if (history.Count != version || history.Where((entry, i) => entry.Version != i + 1 || entry.Checksum != checksums[i]).Any())
             throw new FoundationStoreException("BackupIntegrityFailed");
     }

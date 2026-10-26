@@ -6,8 +6,13 @@ internal static class FoundationTestSchemaDowngrades
     internal static void DropCredentialTablesAfter(StoreFixture fixture, int version)
     {
         ArgumentNullException.ThrowIfNull(fixture);
-        if (version is < 1 or > 11) throw new ArgumentOutOfRangeException(nameof(version));
+        if (version is < 1 or > 12) throw new ArgumentOutOfRangeException(nameof(version));
         fixture.Execute("""
+            DROP TABLE IF EXISTS credential_restricted_recovery_stage_review_executions;
+            DROP TABLE IF EXISTS credential_restricted_recovery_stage_review_approvals;
+            DROP TABLE IF EXISTS credential_restricted_recovery_stage_review_requests;
+            """);
+        if (version < 12) fixture.Execute("""
             DROP TABLE IF EXISTS credential_runtime_bindings;
             """);
         if (version < 11) fixture.Execute("""

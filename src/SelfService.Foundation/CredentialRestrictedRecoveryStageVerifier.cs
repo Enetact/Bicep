@@ -75,8 +75,21 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
         CredentialRestrictedRecoveryStageReadLease retained) : IDisposable
     {
         int used;
+        CredentialRestrictedRecoveryStageVerification? verifiedResult;
         internal CredentialRestrictedRecoveryStageReceipt Receipt => retained.Receipt;
-        internal void AssertCurrent() { retained.AssertCurrent(); CredentialRestrictedRecoveryStaging.ValidateCompletedReceiptTime(plan, Receipt, owner.clock.GetUtcNow()); }
+        internal void AssertCurrent()
+        {
+            CredentialRestrictedRecoveryStaging.ValidateCompletedReceiptTime(plan, Receipt, owner.clock.GetUtcNow());
+            retained.AssertCurrent();
+        }
+        // The new durable review uses this actual session after all SQL clock/auth/audit work.
+        // Keep this final publication fence clock-free; no caller DTO or callback establishes custody.
+        internal void AssertVerifiedCurrent(CredentialRestrictedRecoveryStageVerification result, CancellationToken token)
+        {
+            if (!ReferenceEquals(result, verifiedResult) || result is null || !ReferenceEquals(result.Receipt, Receipt))
+                throw CredentialRestrictedRecoveryStaging.Failure("verified-session-mismatch");
+            retained.AssertCurrent(); token.ThrowIfCancellationRequested();
+        }
         internal async Task<CredentialRestrictedRecoveryStageVerification> VerifyAsync(CancellationToken token)
         {
             if (Interlocked.Exchange(ref used, 1) != 0) throw CredentialRestrictedRecoveryStaging.Failure("session-already-consumed");
@@ -101,7 +114,8 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
             if (retained.Envelopes.Count != Receipt.Profiles.Count || retained.AbsenceProofs.Count != Receipt.Absences.Count) throw CredentialRestrictedRecoveryStaging.Failure("count-mismatch");
             var observed = CredentialRestrictedRecoveryStaging.At(owner.clock.GetUtcNow());
             CredentialRestrictedRecoveryStaging.ValidateCompletedReceiptTime(plan, Receipt, observed);
-            retained.AssertCurrent(); token.ThrowIfCancellationRequested(); return new(Receipt, observed);
+            var result = new CredentialRestrictedRecoveryStageVerification(Receipt, observed);
+            retained.AssertCurrent(); token.ThrowIfCancellationRequested(); verifiedResult = result; return result;
         }
         public void Dispose() => retained.Dispose();
     }

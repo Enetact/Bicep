@@ -14,7 +14,7 @@ public sealed class FoundationCredentialRuntimeBindingMigrationTests
         Assert.Equal(11, f.Scalar("SELECT schema_version FROM cell"));
         Assert.Equal("CurrentSchemaRequired", Assert.Throws<FoundationStoreException>(() => new FoundationStore(f.Path, f.Cell, f.Customer, initializeSchema: false)).Code);
         Assert.Equal(bytes, File.ReadAllBytes(f.Path)); var upgraded = f.Reopen();
-        Assert.Equal(12, upgraded.SchemaStatus().Version); Assert.Equal(history, History(f).Take(11));
+        Assert.Equal(FoundationStore.CurrentSchemaVersion, upgraded.SchemaStatus().Version); Assert.Equal(history, History(f).Take(11));
         Assert.Equal(instance, upgraded.GetCellInstanceIdentity().DatabaseInstanceId); Assert.Equal(job.Id, upgraded.GetJob(f.Customer, "viewer", job.Id).Id);
         Assert.Equal(0, f.Scalar("SELECT count(*) FROM credential_runtime_bindings")); Assert.False(upgraded.GetCredentialRuntimeBindingStatus().BindingRequired);
         Assert.Equal(1, f.Scalar("SELECT count(*) FROM audit WHERE action='SchemaMigrated' AND reason='SchemaV11ToV12'"));

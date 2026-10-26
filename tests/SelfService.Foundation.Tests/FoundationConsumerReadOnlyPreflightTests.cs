@@ -10,6 +10,7 @@ public sealed class FoundationConsumerReadOnlyPreflightTests
     [Theory]
     [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)]
     [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)] [InlineData(11)] [InlineData(12)]
+    [InlineData(FoundationStore.CurrentSchemaVersion)]
     public void Valid_frozen_schema_preflight_preserves_actual_bytes_version_jobs_and_audit_without_migrating(int version)
     {
         using var f = new StoreFixture(); _ = f.Queue(); Downgrade(f, version);
@@ -17,7 +18,7 @@ public sealed class FoundationConsumerReadOnlyPreflightTests
         Assert.False(FoundationStore.ExistingCredentialRuntimeBindingRequired(f.Path, f.Customer, f.Cell));
         Assert.Equal(bytes, File.ReadAllBytes(f.Path)); Assert.Equal(version, f.Scalar("SELECT schema_version FROM cell"));
         Assert.Equal(audits, f.Scalar("SELECT count(*) FROM audit")); Assert.Equal(jobs, f.Scalar("SELECT count(*) FROM jobs"));
-        Assert.Equal(version == 12 ? 1 : 0, f.Scalar("SELECT count(*) FROM sqlite_master WHERE name='credential_runtime_bindings'"));
+        Assert.Equal(version >= 12 ? 1 : 0, f.Scalar("SELECT count(*) FROM sqlite_master WHERE name='credential_runtime_bindings'"));
     }
 
     [Theory]

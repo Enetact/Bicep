@@ -9,6 +9,7 @@ public sealed class FoundationBackupSchemaAdmissionTests
 {
     [Theory]
     [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)] [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)] [InlineData(11)]
+    [InlineData(12)]
     public void Valid_frozen_versions_verify_readonly_and_restore_through_staged_upgrade_with_recovery_holds(int version)
     {
         using var f = new SignedBackupFixture(); var job = f.Cell.Queue(); Downgrade(f.Cell, version); var signed = f.Create();
