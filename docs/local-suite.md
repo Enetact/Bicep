@@ -38,6 +38,8 @@ The portal normally uses `http://localhost:5087`; its local configuration can se
 
 ## Actions and failure handling
 
+The suite, telemetry and preserving-restart helpers persist only their directory access rules through .NET. Their private directories use protected owner/SYSTEM access without requesting audit-ACL privileges; inherited private parents are normalized too. This permits the ordinary owning Windows account to run the lifecycle without an administrator workaround for `SeSecurityPrivilege`. Owner and process-identity checks still apply. Native disposable-directory coverage is available with `./scripts/Test-PortalPrivateDirectories.ps1`; it checks fresh/repeated calls, inherited permissions, content preservation and linked/escaped-path refusal.
+
 | Action or option | Behavior |
 |---|---|
 | `Status` | Reports component/process ownership and readiness. It does not sign in, download tools, build or launch services. Provider availability and account authorization remain separate. |

@@ -35,17 +35,15 @@ function Protect-ObservabilityDirectory([string]$Path) {
     if ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $user.Value) {
         throw 'Observability directory belongs to another account.'
     }
-    $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
-    if (!@($rules | Where-Object { $_.AccessControlType -eq 'Allow' -and $_.IdentityReference.Value -notin @($user.Value, $system.Value) }).Count) {
-        return
-    }
+    # Normalize even an inherited private DACL so later parent changes cannot broaden it.
     $acl.SetAccessRuleProtection($true, $false)
     foreach ($entry in $acl.GetAccessRules($true, $false, [Security.Principal.SecurityIdentifier])) { $null = $acl.RemoveAccessRuleAll($entry) }
     foreach ($identity in @($user, $system)) {
         $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($identity, 'FullControl',
             'ContainerInherit,ObjectInherit', 'None', 'Allow'))
     }
-    Set-Acl -LiteralPath $Path -AclObject $acl -ErrorAction Stop
+    # Leave owner, group and audit sections untouched when restricting access.
+    [IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($Path), $acl)
 }
 
 function Assert-ObservabilityPrivateFile([string]$Path) {

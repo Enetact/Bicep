@@ -180,7 +180,8 @@ function Set-FreshPrivateDirectory([string]$Path){
     foreach($sid in @([Security.Principal.WindowsIdentity]::GetCurrent().User,[Security.Principal.SecurityIdentifier]::new([Security.Principal.WellKnownSidType]::LocalSystemSid,$null))){
         $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit',[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))
     }
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    # Persist access changes without requesting audit ACL privileges.
+    [IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($Path), $acl)
 }
 function Remove-FreshOwnedDirectory([string]$Path){
     Assert-FreshPath $Path

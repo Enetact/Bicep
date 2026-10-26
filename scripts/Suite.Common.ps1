@@ -34,7 +34,8 @@ function New-SuitePrivateDirectory([string]$Path) {
     foreach ($sid in @([Security.Principal.WindowsIdentity]::GetCurrent().User, [Security.Principal.SecurityIdentifier]::new('S-1-5-18'))) {
         $security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'))
     }
-    Set-Acl -LiteralPath $full -AclObject $security
+    # Persist the modified DACL only; the provider cmdlet can request audit privileges.
+    [IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($full), $security)
     $full
 }
 
