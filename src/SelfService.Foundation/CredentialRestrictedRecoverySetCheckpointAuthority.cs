@@ -152,6 +152,11 @@ public sealed class CredentialRestrictedRecoverySetCheckpointAuthority
     {
         var now = clock.GetUtcNow(); CredentialRestrictedRecoveryStaging.ValidateExecutionTime(plan, now); AssertLeaseCore(expected, checkpoint, now);
     }
+    internal void AssertLeaseAt(CredentialRestrictedRecoverySetCheckpointAuthorityIdentity expected, CredentialRestrictedRecoverySetCheckpoint checkpoint, DateTimeOffset observedUtc)
+    {
+        if (!Utc(observedUtc) || observedUtc < checkpoint.AcceptedUtc) throw Failure("LeaseStale", 403);
+        AssertLeaseCore(expected, checkpoint, observedUtc);
+    }
     void AssertLeaseCore(CredentialRestrictedRecoverySetCheckpointAuthorityIdentity expected, CredentialRestrictedRecoverySetCheckpoint checkpoint, DateTimeOffset now)
     {
         CheckAuthority(now); var current = ReadState(now);

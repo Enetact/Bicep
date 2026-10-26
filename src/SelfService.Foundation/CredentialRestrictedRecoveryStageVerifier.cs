@@ -90,12 +90,28 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
                 throw CredentialRestrictedRecoveryStaging.Failure("verified-session-mismatch");
             retained.AssertCurrent(); token.ThrowIfCancellationRequested();
         }
-        internal async Task<CredentialRestrictedRecoveryStageVerification> VerifyAsync(CancellationToken token)
+        internal void AssertSnapshotCurrent(CancellationToken token)
+        { retained.AssertCurrent(); token.ThrowIfCancellationRequested(); }
+        internal Task<CredentialRestrictedRecoveryStageVerification> VerifyAsync(CancellationToken token) => VerifyCoreAsync(null, token);
+        // Only the concrete restricted checkpoint lease can narrow the key admission boundary.
+        internal Task<CredentialRestrictedRecoveryStageVerification> VerifyJointAsync(CredentialRestrictedRecoverySetCheckpointReadLease checkpoint, CancellationToken token)
+        { ArgumentNullException.ThrowIfNull(checkpoint); return VerifyCoreAsync(checkpoint, token); }
+        void AssertJointCurrent(CredentialRestrictedRecoverySetCheckpointReadLease? checkpoint, CancellationToken token)
+        {
+            AssertCurrent();
+            if (checkpoint is not null)
+            {
+                if (!OperatingSystem.IsWindows()) throw CredentialRestrictedRecoveryStaging.Failure("windows-required");
+                checkpoint.AssertCurrent(); retained.AssertCurrent();
+            }
+            token.ThrowIfCancellationRequested();
+        }
+        async Task<CredentialRestrictedRecoveryStageVerification> VerifyCoreAsync(CredentialRestrictedRecoverySetCheckpointReadLease? checkpoint, CancellationToken token)
         {
             if (Interlocked.Exchange(ref used, 1) != 0) throw CredentialRestrictedRecoveryStaging.Failure("session-already-consumed");
-            token.ThrowIfCancellationRequested(); AssertCurrent();
+            token.ThrowIfCancellationRequested(); AssertJointCurrent(checkpoint, token);
             using var key = await CredentialRestrictedRecoveryStaging.ResolvePinnedDestinationKeyAsync(plan.DestinationKey, owner.destinationKeys, token);
-            token.ThrowIfCancellationRequested(); AssertCurrent();
+            token.ThrowIfCancellationRequested(); AssertJointCurrent(checkpoint, token);
             CredentialRestrictedStageCompletionProofs.Authenticate(plan, Receipt, retained.CompletionProof, key);
             var context = new CredentialRestrictedStageEnvelopeContext(Receipt.StageId, Receipt.StagedVaultNamespaceId, Receipt.StagedAuthorityNamespaceId, Receipt.BindingSha256);
             foreach (var envelope in retained.Envelopes)
@@ -115,6 +131,11 @@ public sealed class CredentialRestrictedRecoveryStageVerifier
             var observed = CredentialRestrictedRecoveryStaging.At(owner.clock.GetUtcNow());
             CredentialRestrictedRecoveryStaging.ValidateCompletedReceiptTime(plan, Receipt, observed);
             var result = new CredentialRestrictedRecoveryStageVerification(Receipt, observed);
+            if (checkpoint is not null)
+            {
+                if (!OperatingSystem.IsWindows()) throw CredentialRestrictedRecoveryStaging.Failure("windows-required");
+                checkpoint.AssertCurrent();
+            }
             retained.AssertCurrent(); token.ThrowIfCancellationRequested(); verifiedResult = result; return result;
         }
         public void Dispose() => retained.Dispose();

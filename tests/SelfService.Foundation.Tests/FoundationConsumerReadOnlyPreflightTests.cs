@@ -9,7 +9,7 @@ public sealed class FoundationConsumerReadOnlyPreflightTests
 {
     [Theory]
     [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)]
-    [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)] [InlineData(11)] [InlineData(12)]
+    [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)] [InlineData(11)] [InlineData(12)] [InlineData(13)]
     [InlineData(FoundationStore.CurrentSchemaVersion)]
     public void Valid_frozen_schema_preflight_preserves_actual_bytes_version_jobs_and_audit_without_migrating(int version)
     {

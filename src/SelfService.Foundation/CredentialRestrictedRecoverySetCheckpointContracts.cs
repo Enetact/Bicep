@@ -47,5 +47,13 @@ public sealed class CredentialRestrictedRecoverySetCheckpointReadLease : IDispos
             owner.AssertStagingLease(Identity, Checkpoint, plan);
         }
     }
+    internal void AssertCurrentAt(DateTimeOffset observedUtc)
+    {
+        lock (gate)
+        {
+            if (guard is null) throw new FoundationStoreException("CredentialRestrictedRecoveryCheckpointLeaseDisposed", 403);
+            owner.AssertLeaseAt(Identity, Checkpoint, observedUtc);
+        }
+    }
     public void Dispose() { lock (gate) { guard?.Dispose(); guard = null; } }
 }
