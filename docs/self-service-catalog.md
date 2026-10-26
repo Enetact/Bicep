@@ -4,7 +4,7 @@
 
 [Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.
 
-[Restricted source recovery](foundation-restricted-recovery.md) adds explicit policy-preserving artifact capture and detached authentication. It adds no workload, default tool route, restore authority or live provider permission; existing General recovery paths remain separate.
+[Restricted source recovery](foundation-restricted-recovery.md) adds explicit policy-preserving artifact capture and detached authentication. [Restricted inactive staging](foundation-restricted-recovery-staging.md) re-encrypts into a fresh private destination with contextual ciphertext authentication and mandatory keyed completion verification. These add no workload, default tool route, restore authority or live provider permission; existing General recovery paths remain separate. Restricted checkpoint custody and complete-scope review remain next gates.
 
 [Restore execution holds](foundation-recovery-execution-hold.md) protect the customer foundation before fresh dispatch. They add no workload, Azure permission or default model/MCP action; they preserve authorized inspection and recovery preparation.
 
