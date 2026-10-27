@@ -15,6 +15,8 @@ The reference for developing, operating and extending Platform Studio. This wiki
 | I want to… | Reading path |
 |---|---|
 | Establish scalable foundations, close selected Port/Cycloid gaps and prepare a licensed offering | [Foundation-first commercial roadmap](plans/platform-studio-commercial-release.md) → [Customer isolation and identity architecture](plans/platform-studio-foundations-and-customer-isolation.md) |
+| Continue application service adoption in another project task | [Current handoff and prompt](handoffs/2026-10-26-platform-studio.md) → [Application architecture audit](plans/platform-studio-application-service-architecture.md) |
+| Call existing Foundation reads from another application | [Typed service client](foundation-service-client.md) |
 | Run the disconnected customer foundation and customer-owned GitHub/ADO pipeline tests | [Foundation service](foundation-service.md) → [Customer pipeline examples](../examples/customer-pipelines/README.md) → [SQLite ADR](adr/0001-foundation-dedicated-cell-sqlite.md) |
 | Review rotating identity keys, encrypted credentials, temporary support, signed audit anchors and release evidence | [Foundation security and operations](foundation-security-operations.md) |
 | Review the exact current publication after an uncertain local credential operation | [Publication observation](foundation-maintenance-observation.md) → [Observation evidence and restore](foundation-maintenance-observation-evidence.md) |

@@ -181,7 +181,7 @@ if($RuntimeDirectory){
     Check ($actualReport.runtimeFiles.Count -eq @(Get-FDFiles $RuntimeDirectory).Count) 'Actual runtime file hash coverage is incomplete.'
     Check ($actualReport.projects.id -contains 'SelfService.Foundation.Host' -and $actualReport.projects.id -contains 'SelfService.Foundation.Worker' -and $actualReport.projects.id -contains 'SelfService.Foundation.Owner') 'Actual API/worker/owner entry closure is incomplete.'
     Check ($actualReport.licenseTextSummary.archiveMissing -eq 14 -and $actualReport.licenseTextSummary.archiveDeclaredLicenseFileMissing -eq 23 -and $actualReport.licenseTextSummary.supplementResolved -eq 22 -and $actualReport.licenseTextSummary.rawArchiveMissingSupplementResolved -eq 13 -and $actualReport.licenseTextSummary.unresolved -eq 1) 'Actual raw/archive/supplement text counts are incorrect.'
-    Check (@($actualReport.issues|Where-Object code -CEQ 'FirstPartyLicenseUndeclared').Count -eq 8 -and @($actualReport.issues|Where-Object code -CEQ 'UpstreamLicenseTransitionReviewRequired').Count -eq 2) 'Actual licensing/first-party review findings were hidden.'
+    Check (@($actualReport.issues|Where-Object code -CEQ 'FirstPartyLicenseUndeclared').Count -eq 9 -and @($actualReport.issues|Where-Object code -CEQ 'UpstreamLicenseTransitionReviewRequired').Count -eq 2) 'Actual licensing/first-party review findings were hidden.'
     if($SpdxSchemaPath){Check (Test-Json -Json ([IO.File]::ReadAllText((Join-Path $actualOutput 'sbom.spdx.json'))) -SchemaFile $SpdxSchemaPath -ErrorAction Stop) 'Official SPDX schema rejected actual SBOM.'}
 }
 $receipt=[ordered]@{schema='platform-studio.foundation-dependency-tests.v1';checks=$script:checks;passed=$true;actualPublishedClosure=$actual;

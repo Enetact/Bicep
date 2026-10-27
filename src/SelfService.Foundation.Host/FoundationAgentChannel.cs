@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using SelfService.Foundation;
+using SelfService.Foundation.Contracts;
 using SelfService.Portal;
 
 namespace SelfService.Foundation.Host;
@@ -9,16 +10,7 @@ namespace SelfService.Foundation.Host;
 public static class FoundationAgentChannel
 {
     public const string Version = AgentHostChannel.Version;
-    static readonly IReadOnlyDictionary<string, string> Actions = new Dictionary<string, string>
-    {
-        ["platform/foundationCatalog"] = "platform_foundation_catalog",
-        ["platform/foundationBicep"] = "platform_foundation_bicep",
-        ["platform/foundationPlan"] = "platform_foundation_plan",
-        ["platform/foundationJob"] = "platform_foundation_job",
-        ["platform/foundationEnqueue"] = "platform_foundation_enqueue",
-        ["platform/foundationCancel"] = "platform_foundation_cancel",
-        ["platform/foundationArtifact"] = "platform_foundation_artifact"
-    };
+    static readonly IReadOnlyDictionary<string, string> Actions = FoundationAgentToolContracts.Actions;
     public sealed record RpcRequest(string Jsonrpc, JsonElement Id, string Method, JsonElement Params);
     sealed record Initialize(string Channel, string[] ProtocolVersions, string ClientId);
     sealed record CreateSession(string Channel, string Provider);

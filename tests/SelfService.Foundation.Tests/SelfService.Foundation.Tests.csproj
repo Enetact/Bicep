@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
     <ProjectReference Include="../../src/SelfService.Foundation/SelfService.Foundation.csproj" />
     <ProjectReference Include="../../src/SelfService.Foundation.Host/SelfService.Foundation.Host.csproj" />
+    <ProjectReference Include="../../src/SelfService.Foundation.Client/SelfService.Foundation.Client.csproj" />
     <ProjectReference Include="../../src/SelfService.Foundation.Worker/SelfService.Foundation.Worker.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../src/SelfService.Foundation.Owner/SelfService.Foundation.Owner.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>

@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../SelfService.Foundation/SelfService.Foundation.csproj" />
+    <ProjectReference Include="../SelfService.Foundation.Contracts/SelfService.Foundation.Contracts.csproj" />
     <ProjectReference Include="../SelfService.Portal/SelfService.Portal.csproj" />
   </ItemGroup>
 </Project>

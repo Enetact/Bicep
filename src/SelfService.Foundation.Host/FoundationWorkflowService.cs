@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SelfService.Foundation;
+using SelfService.Foundation.Contracts;
 using SelfService.Portal;
 
 namespace SelfService.Foundation.Host;
@@ -16,7 +17,7 @@ public sealed class FoundationWorkflowService(FoundationStore store, FoundationH
     CustomerContextResolver resolver, EntitlementVerifier? entitlements = null)
 {
     readonly EntitlementVerifier verifier = entitlements ?? new(options.EntitlementTrustKeys, requireSignedMode: options.RequireSignedEntitlement);
-    public const string RuntimeVersion = "1.0.0";
+    public const string RuntimeVersion = FoundationExecutionRuntime.RuntimeVersion;
     public FoundationFeatureDecision RequireFeature(CustomerContext c, string feature) =>
         store.RequireFeature(c.CustomerId, c.ActorKey, c.ProjectId, c.EnvironmentId, feature, verifier, RuntimeVersion);
     public CustomerContext Require(FoundationPrincipal principal, FoundationScope scope, string capability)
@@ -144,13 +145,13 @@ public sealed class FoundationWorkflowService(FoundationStore store, FoundationH
         if (arguments.ValueKind != JsonValueKind.Object) throw new JsonException();
         object result = name switch
         {
-            "platform_foundation_catalog" => Catalog(principal, scope, Parse<FoundationCatalogCommand>(arguments)),
-            "platform_foundation_bicep" => GenerateBicep(principal, scope, Parse<FoundationBicepCommand>(arguments)),
-            "platform_foundation_plan" => CreatePlan(principal, scope, Parse<PlanCommand>(arguments)),
-            "platform_foundation_job" => ReadJob(principal, scope, Parse<FoundationObjectReference>(arguments).Id),
-            "platform_foundation_enqueue" => EnqueueReference(Parse<FoundationPlanReference>(arguments)),
-            "platform_foundation_cancel" => Cancel(principal, scope, Parse<FoundationObjectReference>(arguments).Id),
-            "platform_foundation_artifact" => ArtifactMetadata(principal, scope, Parse<FoundationObjectReference>(arguments).Id),
+            FoundationAgentToolContracts.Catalog => Catalog(principal, scope, Parse<FoundationCatalogCommand>(arguments)),
+            FoundationAgentToolContracts.Bicep => GenerateBicep(principal, scope, Parse<FoundationBicepCommand>(arguments)),
+            FoundationAgentToolContracts.Plan => CreatePlan(principal, scope, Parse<PlanCommand>(arguments)),
+            FoundationAgentToolContracts.Job => ReadJob(principal, scope, Parse<FoundationObjectReference>(arguments).Id),
+            FoundationAgentToolContracts.Enqueue => EnqueueReference(Parse<FoundationPlanReference>(arguments)),
+            FoundationAgentToolContracts.Cancel => Cancel(principal, scope, Parse<FoundationObjectReference>(arguments).Id),
+            FoundationAgentToolContracts.Artifact => ArtifactMetadata(principal, scope, Parse<FoundationObjectReference>(arguments).Id),
             _ => throw new FoundationAuthorizationException("foundation_tool_denied")
         };
         return Task.FromResult(result);

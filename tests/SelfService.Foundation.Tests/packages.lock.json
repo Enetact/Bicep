@@ -428,10 +428,20 @@
           "SQLitePCLRaw.bundle_e_sqlite3": "[3.0.5, )"
         }
       },
+      "selfservice.foundation.client": {
+        "type": "Project",
+        "dependencies": {
+          "SelfService.Foundation.Contracts": "[1.0.0, )"
+        }
+      },
+      "selfservice.foundation.contracts": {
+        "type": "Project"
+      },
       "selfservice.foundation.host": {
         "type": "Project",
         "dependencies": {
           "SelfService.Foundation": "[1.0.0, )",
+          "SelfService.Foundation.Contracts": "[1.0.0, )",
           "SelfService.Portal": "[1.0.0, )"
         }
       },
@@ -443,6 +453,7 @@
         "dependencies": {
           "Microsoft.Identity.Client": "[4.90.1, )",
           "ModelContextProtocol": "[2.2.0, )",
+          "SelfService.Foundation.Contracts": "[1.0.0, )",
           "SelfService.Operations": "[1.0.0, )",
           "SelfService.Tagging": "[1.0.0, )",
           "SelfService.Telemetry": "[1.0.0, )"

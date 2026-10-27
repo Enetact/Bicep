@@ -5,6 +5,7 @@ using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using SelfService.Foundation.Contracts;
 using SelfService.Telemetry;
 
 namespace SelfService.Portal;
@@ -165,22 +166,13 @@ public sealed class AgentMcpBridge : IAsyncDisposable
         catch (Exception e) { operation.Fail(e); throw; }
     }
     internal static string ObservedTool(string? name) => name is "platform_evidence" or "platform_skill" or "platform_mcp_catalog" or "platform_mcp_call" or "platform_mcp_plan" or "platform_mcp_run" || FoundationToolNames.Contains(name, StringComparer.Ordinal) ? name! : "unregistered";
-    public static IReadOnlyList<string> FoundationToolNames { get; } = Array.AsReadOnly(new[] { "platform_foundation_catalog", "platform_foundation_bicep", "platform_foundation_plan",
-        "platform_foundation_job", "platform_foundation_enqueue", "platform_foundation_cancel", "platform_foundation_artifact" });
+    public static IReadOnlyList<string> FoundationToolNames => FoundationAgentToolContracts.ToolNames;
     public void EnableFoundation(Func<string, JsonElement, CancellationToken, Task<object>> handler)
     {
         if (foundationHandler is not null || providerHandler is not null) throw new InvalidOperationException("A workflow surface is already bound.");
         foundationHandler = handler ?? throw new ArgumentNullException(nameof(handler));
-        object Tool(string name, string description, string schema) => new { type = "function", name, description, inputSchema = JsonDocument.Parse(schema).RootElement.Clone() };
-        const string reference = """{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false}""";
-        Tools = [.. Tools,
-            Tool("platform_foundation_catalog", "Read the reviewed module index, exact contract or expanded parameter schema before Bicep. Not observed Azure state.", """{"type":"object","properties":{"moduleId":{"type":"string"},"parameter":{"type":"string"},"offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":20}},"additionalProperties":false}"""),
-            Tool("platform_foundation_bicep", "Generate unqualified parameterized Bicep with reviewed local/AVM modules and persist its source artifact. No discovery or deployment authority.", """{"type":"object","properties":{"subscriptionId":{"type":"string"},"region":{"type":"string"},"goal":{"type":"string","maxLength":2000},"modules":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"object"}},"settings":{"type":"object"}},"required":["subscriptionId","region","goal","modules","settings"],"additionalProperties":false}"""),
-            Tool("platform_foundation_plan", "Create an immutable customer-owned pipeline plan. This never approves or executes it.", """{"type":"object","properties":{"connectionId":{"type":"string"},"ref":{"type":"string"},"sourceRevision":{"type":"string"},"inputs":{"type":"object","additionalProperties":{"type":"string"}},"lifetimeMinutes":{"type":"integer","minimum":1,"maximum":60}},"required":["connectionId","ref","sourceRevision","inputs"],"additionalProperties":false}"""),
-            Tool("platform_foundation_job", "Read a customer-scoped durable job and sanitized receipt. Mock acceptance is never verified deployment.", reference),
-            Tool("platform_foundation_enqueue", "Enqueue an already separately human-approved exact plan. No approval tool exists. Unknown effects must not be replayed.", """{"type":"object","properties":{"id":{"type":"string"},"digest":{"type":"string"},"idempotencyKey":{"type":"string"}},"required":["id","digest","idempotencyKey"],"additionalProperties":false}"""),
-            Tool("platform_foundation_cancel", "Request authorized cancellation. Dispatched work may require reconciliation.", reference),
-            Tool("platform_foundation_artifact", "Read scoped artifact metadata and digest without exposing archive bytes to the model.", reference)];
+        Tools = [.. Tools, .. FoundationAgentToolContracts.Tools.Select(tool => (object)new
+        { type = "function", name = tool.Name, description = tool.Description, inputSchema = tool.InputSchema })];
     }
     public void EnableProviders(McpProviderBroker broker, BrowserSession session)
     {

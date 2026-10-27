@@ -336,6 +336,9 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "selfservice.foundation.contracts": {
+        "type": "Project"
+      },
       "selfservice.operations": {
         "type": "Project"
       },
@@ -344,6 +347,7 @@
         "dependencies": {
           "Microsoft.Identity.Client": "[4.90.1, )",
           "ModelContextProtocol": "[2.2.0, )",
+          "SelfService.Foundation.Contracts": "[1.0.0, )",
           "SelfService.Operations": "[1.0.0, )",
           "SelfService.Tagging": "[1.0.0, )",
           "SelfService.Telemetry": "[1.0.0, )"

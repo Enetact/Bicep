@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Data.Sqlite;
-using SelfService.Foundation.Host;
+using SelfService.Foundation;
 
 namespace SelfService.Foundation.Worker;
 
@@ -116,7 +116,7 @@ public static class FoundationWorkerProcess
             receiptFile?.Publish(receipt, Json);
             Console.WriteLine(JsonSerializer.Serialize(receipt, Json));
             heartbeats = HeartbeatsAsync(store, handle, config, cancellation);
-            var runner = new FoundationJobRunner(store, new PipelineDispatcher(transport ?? (IPipelineTransport)new DeniedPipelineTransport()), entitlements);
+            var runner = new FoundationPipelineExecutionService(store, new PipelineDispatcher(transport ?? (IPipelineTransport)new DeniedPipelineTransport()), entitlements);
             var delay = TimeSpan.FromMilliseconds(config.PollIntervalMilliseconds);
             var failures = 0;
             while (!cancellation.IsCancellationRequested)

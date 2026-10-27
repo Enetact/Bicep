@@ -1,22 +1,17 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Data.Sqlite;
 using System.Threading.RateLimiting;
 using SelfService.Portal;
 using SelfService.Foundation;
+using SelfService.Foundation.Contracts;
 
 namespace SelfService.Foundation.Host;
 
 public static class FoundationApplication
 {
-    public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        MaxDepth = 16, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        RespectRequiredConstructorParameters = true, RespectNullableAnnotations = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
+    public static readonly JsonSerializerOptions Json = FoundationExecutionRuntime.Json;
     internal const string Root = "/api/foundation/customers/{customerId}/projects/{projectId}/environments/{environmentId}";
     internal sealed record Capability(string Name);
 
@@ -116,6 +111,9 @@ public static class FoundationApplication
                 var resolver = ContextResolver(http, capability.Name);
                 http.Items[typeof(CustomerContext)] = resolver.Require(principal, Route(http, "customerId"),
                     Route(http, "projectId"), Route(http, "environmentId"), capability.Name);
+                // Response routing evidence only; these headers convey no execution authority.
+                http.Response.Headers[FoundationServiceProtocol.CellHeader] = options.Identity.CellId;
+                http.Response.Headers[FoundationServiceProtocol.ContractHeader] = FoundationServiceProtocol.ContractVersion;
                 if (Context(http).SupportValidUntilUtc is not null) store.RecordSupportAccess(Context(http));
                 await next(http);
             }
