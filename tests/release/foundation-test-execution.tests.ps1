@@ -21,7 +21,7 @@ function NewExecutionFixture([string]$Name){
     WriteFixture (Join-Path $directory '.agents/skills/fixture/SKILL.md') "synthetic instruction fixture`n"
     WriteFixture (Join-Path $directory 'tests/SelfService.Foundation.Tests/SelfService.Foundation.Tests.csproj') '<Project Sdk="Microsoft.NET.Sdk" />'
     $null=New-Item -ItemType Directory -Path (Join-Path $directory 'scripts')
-    foreach($name in @('FoundationTestExecutionEvidence.ps1','Test-Foundation.ps1','FoundationBuildRetention.ps1','Remove-OldBuildIntermediates.ps1')){Copy-Item -LiteralPath (Join-Path $repositoryRoot ('scripts/'+$name)) -Destination (Join-Path $directory ('scripts/'+$name)) -ErrorAction Stop}
+    foreach($name in @('FoundationTestExecutionEvidence.ps1','Test-Foundation.ps1','FoundationBuildRetention.ps1','FoundationOwnedBuildNative.cs','Remove-OldBuildIntermediates.ps1')){Copy-Item -LiteralPath (Join-Path $repositoryRoot ('scripts/'+$name)) -Destination (Join-Path $directory ('scripts/'+$name)) -ErrorAction Stop}
     foreach($arguments in @(@('init','--quiet'),@('config','core.autocrlf','false'),@('config','user.email','synthetic@example.invalid'),@('config','user.name','Synthetic execution fixture'),@('add','--all'),@('commit','--quiet','-m','Owned synthetic fixture'))){$null=Get-FTEGit $directory $arguments}
     $directory
 }
@@ -30,14 +30,32 @@ $tools=Join-Path $fixtureRoot 'tools';$null=New-Item -ItemType Directory -Path $
 $source=Join-Path $tools 'Fixture.cs';$assembly=Join-Path $tools 'fixture.dll';$standIn=Join-Path $tools 'dotnet.exe';$dotnetRoot=Split-Path $DotNetPath -Parent
 WriteFixture $source @'
 using System; using System.IO; using System.Linq; using System.Threading; using System.Xml.Linq;
+using System.Diagnostics;
 public static class Fixture {
  public static int Main(string[] args){
+  if(args[0]=="process"){
+   var scenario=args[1];var marker=args[2];
+   if(scenario=="bridge"){var start=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=false,CreateNoWindow=true};foreach(var a in new[]{"process","child",marker})start.ArgumentList.Add(a);using var c=Process.Start(start);var clock=Stopwatch.StartNew();while(!File.Exists(marker)&&clock.ElapsedMilliseconds<10000)Thread.Sleep(10);return File.Exists(marker)?0:97;}
+   if(scenario=="child"||scenario=="childquiet"){File.WriteAllText(marker,Environment.ProcessId+"|"+Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks);if(scenario=="child"){Console.Write("child-out");Console.Error.Write("child-err");}Thread.Sleep(args.Length>3?int.Parse(args[3]):Timeout.Infinite);return 0;}
+   Process Spawn(bool quiet,int delay){var start=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=quiet,RedirectStandardError=quiet};foreach(var a in new[]{"process",scenario=="grandchild"?"bridge":quiet?"childquiet":"child",marker,delay.ToString()})start.ArgumentList.Add(a);return Process.Start(start)!;}
+   if(scenario=="many"){for(int i=0;i<130;i++){using var c=Spawn(true,0);c.WaitForExit();if(c.ExitCode!=0)return 96;}return 0;}
+   using var child=Spawn(scenario=="no-pipes",scenario=="late"?500:Timeout.Infinite);var wait=Stopwatch.StartNew();while(!File.Exists(marker)&&wait.ElapsedMilliseconds<10000)Thread.Sleep(10);if(!File.Exists(marker))return 95;
+   Console.Write("parent-out");Console.Error.Write("parent-err");
+   if(scenario=="nonzero")return 7;
+   if(scenario=="exit259")return 259;
+   if(scenario=="overflow"){Console.Write(new string('x',4194305));Console.Out.Flush();Thread.Sleep(Timeout.Infinite);}
+   if(scenario=="stderr-overflow"){Console.Error.Write(new string('x',4194305));Console.Error.Flush();Thread.Sleep(Timeout.Infinite);}
+   if(scenario=="stall")Thread.Sleep(Timeout.Infinite);
+   return 0;
+  }
   var root=Environment.CurrentDirectory;if(!File.Exists(Path.Combine(root,"fixture.marker"))||File.ReadAllText(Path.Combine(root,"fixture.marker"))!="owned-test-execution-fixture")return 91;
   var mode=Environment.GetEnvironmentVariable("FOUNDATION_TEST_EXECUTION_FIXTURE")??"valid";
   if(args[0]=="restore")return mode=="restore-exit"?7:0;
   if(args[0]!="test")return 92;
   if(mode=="native-stall"||mode=="native-overflow"){File.WriteAllText(Path.Combine(root,"artifacts","native-child.pid"),Environment.ProcessId.ToString());if(mode=="native-overflow"){Console.Write(new string('x',4194305));Console.Out.Flush();}Thread.Sleep(Timeout.Infinite);return 0;}
   if(mode=="no-trx")return 0;
+  if(mode=="test-exit-no-trx"){Console.Error.Write("Synthetic compiler failure before test execution.");return 31;}
+  if(mode=="test-exit-invalid-trx"){var output=args[Array.IndexOf(args,"--results-directory")+1];Directory.CreateDirectory(output);File.WriteAllText(Path.Combine(output,"foundation.trx"),"<synthetic-partial-trx");return 32;}
   if(mode=="change")File.AppendAllText(Path.Combine(root,"input.txt"),"synthetic changed input");
   if(mode=="manifest-change")File.AppendAllText(Path.Combine(root,"MANIFEST.sha256"),"synthetic changed manifest input");
   if(mode=="add")File.WriteAllText(Path.Combine(root,"new-source.txt"),"synthetic added input");
@@ -47,13 +65,13 @@ public static class Fixture {
   var results=new XElement(ns+"Results");var definitions=new XElement(ns+"TestDefinitions");var entries=new XElement(ns+"TestEntries");
   for(int i=0;i<2;i++){var test=Guid.NewGuid().ToString("D");var execution=Guid.NewGuid().ToString("D");
    if(mode=="guid-alias"){test="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";execution="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";if(i==1){test=test.ToUpperInvariant();execution=execution.ToUpperInvariant();}}
-   results.Add(new XElement(ns+"UnitTestResult",new XAttribute("testId",test),new XAttribute("executionId",execution),new XAttribute("outcome",i==1&&mode=="failed"?"Failed":i==1&&mode=="skipped"?"NotExecuted":"Passed")));
+   results.Add(new XElement(ns+"UnitTestResult",new XAttribute("testId",test),new XAttribute("executionId",execution),new XAttribute("outcome",i==1&&(mode=="failed"||mode=="test-exit-failed-trx")?"Failed":i==1&&mode=="skipped"?"NotExecuted":"Passed")));
    definitions.Add(new XElement(ns+"UnitTest",new XAttribute("id",test)));entries.Add(new XElement(ns+"TestEntry",new XAttribute("testId",test),new XAttribute("executionId",execution)));
   }
-  var failed=mode=="failed"?1:0;var skipped=mode=="skipped"?1:0;var passed=2-failed-skipped;
+  var failed=mode=="failed"||mode=="test-exit-failed-trx"?1:0;var skipped=mode=="skipped"?1:0;var passed=2-failed-skipped;
   var counters=new XElement(ns+"Counters",new XAttribute("total",2),new XAttribute("executed",2-skipped),new XAttribute("passed",mode=="counter"?99:passed),new XAttribute("failed",failed),new XAttribute("notExecuted",0));
   var run=new XElement(ns+"TestRun",new XAttribute("id",Guid.NewGuid().ToString("D")),new XElement(ns+"Times",new XAttribute("start",now.ToString("O")),new XAttribute("finish",now.ToString("O"))),results,definitions,entries,new XElement(ns+"ResultSummary",new XAttribute("outcome","Completed"),counters));
-  Directory.CreateDirectory(directory);new XDocument(run).Save(Path.Combine(directory,"foundation.trx"));return mode=="test-exit"?9:0;
+  Directory.CreateDirectory(directory);new XDocument(run).Save(Path.Combine(directory,"foundation.trx"));return mode=="test-exit"||mode=="test-exit-failed-trx"?9:0;
  }
 }
 '@
@@ -68,8 +86,50 @@ $template=Join-Path $dotnetRoot ('packs/Microsoft.NETCore.App.Host.win-'+$archit
 $search=[Microsoft.NET.HostModel.AppHost.HostWriter+DotNetSearchOptions]::new();$search.Location=[Microsoft.NET.HostModel.AppHost.HostWriter+DotNetSearchOptions+SearchLocation]::AppRelative;$search.AppRelativeDotNet=[IO.Path]::GetRelativePath($tools,$dotnetRoot)
 [Microsoft.NET.HostModel.AppHost.HostWriter]::CreateAppHost($template,$standIn,'fixture.dll',$false,$assembly,$false,$false,$search)
 
+# Actual descendant/pipe/error paths use the same production FTE entry point.
+# The sentinel belongs to this test but is outside each runner job.
+$sentinelMarker=Join-Path $tools 'outside-job.pid';$sentinel=$null
+try{
+    $start=[Diagnostics.ProcessStartInfo]::new($standIn);$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+    foreach($arg in @('process','childquiet',$sentinelMarker)){$start.ArgumentList.Add($arg)}
+    $sentinel=[Diagnostics.Process]::Start($start);$null=$sentinel.SafeHandle
+    foreach($scenario in @('late','many','pipe-hold','no-pipes','grandchild','nonzero','exit259','overflow','stderr-overflow','stall','cancel')){
+        $marker=Join-Path $tools ($scenario+'.pid');$cts=[Threading.CancellationTokenSource]::new();$observation=$null;$caught=$null
+        $timeout=if($scenario -in @('pipe-hold','no-pipes','grandchild','stall')){1000}else{30000}
+        if($scenario -ceq 'cancel'){$cts.CancelAfter(1000)}
+        $clock=[Diagnostics.Stopwatch]::StartNew()
+        try{
+            try{$observation=Invoke-FTEProcess $standIn @('process',$scenario,$marker) $tools $timeout $cts.Token}catch{
+                $caught=$_.Exception;for($cause=$caught;$cause;$cause=$cause.InnerException){if($cause.Data.Contains('FoundationTestProcessObservation')){$observation=$cause.Data['FoundationTestProcessObservation'];break}}
+            }
+            Check ($null -ne $observation) ('Owned process diagnostics missing: '+$scenario)
+            $process=$observation.processObservation
+            Check ($process.ownedJobStopped -and $process.activeProcesses -eq 0 -and !$process.independentAttestation) ('Owned descendants were not observed stopped: '+$scenario)
+            Check ($process.maximumActiveProcesses -eq 64 -and $process.maximumTotalProcesses -eq 16384 -and $process.totalProcesses -ge 2) ('Explicit test process bounds missing: '+$scenario)
+            Check ([Text.Encoding]::UTF8.GetByteCount($observation.stdout) -le 4194304 -and [Text.Encoding]::UTF8.GetByteCount($observation.stderr) -le 4194304) ('Process capture exceeded bound: '+$scenario)
+            if($scenario -in @('late','many','nonzero','exit259')){
+                Check (!$caught -and $observation.exitCode -eq $(switch($scenario){'nonzero'{7};'exit259'{259};default{0}})) ('Observed nonzero/success was changed: '+$scenario)
+                if($scenario -ceq 'many'){Check ($process.totalProcesses -ge 131) 'Full-cohort process policy failed after ordinary build cumulative limit.'}
+            }else{
+                $expected=switch($scenario){'overflow'{'TestExecutionOutputLimit'};'stderr-overflow'{'TestExecutionOutputLimit'};'cancel'{'TestExecutionCancelled'};default{'TestExecutionTimeout'}}
+                Check ($caught -and $process.failureCode -ceq $expected) ('Process error was not preserved: '+$scenario)
+            }
+            if($scenario -cne 'many'){Check ($observation.stdout.Contains('parent-out') -and $observation.stderr.Contains('parent-err')) ('Failure/descendant output was lost: '+$scenario)}
+            if($scenario -ceq 'grandchild'){Check ($process.totalProcesses -ge 3) 'Nested descendant was not held in the job.'}
+            Check ($clock.ElapsedMilliseconds -lt $timeout+10000) ('Process cleanup exceeded its bounded allowance: '+$scenario)
+            Check (Test-Path -LiteralPath $marker) ('Owned descendant never ran: '+$scenario)
+            $identity=[IO.File]::ReadAllText($marker).Split('|');$child=Get-Process -Id ([int]$identity[0]) -ErrorAction SilentlyContinue
+            try{Check ($null -eq $child -or $child.HasExited -or $child.StartTime.ToUniversalTime().Ticks -ne [long]$identity[1]) ('Runner left a matching live descendant: '+$scenario)}finally{if($child){$child.Dispose()}}
+            Check (!$sentinel.HasExited) ('Runner stopped an out-of-job process: '+$scenario)
+        }finally{$cts.Dispose()}
+    }
+    # Ordinary build policy is unchanged even though FTE admits many serial test fixtures.
+    $session=$null
+    try{$session=[PlatformStudio.FoundationOwnedBuild.Native]::Start($standIn,[string[]]@('process','many',(Join-Path $tools 'build-default.pid')),$tools,[Environment]::GetEnvironmentVariables());Reject {$session.Wait(30000,[Threading.CancellationToken]::None)} '*ProcessLimit*'}finally{if($session){$session.Dispose()}}
+}finally{if($sentinel){try{if(!$sentinel.HasExited){$sentinel.Kill();Check ($sentinel.WaitForExit(5000)) 'Owned sentinel did not stop.'}}finally{$sentinel.Dispose()}}}
+
 $valid=$null
-foreach($mode in @('valid','change','manifest-change','add','remove','no-trx','stale','counter','guid-alias','failed','skipped','restore-exit','test-exit')){
+foreach($mode in @('valid','change','manifest-change','add','remove','no-trx','stale','counter','guid-alias','failed','skipped','restore-exit','test-exit','test-exit-no-trx','test-exit-invalid-trx','test-exit-failed-trx','native-overflow')){
     $directory=NewExecutionFixture $mode;$oldMode=$env:FOUNDATION_TEST_EXECUTION_FIXTURE
     # A historical TRX must never be reused by the fresh run directory.
     if($mode -ceq 'no-trx'){WriteFixture (Join-Path $directory 'artifacts/test-results/foundation/foundation.trx') '<synthetic-old-trx />'}
@@ -96,8 +156,21 @@ foreach($mode in @('valid','change','manifest-change','add','remove','no-trx','s
         Reject {Test-FTEExecutionReceipt $run[0].FullName ('0'*64)} '*CompletedReceiptRequired*'
         if($mode -ceq 'skipped'){Check ($rejected.code -ceq 'TestExecutionSkippedResults' -and $rejected.trx.notExecuted -eq 1) 'A zero-summary skipped result was accepted or misclassified.'}
         if($mode -ceq 'failed'){Check ($rejected.code -ceq 'TestExecutionFailedResults' -and $rejected.trx.failed -eq 1) 'A real failed result was accepted or misclassified.'}
-        if($mode -in @('restore-exit','test-exit')){Check ($rejected.code -ceq 'TestExecutionNonzeroExit') 'Nonzero observed process exit was not rejected.'}
+        if($mode -in @('restore-exit','test-exit','test-exit-no-trx','test-exit-invalid-trx','test-exit-failed-trx')){Check ($rejected.code -ceq 'TestExecutionNonzeroExit') 'Nonzero observed process exit was not rejected.'}
+        if($mode -ceq 'test-exit-no-trx'){
+            Check ($null -eq $rejected.trx -and $rejected.commands.Count -eq 2 -and $rejected.commands[1].exitCode -eq 31) 'Compile failure without results was misrepresented as executed tests.'
+            Check ([IO.File]::ReadAllText((Join-Path $run[0].FullName 'test.stderr.txt')).Contains('Synthetic compiler failure')) 'Compiler diagnostic was discarded.'
+            Check (!(Test-Path -LiteralPath (Join-Path $run[0].FullName 'results/foundation.trx'))) 'Compile failure fabricated a TRX.'
+        }
+        if($mode -ceq 'test-exit-invalid-trx'){Check ($null -eq $rejected.trx -and (Test-Path -LiteralPath (Join-Path $run[0].FullName 'results/foundation.trx'))) 'Partial failed-run TRX was trusted or discarded.'}
+        if($mode -ceq 'test-exit-failed-trx'){Check ($rejected.trx.failed -eq 1 -and $rejected.trx.passed -eq 1) 'Valid failed TRX metadata was lost behind the nonzero exit.'}
         if($mode -ceq 'no-trx'){Check (Test-Path -LiteralPath (Join-Path $directory 'artifacts/test-results/foundation/foundation.trx')) 'Runner modified historical evidence.'}
+        if($mode -ceq 'native-overflow'){
+            Check ($rejected.code -ceq 'TestExecutionOutputLimit' -and $rejected.commands.Count -eq 2) 'Runner lost failed-command classification/evidence.'
+            $process=Get-Content -LiteralPath (Join-Path $run[0].FullName 'test.process.json') -Raw|ConvertFrom-Json -AsHashtable
+            Check ($process.ownedJobStopped -and $process.activeProcesses -eq 0 -and $process.failureCode -ceq 'TestExecutionOutputLimit') 'Rejected runner did not retain bounded cleanup observation.'
+            Check ((Get-Item -LiteralPath (Join-Path $run[0].FullName 'test.stdout.txt')).Length -gt 0) 'Rejected runner discarded captured partial output.'
+        }
     }
     $runs.Add([ordered]@{fixture=$mode;run=$run[0].FullName;completed=($mode -ceq 'valid')})
 }

@@ -61,32 +61,46 @@ public static class Native {
   public long FinishedUnixMilliseconds { get; internal set; }
  }
  public sealed class Session : IDisposable {
-  readonly JobHandle job; readonly SafeProcessHandle process; readonly Capture output,error; bool completed,disposed;
+  readonly JobHandle job; readonly SafeProcessHandle process; readonly Capture output,error; readonly uint maximumActive,maximumTotal; bool completed,disposed,stopped;
   public int ProcessId { get; private set; } public long ProcessStartTicks { get; private set; } public string Executable { get; private set; }
-  internal Session(JobHandle job,SafeProcessHandle process,Capture output,Capture error,int id,long ticks,string executable){this.job=job;this.process=process;this.output=output;this.error=error;ProcessId=id;ProcessStartTicks=ticks;Executable=executable;}
+  internal Session(JobHandle job,SafeProcessHandle process,Capture output,Capture error,int id,long ticks,string executable,uint maximumActive,uint maximumTotal){this.job=job;this.process=process;this.output=output;this.error=error;this.maximumActive=maximumActive;this.maximumTotal=maximumTotal;ProcessId=id;ProcessStartTicks=ticks;Executable=executable;}
   public byte[] StandardOutput(){return output.Copy();} public byte[] StandardError(){return error.Copy();}
   public Observation Wait(int timeoutMilliseconds,CancellationToken token){
-   if(disposed||completed||timeoutMilliseconds<50||timeoutMilliseconds>900000)throw Failure("WaitRejected");var elapsed=Stopwatch.StartNew();
+   if(disposed||completed||stopped||timeoutMilliseconds<50||timeoutMilliseconds>900000)throw Failure("WaitRejected");var elapsed=Stopwatch.StartNew();
    while(true){token.ThrowIfCancellationRequested();if(elapsed.ElapsedMilliseconds>=timeoutMilliseconds)throw Failure("Timeout");
     if(output.Work.IsFaulted){output.Work.GetAwaiter().GetResult();}if(error.Work.IsFaulted){error.Work.GetAwaiter().GetResult();}
     if(!QueryInformationJobObject(job,1,out var accounting,Marshal.SizeOf<Accounting>(),IntPtr.Zero))throw Failure("JobQueryRejected");
-    if(accounting.TotalProcesses>128||accounting.ActiveProcesses>16)throw Failure("ProcessLimit");
+    if(accounting.TotalProcesses>maximumTotal||accounting.ActiveProcesses>maximumActive)throw Failure("ProcessLimit");
     var wait=WaitForSingleObject(process,0);if(wait!=0&&wait!=258)throw Failure("ProcessQueryRejected");
     if(wait==0){if(!GetExitCodeProcess(process,out var code))throw Failure("ProcessQueryRejected");if(code!=0)throw Failure("ExitNonzero");
      if(accounting.ActiveProcesses==0&&output.Work.IsCompleted&&error.Work.IsCompleted){output.Work.GetAwaiter().GetResult();error.Work.GetAwaiter().GetResult();completed=true;return new Observation{ProcessId=ProcessId,ProcessStartTicks=ProcessStartTicks,Executable=Executable,ExitCode=0,TotalProcesses=(int)accounting.TotalProcesses,ActiveProcesses=0,FinishedUnixMilliseconds=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()};}}
     Thread.Sleep(10);
    }
   }
-  public void Dispose(){if(disposed)return;disposed=true;try{if(!completed){if(!TerminateJobObject(job,2))throw Failure("JobStopRejected");var clock=Stopwatch.StartNew();while(true){if(!QueryInformationJobObject(job,1,out var state,Marshal.SizeOf<Accounting>(),IntPtr.Zero))throw Failure("JobQueryRejected");if(state.ActiveProcesses==0)break;if(clock.ElapsedMilliseconds>5000)throw Failure("JobStopUncertain");Thread.Sleep(10);}}}finally{process.Dispose();job.Dispose();output.Dispose();error.Dispose();}}
+  // Stop the held job before copying diagnostics. Pipe EOF is a separate condition
+  // from parent exit: descendants may retain inherited writers or no writers at all.
+  public Observation Stop(){
+   if(disposed)throw Failure("WaitRejected");
+   if(!completed&&!stopped&&!TerminateJobObject(job,2))throw Failure("JobStopRejected");
+   var clock=Stopwatch.StartNew();Accounting state;
+   while(true){if(!QueryInformationJobObject(job,1,out state,Marshal.SizeOf<Accounting>(),IntPtr.Zero))throw Failure("JobQueryRejected");if(state.ActiveProcesses==0)break;if(clock.ElapsedMilliseconds>5000)throw Failure("JobStopUncertain");Thread.Sleep(10);}
+   // Job active accounting may reach zero just before the original process
+   // object is signaled; retain its handle and use the same bounded stop budget.
+   while(true){var wait=WaitForSingleObject(process,10);if(wait==0)break;if(wait!=258)throw Failure("ProcessQueryRejected");if(clock.ElapsedMilliseconds>5000)throw Failure("JobStopUncertain");}
+   while(!output.Work.IsCompleted||!error.Work.IsCompleted){if(clock.ElapsedMilliseconds>5000)throw Failure("CaptureStopUncertain");Thread.Sleep(10);}
+   if(WaitForSingleObject(process,0)!=0||!GetExitCodeProcess(process,out var code))throw Failure("ProcessQueryRejected");stopped=true;
+   return new Observation{ProcessId=ProcessId,ProcessStartTicks=ProcessStartTicks,Executable=Executable,ExitCode=unchecked((int)code),TotalProcesses=(int)state.TotalProcesses,ActiveProcesses=0,FinishedUnixMilliseconds=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()};
+  }
+  public void Dispose(){if(disposed)return;try{if(!completed&&!stopped)Stop();}finally{disposed=true;process.Dispose();job.Dispose();output.Dispose();error.Dispose();}}
  }
- public static Session Start(string executable,string[] arguments,string directory,IDictionary variables,int outputLimit=4194304){
-  if(!OperatingSystem.IsWindows()||outputLimit<1024||outputLimit>4194304)throw Failure("ConfigurationRejected");
+ public static Session Start(string executable,string[] arguments,string directory,IDictionary variables,int outputLimit=4194304,int maximumActiveProcesses=16,int maximumTotalProcesses=128){
+  if(!OperatingSystem.IsWindows()||outputLimit<1024||outputLimit>4194304||maximumActiveProcesses<1||maximumActiveProcesses>128||maximumTotalProcesses<maximumActiveProcesses||maximumTotalProcesses>32768)throw Failure("ConfigurationRejected");
   var security=new Security{Length=Marshal.SizeOf<Security>(),Inherit=true};
   IntPtr readOut=IntPtr.Zero,writeOut=IntPtr.Zero,readError=IntPtr.Zero,writeError=IntPtr.Zero,attributes=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
   var information=new ProcessInfo();bool initialized=false;JobHandle job=null;SafeProcessHandle process=null;Capture output=null,error=null;
   try {
    job=CreateJobObjectW(IntPtr.Zero,null);if(job.IsInvalid)throw Failure("JobCreationRejected");
-   var limits=new ExtendedLimit{Basic=new BasicLimit{Flags=0x2000|0x8,ActiveProcessLimit=16}};
+   var limits=new ExtendedLimit{Basic=new BasicLimit{Flags=0x2000|0x8,ActiveProcessLimit=(uint)maximumActiveProcesses}};
    if(!SetInformationJobObject(job,9,ref limits,Marshal.SizeOf<ExtendedLimit>()))throw Failure("JobLimitRejected");
    if(!CreatePipe(out readOut,out writeOut,ref security,4096)||!CreatePipe(out readError,out writeError,ref security,4096)||!SetHandleInformation(readOut,1,0)||!SetHandleInformation(readError,1,0))throw Failure("PipeRejected");
    output=new Capture(new SafeFileHandle(readOut,true),outputLimit);readOut=IntPtr.Zero;error=new Capture(new SafeFileHandle(readError,true),outputLimit);readError=IntPtr.Zero;
@@ -105,7 +119,7 @@ public static class Native {
    if(!GetProcessTimes(process,out var created,out _,out _,out _))throw Failure("ProcessIdentityRejected");var name=new StringBuilder(32768);var length=name.Capacity;
    if(!QueryFullProcessImageNameW(process,0,name,ref length)||!string.Equals(name.ToString(),executable,StringComparison.OrdinalIgnoreCase))throw Failure("ProcessIdentityRejected");
    output.Start();error.Start();if(ResumeThread(information.Thread)==uint.MaxValue)throw Failure("ProcessResumeRejected");
-   var session=new Session(job,process,output,error,information.ProcessId,DateTime.FromFileTimeUtc(created).Ticks,name.ToString());job=null;process=null;output=null;error=null;return session;
+   var session=new Session(job,process,output,error,information.ProcessId,DateTime.FromFileTimeUtc(created).Ticks,name.ToString(),(uint)maximumActiveProcesses,(uint)maximumTotalProcesses);job=null;process=null;output=null;error=null;return session;
   } finally {
    // Only the original newly-created process/job can be stopped. A suspended assignment failure never runs its code.
    if(process!=null){try{TerminateProcess(process,2);WaitForSingleObject(process,5000);}finally{process.Dispose();}}

@@ -33,11 +33,18 @@ public sealed class CredentialOperationDeadlineTests
     public async Task Stalled_admitted_response_has_bounded_body_deadline_and_remains_an_unknown_outcome_without_retry()
     {
         using var f = new CredentialFixture(); await f.StoreToken(); using var handler = new DeadlineHandler { StallBody = true };
-        using var transport = PipelineAuthenticatedTransport.ForMockHandler(f.Vault, new DeadlinePermits(f), handler, f.Clock, FixtureTimeout);
+        // This case needs to reach HTTP admission after real vault custody/IO.
+        // Keep the short preadmission deadline above separate from this body fixture.
+        using var transport = PipelineAuthenticatedTransport.ForMockHandler(f.Vault, new DeadlinePermits(f), handler, f.Clock, TimeSpan.FromSeconds(5));
         var approval = new PipelineApproval(f.Scope.CustomerId, f.Scope.CellId, f.Connection.Id, f.Connection.Generation,
             PipelineRequestFactory.ConnectionDigest(f.Connection), PipelineRequestFactory.RequestDigest(f.Connection, f.Request),
             f.Dispatch.Plan.Digest, f.Dispatch.Plan.ExpiresAt);
-        var result = await new PipelineDispatcher(transport, f.Clock).DispatchAsync(f.Connection, f.Request, approval);
+        var dispatching = new PipelineDispatcher(transport, f.Clock).DispatchAsync(f.Connection, f.Request, approval);
+        var entered = await Task.WhenAny(handler.BodyReadEntered.Task, dispatching).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Same(handler.BodyReadEntered.Task, entered);
+        var bodyCancellation = await handler.BodyReadEntered.Task;
+        var result = await dispatching.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(bodyCancellation.IsCancellationRequested);
         Assert.Equal("OutcomeUnknown", result.State); Assert.Null(result.ExternalRunId); Assert.Equal(1, handler.Calls);
         Assert.False((await f.Reopen().RevokeAsync(f.Scope.AuthProfileId, 1)).Enabled);
         Assert.Equal(1, handler.Calls);
@@ -157,16 +164,17 @@ public sealed class CredentialOperationDeadlineTests
         public bool StallBody { get; init; }
         public bool Acquisition { get; init; }
         public int Calls { get; private set; }
+        public TaskCompletionSource<CancellationToken> BodyReadEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Calls++;
-            HttpContent body = StallBody ? new StreamContent(new DeadlineStream()) : new StringContent(Acquisition ?
+            HttpContent body = StallBody ? new StreamContent(new DeadlineStream(BodyReadEntered)) : new StringContent(Acquisition ?
                 "{\"token_type\":\"Bearer\",\"expires_in\":3600,\"access_token\":\"" + CredentialFixture.Token + "\"}" :
                 "{\"workflow_run_id\":123,\"run_url\":\"https://api.github.com/repos/customer-org/customer-repo/actions/runs/123\",\"html_url\":\"https://github.com/customer-org/customer-repo/actions/runs/123\"}");
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = body });
         }
     }
-    sealed class DeadlineStream : Stream
+    sealed class DeadlineStream(TaskCompletionSource<CancellationToken> entered) : Stream
     {
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -176,7 +184,7 @@ public sealed class CredentialOperationDeadlineTests
         public override void Flush() { }
         public override int Read(byte[] buffer, int offset, int count) => throw new InvalidOperationException("Synchronous response reads are forbidden.");
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-        { await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); return 0; }
+        { entered.TrySetResult(cancellationToken); await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); return 0; }
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();

@@ -26,19 +26,33 @@ try{
     foreach($step in @('restore','test')){
         $arguments=if($step -ceq 'restore'){$restoreArguments}else{$testArguments}
         $timeout=if($step -ceq 'restore'){300000}else{900000}
-        $observation=Invoke-FTEProcess $dotnet $arguments $root $timeout
+        $observation=$null;$processFailure=$null
+        try{$observation=Invoke-FTEProcess $dotnet $arguments $root $timeout}catch{
+            $processFailure=$_.Exception
+            for($cause=$_.Exception;$cause;$cause=$cause.InnerException){if($cause.Data.Contains('FoundationTestProcessObservation')){$observation=$cause.Data['FoundationTestProcessObservation'];break}}
+            if(!$observation){throw}
+        }
         if($observation.executableSha256 -cne $toolSha256){throw 'TestExecutionExecutableChanged'}
         $stdout=Write-FTEFile (Join-Path $run ($step+'.stdout.txt')) ([Text.Encoding]::UTF8.GetBytes($observation.stdout))
         $stderr=Write-FTEFile (Join-Path $run ($step+'.stderr.txt')) ([Text.Encoding]::UTF8.GetBytes($observation.stderr))
+        # Supplemental owner-observed diagnostics do not change the strict v1 receipt or its attestation limits.
+        $null=Write-FTEJson (Join-Path $run ($step+'.process.json')) $observation.processObservation
         $commands.Add([ordered]@{step=$step;executable=$dotnet;executableSha256=$toolSha256;arguments=$arguments;processId=$observation.processId;startedUnixMilliseconds=$observation.startedUnixMilliseconds;finishedUnixMilliseconds=$observation.finishedUnixMilliseconds;exitCode=$observation.exitCode;stdout=$stdout;stderr=$stderr})
+        if($processFailure){throw $processFailure}
         if($observation.exitCode -ne 0){$failure='TestExecutionNonzeroExit';break}
     }
     $after=Get-FTESourceSnapshot $root;$afterFile=Write-FTEJson (Join-Path $run 'source-after.json') $after
     if($beforeFile.sha256 -cne $afterFile.sha256){throw 'TestExecutionSourceInputsChanged'}
     $test=@($commands|Where-Object {$_.step -ceq 'test'})
     if($test.Count -ne 1){throw $failure}
+    if($failure -ceq 'TestExecutionNonzeroExit'){
+        # A build/compiler failure can stop dotnet test before it creates a TRX.
+        # Keep the observed exit as the verdict; retain valid result metadata if
+        # present, without allowing absent/partial results to replace that fact.
+        try{$trx=Read-FTETrx (Join-Path $results 'foundation.trx') $test[0].startedUnixMilliseconds $test[0].finishedUnixMilliseconds}catch{}
+        throw $failure
+    }
     $trx=Read-FTETrx (Join-Path $results 'foundation.trx') $test[0].startedUnixMilliseconds $test[0].finishedUnixMilliseconds
-    if($failure -ceq 'TestExecutionNonzeroExit'){throw $failure}
     if($trx.failed -ne 0){throw 'TestExecutionFailedResults'}
     if($trx.notExecuted -ne 0){throw 'TestExecutionSkippedResults'}
     if($trx.summaryOutcome -cne 'Completed'){throw 'TestExecutionSummaryNotCompleted'}

@@ -141,12 +141,14 @@ public sealed class FoundationBoundPipelineConsumerBoundaryTests
         var queued = await Rpc(socket, 5, "dispatchAction", new { channel, action = new { type = "platform/foundationEnqueue", payload = new FoundationPlanReference(plan.Id, plan.Digest, "ahp-once") } }, stop.Token);
         Assert.True(queued.GetProperty("result").GetProperty("success").GetBoolean());
         var job = f.Store.ListJobs(f.Customer, SelectedCell.Actor("viewer")).Single(); Assert.Equal("Queued", job.State);
+        // The AHP journey ends at enqueue. Finish its bounded socket exchange
+        // before independently running the admitted job's guarded native work.
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Done", stop.Token);
         Assert.True(await f.Runner.RunOnceAsync("bound-ahp")); var completed = f.ReadJob(job.Id);
         Assert.Equal("Succeeded", completed.State); Assert.Equal(1, f.Probe.Posts); Assert.Equal(1, f.Probe.Factories);
         Assert.Equal("Bearer " + CredentialFixture.Token, f.Probe.Authorization);
         using var receipt = JsonDocument.Parse(completed.ReceiptJson!); Assert.True(receipt.RootElement.GetProperty("mock").GetBoolean());
         Assert.False(receipt.RootElement.GetProperty("deploymentVerified").GetBoolean());
-        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Done", stop.Token);
     }
 
     [Theory]

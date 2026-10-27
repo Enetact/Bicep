@@ -31,6 +31,33 @@ normal writes/replacement of that executable through restore/test completion.
 Each child operation rechecks the same digest. No synthetic executor, test filter,
 outcome injection or alternate project option is exposed by the production runner.
 
+## Bounded process and output lifetime
+
+The runner reuses `FoundationOwnedBuildNative.cs`: it creates each process suspended,
+assigns it to an owned Windows Job Object before resuming, and captures only its
+explicit standard streams. A successful operation requires the original process
+to exit successfully, zero active job descendants and completed bounded captures.
+Parent exit alone does not finish an operation while a child still holds a pipe.
+
+The restore deadline remains **300 seconds**; the combined build/test command
+remains **900 seconds**. Each output channel is bounded to **4 MiB**. Test operations
+explicitly allow at most **64 active / 16,384 cumulative processes** to accommodate
+serial native fixtures across the complete suite. The separate owned-build
+launcher's defaults remain **16 active / 128 cumulative processes**. These are
+local containment ceilings, not measured customer capacity or production limits.
+
+On nonzero exit, timeout, cancellation or output overflow, the runner stops only
+its held job and waits for bounded descendant/capture shutdown. Available bounded
+output and a sanitized failure code are retained before rejecting the run. It
+never searches for a PID to kill, enlarges the test deadline, or turns an incomplete
+run into a successful result. Cleanup uncertainty remains a rejection.
+
+Per-command `restore.process.json` and `test.process.json` sidecars record the
+helper digest, original process creation time, observed process counts, configured
+limits and stop/failure observations. They are supplemental local diagnostics;
+the existing v1 completed-receipt contract and its false attestation/cleanup claims
+remain unchanged. Older records do not acquire these observations retroactively.
+
 Each invocation creates a fresh owner-only directory atomically under:
 
 ```text
@@ -39,8 +66,10 @@ artifacts/foundation-test-executions/<id>/
   source-before.json
   restore.stdout.txt
   restore.stderr.txt
+  restore.process.json
   test.stdout.txt
   test.stderr.txt
+  test.process.json
   source-after.json
   build/
   results/foundation.trx
@@ -55,9 +84,22 @@ must use the returned `runDirectory`, `resultsDirectory`, `receipt` and
 `receiptSha256`, rather than assuming the old fixed paths describe the latest
 execution. An incomplete directory or `started.json` alone never means success.
 Failure retains evidence and throws. Unknown/native errors use a bounded generic
-rejection code; raw process output remains in the protected run directory when
-that operation completed observation. Interrupted/failed capture can have no
-post-observation or final receipt and must not be promoted to a completed run.
+rejection code; available raw process output remains in the protected run directory.
+An interruption before observation/persistence can still leave incomplete artifacts
+or no final receipt. Neither partial diagnostics nor a process sidecar establishes
+a completed test verdict.
+
+An observed nonzero build/test exit remains `TestExecutionNonzeroExit` even when
+the command never creates a TRX. Valid failed-result metadata is retained when
+available; missing or partial result files cannot mask that observed exit. Zero-exit
+runs still require the complete strict TRX/source/summary checks before success.
+
+The Foundation test assembly caps parallel collections at four to bound native
+filesystem/crypto/in-process host contention. Framework ordering and the existing
+nonparallel capacity collection stay unchanged; explicit races inside tests still
+run concurrently. This is a local test resource policy, not an application service
+limit or production capacity claim. The full profile still requires actual fresh
+qualification within the same deadlines.
 
 ## Clean old compiler intermediates after success
 

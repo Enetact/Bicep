@@ -1,4 +1,98 @@
 {
+  "foundationRunnerQualification20261027": {
+    "date": "2026-10-27",
+    "scope": "Application plan sequencing, Foundation runner containment/diagnostics and local fixture reliability",
+    "status": "runner_regressions_pass_full_qualification_rejected",
+    "executionProfile": "disconnected-signed-identity-sqlite-mock-pipelines",
+    "sourceHeadAtExecution": "d3721b5f2a8710ee5bb85f7f36920a0dddcd43ba",
+    "sourceInputs": 2274,
+    "fullQualification": {
+      "state": "Rejected",
+      "code": "TestExecutionTimeout",
+      "runDirectory": "artifacts/foundation-test-executions/3a8262280d704003b59607116855fa8b",
+      "rejectionSha256": "894d62cbb5e86568cf6e237abb88d705f28ebe3fe30956427b895e4d9b847cc9",
+      "sourceBeforeAfterUnchanged": true,
+      "sourceInventorySha256": "7fb20834d938e6162d029241f9cc5937db12465eca5fca094f02add8c31eec18",
+      "testCommandDeadlineMilliseconds": 900000,
+      "totalOwnedProcesses": 169,
+      "activeOwnedProcesses": 0,
+      "ownedJobStopped": true,
+      "completeTrxPresent": false,
+      "fullTestPassCount": null,
+      "reportedAssertionFailuresInCapturedOutput": 0,
+      "completeSuitePassed": false
+    },
+    "regressionChecks": {
+      "runner": 348,
+      "ownedBuildCompatibility": 45,
+      "releaseEvidenceCompatibility": 42,
+      "publisherRetentionCompatibility": 68,
+      "totalChecks": 503,
+      "runnerSummary": "artifacts/foundation-test-execution-tests/410fa0b2059a408982583d582d921e4b/summary.json",
+      "runnerSummarySha256": "c8e634e1a3e6a89e9a19001b97b9d3b5d34fd5ef7396f27a87fbb36846970bfb"
+    },
+    "focusedCohorts": [
+      {
+        "name": "deadline-credential-transport-dispatch",
+        "passed": 201,
+        "failed": 0,
+        "skipped": 0,
+        "trx": "artifacts/foundation-deadline-fixture-tests/634ba1f66dcd473195c19e59cd678722/results/deadline-cohort.trx",
+        "sha256": "964aa5f1daaa32ec01871e37b93f4cbd5cf81d40d3d539db674516d098c49ad7"
+      },
+      {
+        "name": "whole-operation-and-caller-deadlines",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "overlapsEarlierCohort": true,
+        "trx": "artifacts/foundation-deadline-fixture-tests/bcdbfebf38ff4a738e7662438bb6772d/results/deadline-coordinator.trx",
+        "sha256": "c208890e8e1ca4fd0324876310aa380255609b0f06703ccf82faf12b7c2d07f6"
+      },
+      {
+        "name": "bound-host-boundary-ahp",
+        "passed": 46,
+        "failed": 0,
+        "skipped": 0,
+        "trx": "artifacts/foundation-bound-host-fixture-tests/2514f8f2b0be4e6da1109881f95c1868/results/bound-host-ahp.trx",
+        "sha256": "6578a8e16934bc57caee88157ac8958ac725006f46b0d87a09ab7872ebb79212"
+      }
+    ],
+    "testResourcePolicy": {
+      "parallelCollections": 4,
+      "frameworkOrdering": "default",
+      "explicitInTestRacesPreserved": true,
+      "isolatedCapacityCollectionPreserved": true,
+      "fullProfileQualified": false,
+      "productionCapacityClaim": false,
+      "historicalLongestFirstExperimentAdopted": false
+    },
+    "cleanup": {
+      "allowedShapeCandidatesReviewed": 83,
+      "legacyCandidatesWithoutCompleteProcessVisibility": 81,
+      "verifiedOwnedTargetsRetained": 2,
+      "retainedOwnedLogicalBytes": 7206222,
+      "repositoryTargetsRemoved": 0,
+      "repositoryBytesRemoved": 0,
+      "postSuccessAutomaticCleanupRun": false,
+      "reason": "No fresh successful full qualification; legacy visibility incomplete; newest two owned builds retained",
+      "physicalSpaceReclamationClaim": false,
+      "failedEvidencePreserved": true
+    },
+    "protectedBoundaryFilesUnchanged": 212,
+    "commercialPacketIdentifiers": 22,
+    "foundationGatesClosed": [],
+    "nextPriority": "Profile native fixture/runtime costs and agree a source-bound full-qualification workload/resource/budget contract before customer read integration",
+    "azureDeployed": false,
+    "liveProviderOrModelDispatch": false,
+    "primaryDatabaseMigrated": false,
+    "mainServicesRestarted": false,
+    "newArchivePromoted": false,
+    "independentAttestation": false,
+    "noNetworkAttested": false,
+    "productionReady": false,
+    "publicationAuthorized": false
+  },
   "foundationScopedRecoveryGitHub20261025": {
     "date": "2026-10-25",
     "implementationCommit": "de4a56606b42ec3cddc38b05547c9d8138c7d1c7",

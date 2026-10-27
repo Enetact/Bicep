@@ -138,18 +138,26 @@ public sealed class FoundationBoundConsumerHostIntegrationTests
     public async Task A_second_reviewed_job_can_enqueue_while_the_actual_worker_is_awaiting_a_source_key()
     {
         await using var f = await BoundHost.Create(worker: true, pauseKeys: true);
-        var firstPlan = await f.Plan(); await f.Approve(firstPlan); var first = await f.Enqueue(firstPlan, "first-key-wait");
+        var firstPlan = await f.Plan(); await f.Approve(firstPlan);
+        var secondPlan = await f.Plan(); await f.Approve(secondPlan);
+        var first = await f.Enqueue(firstPlan, "first-key-wait");
         using var watchdog = new CancellationTokenSource(TimeSpan.FromSeconds(30)); FoundationJob? second = null;
         try
         {
             await f.Held!.Entered.Task.WaitAsync(watchdog.Token); var reads = f.Keys.Requests.Count;
-            var secondPlan = await f.Plan(); await f.Approve(secondPlan); second = await f.Enqueue(secondPlan, "second-during-key-wait");
+            second = await f.Enqueue(secondPlan, "second-during-key-wait");
             Assert.Equal("Queued", second.State); Assert.Equal(reads, f.Keys.Requests.Count);
             Assert.Equal(1, f.FactoryCalls); Assert.Equal(0, f.Posts);
         }
         finally { f.Held!.Release.TrySetResult(); }
         foreach (var job in new[] { first, second! })
-            while ((await f.Job(job.Id)).State != "Succeeded") await Task.Delay(20, watchdog.Token);
+            while (true)
+            {
+                var current = await f.Job(job.Id);
+                Assert.True(current.State is "Queued" or "Claimed" or "Dispatched" or "Succeeded", $"Job {current.Id} reached terminal state {current.State} ({current.Reason ?? "no reason"}) before success.");
+                if (current.State == "Succeeded") break;
+                await Task.Delay(20, watchdog.Token);
+            }
         while (Volatile.Read(ref f.HandlerDisposals) != 2) await Task.Delay(20, watchdog.Token);
         Assert.Equal(2, f.Posts); Assert.Equal(2, f.FactoryCalls); Assert.Equal(2, f.HandlerDisposals);
     }

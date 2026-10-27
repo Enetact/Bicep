@@ -1,6 +1,6 @@
 # Platform Studio application service handoff
 
-Snapshot: 26 October 2026, America/Chicago. [Commercial plan](../plans/platform-studio-commercial-release.md) · [Application service audit](../plans/platform-studio-application-service-architecture.md) · [Validation](../validation.md).
+Snapshot: 27 October 2026, America/Chicago. The 26 October evidence below retains its original source scope. [Commercial plan](../plans/platform-studio-commercial-release.md) · [Application service audit](../plans/platform-studio-application-service-architecture.md) · [Current validation and latest qualification verdict](../validation.md).
 
 ## Starting point and user direction
 
@@ -51,13 +51,22 @@ That exact ZIP passes **211 package / 608 installation / 67 dependency-SPDX / 65
 
 The audit captured **1,545 boundary-inventory files**, including **123 Bicep/parameter files and 79 YAML files**, in `artifacts/service-boundary-audit/e5c5a1e28759481d8690f18075771bff/excluded-files.before.json`. The final documentation update intentionally changes root `README.md`; all other inventory entries must remain identical. Final preservation comparison belongs with this task's validation. Source generation/emitter and pipeline-facing scripts are also outside the implementation changes.
 
+## Runner implementation — 27 October 2026
+
+`FoundationTestExecutionEvidence.ps1` now launches through the existing owned Windows Job helper, captures bounded stdout/stderr, enforces explicit active/total process limits and stops the owned job before returning. Failure observations retain the executable/native-helper hashes, process start identity, configured bounds, captured output, failure code and cleanup certainty. The combined full-profile deadline is not enlarged. Regression and full-profile outcomes, including the latest source-bound verdict, belong in [current validation](../validation.md); this implementation record claims no fresh complete pass or count.
+
+The earlier `bab6d48582a94098be9af70a06ef8175` run remains Rejected (`TestExecutionRejected`), with unchanged source-before/after, no TRX and no pass count. Its parent-only timeout/output handling and surviving exact-run testhost/vstest descendants are retained historical evidence. Those descendants were stopped through held executable/start-time-verified handles. No application correctness stall was established by that run.
+
 ## Next implementation sequence
 
-1. Resolve the full qualification runner's deadline/descendant handling before claiming a fresh complete Foundation pass. Run `bab6d48582a94098be9af70a06ef8175` is Rejected (`TestExecutionRejected`), with unchanged source-before/after, no TRX and no pass count. The 900-second combined build/test deadline was not enlarged; surviving exact-run testhost/vstest processes were stopped only after holding and verifying their process handles, executable and creation time. Captured evidence is in that run. `FoundationTestExecutionEvidence.ps1` waits for output and exit together and only kills the parent; reuse existing owned Windows Job containment with explicit test-appropriate limits and regress inherited pipes/nonzero/overflow/deadline paths. No application correctness stall was established. Requalify actual preview closures before promoting any package; new first-party projects need distribution review.
-2. Implement an explicit customer-aware Portal service connection and narrow read-only jobs/evidence slice. Define the API audience, calling client and delegated or workload identity contract; test with synthetic signed identities locally. Never forward a provider token or convert an in-memory browser context into Foundation authority. Fail visibly instead of falling back to direct provider execution.
-3. Extract UI-independent agent/source infrastructure so Foundation.Host no longer imports the entire Portal executable. Preserve pipeline/Bicep/emission interfaces and output. Migrate additional Portal features onto shared commands, immutable plans, jobs, receipts and artifacts one tested slice at a time.
+Resolve remaining F0 decisions early alongside runner qualification: freeze the supported slice/patterns, confirm customer topology and runtime/backend boundaries, name accountable owners and define measurable capacity/failure objectives. Complete the decision evidence before dependent integration relies on it; do not defer F0 to final gate review. All gates remain open pending their actual evidence.
+
+1. Verify the repaired runner's regressions and the latest source-bound complete Foundation result in [current validation](../validation.md). If accepted, continue with the bounded customer read integration below. If absent or rejected, resolve the recorded failure and repeat qualification without weakening deadline, capture, ownership or descendant checks. Preserve the earlier rejected run as rejected. Requalify actual preview closures before promoting any package; new first-party projects need distribution review.
+2. Implement an explicit customer-aware Portal service connection and narrow read-only jobs/evidence slice as foundation qualification before F2. Define the API audience, calling client and delegated or workload identity contract; test with synthetic signed identities locally. Never forward a provider token or convert an in-memory browser context into Foundation authority. Fail visibly instead of falling back to direct provider execution. Broader customer UI/workflow and feature migration remain after F2.
+3. Extract UI-independent agent/source infrastructure so Foundation.Host no longer imports the entire Portal executable. Preserve pipeline/Bicep/emission interfaces and output, then qualify the changed dependency/publish closures.
 4. Continue recovery inside its own customer authority boundary. Define authenticated recovered runtime credential envelopes and original absence provenance first; stage files cannot become runtime credentials by renaming files or inventing an original transaction. Then add fresh reservation, changing capability/one-use admission, interruption reconciliation and coordinated activation under independently reviewed conditions. Keep hold release closed until its prerequisites pass.
-5. Complete F0 decisions and F1/F2's local executable evidence for the supported slice before P2. Real identity/provider permissions and production backend/worker/storage/custody/capacity acceptance remain later G3 work. All 22 packet identifiers remain unchanged.
+5. Complete F1/F2's local executable evidence for the supported slice, including isolation, supported service identities, storage/recovery and measured quota/load/failure behavior. F0 decisions constrain that work from the start. After F2, migrate broader customer UI/workflows onto shared commands, immutable plans, jobs, receipts and artifacts, then admit features through the existing P2 dependencies.
+6. Keep development packaging and internal archive/lifecycle qualification available before F2. Final customer release signing, protected provenance, native clean-machine install/update/rollback/uninstall and distribution acceptance follow F2 and the applicable PS-05/PS-17/G1/G2 gates. Real identity/provider permissions and production backend/worker/storage/custody/capacity acceptance remain later G3 work. All 22 packet identifiers remain unchanged.
 
 ## Invariants and operating constraints
 
@@ -90,10 +99,17 @@ source generation and pipeline-facing behavior intact. Reuse the shared executor
 and typed read client rather than duplicating verification in controllers or clients.
 
 Choose the next bounded slice from the handoff after checking what is already complete.
-First resolve the rejected full-profile deadline/owned-descendant handling without weakening
-its safety or relabeling old results. Then prioritize a customer Portal connection and read-only jobs/evidence
-journey, then remove Foundation.Host's remaining Portal executable dependency. Do not convert
-desktop provider credentials into Foundation authority or silently fall back to direct execution.
+Resolve the remaining F0 scope, identity/runtime/backend and measurable acceptance decisions
+early alongside runner qualification; record accountable ownership without inventing dates or gate closure.
+First verify the repaired runner's regressions and latest source-bound complete Foundation verdict
+in docs/validation.md. If accepted, implement the bounded customer Portal connection and read-only
+jobs/evidence journey as foundation qualification. If absent or rejected, fix the recorded failure
+and repeat qualification without weakening safety or relabeling old results. After the bounded read
+integration, remove Foundation.Host's
+remaining Portal executable dependency. Complete remaining recovery and F1/F2 evidence before
+broader customer UI/workflow or feature migration. Development packages may qualify source before F2;
+final customer release signing and clean-machine admission follow the applicable post-F2 gates.
+Do not convert desktop provider credentials into Foundation authority or silently fall back to direct execution.
 
 Preserve dedicated-cell isolation, human approval separation, transactional audit/outbox,
 execution-time authorization, actual custody leases and uncertain-outcome reconciliation.

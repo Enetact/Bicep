@@ -3,23 +3,11 @@
 function Initialize-FTEPlatform {
     if('FoundationTestEvidencePlatform' -as [type]){return}
     Add-Type -TypeDefinition @'
-using System; using System.Diagnostics; using System.IO; using System.Runtime.InteropServices;
-using System.Text; using System.Threading; using System.Threading.Tasks;
-public sealed record FoundationTestProcessObservation(int ProcessId,long StartedUnixMilliseconds,long FinishedUnixMilliseconds,int ExitCode,string Stdout,string Stderr);
+using System; using System.Runtime.InteropServices;
 public static class FoundationTestEvidencePlatform {
  [StructLayout(LayoutKind.Sequential)] struct Attributes {public int Length;public IntPtr Descriptor;[MarshalAs(UnmanagedType.Bool)]public bool Inherit;}
  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)]static extern bool CreateDirectoryW(string path,ref Attributes attributes);
  public static bool CreatePrivateDirectory(string path,byte[] descriptor){var pinned=GCHandle.Alloc(descriptor,GCHandleType.Pinned);try{var attributes=new Attributes{Length=Marshal.SizeOf<Attributes>(),Descriptor=pinned.AddrOfPinnedObject()};return CreateDirectoryW(path,ref attributes);}finally{pinned.Free();}}
- static async Task<string> Read(StreamReader reader,CancellationTokenSource deadline){var text=new StringBuilder();var buffer=new char[4096];int count;while((count=await reader.ReadAsync(buffer.AsMemory(),deadline.Token))>0){if(text.Length+count>4194304){deadline.Cancel();throw new IOException("TestExecutionOutputLimit");}text.Append(buffer,0,count);}return text.ToString();}
- public static FoundationTestProcessObservation Run(string executable,string[] arguments,string directory,int timeoutMilliseconds){
-  if(timeoutMilliseconds<50||timeoutMilliseconds>900000)throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds));
-  using var process=new Process();var start=new ProcessStartInfo(executable){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,WorkingDirectory=directory};
-  foreach(var argument in arguments)start.ArgumentList.Add(argument);process.StartInfo=start;
-  using var deadline=new CancellationTokenSource(timeoutMilliseconds);var began=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-  try{if(!process.Start())throw new IOException("TestExecutionProcessStartFailed");var stdout=Read(process.StandardOutput,deadline);var stderr=Read(process.StandardError,deadline);
-   Task.WhenAll(stdout,stderr,process.WaitForExitAsync(deadline.Token)).GetAwaiter().GetResult();return new(process.Id,began,DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),process.ExitCode,stdout.Result,stderr.Result);
-  }finally{try{if(process.Id>0&&!process.HasExited){process.Kill(false);if(!process.WaitForExit(5000))throw new IOException("TestExecutionProcessDidNotStop");}}catch(InvalidOperationException){}}
- }
 }
 '@
 }
@@ -54,13 +42,37 @@ function Resolve-FTEExecutable([string]$Path) {
     if(!(Test-Path -LiteralPath $full -PathType Leaf)){throw 'TestExecutionExecutableMissing'}
     $full
 }
-function Invoke-FTEProcess([string]$Executable,[string[]]$Arguments,[string]$Directory,[int]$TimeoutMilliseconds=30000) {
+function Initialize-FTEProcessPlatform {
+    $path=Join-Path $PSScriptRoot 'FoundationOwnedBuildNative.cs';$null=Assert-FTEUnlinkedPath $path
+    $sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    $loaded=[AppDomain]::CurrentDomain.GetData('PlatformStudio.FoundationOwnedBuild.NativeSha256')
+    if('PlatformStudio.FoundationOwnedBuild.Native' -as [type]){if($loaded -cne $sha){throw 'TestExecutionNativeChanged'};return $sha}
+    Add-Type -Path $path -ErrorAction Stop
+    [AppDomain]::CurrentDomain.SetData('PlatformStudio.FoundationOwnedBuild.NativeSha256',$sha);return $sha
+}
+function Invoke-FTEProcess([string]$Executable,[string[]]$Arguments,[string]$Directory,[int]$TimeoutMilliseconds=30000,[Threading.CancellationToken]$CancellationToken=[Threading.CancellationToken]::None) {
     $null=Assert-FTEUnlinkedPath $Executable;$null=Assert-FTEUnlinkedPath $Directory
+    if($TimeoutMilliseconds -lt 50 -or $TimeoutMilliseconds -gt 900000){throw 'TestExecutionTimeoutInvalid'}
     $handle=[IO.FileStream]::new($Executable,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-    try{if($handle.Length -gt 67108864){throw 'TestExecutionExecutableByteLimit'};$sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($handle)).ToLowerInvariant();Initialize-FTEPlatform
-        $observed=[FoundationTestEvidencePlatform]::Run($Executable,$Arguments,$Directory,$TimeoutMilliseconds)
-        [pscustomobject]@{executable=$Executable;executableSha256=$sha256;arguments=$Arguments;processId=$observed.ProcessId;startedUnixMilliseconds=$observed.StartedUnixMilliseconds;finishedUnixMilliseconds=$observed.FinishedUnixMilliseconds;exitCode=$observed.ExitCode;stdout=$observed.Stdout;stderr=$observed.Stderr}
-    }finally{$handle.Dispose()}
+    $session=$null;$result=$null;$failure='';$observed=$null;$cleanupVerified=$false
+    try{
+        if($handle.Length -gt 67108864){throw 'TestExecutionExecutableByteLimit'};$sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($handle)).ToLowerInvariant()
+        $nativeSha=Initialize-FTEProcessPlatform;$began=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        # The full cohort creates thousands of short-lived native fixtures. Bound
+        # their concurrency and cumulative count explicitly; ordinary builds retain 16/128.
+        $session=[PlatformStudio.FoundationOwnedBuild.Native]::Start($Executable,$Arguments,$Directory,[Environment]::GetEnvironmentVariables(),4194304,64,16384)
+        try{$observed=$session.Wait($TimeoutMilliseconds,$CancellationToken)}catch{
+            $cause=$_.Exception;while($cause.InnerException){$cause=$cause.InnerException}
+            $failure=switch($cause.Message){'OwnedBuildExitNonzero'{''};'OwnedBuildTimeout'{'TestExecutionTimeout'};'OwnedBuildOutputLimit'{'TestExecutionOutputLimit'};'OwnedBuildProcessLimit'{'TestExecutionProcessLimit'};default{if($cause -is [OperationCanceledException]){'TestExecutionCancelled'}else{'TestExecutionProcessRejected'}}}
+        }
+        try{$observed=$session.Stop();$cleanupVerified=($observed.ActiveProcesses -eq 0)}catch{$failure='TestExecutionProcessCleanupUncertain'}
+        $result=[pscustomobject]@{executable=$Executable;executableSha256=$sha256;arguments=$Arguments;processId=$session.ProcessId;startedUnixMilliseconds=$began;finishedUnixMilliseconds=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();exitCode=$(if($observed){$observed.ExitCode}else{-1});stdout=[Text.Encoding]::UTF8.GetString($session.StandardOutput());stderr=[Text.Encoding]::UTF8.GetString($session.StandardError());processObservation=[ordered]@{schema='platform-studio.foundation-test-process-observation.v1';nativeHelperSha256=$nativeSha;processStartTicks=$session.ProcessStartTicks;totalProcesses=$(if($observed){$observed.TotalProcesses}else{$null});activeProcesses=$(if($observed){$observed.ActiveProcesses}else{$null});maximumActiveProcesses=64;maximumTotalProcesses=16384;maximumOutputBytesPerChannel=4194304;timeoutMilliseconds=$TimeoutMilliseconds;ownedJobStopped=$cleanupVerified;independentAttestation=$false;failureCode=$failure}}
+    }finally{
+        if($session){try{$session.Dispose()}catch{$failure='TestExecutionProcessCleanupUncertain';if($result){$result.processObservation.ownedJobStopped=$false;$result.processObservation.failureCode=$failure}}}
+        $handle.Dispose()
+    }
+    if($failure){$error=[IO.IOException]::new($failure);if($result){$error.Data['FoundationTestProcessObservation']=$result};throw $error}
+    $result
 }
 function Get-FTEGit([string]$Root,[string[]]$Arguments) {
     $git=Resolve-FTEExecutable 'git';$observed=Invoke-FTEProcess $git (@('--no-optional-locks','-C',$Root,'-c','core.quotepath=false','-c','core.fsmonitor=false')+$Arguments) $Root

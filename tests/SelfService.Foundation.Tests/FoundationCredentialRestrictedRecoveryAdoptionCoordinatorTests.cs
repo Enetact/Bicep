@@ -74,11 +74,13 @@ public sealed class FoundationCredentialRestrictedRecoveryAdoptionCoordinatorTes
 
     [Theory]
     [InlineData(false)] [InlineData(true)]
-    public async Task Cooperative_deadline_does_not_leave_a_new_intent_or_approval(bool approve)
+    public async Task Whole_operation_deadline_does_not_leave_a_new_intent_or_approval(bool approve)
     {
         using var f = new RestrictedRecoveryAdoptionFixture(); await f.Initialize(); var intent = approve ? await f.Prepare() : null; var paused = new PausedKeys(f.Destination);
         var operation = Operation(f, approve, intent, f.Coordinator(paused, TimeSpan.FromSeconds(3)));
-        try { await paused.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)); var error = await Assert.ThrowsAsync<CredentialException>(() => operation.WaitAsync(TimeSpan.FromSeconds(15))); Assert.Equal("credential-restricted-recovery-adoption-timeout", error.Code); }
+        // The deadline also covers authorization and opening custody before key
+        // access. An early timeout must not wait for a phase that will never run.
+        try { var error = await Assert.ThrowsAsync<CredentialException>(() => operation.WaitAsync(TimeSpan.FromSeconds(15))); Assert.Equal("credential-restricted-recovery-adoption-timeout", error.Code); }
         finally { paused.Release.TrySetResult(); await Observe(operation); }
         NoEffect(f, approve); Released(f);
     }
