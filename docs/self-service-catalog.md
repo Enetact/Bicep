@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+The [application coding architecture skill](../.agents/skills/platform-service-architecture/SKILL.md) captures the shared service/customer-isolation standard for contributors. The existing skill library displays it as local guidance with no discovery profile or direct pipeline; it registers no new executable workflow or MCP tool. Root `AGENTS.md` and the task handoff reference it for coding work.
+
 [Application service contracts and the typed read client](foundation-service-client.md) let explicit consumers read customer-scoped Foundation jobs and artifacts without importing verification/storage implementations. The worker uses the same core executor as the API. This adds no workload, Azure target, provider permission, automatic Portal connection or live transport. [Application migration and remaining boundaries](plans/platform-studio-application-service-architecture.md).
 
 [The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. Concrete run authority and target eligibility are checked in the same SQL transactions as fresh-work admission. Its optional fresh namespace profile permits concrete bound dispatch and excludes general token reads, generic dispatch and acquisition before provider callbacks. It adds no workload, provider permission, model approval tool or default live transport.

@@ -1,5 +1,15 @@
 # Validation evidence
 
+## Application coding architecture skill — 26 October 2026
+
+The project-local [platform-service-architecture skill](../.agents/skills/platform-service-architecture/SKILL.md) defines application service boundaries, neutral contracts/clients, customer-cell isolation, service-owned verification, reliable execution and canonical source paths. Root `AGENTS.md`, the architecture guide and task handoff reference it. It adds contributor guidance and a local skill-library card, with no new executable workflow, discovery profile or permissions.
+
+The skill-creator structural validator passes (`Skill is valid!`). An independent read-only review of three proposed coding scenarios confirms that the guidance keeps verification with the guarded operation, preserves private actor paths and represents service outages as Unknown without provider fallback. This review is design evidence, not three runtime tests.
+
+A fresh isolated locked restore/build and the existing `AzureDiscoveryTests.EntireUpstreamCatalogIncludesNestedAndCostSkills` test pass **1/1**, zero failures/skips/compiler warnings. The catalog contains **54 skills: twelve project guidance entries and 42 upstream entries**; the new entry retains `DiscoveryProfile=none` and `PipelineStatus=Local guidance; no direct pipeline`. TRX `artifacts/architecture-skill-validation/mvq1jjj0/results/architecture-skill-catalog.trx`, SHA-256 `5615e9781421ecd4358df2114c96ed6204f58a4510f96e5332bd4352bcf4e096`.
+
+All **621 local Markdown link targets in nine affected guides** resolve; the referenced canonical-workspace heading exists. This guidance-only change does not rerun the full application/Foundation suites or start an application, model, pipeline or provider. Earlier qualification and the rejected full Foundation profile retain their recorded scope; no commercial gate is closed by this addition.
+
 ## Canonical workspace resolution — 26 October 2026
 
 Portal startup now uses `PortalWorkspace` for trusted application-source discovery and stable content-root selection. The verified checkout is `C:\Bliobby\blob-transfer\Bicep`, inside the outer workspace `C:\Bliobby\blob-transfer`; code does not hardcode those machine paths. Published assets/bundles and explicit host settings retain precedence. Explicit relative source roots use the selected content/configuration directory, invalid explicit selections do not fall back to unrelated roots, and source links/device or drive-relative aliases are refused. Foundation configuration uses the same source resolver only for its explicit optional source field: `null` stays source-free, while blank/invalid explicit source fails. Private database, activation, cache and isolated actor-runtime paths do not pass through this resolver.

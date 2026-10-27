@@ -5,7 +5,7 @@ description: Implement or review Platform Studio application and service code us
 
 # Code to the Platform Studio service architecture
 
-Use this as the project coding standard for application services and their consumers. Read the [architecture decision and migration plan](../../../docs/plans/platform-studio-application-service-architecture.md), then inspect the relevant implementation before changing its boundary. Read the [commercial plan](../../../docs/plans/platform-studio-commercial-release.md) for gate definitions and [current status](../../../docs/completion-status.md) for what is actually delivered. Guidance defines coding decisions; it grants no tools, permissions, approvals or production readiness.
+Use this as the project coding standard for application services and their consumers. Inspect the relevant implementation before changing its boundary and consult the affected sections of the [architecture decision and migration plan](../../../docs/plans/platform-studio-application-service-architecture.md). When reporting progress or changing gates, consult the [commercial plan](../../../docs/plans/platform-studio-commercial-release.md) and [current status](../../../docs/completion-status.md); load historical detail only when needed. Guidance defines coding decisions; it grants no tools, permissions, approvals or production readiness.
 
 ## Choose the owning boundary
 
