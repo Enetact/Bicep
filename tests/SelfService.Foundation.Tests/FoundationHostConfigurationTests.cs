@@ -158,6 +158,33 @@ public sealed class FoundationHostConfigurationTests
         Assert.False(File.Exists(options.DatabasePath));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Explicit_source_root_is_canonical_and_relative_to_the_configuration_file(bool useOuterWorkspace)
+    {
+        using var f = new ConfigurationFixture();
+        var workspace = Path.Combine(f.DirectoryPath, "workspace");
+        var repository = Path.Combine(workspace, "Bicep");
+        Directory.CreateDirectory(Path.Combine(repository, "config"));
+        File.WriteAllText(Path.Combine(repository, "config", "workloads.json"), "{}");
+        var configured = useOuterWorkspace ? "workspace" : Path.Combine("workspace", "Bicep", ".");
+        var options = FoundationHostConfiguration.Load(f.Write(f.Configuration() with { RepositoryRoot = configured }));
+        Assert.Equal(repository, options.RepositoryRoot);
+        Assert.False(Directory.Exists(Path.Combine(f.DirectoryPath, "state")));
+    }
+
+    [Fact]
+    public void Missing_or_invalid_explicit_source_does_not_infer_an_ambient_workspace_or_create_state()
+    {
+        using var f = new ConfigurationFixture();
+        Assert.Null(FoundationHostConfiguration.Load(f.Write(f.Configuration())).RepositoryRoot);
+        foreach (var invalid in new[] { "", " ", "missing-source" })
+            Assert.Throws<InvalidOperationException>(() => FoundationHostConfiguration.Load(
+                f.Write(f.Configuration() with { RepositoryRoot = invalid })));
+        Assert.False(Directory.Exists(Path.Combine(f.DirectoryPath, "state")));
+    }
+
     sealed class ConfigurationFixture : IDisposable
     {
         public RSA Rsa { get; } = RSA.Create(2048);

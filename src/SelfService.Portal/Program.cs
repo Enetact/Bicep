@@ -8,22 +8,17 @@ if (args.FirstOrDefault() is "--checkpoint-credentials" or "--get-resume-proof")
     Environment.ExitCode = PortalCredentialCheckpoint.RunCommand(args); return;
 }
 
+var hostRoots = new ConfigurationBuilder().AddEnvironmentVariables("ASPNETCORE_").AddEnvironmentVariables("DOTNET_")
+    .AddCommandLine(args).Build();
+var configuredContentRoot = hostRoots["contentRoot"];
+var launchContentRoot = configuredContentRoot is null ? Directory.GetCurrentDirectory() :
+    Path.GetFullPath(configuredContentRoot, Directory.GetCurrentDirectory());
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args,
-    ContentRootPath = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? AppContext.BaseDirectory : null });
+    ContentRootPath = PortalWorkspace.ResolveContentRoot(AppContext.BaseDirectory, launchContentRoot, configuredContentRoot is not null) });
 builder.Configuration.AddJsonFile(Path.Combine(builder.Environment.ContentRootPath, "portal.local.json"), optional: true).AddEnvironmentVariables("STUDIO_");
 var options = builder.Configuration.GetSection("Portal").Get<PortalOptions>() ?? new();
-if (string.IsNullOrWhiteSpace(options.RepositoryRoot))
-{
-    var bundled = Path.Combine(AppContext.BaseDirectory, "repository");
-    if (File.Exists(Path.Combine(bundled, "config/workloads.json"))) options.RepositoryRoot = bundled;
-    else
-    {
-        var dir = new DirectoryInfo(builder.Environment.ContentRootPath);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "config/workloads.json"))) dir = dir.Parent;
-        options.RepositoryRoot = dir?.FullName ?? bundled;
-    }
-}
-options.RepositoryRoot = Path.GetFullPath(options.RepositoryRoot); options.Validate();
+options.RepositoryRoot = PortalWorkspace.ResolveRepositoryRoot(options.RepositoryRoot, builder.Environment.ContentRootPath, AppContext.BaseDirectory);
+options.Validate();
 builder.WebHost.ConfigureKestrel(k => { k.ListenLocalhost(options.Port); k.Limits.MaxRequestBodySize = 46 * 1024 * 1024; });
 builder.Logging.ClearProviders(); builder.Logging.AddSimpleConsole();
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning).AddFilter("System.Net.Http", LogLevel.None);

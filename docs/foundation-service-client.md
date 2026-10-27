@@ -4,6 +4,8 @@
 
 `SelfService.Foundation.Client` supplies typed job and artifact reads without importing Foundation storage, credential verification, the Portal executable or a web host. It references only the neutral Contracts project. Main applications call the owning Foundation service; the service still authenticates the caller, resolves current customer authority and verifies stored state.
 
+The current API/worker/owner preview contains the Contracts assembly, while Client remains a separately built source library. SDK binary distribution and customer Portal adoption are not automatically enabled by that ZIP.
+
 The current API runs on loopback, normally port 5107, and is not automatically started by Studio. The Portal has not automatically switched to this client. Configure an explicit customer connection and obtain a token for the Foundation API's audience and admitted caller. An Azure ARM/ADO/GitHub token or a desktop sign-in is not that authority.
 
 ## Application use

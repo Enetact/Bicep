@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.IdentityModel.Tokens;
 using SelfService.Foundation;
+using SelfService.Portal;
 
 namespace SelfService.Foundation.Host;
 
@@ -65,11 +66,14 @@ public static class FoundationHostConfiguration
                 !file.AllowedClients.Any(c => c.Kind == PrincipalKind.User && c.TenantId == file.BootstrapApproverKey.Split(':')[1]))
                 throw new ArgumentException("An independent human bootstrap reviewer is required.");
         }
+        if (file.RepositoryRoot is not null && string.IsNullOrWhiteSpace(file.RepositoryRoot))
+            throw new InvalidOperationException("An explicit source repository must identify a workspace; use null for source-free operation.");
         return new(identity, Path.GetFullPath(file.DatabasePath, Path.GetDirectoryName(Path.GetFullPath(path))!),
             file.BootstrapActorKey, file.ProjectId, file.EnvironmentId)
         {
             EnableWorker = file.MockEndpoint is not null,
-            RepositoryRoot = file.RepositoryRoot is null ? null : Path.GetFullPath(file.RepositoryRoot, Path.GetDirectoryName(Path.GetFullPath(path))!),
+            RepositoryRoot = file.RepositoryRoot is null ? null : PortalWorkspace.ResolveRepositoryRoot(file.RepositoryRoot,
+                Path.GetDirectoryName(Path.GetFullPath(path))!, AppContext.BaseDirectory),
             Oidc = file.EnableEntraDiscovery ? new(identity, authorities) : null,
             OidcTransport = file.EnableEntraDiscovery ? new EntraOidcHttpsTransport(authorities) : null,
             BootstrapApproverKey = file.BootstrapApproverKey,

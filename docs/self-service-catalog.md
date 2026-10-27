@@ -1,5 +1,7 @@
 # Self-service catalog and how it works
 
+[Application service contracts and the typed read client](foundation-service-client.md) let explicit consumers read customer-scoped Foundation jobs and artifacts without importing verification/storage implementations. The worker uses the same core executor as the API. This adds no workload, Azure target, provider permission, automatic Portal connection or live transport. [Application migration and remaining boundaries](plans/platform-studio-application-service-architecture.md).
+
 [The Foundation bound pipeline consumer](foundation-bound-pipeline-consumer.md) reuses signed HTTP/AHP enqueue, separate human approval and the durable job runner with explicit mock-only typed composition. Concrete run authority and target eligibility are checked in the same SQL transactions as fresh-work admission. Its optional fresh namespace profile permits concrete bound dispatch and excludes general token reads, generic dispatch and acquisition before provider callbacks. It adds no workload, provider permission, model approval tool or default live transport.
 
 [Credential runtime binding](foundation-credential-runtime-binding.md) strengthens explicitly configured Foundation dispatch without adding a workload, default model/MCP action or provider permission. It retains a real activation lease throughout the owned request and response.

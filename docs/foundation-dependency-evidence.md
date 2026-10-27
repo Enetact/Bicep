@@ -1,5 +1,7 @@
 # Foundation dependency and license evidence
 
+**26 October 2026 service-refactor preview:** the actual API/worker/owner closure contains nine projects and 25 packages, with twelve unresolved distribution findings. Worker dependency extraction removes seven packages from the older merged closure; the shared Contracts assembly is included, while the Client SDK remains separate. Older dated package counts below retain their original scope. Always derive current coverage and findings from the selected archive's report.
+
 Local release engineering evidence, 24 October 2026. `scripts/New-FoundationDependencyEvidence.ps1` reads the actual merged API/worker publish runtime and a read-only NuGet cache. It produces a bounded SPDX 2.3 inventory, exact runtime file hashes, package/asset verification and supplied license declarations/notices. It never restores or builds, executes package scripts/MSBuild targets, fetches packages, opens credentials, signs in, deploys or grants rights. [Preview packaging](foundation-service.md) remains separate from commercial clearance.
 
 ## Generate and consume

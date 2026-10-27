@@ -1,5 +1,15 @@
 # Platform Studio: local Windows self-service portal
 
+## Canonical workspace selection
+
+The checkout for this project is `C:\Bliobby\blob-transfer\Bicep`; `C:\Bliobby\blob-transfer` is its outer workspace. Startup resolves the source location without hardcoding this machine path. It prefers a published `repository` bundle, then the application's own repository ancestry, then the launch/content workspace and its known `Bicep` child. A repository is identified by `config/workloads.json`; no recursive search across unrelated folders occurs.
+
+Published `wwwroot` retains precedence. For source builds, the default content root is the resolved checkout's `src/SelfService.Portal`, so launching from the outer workspace or another directory still loads the intended source assets and local configuration. Explicit host content-root overrides retain their configuration/static-file meaning. Explicit `Portal:RepositoryRoot` wins and resolves relative to the selected content/configuration base; invalid explicit selections fail rather than silently falling back elsewhere. Source junctions/links and ambiguous aliases are refused before lexical path normalization.
+
+This source resolver does not rewrite database, activation, credential, cache or isolated model-runtime paths. Already canonical checkout identity stays the same; private custody validators remain separate. Foundation's optional `repositoryRoot` resolves against its configuration file directory and can identify either the checkout or its outer workspace. Set it to `null` for source-free Foundation operation; blank or invalid explicit source is rejected.
+
+Local qualification: 17 new source-root cases, a complete Portal regression and an isolated actual startup from the outer workspace. [Exact results and limits](validation.md#canonical-workspace-resolution--26-october-2026).
+
 **4 October 2026 source update:** nine workload cards and 36 disabled targets now include [Private Data Platform](../workloads/private-data-platform/README.md). Its proposed diagram, summaries, registration pair and recovery policy are integrated. Rebuild source/packages before testing this increment; the dated seven-product package results below do not validate the new product.
 
 [Wiki home](README.md) · [Getting started](getting-started.md) · [Status](completion-status.md)
