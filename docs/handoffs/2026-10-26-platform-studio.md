@@ -70,7 +70,7 @@ The audit captured **1,545 boundary-inventory files**, including **123 Bicep/par
 - Preserve live data, databases, backups, keys, cached sign-ins, audit/evidence, packages and current/newest qualified builds. Clean only narrowly classified superseded compiler outputs after successful qualification and ownership checks. No arbitrary recursive cleanup, PID-only stop or ownership bypass.
 - Use governed `Manage-Suite.ps1` for an authorized local lifecycle operation. A pending checkpoint with stopped writers uses the documented resume flow; do not overwrite or print resume proofs. Starting Studio does not automatically start Foundation API/worker.
 
-Read root `AGENTS.md`, `.agents/skills/self-service-docs/SKILL.md`, `.agents/skills/platform-workflow-builder/SKILL.md`, `docs/agent-workflow-standard.md` and its blueprint. For provider work, read the orchestration/provider skills and instructions, preserving exact approval and credential routing. Guidance does not grant tools or permissions.
+Read root `AGENTS.md` and apply `.agents/skills/platform-service-architecture/SKILL.md` to application coding and review. Also read `.agents/skills/self-service-docs/SKILL.md`, `.agents/skills/platform-workflow-builder/SKILL.md`, `docs/agent-workflow-standard.md` and its blueprint when relevant. For provider work, read the orchestration/provider skills and instructions, preserving exact approval and credential routing. Guidance does not grant tools or permissions.
 
 Pinned local SDK is `C:\IT\Package\dotnet\dotnet.exe` (10.0.300), NuGet cache `C:\IT\Package\nuget-packages`. Existing local environment helper is `artifacts/commercial-release/revision23-env.ps1`; inspect it before use. Use isolated build outputs, locked restore after reviewed graph updates, normal vulnerability auditing and the existing local test profile. Keep `PLATFORM_TEST_CODEX=0` and `PLATFORM_TEST_BICEP=0` for disconnected Portal regression unless a specific native fixture is intentionally qualified.
 
@@ -81,6 +81,7 @@ Continue Platform Studio in C:\Bliobby\blob-transfer\Bicep on feature/selfservic
 
 Read docs/handoffs/2026-10-26-platform-studio.md, the application service architecture
 plan and commercial release plan, plus applicable AGENTS.md and project skills.
+Apply $platform-service-architecture as the coding architecture for application changes.
 Verify current Git/source/test/runtime state before acting; dated evidence may be stale.
 
 Continue the application-wide service migration using cohesive customer-owned services,

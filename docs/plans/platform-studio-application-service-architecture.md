@@ -2,6 +2,8 @@
 
 [Commercial roadmap](platform-studio-commercial-release.md) · [Customer isolation](platform-studio-foundations-and-customer-isolation.md) · [Task handoff](../handoffs/2026-10-26-platform-studio.md)
 
+[The application coding skill](../../.agents/skills/platform-service-architecture/SKILL.md), referenced by root `AGENTS.md`, applies this architecture to implementation and review. It is contributor guidance and appears in the existing local skill library without adding an executable workflow, discovery profile, provider permission or model approval tool.
+
 26 October 2026. Application architecture audit and incremental refactoring. This covers application entry points, project dependencies, ownership of state and authority, and service consumption seams. It is not a complete security assessment or production scale acceptance. Pipeline definitions, infrastructure Bicep/parameter files, source-generation behavior and pipeline-facing command contracts are outside this change.
 
 ## Architectural decision

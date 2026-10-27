@@ -1,3 +1,9 @@
+# Application coding architecture
+
+For application/service coding, refactoring and architecture reviews, apply the [platform-service-architecture skill](.agents/skills/platform-service-architecture/SKILL.md). It defines the project standard for shared contracts, typed clients, customer-cell ownership, service-owned verification, reliable execution and canonical source paths. Keep infrastructure and pipeline work within its separately authorized scope.
+
+This contributor skill is referenced for coding tasks; it does not register a workflow/MCP tool or automatically enter an isolated application model turn.
+
 # Documentation maintenance
 
 When adding, changing or removing developer-facing capabilities in this repository, use the [self-service-docs skill](.agents/skills/self-service-docs/SKILL.md) to update the affected documentation in the same task. Also use it for documentation/status audits. Routine changes with no documented behavior impact do not require unrelated documentation churn.
